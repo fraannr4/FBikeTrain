@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="es" data-theme="dark" data-view="data">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Calendario, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+/* Vista de estado: ?state=empty|loading|error (o ?estado=vacio|carga|error) */
+(function () { var q = new URLSearchParams(location.search), s = q.get('state') || q.get('estado') || ''; var map = { empty: 'empty', vacio: 'empty', loading: 'loading', carga: 'loading', error: 'error' }; document.documentElement.dataset.view = map[s] || 'data'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<link rel="stylesheet" href="plan.css?v=2e5592c0">
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Calendario</span>
+  <div class="appbar-actions">
+    <button class="btn btn--ghost" type="button" data-go-today data-v="data empty">Hoy</button>
+    <button class="btn btn--primary appbar-add" type="button" data-plan-new data-v="data"><i data-ic="plus"></i>Planificar</button>
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page page--cal">
+  <div class="page-head">
+    <h1 class="page-title">Plan</h1>
+    <nav class="seg-nav" aria-label="Vistas del plan">
+      <a href="calendario.html" aria-current="page"><i data-ic="calendar"></i>Calendario</a>
+      <a href="objetivos.html"><i data-ic="target"></i>Objetivos</a>
+    </nav>
+  </div>
+
+  <!-- ===== Semana: tira deslizable ===== -->
+  <section class="section wk-sec" aria-label="Semana" data-v="data empty">
+    <div class="card cal">
+      <div class="cal-h">
+        <button class="month-btn" type="button" data-sheet-open="hoja-mes" aria-describedby="wk-help"><span id="wk-label">2–8 de noviembre</span><i data-ic="chevdown"></i></button>
+        <span class="sr-only" id="wk-help">Abre el mes completo</span>
+        <button class="icon-btn" type="button" data-wk-step="-1" aria-label="Semana anterior"><i data-ic="back"></i></button>
+        <button class="icon-btn" type="button" data-wk-step="1" aria-label="Semana siguiente"><i data-ic="chev"></i></button>
+      </div>
+      <div class="wk-scroller" id="wk-scroller" role="group" aria-label="Días. Desliza para cambiar de semana; con las flechas del teclado, de día"></div>
+      <p class="cal-foot" id="wk-sum" aria-live="polite"></p>
+      <!-- Leyenda de las marcas (el nombre de cada día ya dice su estado al lector de pantalla) -->
+      <p class="cal-legend" aria-hidden="true" data-v="data"><span><i class="mk mk--done"></i>Hecho</span><span><i class="mk mk--pending"></i>Pendiente</span><span><i class="mk mk--missed"></i>Sin hacer</span></p>
+    </div>
+  </section>
+
+  <!-- ===== Datos: el día elegido y lo que viene ===== -->
+  <div class="cal-cols" data-v="data">
+    <section class="section day-sec" aria-labelledby="day-title">
+      <div class="day-panel" id="day-panel" aria-live="polite"></div>
+    </section>
+    <section class="section prox-sec" aria-labelledby="s-prox">
+      <div class="section-h"><h2 class="section-title" id="s-prox">Próximos</h2><button class="card-link" type="button" data-sheet-open="hoja-mes">Ver el mes<i data-ic="chev"></i></button></div>
+      <ul class="list list--inset list--hito" id="prox-list"></ul>
+    </section>
+  </div>
+
+  <!-- ===== Vacío ===== -->
+  <section class="section" aria-labelledby="st-vacio" data-v="empty">
+    <div class="card state">
+      <span class="state-ic"><i data-ic="calendar"></i></span>
+      <h2 class="state-title" id="st-vacio">Aún no has planificado nada</h2>
+      <p class="state-text">Apunta tus próximas salidas. Cuando importes la salida de Strava, el entreno se marca solo como hecho.</p>
+      <button class="btn btn--primary" type="button" data-plan-new><i data-ic="plus"></i>Planificar un entreno</button>
+    </div>
+  </section>
+
+  <!-- ===== Cargando ===== -->
+  <section class="section" aria-busy="true" data-v="loading">
+    <span class="sr-only">Cargando el calendario</span>
+    <div class="card" aria-hidden="true" style="padding:12px 6px">
+      <div style="display:flex;justify-content:space-between;padding:6px 10px 10px"><span class="sk sk-title" style="width:46%"></span><span class="sk sk-line" style="width:64px;height:18px"></span></div>
+      <div class="sk-strip"><span class="sk sk-day"></span><span class="sk sk-day"></span><span class="sk sk-day"></span><span class="sk sk-day"></span><span class="sk sk-day"></span><span class="sk sk-day"></span><span class="sk sk-day"></span></div>
+      <div style="padding:6px 10px 4px"><span class="sk sk-line" style="display:block;width:70%"></span></div>
+    </div>
+    <div class="card" aria-hidden="true" style="display:grid;gap:12px">
+      <span class="sk sk-line" style="width:30%"></span>
+      <span class="sk sk-title" style="width:72%"></span>
+      <span class="sk sk-line" style="width:48%"></span>
+      <span class="sk sk-box" style="height:48px"></span>
+    </div>
+    <div class="card" aria-hidden="true" style="display:grid;gap:16px">
+      <div class="sk-row" style="display:grid;grid-template-columns:44px 1fr 48px;gap:12px;align-items:center"><span class="sk" style="height:54px;border-radius:22px 22px 8px 8px"></span><span style="display:grid;gap:8px"><span class="sk sk-line" style="width:76%"></span><span class="sk sk-line" style="width:40%"></span></span><span class="sk sk-line"></span></div>
+      <div class="sk-row" style="display:grid;grid-template-columns:44px 1fr 48px;gap:12px;align-items:center"><span class="sk" style="height:54px;border-radius:22px 22px 8px 8px"></span><span style="display:grid;gap:8px"><span class="sk sk-line" style="width:60%"></span><span class="sk sk-line" style="width:46%"></span></span><span class="sk sk-line"></span></div>
+    </div>
+  </section>
+
+  <!-- ===== Error ===== -->
+  <section class="section" aria-labelledby="st-error" data-v="error">
+    <div class="card state state--error" role="alert">
+      <span class="state-ic"><i data-ic="alert"></i></span>
+      <h2 class="state-title" id="st-error">No se ha podido abrir el calendario</h2>
+      <p class="state-text">El navegador no ha dejado leer los datos guardados. Tus entrenos siguen ahí: vuelve a intentarlo.</p>
+      <a class="btn btn--secondary" href="calendario.html"><i data-ic="refresh"></i>Reintentar</a>
+    </div>
+  </section>
+</main>
+
+<!-- Sin acción flotante: tapaba «Marcar como hecho» y las cifras de «Próximos».
+     «Planificar» va en línea al pie del panel del día (y en la barra desde 600 px). -->
+<nav class="tabbar" data-tabbar data-current="plan"></nav>
+
+<!-- ===== Hoja: el mes ===== -->
+<dialog class="sheet" id="hoja-mes" aria-labelledby="hoja-mes-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-mes-t">Elegir día</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="mo-nav">
+      <button class="icon-btn" type="button" data-mo-step="-1" aria-label="Mes anterior"><i data-ic="back"></i></button>
+      <p class="mo-label" id="mo-label" aria-live="polite">Noviembre de 2026</p>
+      <button class="icon-btn" type="button" data-mo-step="1" aria-label="Mes siguiente"><i data-ic="chev"></i></button>
+    </div>
+    <p class="mo-sum" id="mo-sum"></p>
+    <div class="mo-grid" id="mo-grid" role="group" aria-labelledby="mo-label"></div>
+    <p class="mo-legend" aria-hidden="true"><span><i class="mk mk--done"></i>Hecho</span><span><i class="mk mk--pending"></i>Pendiente</span><span><i class="mk mk--missed"></i>Sin hacer</span></p>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: planificar o editar un entreno ===== -->
+<dialog class="sheet" id="hoja-entreno" aria-labelledby="hoja-entreno-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-entreno-t">Planificar entreno</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <form class="form" id="f-entreno" novalidate>
+      <div class="field">
+        <label class="field-label" for="fe-fecha">Día</label>
+        <input class="input" id="fe-fecha" name="fecha" type="date" value="2026-11-07" required>
+      </div>
+      <div class="field" id="fe-titulo-f">
+        <label class="field-label" for="fe-titulo">Nombre</label>
+        <input class="input" id="fe-titulo" name="titulo" type="text" autocomplete="off" enterkeyhint="next" maxlength="80" placeholder="Por ejemplo, Lluçanès por Prats" aria-describedby="fe-titulo-e">
+        <p class="field-error" id="fe-titulo-e" hidden><i data-ic="alert"></i>Ponle un nombre: la zona o el puerto bastan.</p>
+      </div>
+      <div class="field-pair">
+        <div class="field">
+          <label class="field-label" for="fe-km">Distancia</label>
+          <div class="unit-wrap"><input class="input" id="fe-km" name="km" type="text" inputmode="decimal" autocomplete="off" aria-describedby="fe-num-e"><span class="sfx" aria-hidden="true">km</span></div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="fe-m">Desnivel</label>
+          <div class="unit-wrap"><input class="input" id="fe-m" name="m" type="text" inputmode="numeric" autocomplete="off" aria-describedby="fe-num-e"><span class="sfx" aria-hidden="true">m</span></div>
+        </div>
+      </div>
+      <p class="field-error" id="fe-num-e" data-num-err hidden></p>
+      <button class="fill-btn" type="button" data-fill="74|1050"><i data-ic="activity"></i>Usar tu salida media: 74&nbsp;km y 1050&nbsp;m</button>
+      <div class="field">
+        <label class="field-label" for="fe-notas">Notas <span class="muted" style="font-weight:500">(opcional)</span></label>
+        <textarea class="input" id="fe-notas" name="notas" rows="2" placeholder="Hora, con quién, qué llevar"></textarea>
+      </div>
+      <ul class="list" data-edit-only hidden>
+        <li><div class="row">
+          <span class="row-lead" style="--acc:var(--good)"><i data-ic="checkc"></i></span>
+          <span class="row-main"><span class="row-title" id="fe-hecho-l">Hecho</span><span class="row-meta">Se marca solo al importar la salida</span></span>
+          <span class="row-trail"><button class="switch" type="button" role="switch" aria-checked="false" aria-labelledby="fe-hecho-l" id="fe-hecho"></button></span>
+        </div></li>
+      </ul>
+      <button class="btn btn--danger btn--block" type="button" data-edit-only hidden data-wo-delete><i data-ic="trash"></i>Borrar entreno</button>
+    </form>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="submit" form="f-entreno" id="fe-guardar">Guardar entreno</button>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script src="plan.js?v=a46f0b9a"></script>
+</body>
+</html>

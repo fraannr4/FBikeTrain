@@ -1,0 +1,116 @@
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { AppShell } from '../src/ui/shell/AppShell';
+import { db } from '../src/db/db';
+import { deleteWorkout, saveWorkout, setWorkoutDone } from '../src/calendar/calendarRepo';
+import { clearAllData } from '../src/db/repo';
+import { localDay } from '../src/metrics/calendar';
+import { tabOf, screenName } from '../src/ui/shell/screens';
+
+const DAY = 86_400_000;
+const TABS = ['Inicio', 'Historial', 'Rutas', 'Plan', 'Más'];
+
+function renderShell(path = '/') {
+  return render(
+    <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppShell>
+        <h1>Página</h1>
+      </AppShell>
+    </MemoryRouter>,
+  );
+}
+
+const tabNames = () =>
+  within(screen.getByRole('navigation', { name: 'Menú principal' }))
+    .getAllByRole('link')
+    .map((a) => a.getAttribute('aria-label') ?? a.textContent);
+
+describe('AppShell', () => {
+  beforeEach(async () => {
+    await clearAllData();
+  });
+
+  it('una sola navegación, «Menú principal», con la marca y las cinco pestañas', async () => {
+    renderShell();
+    expect(screen.getAllByRole('navigation', { name: 'Menú principal' })).toHaveLength(1);
+    expect(tabNames()).toEqual(['FBikeTrain, inicio', ...TABS]);
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Plan' })).toBeInTheDocument());
+  });
+
+  it.each([
+    ['/', 'Inicio'],
+    ['/historial', 'Historial'],
+    ['/historial/subidas', 'Historial'],
+    ['/historial/demo-001', 'Historial'],
+    ['/rutas/ia', 'Rutas'],
+    ['/plan/objetivos', 'Plan'],
+    ['/mas', 'Más'],
+    ['/ajustes', 'Más'],
+    ['/importar', 'Más'],
+  ])('en %s la pestaña actual es %s', async (path, tab) => {
+    renderShell(path);
+    const nav = screen.getByRole('navigation', { name: 'Menú principal' });
+    const current = within(nav)
+      .getAllByRole('link')
+      .filter((a) => a.getAttribute('aria-current') === 'page');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toHaveTextContent(tab);
+    await waitFor(() => expect(nav).toBeInTheDocument());
+  });
+
+  it('las pestañas llevan a la pantalla raíz de cada una', () => {
+    renderShell();
+    const nav = screen.getByRole('navigation', { name: 'Menú principal' });
+    const hrefs = TABS.map((t) => within(nav).getByRole('link', { name: t }).getAttribute('href'));
+    expect(hrefs).toEqual(['/', '/historial', '/rutas', '/plan', '/mas']);
+  });
+
+  it('Plan cuenta los entrenos sin hacer de hoy y de mañana', async () => {
+    const now = Date.now();
+    await db.calendar.bulkAdd([
+      { id: 'a', date: localDay(now + DAY), title: 'Rodaje', done: false, manual: false, createdAt: now },
+      { id: 'b', date: localDay(now), title: 'Hecho', done: true, manual: false, createdAt: now },
+      { id: 'c', date: localDay(now + 5 * DAY), title: 'Lejos', done: false, manual: false, createdAt: now },
+    ]);
+    renderShell();
+    expect(await screen.findByRole('link', { name: 'Plan, 1 pendiente' })).toHaveAttribute('href', '/plan');
+  });
+
+  it('el contador de Plan se actualiza al marcar un entreno como hecho sin cambiar de pantalla', async () => {
+    const now = Date.now();
+    await db.calendar.add({ id: 'h', date: localDay(now), title: 'Rodaje', done: false, manual: false, createdAt: now });
+    renderShell('/plan');
+    expect(await screen.findByRole('link', { name: 'Plan, 1 pendiente' })).toBeInTheDocument();
+    await setWorkoutDone('h', true);
+    expect(await screen.findByRole('link', { name: 'Plan' })).toBeInTheDocument();
+  });
+
+  it('el contador de Plan se actualiza al guardar y al borrar un entreno', async () => {
+    const now = Date.now();
+    renderShell('/plan');
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Plan' })).toBeInTheDocument());
+    await saveWorkout({ id: 'n', date: localDay(now + DAY), title: 'Series', done: false, manual: false, createdAt: now });
+    expect(await screen.findByRole('link', { name: 'Plan, 1 pendiente' })).toBeInTheDocument();
+    await deleteWorkout('n');
+    expect(await screen.findByRole('link', { name: 'Plan' })).toBeInTheDocument();
+  });
+
+  it('«Saltar al contenido» lleva el foco a main', async () => {
+    renderShell();
+    await userEvent.click(screen.getByRole('link', { name: 'Saltar al contenido' }));
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'contenido');
+  });
+});
+
+describe('screens', () => {
+  it('tabOf y screenName', () => {
+    expect(tabOf('/historial/repetidas')).toBe('historial');
+    expect(tabOf('/ajustes')).toBe('mas');
+    expect(tabOf('/')).toBe('inicio');
+    expect(screenName('/rutas/ia')).toBe('Rutas con IA');
+    expect(screenName('/historial/demo-004')).toBe('Salida');
+    expect(screenName('/plan/')).toBe('Plan');
+  });
+});

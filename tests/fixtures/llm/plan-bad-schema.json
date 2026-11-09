@@ -1,0 +1,19 @@
+{
+  "object": "chat.completion",
+  "created": 1793952030,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"opciones\":[{\"titulo\":\"Fondo\",\"dimension\":\"distancia\",\"subidaPct\":20,\"distanciaKm\":58,\"desnivelM\":null,\"motivo\":\"Más largo.\"},{\"titulo\":\"Medio\",\"dimension\":\"distancia\",\"subidaPct\":10,\"distanciaKm\":53,\"desnivelM\":null,\"motivo\":\"Algo más.\"},{\"titulo\":\"Subidas\",\"dimension\":\"desnivel\",\"subidaPct\":10,\"distanciaKm\":45,\"desnivelM\":560,\"motivo\":\"Más desnivel.\"}]}"
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 612, "completion_tokens": 140, "total_tokens": 752 },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

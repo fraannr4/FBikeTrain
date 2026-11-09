@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Rutas</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="rutas">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="app">
+  <aside class="side"></aside>
+  <main class="main" id="contenido">
+    <div class="wrap">
+      <header class="page-h">
+        <div>
+          <h1 id="pt">Rutas</h1>
+          <p id="pp">Rutas de carretera que salen de Casa, a tu medida. Descárgalas en GPX para el iGPSPORT BSC200S.</p>
+        </div>
+        <div class="acts"><span class="chip info" id="phase-chip">Avance de F4</span></div>
+      </header>
+
+      <div class="routes-grid has-res" id="grid">
+        <!-- Generador -->
+        <section class="card gen" aria-labelledby="h-gen" id="gen-card">
+          <!-- Móvil con resultados: el formulario se pliega en esta barra y las rutas van primero -->
+          <div class="gen-sum">
+            <svg class="ic ic-sm" aria-hidden="true"><use href="#i-sliders"/></svg>
+            <p id="gen-sum-t"><span class="sr-only">Pedido: </span><span id="s-km">90 km</span><span class="dot" aria-hidden="true">·</span><span id="s-m">1.500 m</span><span class="dot" aria-hidden="true">·</span><span id="s-tipo">Circular</span></p>
+            <button type="button" class="link press" id="gen-edit" aria-expanded="false" aria-controls="gen">Editar</button>
+          </div>
+          <form class="form-sec" id="gen" novalidate>
+            <div class="card-h" style="margin-bottom:0"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg><h2 id="h-gen">Qué te apetece</h2></div>
+            <div class="mode" role="group" aria-label="Cómo crear las rutas">
+              <button type="button" class="press" data-mode="gen" aria-pressed="true"><b><svg class="ic ic-sm" aria-hidden="true"><use href="#i-route"/></svg>Generar</b><small>Con OpenRouteService, a partir de tus cifras</small></button>
+              <button type="button" class="press" data-mode="ia" aria-pressed="false"><b><svg class="ic ic-sm" aria-hidden="true" style="color:var(--acc-elev)"><use href="#i-sparkles"/></svg>Con IA</b><small>Elige y explica por qué te encaja</small></button>
+            </div>
+            <div class="field">
+              <span class="lbl">Salida</span>
+              <div class="input"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-pin"/></svg><input value="Casa" readonly aria-label="Punto de salida" aria-describedby="h-casa"><a class="link" href="ajustes.html#rutas">Cambiar</a></div>
+              <span class="help" id="h-casa">La dirección de Casa nunca se envía a la IA.</span>
+            </div>
+            <div class="range-f">
+              <div class="top"><label for="r-km" class="lbl" style="font-weight:600;font-size:14px">Distancia</label><output for="r-km" id="o-km" class="fig">90 km</output></div>
+              <input type="range" id="r-km" min="40" max="160" step="5" value="90" aria-describedby="h-km">
+              <span class="help" id="h-km">Tu salida media: 74 km. La más larga: 112 km.</span>
+            </div>
+            <div class="range-f">
+              <div class="top"><label for="r-m" class="lbl" style="font-weight:600;font-size:14px">Desnivel</label><output for="r-m" id="o-m" class="fig">1.500 m</output></div>
+              <input type="range" id="r-m" min="200" max="2600" step="50" value="1500" aria-describedby="h-m">
+              <span class="help" id="h-m">Tu media: 1.050 m por salida.</span>
+            </div>
+            <div class="field">
+              <span class="lbl" id="l-tipo">Tipo de recorrido</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-labelledby="l-tipo">
+                <button type="button" class="tog press" aria-pressed="true" data-tipo="Circular"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-repeat"/></svg>Circular</button>
+                <button type="button" class="tog press" aria-pressed="false" data-tipo="Ida y vuelta"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-swap"/></svg>Ida y vuelta</button>
+              </div>
+            </div>
+            <div class="sw-row">
+              <span><b id="l-new">Priorizar carretera nueva</b><small>Evita lo que ya has rodado en tus salidas.</small></span>
+              <button type="button" class="switch press" role="switch" aria-checked="true" aria-labelledby="l-new"></button>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg press" id="go" style="width:100%"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-route"/></svg><span>Generar 5 rutas</span></button>
+          </form>
+        </section>
+
+        <!-- Resultados -->
+        <section aria-labelledby="h-res" style="min-width:0">
+          <div class="card-h" style="padding:0 4px">
+            <h2 id="h-res" tabindex="-1">5 rutas para ti</h2>
+            <span class="end muted" id="res-sub">De la que mejor encaja a la que menos</span>
+          </div>
+          <p class="ai-note" id="ai-ctx" hidden style="margin:0 0 var(--gap)"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>La IA solo ha visto <b>cifras resumidas</b>: tu media de 74 km y 1.050 m, 27,2 km/h y los puertos que ya conoces. Ni tus tracks ni la dirección de Casa.</span></p>
+          <ol class="res-list" id="res"></ol>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+<script>
+(function () {
+  var F = window.FBT, nf = F.nf, IA = new URLSearchParams(location.search).get('modo') === 'ia';
+  var ROUTES = [
+    { n: 'Circular por el Montseny', s: 'montsenyc', ps: 19, nuevo: 74, dif: 3, keys: [[0,210],[8,260],[14,420],[22,780],[26,1050],[29,1120],[33,900],[40,560],[46,480],[52,610],[58,980],[61,1180],[63,1240],[67,1010],[74,720],[80,520],[88,330],[96,210]], km: 96,
+      why: 'Sube <b>550 m más que tu media</b> y encadena Collformic y Santa Fe, dos puertos que ya conoces. Es tu mejor mes de desnivel: buen momento para probarla.' },
+    { n: 'Vuelta al Montcau', s: 'montcau', nuevo: 58, dif: 2, keys: [[0,210],[10,330],[18,620],[24,880],[27,940],[34,620],[44,420],[52,560],[58,410],[68,210]], km: 68,
+      why: 'Más corta que tu media pero con <b>una subida larga y constante</b>, del 5 al 7 %. Encaja con la cadencia alta que llevas este mes.' },
+    { n: 'Costa del Garraf', s: 'garraf', nuevo: 41, dif: 1, keys: [[0,210],[12,120],[20,40],[30,160],[38,80],[46,210],[56,120],[66,60],[78,210]], km: 78,
+      why: 'Para recuperar tras el fin de semana: <b>llana y rápida</b>, con viento de mar a favor a la vuelta.' },
+    { n: 'Collsuspina por Moià', s: 'moia', nuevo: 88, dif: 2, keys: [[0,210],[12,300],[24,520],[32,780],[38,880],[48,760],[58,620],[70,420],[84,300],[102,210]], km: 102,
+      why: 'La más <b>nueva para ti</b>: el 88 % son carreteras que no has rodado. Algo más larga que tu media.' },
+    { n: 'Sant Llorenç exprés', s: 'llorencx', nuevo: 22, dif: 1, keys: [[0,210],[6,280],[14,520],[18,610],[24,420],[32,300],[42,210]], km: 42,
+      why: 'Si solo tienes <b>hora y media</b>: una subida corta para mantener el ritmo entre semana.' }
+  ];
+  var DIF = [null, ['easy', 'Suave para ti', 1], ['mid', 'Media para ti', 2], ['hard', 'Dura para ti', 3]];
+  ROUTES.forEach(function (r) {
+    r.prof = F.makeProfile(r.keys, r.km, r.ps || ({ montcau: 17, garraf: 29, moia: 41, llorencx: 53 })[r.s]);
+    var g = 0; for (var i = 1; i < r.prof.length; i++) { var d = r.prof[i][1] - r.prof[i - 1][1]; if (d > 0) g += d; }
+    r.m = Math.round(g / 10) * 10;
+    r.min = Math.round(r.km / 27.2 * 60 + r.m / 1000 * 22);
+  });
+
+  function card(r, i) {
+    var c = DIF[r.dif], best = i === 0;
+    var li = document.createElement('li');
+    li.className = 'card res' + (best ? ' best' : '');
+    li.innerHTML =
+      '<div class="thumb"><svg data-shape="' + r.s + '" data-big viewBox="0 0 148 148" role="img" aria-label="Forma de la ruta ' + r.n + ', circular desde Casa"></svg></div>' +
+      '<div style="min-width:0">' +
+        '<div class="res-top"><span class="res-rank" aria-hidden="true">' + (i + 1) + '</span><div class="grow">' +
+          '<h3 class="route-t">' + r.n + '</h3>' +
+          '<div class="route-chips"><span class="chip ' + c[0] + '"><svg class="bars" aria-hidden="true"><use href="#i-bars' + c[2] + '"/></svg>' + c[1] + '</span>' +
+          (best ? '<span class="chip ok"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-check"/></svg>La que mejor encaja</span>' : '') + '</div>' +
+        '</div></div>' +
+        '<div class="res-figs">' +
+          '<div><small>Distancia</small><span class="fig' + (best ? ' fig-i' : '') + '">' + nf(r.km) + ' km</span></div>' +
+          '<div><small>Desnivel</small><span class="fig">' + nf(r.m) + ' m</span></div>' +
+          '<div><small>A tu ritmo</small><span class="fig">' + F.hm(r.min / 60) + '</span></div>' +
+          '<div><small>Carretera nueva</small><span class="fig">' + r.nuevo + ' %</span></div>' +
+        '</div>' +
+        (IA ? '<p class="ai-note"><svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg><span>' + r.why + '</span></p>' : '') +
+        '<div class="prof" data-i="' + i + '"><div class="prof-h"><span class="muted">Perfil por pendiente</span><span class="slope-legend" data-legend></span></div><svg data-h="' + (best ? 64 : 50) + '"></svg><div class="prof-tip"></div></div>' +
+        '<div class="route-foot">' +
+          '<a href="#" class="btn btn-ghost press">Ver en el mapa</a>' +
+          '<a href="#" class="btn ' + (best ? 'btn-primary' : 'btn-ghost') + ' press"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-download"/></svg>Descargar GPX</a>' +
+        '</div>' +
+      '</div>';
+    return li;
+  }
+  var list = document.getElementById('res');
+  function render() {
+    list.textContent = '';
+    ROUTES.forEach(function (r, i) { list.appendChild(card(r, i)); });
+    list.querySelectorAll('svg[data-shape]').forEach(F.renderShape);
+    drawProfiles();
+  }
+  function drawProfiles() {
+    list.querySelectorAll('.prof').forEach(function (box) {
+      var r = ROUTES[+box.dataset.i];
+      F.renderProfile(box, r.prof, { axis: true, peak: true });
+      F.renderLegend(box.querySelector('[data-legend]'), r.prof);
+    });
+  }
+  function setMode(ia) {
+    IA = ia;
+    document.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.mode === 'ia') === ia)); });
+    document.getElementById('pt').textContent = ia ? 'Rutas con IA' : 'Rutas';
+    document.getElementById('phase-chip').textContent = ia ? 'Avance de F5' : 'Avance de F4';
+    document.getElementById('go').lastElementChild.textContent = ia ? 'Pedir 5 rutas a la IA' : 'Generar 5 rutas';
+    document.getElementById('h-res').textContent = ia ? '5 rutas elegidas para ti' : '5 rutas para ti';
+    document.getElementById('ai-ctx').hidden = !ia;
+    render();
+  }
+  document.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { setMode(b.dataset.mode === 'ia'); }); });
+  document.querySelectorAll('.tog').forEach(function (t) {
+    t.addEventListener('click', function () { document.querySelectorAll('.tog').forEach(function (o) { o.setAttribute('aria-pressed', String(o === t)); }); });
+  });
+  document.querySelectorAll('.switch').forEach(function (s) { s.addEventListener('click', function () { s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true')); }); });
+  var km = document.getElementById('r-km'), m = document.getElementById('r-m');
+  km.addEventListener('input', function () { document.getElementById('o-km').textContent = km.value + ' km'; });
+  m.addEventListener('input', function () { document.getElementById('o-m').textContent = nf(+m.value) + ' m'; });
+  /* Barra resumen (móvil): Editar despliega el formulario; al generar se pliega y se ven las rutas */
+  var genCard = document.getElementById('gen-card'), edit = document.getElementById('gen-edit');
+  function sum() {
+    document.getElementById('s-km').textContent = km.value + ' km';
+    document.getElementById('s-m').textContent = nf(+m.value) + ' m';
+    document.getElementById('s-tipo').textContent = document.querySelector('.tog[aria-pressed="true"]').dataset.tipo;
+  }
+  function setOpen(on) { genCard.classList.toggle('open', on); edit.setAttribute('aria-expanded', String(on)); edit.textContent = on ? 'Cerrar' : 'Editar'; }
+  edit.addEventListener('click', function () { setOpen(!genCard.classList.contains('open')); if (genCard.classList.contains('open')) km.focus(); });
+  document.getElementById('gen').addEventListener('submit', function (e) {
+    e.preventDefault(); sum(); render();
+    if (genCard.classList.contains('open')) { setOpen(false); document.getElementById('h-res').focus(); }
+  });
+  setMode(IA);
+  var t; new ResizeObserver(function () { clearTimeout(t); t = setTimeout(drawProfiles, 60); }).observe(list);
+  document.body.dataset.settled = '1';
+})();
+</script>
+</body>
+</html>

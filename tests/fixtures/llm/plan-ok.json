@@ -1,0 +1,28 @@
+{
+  "object": "chat.completion",
+  "created": 1793952000,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"opciones\":[{\"titulo\":\"Fondo largo y llano\",\"dimension\":\"distancia\",\"subidaPct\":10,\"distanciaKm\":53,\"desnivelM\":null,\"motivo\":\"Un 10 % más que tus 48,2 km habituales sin cambiar el desnivel.\"},{\"titulo\":\"Fondo con algo de repecho\",\"dimension\":\"distancia\",\"subidaPct\":6,\"distanciaKm\":51.1,\"desnivelM\":520,\"motivo\":\"Un poco más de distancia y un desnivel parecido a tu media de 510 m.\"},{\"titulo\":\"Subidas cortas\",\"dimension\":\"desnivel\",\"subidaPct\":12,\"distanciaKm\":45,\"desnivelM\":571,\"motivo\":\"Un 12 % más de desnivel en una salida algo más corta.\"}]}",
+        "reasoning": "El usuario pide fondo; la referencia es 48,2 km. Propongo tres opciones entre el 5 y el 15 %."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "queue_time": 0.05,
+    "prompt_tokens": 612,
+    "prompt_time": 0.03,
+    "completion_tokens": 310,
+    "completion_time": 0.28,
+    "total_tokens": 922,
+    "total_time": 0.31
+  },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

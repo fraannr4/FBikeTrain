@@ -1,0 +1,281 @@
+/* =====================================================================
+   FBikeTrain: base. Reset, tipografía, foco y piezas sueltas (botones,
+   chips, cifras de dorsal). Todo color sale de tokens.css.
+   ===================================================================== */
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 var(--fs-base) / 1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, p, ul, ol, figure, dl, dd, fieldset { margin: 0; }
+fieldset { border: 0; padding: 0; min-width: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+svg { display: block; }
+img, svg, canvas { max-width: 100%; }
+[hidden] { display: none !important; }
+
+/* Enlaces dentro de un texto: se distinguen por algo más que el color. */
+:is(p, li, dd, td) a:not([class]) {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Foco: visible en los dos temas, también sobre el paisaje ---------- */
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- Accesibilidad ---------- */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  margin: -1px;
+}
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 2000;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  background: var(--action);
+  color: var(--on-action);
+  font-weight: 600;
+}
+.skip:focus { top: 12px; }
+
+/* ---------- Cifras de dorsal ---------- */
+.fig {
+  font-family: var(--font-fig);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.fig-i { font-style: italic; } /* solo la cifra titular de cada pieza */
+.num { font-variant-numeric: tabular-nums; }
+.unit {
+  margin-left: 3px;
+  font: 600 var(--fs-kpi-unit) var(--font-fig);
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+
+/* ---------- Pulsar: respuesta táctil, se mantiene con movimiento reducido ---------- */
+.press {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+.press:active { transform: scale(0.97); }
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--target);
+  padding: 0 var(--s-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font: 600 14.5px / 1 var(--font-ui);
+  white-space: nowrap;
+}
+.btn-primary { background: var(--action); color: var(--on-action); }
+.btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--ink); }
+.btn[disabled], .btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover { background: var(--action-hover); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--ink-3); }
+}
+
+/* ---------- Chips (no interactivos) ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  font: 600 12.5px / 1 var(--font-ui);
+  white-space: nowrap;
+}
+.chip.easy { color: var(--easy-ink); background: var(--easy-bg); }
+.chip.mid { color: var(--mid-ink); background: var(--mid-bg); }
+.chip.hard { color: var(--hard-ink); background: var(--hard-bg); }
+.chip.info { color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); }
+.chip.ok { color: var(--good); background: var(--good-bg); }
+.chip.warn { color: var(--warning); background: var(--warning-bg); }
+.chip.err { color: var(--critical); background: var(--critical-bg); }
+
+.muted { color: var(--ink-3); font-size: var(--fs-sm); }
+
+/* ---------- Enlace de acción y botón de icono ---------- */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: 6px;
+  color: var(--link);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+}
+@media (hover: hover) and (pointer: fine) {
+  .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--ink); }
+}
+
+/* ---------- Panel (tarjeta) ---------- */
+.card {
+  position: relative;
+  min-width: 0;
+  padding: 18px var(--pad) var(--pad);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+}
+.card-h { display: flex; align-items: center; gap: 10px; min-height: 32px; margin-bottom: 12px; }
+.card-h h2 { font: 600 var(--fs-title) / 1.2 var(--font-ui); letter-spacing: -0.005em; white-space: nowrap; }
+.card-ic { flex: none; color: var(--ic, var(--ink-2)); }
+.card-h .end { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.card-sub { margin: -8px 0 12px 30px; color: var(--ink-2); font-size: var(--fs-sm); line-height: 1.4; }
+.danger-zone { border-color: color-mix(in srgb, var(--critical) 45%, var(--line)); }
+@media (max-width: 899px) {
+  .card { --pad: 16px; padding: 16px; }
+  .card-sub { margin-left: 0; }
+}
+
+/* ---------- EmptyState ---------- */
+.empty { display: grid; justify-items: start; gap: 10px; padding: 8px 0; }
+.empty .em-ic {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink-2);
+}
+.empty h3 { font: 600 16px / 1.3 var(--font-ui); }
+.empty p { max-width: 42ch; color: var(--ink-2); font-size: 14px; }
+
+@media (forced-colors: active) {
+  .btn, .chip { border: 1px solid CanvasText; }
+}
+
+/* =====================================================================
+   Transición F1. Estilos de las pantallas actuales con los tokens nuevos,
+   hasta que las tareas 4 a 10 del plan de rediseño las sustituyan.
+   Cada tarea borra aquí lo que reemplaza.
+   ===================================================================== */
+
+/* Alias que leen ProgressChart y LastRide (tareas 6 y 8). */
+:root {
+  --color-text: var(--ink);
+  --color-muted: var(--ink-2);
+  --color-border: var(--line);
+  --color-series-1: var(--acc-dist);
+  --color-series-2: var(--acc-elev);
+}
+
+h1 { font: 700 var(--fs-page) / 1.1 var(--font-fig); }
+h2 { font: 600 var(--fs-title) / 1.3 var(--font-ui); }
+
+
+/* Botones sin clase de las pantallas actuales (tareas 6 y 10) */
+button:not([class]) {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+}
+@media (hover: hover) and (pointer: fine) {
+  button:not([class]):hover { background: var(--surface-2); }
+}
+
+/* Tarjetas y avisos (tareas 7 y 8; el hero y las KPI ya están en inicio.css) */
+.card:not(:has(> .card-h)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+}
+.notice {
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+/* Perfil de altitud (la tarjeta «Tu última salida» está en inicio.css y el mapa en map.css) */
+.profile { width: 100%; height: 4rem; }
+
+/* Formularios e importación (tarea 10) */
+.settings-form { display: grid; gap: var(--s-4); max-width: 32rem; }
+.settings-form fieldset {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.settings-form legend { padding: 0 var(--s-1); font-weight: 600; }
+.field { display: grid; gap: var(--s-1); }
+.dropzone {
+  display: grid;
+  gap: var(--s-3);
+  max-width: 32rem;
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--r-xl);
+}
+.dropzone-over { border-color: var(--action); }
+.file-name { overflow-wrap: anywhere; }
+input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+input::placeholder { color: var(--ink-3); opacity: 1; }
+input[type='checkbox'] { width: auto; min-height: 0; accent-color: var(--action); }
+input[type='file'] { padding: var(--s-2) var(--s-3); }

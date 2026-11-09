@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FBikeTrain, lámina del brief</title>
+<!-- Lámina de apoyo del brief (docs/design/brief.md). Datos sintéticos. Sin CDN: fuentes en ./fonts (OFL). -->
+<style>
+@font-face{font-family:"Barlow";src:url(fonts/barlow-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Barlow";src:url(fonts/barlow-latin-500-normal.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"Barlow";src:url(fonts/barlow-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";src:url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";src:url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+
+/* ---------- Tokens: oscuro (por defecto) ---------- */
+:root{
+  color-scheme:dark;
+  --f-ui:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;
+
+  --sky-0:#060A15; --sky-1:#0B1430; --sky-2:#1A2558; --sky-3:#3B3470; --sky-4:#A0586A;
+  --ridge-far:#2A3874; --ridge-mid:#1A2656; --ridge-near:#0E1734;
+  --ridge-line:#7FB2FF;
+
+  --bg:#0A1122; --surface:#111A2E; --surface-2:#17223B; --surface-glass:rgba(17,26,46,.78);
+  --line:rgba(148,176,230,.14); --line-strong:rgba(148,176,230,.26);
+  --hi:rgba(255,255,255,.06);
+  --ink:#EAF0FA; --ink-2:#A9B6CF; --ink-3:#8C9AB5;
+
+  --action:#2F6FEB; --on-action:#FFFFFF; --focus:#7FB2FF;
+
+  --m-dist:#3B8BFF; --m-elev:#9277F2; --m-time:#1AA597; --m-speed:#C9820B;
+  --good:#3DD68C;
+
+  --s1:#F4D77E; --s2:#F2A44E; --s3:#EC7343; --s4:#E04A5E; --s5:#B0368C; --s0:#5C6B8A;
+
+  --r-xl:22px; --r-lg:16px; --r-md:12px; --r-sm:8px;
+  --shadow:0 1px 0 var(--hi) inset, 0 24px 48px -28px rgba(0,0,0,.75);
+  --glow:.55;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --sky-0:#C9D9F2; --sky-1:#DCE6F7; --sky-2:#EEF1FA; --sky-3:#F8E6DA; --sky-4:#F6D2BF;
+  --ridge-far:#B9C7E0; --ridge-mid:#9DB0D3; --ridge-near:#7F96C2;
+  --ridge-line:#1F55C8;
+
+  --bg:#EEF2F8; --surface:#FFFFFF; --surface-2:#F4F7FB; --surface-glass:rgba(255,255,255,.86);
+  --line:#D9E1EE; --line-strong:#C3CEE0; --hi:rgba(255,255,255,0);
+  --ink:#0E1730; --ink-2:#3E4C68; --ink-3:#56657F;
+
+  --action:#1F5FD6; --focus:#1F5FD6;
+
+  --m-dist:#1F66E0; --m-elev:#6E4BD8; --m-time:#0B8C80; --m-speed:#B86E00;
+  --good:#15803D;
+
+  --s1:#D6A21F; --s2:#D9782A; --s3:#C2452B; --s4:#972530; --s5:#5A1634; --s0:#A7B3C8;
+
+  --shadow:0 1px 2px rgba(14,23,48,.06), 0 12px 32px -18px rgba(14,23,48,.28);
+  --glow:0;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
+h1,h2,h3{margin:0;font-weight:600}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 16px 64px}
+.board-head{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+.board-head p{margin:0;color:var(--ink-2);max-width:62ch}
+.board-head h1{font-family:var(--f-num);font-size:28px}
+.theme{display:inline-flex;border:1px solid var(--line-strong);border-radius:999px;padding:3px;background:var(--surface)}
+.theme button{font:500 14px var(--f-ui);color:var(--ink-2);background:none;border:0;border-radius:999px;padding:6px 14px;min-height:36px;cursor:pointer}
+.theme button[aria-pressed="true"]{background:var(--action);color:var(--on-action)}
+.sec-title{font-family:var(--f-num);font-size:20px;margin:40px 0 4px}
+.sec-note{color:var(--ink-2);margin:0 0 16px;max-width:72ch}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;border-radius:var(--r-xl);overflow:hidden;min-height:340px;isolation:isolate;box-shadow:var(--shadow)}
+.hero svg.land{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:28px 32px 0}
+.greet h2{font-family:var(--f-num);font-weight:700;font-size:clamp(34px,5vw,56px);line-height:1;letter-spacing:-.02em}
+.greet p{margin:8px 0 0;color:var(--ink-2);font-size:17px;max-width:46ch}
+.tools{display:flex;gap:8px}
+.icon-btn{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;background:var(--surface-glass);border:1px solid var(--line);color:var(--ink);position:relative}
+.icon-btn svg{width:20px;height:20px}
+.dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--m-speed);box-shadow:0 0 0 2px var(--surface)}
+.horizon-note{align-self:flex-end;margin:0 24px 10px;font-size:12px;color:var(--ink-2);background:var(--surface-glass);border:1px solid var(--line);padding:3px 10px;border-radius:999px}
+.hero{display:flex;flex-direction:column;min-height:540px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 20px 20px;margin-top:auto}
+.kpi{position:relative;background:var(--surface-glass);border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px 0;overflow:hidden;box-shadow:var(--shadow);min-width:0}
+@supports (backdrop-filter:blur(1px)){ .kpi{backdrop-filter:blur(10px) saturate(1.2)} }
+.kpi-head{display:flex;align-items:center;gap:8px;color:var(--ink-2);font-weight:500;font-size:14px}
+.kpi-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--acc);background:color-mix(in srgb,var(--acc) 16%,transparent)}
+.kpi-ico svg{width:18px;height:18px}
+.kpi-val{display:flex;align-items:baseline;gap:4px;margin-top:6px;flex-wrap:wrap}
+.kpi-val b{font-family:var(--f-num);font-weight:700;font-size:32px;line-height:1.05;font-variant-numeric:tabular-nums}
+.kpi-val span{font-family:var(--f-num);font-weight:600;font-size:17px;color:var(--ink-2)}
+.kpi-val .delta{display:inline-flex;align-items:center;gap:3px;font:600 13px var(--f-ui);color:var(--good);margin-left:6px}
+.kpi-val .delta.down{color:var(--ink-2)}
+.delta svg{width:13px;height:13px}
+.kpi-sub{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.spark{display:block;width:100%;height:48px;margin-top:4px}
+
+/* ---------- Tokens ---------- */
+.tok-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);padding:20px;box-shadow:var(--shadow);min-width:0}
+.card h3{font-size:17px;display:flex;align-items:center;gap:8px}
+.card h3 svg{width:20px;height:20px;color:var(--ink-2)}
+.card .meta{color:var(--ink-2);font-size:13.5px;margin:2px 0 12px}
+.sw{display:flex;flex-wrap:wrap;gap:8px}
+.sw div{flex:1 1 84px;min-width:84px;font-size:12px;color:var(--ink-2)}
+.sw i{display:block;height:40px;border-radius:var(--r-sm);border:1px solid var(--line);margin-bottom:4px}
+.ramp{display:flex;border-radius:var(--r-sm);overflow:hidden;height:40px;gap:2px;background:var(--surface)}
+.ramp i{flex:1}
+.ramp-l{display:flex;gap:2px;font-size:12px;color:var(--ink-2);margin-top:4px}
+.ramp-l span{flex:1;text-align:center}
+.type-spec .big{font-family:var(--f-num);font-weight:700;font-size:44px;line-height:1}
+.type-spec .mid{font-family:var(--f-num);font-weight:600;font-size:24px}
+.type-spec p{margin:6px 0}
+
+/* ---------- Widgets ---------- */
+.w-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:12px}
+.w-grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;margin-top:12px}
+.seg{display:inline-flex;gap:2px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:3px}
+.seg button{font:500 13px var(--f-ui);border:0;background:none;color:var(--ink-2);border-radius:8px;padding:6px 10px;min-height:32px}
+.seg button[aria-pressed="true"]{background:var(--action);color:#fff}
+.chart-head{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
+.metric-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px}
+.metric-tabs button{font:500 13px var(--f-ui);border:1px solid var(--line-strong);background:none;color:var(--ink-2);border-radius:999px;padding:5px 12px 5px 10px;display:inline-flex;align-items:center;gap:6px;min-height:32px}
+.metric-tabs button i{width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.metric-tabs button[aria-pressed="true"]{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+svg.chart{display:block;width:100%;height:240px;overflow:visible}
+svg.chart text{font:500 12px var(--f-ui);fill:var(--ink-3)}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .l1{width:16px;height:2px;background:var(--m-dist);border-radius:2px}
+.legend .l2{width:16px;border-top:2px dashed var(--ink-3)}
+
+.ring-wrap{display:grid;place-items:center;padding:8px 0}
+.ring-wrap svg{width:180px;height:180px}
+.ring-c{text-anchor:middle}
+.goal-foot{display:flex;justify-content:space-between;color:var(--ink-2);font-size:13.5px;border-top:1px solid var(--line);padding-top:12px;margin-top:8px}
+
+.route{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+.route-shape{width:132px;height:132px;border-radius:var(--r-lg);background:var(--surface-2);border:1px solid var(--line);position:relative;overflow:hidden}
+.route-shape svg{position:absolute;inset:0;width:100%;height:100%}
+.route h4{margin:0;font-family:var(--f-num);font-size:20px;font-weight:600;overflow-wrap:anywhere}
+.facts{display:flex;flex-wrap:wrap;gap:4px 14px;color:var(--ink-2);font-size:13.5px;margin:4px 0 8px}
+.facts span{display:inline-flex;gap:5px;align-items:center}
+.facts svg{width:15px;height:15px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;border-radius:999px;padding:2px 10px 2px 8px;border:1px solid}
+.chip svg{width:13px;height:13px}
+.chip.media{color:var(--s2);border-color:color-mix(in srgb,var(--s2) 45%,transparent);background:color-mix(in srgb,var(--s2) 12%,transparent)}
+:root[data-theme="light"] .chip.media{color:#8A4A00}
+svg.slope{display:block;width:100%;height:72px}
+.slope-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2);margin-top:6px}
+.slope-leg span{display:inline-flex;align-items:center;gap:5px}
+.slope-leg i{width:10px;height:10px;border-radius:3px}
+
+.mapbox{position:relative;height:300px;border-radius:var(--r-lg);overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+.mapbox > svg{position:absolute;inset:0;width:100%;height:100%}
+.map-stats{position:absolute;left:12px;top:12px;background:var(--surface-glass);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;display:grid;gap:4px;font-size:14px}
+.map-stats div{display:flex;gap:8px;align-items:center}
+.map-stats svg{width:16px;height:16px;color:var(--ink-2)}
+.map-stats b{font-family:var(--f-num);font-weight:600;font-size:16px}
+.map-attr{position:absolute;right:8px;bottom:6px;font-size:12px;color:var(--ink-3)}
+.note-box{border:1px dashed var(--line-strong);border-radius:var(--r-md);padding:10px 12px;color:var(--ink-2);font-size:13px;margin-top:10px}
+
+.glow-line{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--m-dist) 80%,transparent))}
+:root[data-theme="light"] .glow-line{filter:none}
+
+@media (max-width:980px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .w-grid,.w-grid2{grid-template-columns:1fr}
+}
+@media (max-width:560px){
+  .wrap{padding:16px 16px 48px}
+  .hero-top{padding:20px 16px 0}
+  .hero{min-height:560px}
+  .kpis{padding:0 12px 12px;gap:8px}
+  .kpi{padding:12px 12px 0}
+  .kpi-val b{font-size:26px}
+  .kpi-sub{display:none}
+  .horizon-note{display:none}
+  .route{grid-template-columns:96px 1fr}
+  .route-shape{width:96px;height:96px}
+  .tools .hide-s{display:none}
+}
+@media (prefers-reduced-motion:no-preference){
+  .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 900ms cubic-bezier(.23,1,.32,1) 120ms forwards}
+  .pop{opacity:0;animation:pop 260ms cubic-bezier(.23,1,.32,1) 900ms forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  @keyframes pop{to{opacity:1}}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- Iconos con trazos al estilo lucide (24x24, stroke 2). En la app: lucide-react. -->
+  <defs>
+    <symbol id="i-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-gauge-s" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="m4 20 6-9 4 4 6-10"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="board-head">
+    <div>
+      <h1>FBikeTrain: lámina del brief</h1>
+      <p>Ingredientes del lenguaje visual con datos sintéticos. No es una pantalla final: las direcciones se presentan aparte, antes de construir.</p>
+    </div>
+    <div class="theme" role="group" aria-label="Tema">
+      <button type="button" data-t="dark" aria-pressed="true">Oscuro</button>
+      <button type="button" data-t="light" aria-pressed="false">Claro</button>
+    </div>
+  </header>
+
+  <!-- 1. HERO -->
+  <section class="hero" aria-labelledby="greet">
+    <svg class="land" id="land" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+    <div class="hero-top">
+      <div class="greet">
+        <h2 id="greet">Hola, Fran</h2>
+        <p>Esta semana llevas 3 salidas y vas por encima de tu media en distancia.</p>
+      </div>
+      <div class="tools">
+        <button class="icon-btn hide-s" type="button" aria-label="Buscar en tus salidas"><svg><use href="#i-search"/></svg></button>
+        <button class="icon-btn" type="button" aria-label="Avisos, 1 sin leer"><svg><use href="#i-bell"/></svg><i class="dot"></i></button>
+      </div>
+    </div>
+    <span class="horizon-note">El horizonte es el perfil de tu última salida</span>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <!-- 2. TOKENS -->
+  <h2 class="sec-title">Color y tipografía</h2>
+  <p class="sec-note">Un acento por métrica, siempre el mismo en icono, chispa y gráfica. El texto va en tinta, nunca en el color de la serie. Paletas validadas con el validador de dataviz en los dos modos.</p>
+  <div class="tok-grid">
+    <div class="card">
+      <h3>Superficies y tinta</h3>
+      <div class="sw" style="margin-top:12px">
+        <div><i style="background:var(--bg)"></i>Fondo</div>
+        <div><i style="background:var(--surface)"></i>Tarjeta</div>
+        <div><i style="background:var(--surface-2)"></i>Hundido</div>
+        <div><i style="background:var(--ink)"></i>Tinta</div>
+        <div><i style="background:var(--ink-2)"></i>Tinta 2</div>
+        <div><i style="background:var(--action)"></i>Acción</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Acento por métrica</h3>
+      <div class="sw" style="margin-top:12px">
+        <div><i style="background:var(--m-dist)"></i>Distancia</div>
+        <div><i style="background:var(--m-elev)"></i>Desnivel</div>
+        <div><i style="background:var(--m-time)"></i>Tiempo</div>
+        <div><i style="background:var(--m-speed)"></i>Velocidad</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Pendiente (libro de ruta)</h3>
+      <div class="ramp" style="margin-top:12px"><i style="background:var(--s0)"></i><i style="background:var(--s1)"></i><i style="background:var(--s2)"></i><i style="background:var(--s3)"></i><i style="background:var(--s4)"></i><i style="background:var(--s5)"></i></div>
+      <div class="ramp-l"><span>&lt;1 %</span><span>1–4</span><span>4–7</span><span>7–10</span><span>10–16</span><span>16+</span></div>
+    </div>
+    <div class="card type-spec">
+      <h3>Barlow y Barlow Semi Condensed</h3>
+      <p class="big num">1.542 m</p>
+      <p class="mid">Coll d'Estenalles, 72 km</p>
+      <p style="color:var(--ink-2)">Barlow nace de los rótulos de carretera. Cifras en Semi Condensed con números tabulares; texto en Barlow.</p>
+    </div>
+  </div>
+
+  <!-- 3. WIDGETS -->
+  <h2 class="sec-title">Piezas del panel</h2>
+  <p class="sec-note">Una sola métrica por gráfica (sin doble eje) con tu media en discontinua. El resplandor se reserva para el trazado y el último punto, nunca para las tarjetas.</p>
+  <div class="w-grid">
+    <section class="card" aria-labelledby="prog-t">
+      <div class="chart-head">
+        <h3 id="prog-t"><svg><use href="#i-trend"/></svg>Tu progresión</h3>
+        <div class="seg" role="group" aria-label="Periodo">
+          <button type="button" aria-pressed="true">12 meses</button><button type="button" aria-pressed="false">6 meses</button><button type="button" aria-pressed="false">3 meses</button><button type="button" aria-pressed="false">30 días</button>
+        </div>
+      </div>
+      <div class="metric-tabs" role="group" aria-label="Métrica">
+        <button type="button" aria-pressed="true" style="--acc:var(--m-dist)"><i></i>Distancia</button>
+        <button type="button" aria-pressed="false" style="--acc:var(--m-elev)"><i></i>Desnivel</button>
+        <button type="button" aria-pressed="false" style="--acc:var(--m-time)"><i></i>Tiempo</button>
+        <button type="button" aria-pressed="false" style="--acc:var(--m-speed)"><i></i>Velocidad</button>
+      </div>
+      <div class="legend"><span><i class="l1"></i>Distancia por mes</span><span><i class="l2"></i>Tu media del periodo</span></div>
+      <svg class="chart" id="chart" viewBox="0 0 640 240" role="img" aria-label="Distancia por mes en los últimos 12 meses, de 96 a 278 km; media 190 km"></svg>
+    </section>
+
+    <section class="card" aria-labelledby="goal-t">
+      <h3 id="goal-t"><svg><use href="#i-target"/></svg>Tu semana frente a tu media</h3>
+      <p class="meta">Hasta que existan objetivos (F3), el anillo mide la semana contra tus 4 semanas anteriores.</p>
+      <div class="ring-wrap"><svg id="ring" viewBox="0 0 180 180" role="img" aria-label="Esta semana 278 km, un 88 % de tu media semanal de 316 km"></svg></div>
+      <div class="goal-foot"><span>Media: <b class="num">316 km</b></span><span>Quedan 3 días</span></div>
+    </section>
+  </div>
+
+  <div class="w-grid2">
+    <section class="card" aria-labelledby="last-t">
+      <h3 id="last-t"><svg><use href="#i-pin"/></svg>Tu última salida</h3>
+      <p class="meta">Sábado 1 de noviembre. El mapa real es Leaflet con CyclOSM; aquí, curvas de nivel como sustituto.</p>
+      <div class="mapbox">
+        <svg id="map" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Trazado de la salida"></svg>
+        <div class="map-stats">
+          <div><svg><use href="#i-bike"/></svg><b class="num">87,6 km</b></div>
+          <div><svg><use href="#i-mountain"/></svg><b class="num">1.542 m</b></div>
+          <div><svg><use href="#i-timer"/></svg><b class="num">3 h 12 min</b></div>
+          <div><svg><use href="#i-gauge"/></svg><b class="num">27,4 km/h</b></div>
+        </div>
+        <span class="map-attr">CyclOSM | OpenStreetMap</span>
+      </div>
+      <svg class="slope" id="slope1" viewBox="0 0 600 72" preserveAspectRatio="none" role="img" aria-label="Perfil de altitud coloreado por pendiente"></svg>
+    </section>
+
+    <section class="card" aria-labelledby="route-t">
+      <h3 id="route-t"><svg><use href="#i-route"/></svg>Rutas para ti</h3>
+      <p class="meta">Tarjeta de ruta: forma y perfil por pendiente, sin fotos.</p>
+      <div class="route">
+        <div class="route-shape"><svg id="shape" viewBox="0 0 132 132" aria-hidden="true"></svg></div>
+        <div style="min-width:0">
+          <h4>Circular por el Montseny</h4>
+          <div class="facts"><span><svg><use href="#i-bike"/></svg><b class="num">96 km</b></span><span><svg><use href="#i-mountain"/></svg><b class="num">1.820 m</b></span><span><svg><use href="#i-gauge-s"/></svg>74 % carretera nueva</span></div>
+          <span class="chip media"><svg><use href="#i-gauge-s"/></svg>Media para ti</span>
+        </div>
+      </div>
+      <svg class="slope" id="slope2" viewBox="0 0 600 72" preserveAspectRatio="none" role="img" aria-label="Perfil de la ruta coloreado por pendiente" style="margin-top:14px"></svg>
+      <div class="slope-leg">
+        <span><i style="background:var(--s1)"></i>1–4 %</span><span><i style="background:var(--s2)"></i>4–7 %</span><span><i style="background:var(--s3)"></i>7–10 %</span><span><i style="background:var(--s4)"></i>10–16 %</span><span><i style="background:var(--s5)"></i>16 % o más</span>
+      </div>
+      <div class="note-box">Llega en F4 (generador) y F5 (con IA). Antes, la tarjeta muestra el estado «Configura tu clave de rutas».</div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- tema ----------
+  const root = document.documentElement;
+  const q = new URLSearchParams(location.search).get('theme');
+  const setTheme = t => {
+    if (t === 'light') root.dataset.theme = 'light'; else delete root.dataset.theme;
+    document.querySelectorAll('.theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === (t || 'dark'))));
+  };
+  setTheme(q);
+  document.querySelectorAll('.theme button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.t)));
+
+  // ---------- utilidades ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); parent && parent.appendChild(n); return n; };
+  // Curva suave (Catmull-Rom a Bézier).
+  const smooth = pts => {
+    let d = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  };
+  // Perfil sintético de una salida: 87,6 km con dos puertos.
+  const profile = (n, seed) => {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const x = i / (n - 1);
+      const e = 180 + 520 * Math.exp(-((x - .32) ** 2) / .012) + 760 * Math.exp(-((x - .68) ** 2) / .02)
+        + 40 * Math.sin(x * 37 + seed) + 22 * Math.sin(x * 91 + seed * 2);
+      out.push([x * 87.6, e]);
+    }
+    return out;
+  };
+
+  // ---------- paisaje del hero ----------
+  const land = document.getElementById('land');
+  const defs = el('defs', {}, land);
+  const sky = el('linearGradient', { id: 'sky', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  [['0', '--sky-0'], ['.45', '--sky-1'], ['.7', '--sky-2'], ['.84', '--sky-3'], ['1', '--sky-4']].forEach(([o, v]) => el('stop', { offset: o, 'stop-color': `var(${v})` }, sky));
+  const fade = el('linearGradient', { id: 'fade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: '0', 'stop-color': 'var(--ridge-near)', 'stop-opacity': '.0' }, fade);
+  el('stop', { offset: '.35', 'stop-color': 'var(--ridge-near)', 'stop-opacity': '1' }, fade);
+  el('rect', { width: 1200, height: 400, fill: 'url(#sky)' }, land);
+  // Resplandor del horizonte a la derecha, lejos del saludo (el texto queda sobre el cielo más oscuro).
+  const sun = el('radialGradient', { id: 'sun', cx: .76, cy: .5, r: .42 }, defs);
+  el('stop', { offset: 0, 'stop-color': 'var(--sky-4)', 'stop-opacity': .9 }, sun);
+  el('stop', { offset: 1, 'stop-color': 'var(--sky-4)', 'stop-opacity': 0 }, sun);
+  el('rect', { width: 1200, height: 400, fill: 'url(#sun)' }, land);
+  // Crestas lejanas (procedurales, más bajas a la izquierda) y cresta cercana (perfil real de la salida).
+  const ridge = (base, rise, amp, f, ph, fill) => {
+    const pts = [];
+    for (let x = 0; x <= 1200; x += 24) pts.push([x, base - rise * (x / 1200) - amp * (0.55 * Math.sin(x / f + ph) + 0.3 * Math.sin(x / (f * .37) + ph * 2) + 0.15 * Math.sin(x / (f * .13)))]);
+    el('path', { d: smooth(pts) + ' L1200,400 L0,400 Z', fill }, land);
+  };
+  ridge(250, 110, 34, 150, 1.2, 'var(--ridge-far)');
+  ridge(280, 80, 28, 110, 3.1, 'var(--ridge-mid)');
+  const pr = profile(60, 1.7);
+  const pmin = Math.min(...pr.map(p => p[1])), pmax = Math.max(...pr.map(p => p[1]));
+  const near = pr.map(([km, e]) => [km / 87.6 * 1200, 318 - (km / 87.6) * 30 - (e - pmin) / (pmax - pmin) * 120]);
+  const nearD = smooth(near);
+  el('path', { d: nearD + ' L1200,400 L0,400 Z', fill: 'url(#fade)' }, land);
+  el('path', { d: nearD, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-width': 6, 'stroke-opacity': 'calc(var(--glow) * .35)', 'stroke-linecap': 'round' }, land);
+  el('path', { d: nearD, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-width': 1.5, 'stroke-opacity': '.85' }, land);
+
+  // ---------- KPI con chispa ----------
+  const KPIS = [
+    { label: 'Distancia', ico: 'i-bike', acc: '--m-dist', v: '278', u: 'km', d: '+12 %', up: true, sub: 'esta semana' , s: [140,190,160,230,210,180,250,278] },
+    { label: 'Desnivel', ico: 'i-mountain', acc: '--m-elev', v: '4.850', u: 'm', d: '+18 %', up: true, sub: 'esta semana', s: [2100,3200,2800,4100,3600,3000,4300,4850] },
+    { label: 'Tiempo en bici', ico: 'i-timer', acc: '--m-time', v: '10 h 12', u: 'min', d: '+15 %', up: true, sub: 'esta semana', s: [6,8,7,9.5,8.8,7.2,9.6,10.2] },
+    { label: 'Velocidad media', ico: 'i-gauge', acc: '--m-speed', v: '27,4', u: 'km/h', d: '−2 %', up: false, sub: 'esta semana', s: [26.1,27.9,27.0,28.3,27.6,26.8,28.0,27.4] },
+  ];
+  const kp = document.getElementById('kpis');
+  KPIS.forEach((k, i) => {
+    const a = document.createElement('article');
+    a.className = 'kpi'; a.style.setProperty('--acc', `var(${k.acc})`);
+    a.innerHTML = `<div class="kpi-head"><span class="kpi-ico"><svg><use href="#${k.ico}"/></svg></span>${k.label}</div>
+      <div class="kpi-val"><b>${k.v}</b><span>${k.u}</span><span class="delta ${k.up ? '' : 'down'}"><svg aria-hidden="true"><use href="#${k.up ? 'i-up' : 'i-down'}"/></svg>${k.d}<span class="sr" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)"> frente a tu media</span></span></div>
+      <div class="kpi-sub">${k.sub}, frente a tus 4 semanas anteriores</div>`;
+    const svg = el('svg', { class: 'spark', viewBox: '0 0 200 48', preserveAspectRatio: 'none', 'aria-hidden': 'true' }, a);
+    const gid = 'sg' + i, g = el('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, el('defs', {}, svg));
+    el('stop', { offset: 0, 'stop-color': `var(${k.acc})`, 'stop-opacity': .35 }, g);
+    el('stop', { offset: 1, 'stop-color': `var(${k.acc})`, 'stop-opacity': 0 }, g);
+    const mn = Math.min(...k.s), mx = Math.max(...k.s);
+    const pts = k.s.map((v, j) => [j / (k.s.length - 1) * 196 + 2, 42 - (v - mn) / (mx - mn || 1) * 30]);
+    const d = smooth(pts);
+    el('path', { d: d + ' L198,48 L2,48 Z', fill: `url(#${gid})` }, svg);
+    el('path', { d, fill: 'none', stroke: `var(${k.acc})`, 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke', 'stroke-linecap': 'round' }, svg);
+    kp.appendChild(a);
+  });
+
+  // ---------- Gráfica de progresión ----------
+  const chart = document.getElementById('chart');
+  const months = ['dic', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov'];
+  const vals = [96, 142, 120, 168, 205, 180, 232, 190, 214, 248, 226, 278];
+  // Ancho real del contenedor: con un viewBox fijo, los textos encogen en móvil (ECharts hará lo mismo con resize).
+  const W = Math.max(300, Math.round(chart.getBoundingClientRect().width)), H = 240, L = 36, R = 20, T = 30, B = 26, max = 320;
+  chart.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const X = i => L + i / 11 * (W - L - R), Y = v => T + (1 - v / max) * (H - T - B);
+  const cdefs = el('defs', {}, chart);
+  const cg = el('linearGradient', { id: 'cg', x1: 0, y1: 0, x2: 0, y2: 1 }, cdefs);
+  el('stop', { offset: 0, 'stop-color': 'var(--m-dist)', 'stop-opacity': .32 }, cg);
+  el('stop', { offset: 1, 'stop-color': 'var(--m-dist)', 'stop-opacity': 0 }, cg);
+  [0, 100, 200, 300].forEach(v => {
+    el('line', { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: 'var(--line)', 'stroke-width': 1 }, chart);
+    el('text', { x: L - 8, y: Y(v) + 4, 'text-anchor': 'end' }, chart).textContent = v;
+  });
+  months.forEach((m, i) => { el('text', { x: X(i), y: H - 6, 'text-anchor': 'middle' }, chart).textContent = m; });
+  const avg = vals.reduce((a, b) => a + b) / vals.length;
+  el('line', { x1: L, x2: W - R, y1: Y(avg), y2: Y(avg), stroke: 'var(--ink-3)', 'stroke-width': 1.5, 'stroke-dasharray': '5 5' }, chart);
+  const cp = vals.map((v, i) => [X(i), Y(v)]);
+  const cd = smooth(cp);
+  el('path', { d: `${cd} L${X(11)},${Y(0)} L${X(0)},${Y(0)} Z`, fill: 'url(#cg)' }, chart);
+  el('path', { d: cd, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 7, 'stroke-opacity': 'calc(var(--glow) * .3)', 'stroke-linecap': 'round' }, chart);
+  const line = el('path', { d: cd, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 2.5, 'stroke-linecap': 'round', class: 'draw' }, chart);
+  line.style.setProperty('--len', Math.ceil(line.getTotalLength()));
+  const lx = X(11), ly = Y(278);
+  const tip = el('g', { class: 'pop' }, chart);
+  el('line', { x1: lx, x2: lx, y1: ly, y2: Y(0), stroke: 'var(--m-dist)', 'stroke-opacity': .4, 'stroke-dasharray': '2 3' }, tip);
+  el('circle', { cx: lx, cy: ly, r: 9, fill: 'var(--m-dist)', 'fill-opacity': 'calc(var(--glow) * .35)' }, tip);
+  el('circle', { cx: lx, cy: ly, r: 5, fill: 'var(--surface)', stroke: 'var(--m-dist)', 'stroke-width': 2.5 }, tip);
+  el('rect', { x: lx - 60, y: ly - 40, width: 64, height: 28, rx: 8, fill: 'var(--surface-2)', stroke: 'var(--m-dist)', 'stroke-opacity': .7 }, tip);
+  const tt = el('text', { x: lx - 28, y: ly - 21, 'text-anchor': 'middle', style: 'font:700 15px var(--f-num);fill:var(--ink)' }, tip); tt.textContent = '278 km';
+  el('text', { x: W - R, y: Y(avg) - 6, 'text-anchor': 'end' }, chart).textContent = 'media 190 km';
+
+  // ---------- Anillo ----------
+  const ring = document.getElementById('ring');
+  const rr = 74, C = 2 * Math.PI * rr, pct = .88;
+  el('circle', { cx: 90, cy: 90, r: rr, fill: 'none', stroke: 'var(--surface-2)', 'stroke-width': 14 }, ring);
+  el('circle', { cx: 90, cy: 90, r: rr, fill: 'none', stroke: 'var(--good)', 'stroke-width': 14, 'stroke-opacity': 'calc(var(--glow) * .25)', 'stroke-dasharray': `${C * pct} ${C}`, transform: 'rotate(-90 90 90)', style: 'filter:blur(4px)' }, ring);
+  el('circle', { cx: 90, cy: 90, r: rr, fill: 'none', stroke: 'var(--good)', 'stroke-width': 12, 'stroke-linecap': 'round', 'stroke-dasharray': `${C * pct} ${C}`, transform: 'rotate(-90 90 90)' }, ring);
+  const t1 = el('text', { x: 90, y: 88, class: 'ring-c', style: 'font:700 34px var(--f-num);fill:var(--ink)' }, ring); t1.textContent = '278';
+  const t2 = el('text', { x: 90, y: 112, class: 'ring-c', style: 'font:500 14px var(--f-ui);fill:var(--ink-2)' }, ring); t2.textContent = 'de 316 km, 88 %';
+
+  // ---------- Perfil por pendiente ----------
+  const slopeCls = g => g < 1 ? 's0' : g < 4 ? 's1' : g < 7 ? 's2' : g < 10 ? 's3' : g < 16 ? 's4' : 's5';
+  const drawSlope = (svg, seed) => {
+    const p = profile(120, seed);
+    const mn = Math.min(...p.map(q => q[1])), mx = Math.max(...p.map(q => q[1]));
+    const X = km => km / 87.6 * 600, Y = e => 68 - (e - mn) / (mx - mn) * 60;
+    for (let i = 0; i < p.length - 1; i++) {
+      const [k1, e1] = p[i], [k2, e2] = p[i + 1];
+      const grade = (e2 - e1) / ((k2 - k1) * 1000) * 100 * 1.6;
+      el('path', { d: `M${X(k1)},72 L${X(k1)},${Y(e1)} L${X(k2)},${Y(e2)} L${X(k2)},72 Z`, fill: `var(--${slopeCls(grade)})`, stroke: `var(--${slopeCls(grade)})`, 'stroke-width': .6 }, svg);
+    }
+    el('path', { d: 'M' + p.map(([k, e]) => `${X(k).toFixed(1)},${Y(e).toFixed(1)}`).join(' L'), fill: 'none', stroke: 'var(--ink)', 'stroke-opacity': .55, 'stroke-width': 1, 'vector-effect': 'non-scaling-stroke' }, svg);
+  };
+  drawSlope(document.getElementById('slope1'), 1.7);
+  drawSlope(document.getElementById('slope2'), 4.2);
+
+  // ---------- Forma de ruta y mapa ----------
+  const loop = (cx, cy, r, n, seed) => {
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const a = i / n * Math.PI * 2;
+      const k = 1 + .22 * Math.sin(a * 3 + seed) + .12 * Math.sin(a * 7 + seed * 2) + .05 * Math.sin(a * 17);
+      pts.push([cx + Math.cos(a) * r * k * 1.25, cy + Math.sin(a) * r * k * .85]);
+    }
+    return pts;
+  };
+  const shape = document.getElementById('shape');
+  const sp = loop(66, 66, 40, 80, 4.2);
+  const sd = 'M' + sp.map(p => p.map(v => v.toFixed(1)).join(',')).join(' L');
+  el('path', { d: sd, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 7, 'stroke-opacity': 'calc(var(--glow) * .35)', 'stroke-linejoin': 'round' }, shape);
+  el('path', { d: sd, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 2.5, 'stroke-linejoin': 'round' }, shape);
+  el('circle', { cx: sp[0][0], cy: sp[0][1], r: 4.5, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2 }, shape);
+
+  const map = document.getElementById('map');
+  for (let k = 0; k < 14; k++) {
+    const pts = loop(360 + k * 4, 150 - k * 2, 18 + k * 13, 60, 1 + k * .15);
+    el('path', { d: smooth(pts), fill: 'none', stroke: 'var(--ink-3)', 'stroke-opacity': k % 5 === 0 ? .32 : .14, 'stroke-width': k % 5 === 0 ? 1.2 : .8 }, map);
+  }
+  const mp = loop(330, 150, 92, 120, 1.7);
+  const md = 'M' + mp.map(p => p.map(v => v.toFixed(1)).join(',')).join(' L');
+  el('path', { d: md, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 10, 'stroke-opacity': 'calc(var(--glow) * .3)', 'stroke-linejoin': 'round' }, map);
+  el('path', { d: md, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': 3, 'stroke-linejoin': 'round', class: 'glow-line' }, map);
+  el('path', { d: md, fill: 'none', stroke: '#fff', 'stroke-opacity': 'calc(var(--glow) * .7)', 'stroke-width': 1, 'stroke-linejoin': 'round' }, map);
+  el('circle', { cx: mp[0][0], cy: mp[0][1], r: 6, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2.5 }, map);
+})();
+</script>
+</body>
+</html>

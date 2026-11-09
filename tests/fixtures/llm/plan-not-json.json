@@ -1,0 +1,16 @@
+{
+  "object": "chat.completion",
+  "created": 1793952020,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "Aquí tienes tres opciones: {\"opciones\": [" },
+      "logprobs": null,
+      "finish_reason": "length"
+    }
+  ],
+  "usage": { "prompt_tokens": 612, "completion_tokens": 8, "total_tokens": 620 },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

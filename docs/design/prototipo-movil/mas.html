@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Más, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* Fila con aviso: el icono y el fondo van en el tono de aviso, el texto sigue en tinta */
+  .row-lead--warn { color: var(--warning); background: var(--warning-bg); }
+  .row-meta--warn { color: var(--ink-2); }
+  .trail-warn { width: 18px; height: 18px; color: var(--warning); }
+  .row-val--quiet { font-size: 17px; color: var(--ink-2); }
+  .row-meta .sk-line { display: block; width: 62%; margin-top: 6px; }
+  .foot-note { display: flex; gap: 8px; align-items: flex-start; padding: 0 2px; font-size: var(--t-sm); line-height: 1.45; color: var(--ink-3); }
+  .foot-note .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--ink-3); }
+  .lead-sk { display: grid; gap: 8px; margin-top: 12px; max-width: 300px; }
+  .start-card .state { padding: 20px 8px 8px; }
+  .start-card .btn--ghost { white-space: normal; text-align: center; min-height: 48px; padding-block: 8px; }
+  /* Todo el menú en una pantalla (360x780): metas de una línea (el texto completo, en title),
+     títulos de sección sin la altura táctil (no son botones) y algo menos de aire entre secciones */
+  .page--mas { gap: 22px; }
+  .page--mas .section-h { min-height: 0; }
+  .page--mas .page-lead { max-width: none; }
+  .page--mas .row-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* En qué pestaña se abre: junto al nombre, para que la meta quede para el dato */
+  .row-where { font: 500 var(--t-sm)/1.3 var(--font-ui); color: var(--ink-3); margin-left: 2px; }
+  /* Error de almacenamiento: solo el nombre, atenuado; el banner ya explica el porqué */
+  .row[aria-disabled="true"] { opacity: 0.55; cursor: default; }
+  .row[aria-disabled="true"] .row-meta { display: none; }
+  .row[aria-disabled="true"]:active { transform: none; }
+  .row[aria-disabled="true"] .chev { visibility: hidden; }
+  @media (hover: hover) and (pointer: fine) { .row[aria-disabled="true"]:hover { background: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Más</span>
+  <!-- Tema a un toque, siempre a la vista (el mismo conmutador que en el resto de pantallas) -->
+  <div class="appbar-actions"><button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button></div>
+</header>
+
+<main id="main" class="page page--narrow page--mas">
+  <div class="page-head">
+    <h1 class="page-title">Más</h1>
+    <p class="page-lead" data-when="default"><b>214 salidas</b> · <b>13.120 km</b> en este navegador</p>
+    <p class="page-lead" data-when="empty">Aún no hay salidas en este navegador.</p>
+    <div class="lead-sk" data-when="loading" aria-hidden="true"><span class="sk sk-line" style="width:88%"></span><span class="sk sk-line" style="width:52%"></span></div>
+  </div>
+
+  <div class="banner banner--error" data-when="error" role="alert">
+    <i data-ic="alert"></i>
+    <p><b>No se pueden leer tus datos.</b> Este navegador bloquea el almacenamiento: pasa en modo privado o con el espacio lleno. Abre la app en una pestaña normal.</p>
+    <button class="btn btn--ghost" type="button" data-retry>Reintentar</button>
+  </div>
+
+  <!-- ===== Explorar: lo de cada día, justo debajo de la cabecera. Junto al nombre, en qué pestaña se abre ===== -->
+  <section class="section" aria-labelledby="s-explorar" id="sec-explorar">
+    <div class="section-h"><h2 class="section-title" id="s-explorar">Explorar</h2></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="subidas.html" data-needs-data data-m="elev">
+        <span class="row-lead"><i data-ic="mountain"></i></span>
+        <span class="row-main"><span class="row-title">Subidas <span class="row-where">en Historial</span></span><span class="row-meta" data-k="subidas" title="14 subidas; 8 las repites">14 subidas · 8 las repites</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li><a class="row" href="repetidas.html" data-needs-data data-m="time">
+        <span class="row-lead"><i data-ic="repeat"></i></span>
+        <span class="row-main"><span class="row-title">Repetidas <span class="row-where">en Historial</span></span><span class="row-meta" data-k="repetidas" title="6 rutas; en 4 vas más rápido">6 rutas · en 4 vas más rápido</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li><a class="row" href="calendario.html" data-needs-data data-m="dist">
+        <span class="row-lead"><i data-ic="calendar"></i></span>
+        <span class="row-main"><span class="row-title">Calendario <span class="row-where">en Plan</span></span><span class="row-meta" data-k="calendario" title="Mañana, sábado 7: Lluçanès por Prats">Mañana: Lluçanès por Prats</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li><a class="row" href="objetivos.html" data-needs-data data-m="elev">
+        <span class="row-lead"><i data-ic="target"></i></span>
+        <span class="row-main"><span class="row-title">Objetivos <span class="row-where">en Plan</span></span><span class="row-meta" data-k="objetivos" title="Noviembre: 201 de 800 km">201 de 800 km este mes</span></span>
+        <span class="row-trail"><span class="row-val row-val--quiet" data-k-val="objetivos">25<span class="u">%</span></span><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+    </ul>
+  </section>
+
+  <!-- ===== Datos y ajustes: Ajustes primero (lo más usado); en vacío y en error la sección sube, por JS ===== -->
+  <section class="section" aria-labelledby="s-datos" id="sec-datos">
+    <div class="section-h"><h2 class="section-title" id="s-datos">Datos y ajustes</h2></div>
+
+    <div class="card start-card" data-when="empty">
+      <div class="state">
+        <span class="state-ic"><i data-ic="bike"></i></span>
+        <h3 class="state-title">Empieza por tu archivo de Strava</h3>
+        <p class="state-text">Con él verás tu progresión, tus subidas y tus rutas repetidas.</p>
+        <a class="btn btn--primary btn--block" href="importar.html?state=empty"><i data-ic="upload"></i>Importar salidas</a>
+        <a class="btn btn--ghost btn--block" href="ajustes.html?state=empty#restaurar">¿Vienes de otro teléfono? Restaurar una copia</a>
+      </div>
+    </div>
+
+    <ul class="list list--inset" aria-busy="false" id="lista-datos">
+      <li><a class="row" href="ajustes.html">
+        <span class="row-lead"><i data-ic="sliders"></i></span>
+        <span class="row-main"><span class="row-title">Ajustes</span><span class="row-meta">Nombre, Casa, claves y tema</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li data-when="default loading error"><a class="row" href="importar.html" data-m="dist" data-needs-data>
+        <span class="row-lead"><i data-ic="upload"></i></span>
+        <span class="row-main"><span class="row-title">Importar salidas</span><span class="row-meta" data-k="importar">La última, ayer</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <!-- El único aviso de copia de la pantalla: icono y triángulo en ámbar (el ámbar solo avisa) -->
+      <li data-when="default loading error"><a class="row" href="ajustes.html#copia" data-k-row="copia" data-needs-data>
+        <span class="row-lead row-lead--warn" data-k-lead="copia"><i data-ic="archive"></i></span>
+        <span class="row-main"><span class="row-title">Copia de seguridad</span><span class="row-meta row-meta--warn" data-k="copia" title="Calendario y objetivos sin copiar desde el 25 de octubre">Sin copiar desde el 25 oct.</span></span>
+        <span class="row-trail" data-k-trail="copia"><i data-ic="warn" class="trail-warn"></i><span class="sr-only">Hay cambios sin copiar.</span><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+    </ul>
+  </section>
+
+  <p class="foot-note"><i data-ic="lock"></i><span>Sin servidor: tus salidas solo están en este navegador y en las copias que descargues.</span></p>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="mas" data-badge="plan:1"></nav>
+
+<script>
+/* Estados del prototipo: ?state=empty|loading|error (sin parámetro, con datos) */
+(function () {
+  var s = 'default';
+  try { s = new URLSearchParams(location.search).get('state') || 'default'; } catch (e) {}
+  if (['empty', 'loading', 'error'].indexOf(s) < 0) s = 'default';
+  document.documentElement.dataset.state = s;
+  document.querySelectorAll('[data-when]').forEach(function (n) { n.hidden = n.dataset.when.split(' ').indexOf(s) < 0; });
+
+  /* Vacío: la meta dice qué falta. Error: sin meta (la regla de las filas deshabilitadas la oculta);
+     el banner ya lo explica una vez, con «Reintentar» */
+  var META = {
+    empty: { subidas: 'Aparecen al importar tus salidas', repetidas: 'Aparecen al importar tus salidas', calendario: 'Nada planificado', objetivos: 'Sin objetivos' }
+  };
+  function q(sel) { return document.querySelector(sel); }
+  if (s === 'loading') {
+    document.querySelectorAll('[data-k]').forEach(function (m) { m.innerHTML = '<span class="sk sk-line" aria-hidden="true"></span>'; });
+    document.querySelectorAll('.list').forEach(function (l) { l.setAttribute('aria-busy', 'true'); });
+    q('#lista-datos').insertAdjacentHTML('beforebegin', '<span class="sr-only" role="status">Cargando tus datos</span>');
+  }
+  if (META[s]) Object.keys(META[s]).forEach(function (k) { var m = q('[data-k="' + k + '"]'); if (m) m.innerHTML = META[s][k]; });
+  if (s !== 'default') document.querySelectorAll('[data-k][title]').forEach(function (m) { m.removeAttribute('title'); });
+  /* Sin salidas, lo primero es importar: «Datos y ajustes» sube por encima de Explorar */
+  if (s === 'empty') { var ex = q('#sec-explorar'), da = q('#sec-datos'); ex.parentNode.insertBefore(da, ex); }
+  /* Sin acceso al almacenamiento, lo que depende de los datos no lleva a ningún sitio: solo queda «Reintentar» */
+  if (s === 'error') document.querySelectorAll('[data-needs-data]').forEach(function (a) {
+    a.removeAttribute('href'); a.setAttribute('role', 'link'); a.setAttribute('aria-disabled', 'true');
+  });
+  if (s !== 'default') {
+    var tb = q('[data-tabbar]'); if (tb) tb.removeAttribute('data-badge');   // sin datos, nada pendiente en Plan
+    var v = q('[data-k-val="objetivos"]'); if (v) v.remove();
+    var l = q('[data-k-lead="copia"]'); if (l) l.classList.remove('row-lead--warn');
+    var t = q('[data-k-trail="copia"]'); if (t) t.querySelectorAll('[data-ic="warn"], .sr-only').forEach(function (n) { n.remove(); });
+  }
+})();
+</script>
+<script src="movil.js?v=588a4775"></script>
+<script>
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-retry]')) FBT.toast('Sigue sin haber acceso al almacenamiento', { tone: 'error' });
+  });
+</script>
+</body>
+</html>

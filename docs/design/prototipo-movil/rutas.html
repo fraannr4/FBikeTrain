@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Rutas, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<!-- Icono propio: sin él, el navegador pide /favicon.ico y Vite responde 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%230A1122%27/%3E%3Cpath d=%27M4 24l8-11 5 6 4-5 7 10z%27 fill=%27%232A64DA%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<link rel="stylesheet" href="rutas.css?v=585f6010">
+</head>
+<body data-page="rutas">
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Rutas</span>
+  <div class="appbar-actions">
+    <a class="icon-btn" href="ia.html" aria-label="Pregunta a la IA"><i data-ic="sparkles"></i></a>
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <div class="page-head">
+    <p class="page-kicker" id="r-kicker">Generadas hoy a las 9:40</p>
+    <h1 class="page-title">Rutas</h1>
+    <p class="page-lead" id="r-lead" hidden>Elige distancia y desnivel. Te propondremos <b>5 rutas que salen de Casa</b>, con su forma y su perfil.</p>
+  </div>
+
+  <!-- Sin salidas importadas: las rutas se calculan con valores generales -->
+  <div class="banner" id="r-nodata" hidden>
+    <i data-ic="info"></i>
+    <p><b>Importa tus salidas para ajustar las rutas a tu nivel.</b> Mientras, dificultad y tiempo usan valores generales.</p>
+    <a class="btn btn--ghost" href="importar.html"><i data-ic="upload"></i>Importar salidas</a>
+  </div>
+
+  <!-- Receta: lo que has pedido. Tocarla abre el generador abajo, donde llega el pulgar -->
+  <section class="section" id="r-receta" aria-label="Tu petición">
+    <button class="receta" type="button" data-sheet-open="hoja-generar">
+      <span class="row-lead" data-m="dist"><i data-ic="sliders"></i></span>
+      <span class="row-main">
+        <span class="receta-figs" id="receta-figs"></span>
+        <span class="receta-meta" id="receta-meta"></span>
+      </span>
+      <span class="receta-go"><span class="receta-go-t">Cambiar</span><i data-ic="chev"></i></span>
+    </button>
+  </section>
+
+  <!-- Sin rutas todavía: el generador va en la página -->
+  <section class="section card gen-inline" id="r-inline" aria-label="Elige tu ruta" hidden></section>
+
+  <!-- Generando -->
+  <section class="section" id="r-cargando" aria-labelledby="r-carga-t" hidden>
+    <div class="card gen-progress" aria-busy="true">
+      <div class="card-h"><span class="card-ic" data-m="dist"><i data-ic="route"></i></span><h2 class="card-title" id="r-carga-t">Generando 5 rutas…</h2></div>
+      <div class="gen-progress-h">
+        <p class="gen-progress-v"><span id="gen-ready">2</span> <span class="u">de 5</span></p>
+        <p class="meta">rutas listas</p>
+      </div>
+      <div class="genbar" role="progressbar" aria-label="Progreso de la generación" aria-valuemin="0" aria-valuemax="100" aria-valuenow="46"><i id="genbar" style="--p:.46"></i></div>
+      <ol class="gensteps" id="gensteps">
+        <li data-s="done"><i data-ic="checkc"></i><span>Buscando carreteras alrededor de Casa…</span></li>
+        <li data-s="now" aria-current="step"><i data-ic="loader" class="spin"></i><span>Trazando 5 recorridos…</span></li>
+        <li data-s="todo"><i data-ic="clock"></i><span>Coloreando los perfiles por pendiente…</span></li>
+      </ol>
+      <button class="btn btn--secondary btn--block" type="button" id="r-cancelar">Cancelar</button>
+    </div>
+    <ul class="carousel" aria-hidden="true">
+      <li><div class="rcard rcard--sk"><div class="rcard-map"><span class="sk sk-shape"></span></div><div class="rcard-body"><span class="sk sk-title"></span><span class="sk sk-line" style="width:62%"></span><div class="sk-figs"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><span class="sk sk-prof"></span></div></div></li>
+      <li><div class="rcard rcard--sk"><div class="rcard-map"><span class="sk sk-shape"></span></div><div class="rcard-body"><span class="sk sk-title"></span><span class="sk sk-line" style="width:62%"></span><div class="sk-figs"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><span class="sk sk-prof"></span></div></div></li>
+    </ul>
+  </section>
+
+  <!-- Error -->
+  <section class="section" id="r-error" aria-label="Error al generar" hidden>
+    <div class="card state state--error" role="alert">
+      <span class="state-ic"><i data-ic="alert"></i></span>
+      <h2 class="state-title">No se han podido generar las rutas</h2>
+      <p class="state-text">OpenRouteService no responde. Tu petición está guardada: vuelve a intentarlo en un momento.</p>
+      <button class="btn btn--secondary" type="button" data-sheet-open="hoja-generar"><i data-ic="sliders"></i>Cambiar petición</button>
+    </div>
+  </section>
+
+  <!-- Sin clave de rutas -->
+  <section class="section" id="r-sinclave" aria-label="Falta la clave de rutas" hidden>
+    <div class="card state">
+      <span class="state-ic"><i data-ic="key"></i></span>
+      <h2 class="state-title">Falta tu clave de rutas</h2>
+      <p class="state-text">Las rutas se calculan con OpenRouteService, gratis con tu propia clave. Pégala en Ajustes y vuelve aquí.</p>
+      <a class="btn btn--primary" href="ajustes.html#rutas"><i data-ic="sliders"></i>Ir a Ajustes</a>
+      <button class="btn btn--ghost" type="button" data-sheet-open="hoja-clave">Cómo conseguirla</button>
+    </div>
+  </section>
+
+  <!-- Resultados: tarjetas deslizables -->
+  <section class="section" id="r-resultados" aria-labelledby="r-res-t">
+    <div class="section-h"><h2 class="section-title" id="r-res-t">5 rutas para ti</h2></div>
+    <div class="carousel-wrap" id="r-carrusel" data-carousel>
+      <ul class="carousel" tabindex="0" aria-label="Rutas generadas"></ul>
+      <div class="pager">
+        <button class="icon-btn" type="button" data-prev aria-label="Ruta anterior"><i data-ic="back"></i></button>
+        <div class="pager-mid"><span class="pager-count" aria-live="polite"></span><span class="pager-dots" aria-hidden="true"></span></div>
+        <button class="icon-btn" type="button" data-next aria-label="Ruta siguiente"><i data-ic="chev"></i></button>
+      </div>
+    </div>
+    <!-- Cuota agotada: debajo de las rutas, que siguen sirviendo -->
+    <div class="banner banner--warn" id="r-cuota" hidden>
+      <i data-ic="clock"></i>
+      <p>Tu clave gratuita de <b>OpenRouteService</b> ha llegado al límite de hoy y se renueva a la 1:00. Mientras, puedes exportar estas rutas.</p>
+    </div>
+    <ul class="list list--inset">
+      <li><button class="row" type="button" data-sheet-open="hoja-gpx" data-m="time">
+        <span class="row-lead"><i data-ic="download"></i></span>
+        <span class="row-main"><span class="row-title">Cómo pasar el GPX al iGPSPORT</span><span class="row-meta">BSC200S, en tres pasos con la app</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </button></li>
+    </ul>
+  </section>
+
+  <!-- La otra forma de pedir rutas -->
+  <section class="section" id="r-ia" aria-label="Rutas con IA">
+    <ul class="list list--inset">
+      <li><a class="row" href="ia.html" data-m="elev">
+        <span class="row-lead"><i data-ic="sparkles"></i></span>
+        <span class="row-main"><span class="row-title">Pregunta a la IA</span><span class="row-meta">Tres preguntas y te propone rutas explicadas</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+    </ul>
+  </section>
+</main>
+
+<div class="dock dock--narrow" id="r-dock">
+  <button class="btn btn--primary" type="button" id="r-dock-export"><i data-ic="download"></i>Exportar GPX<span class="dock-tag">1 de 5</span></button>
+  <button class="btn btn--primary" type="button" id="r-dock-gen" hidden><i data-ic="route"></i>Generar 5 rutas</button>
+  <button class="btn btn--primary" type="button" id="r-dock-retry" hidden><i data-ic="refresh"></i>Reintentar</button>
+</div>
+<nav class="tabbar" data-tabbar data-current="rutas" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: generador ===== -->
+<dialog class="sheet" id="hoja-generar" aria-labelledby="hoja-generar-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-generar-t">Qué ruta quieres</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="gen" id="gen">
+      <div class="gen-group">
+        <div class="gen-label-row"><p class="gen-label" id="g-km-l">Distancia</p><p class="gen-hint" id="g-km-hint">Tu salida media: <b>74&nbsp;km</b></p></div>
+        <div class="stepper" id="g-km" data-stepper data-min="20" data-max="250" data-step="5" data-value="90" role="group" aria-labelledby="g-km-l">
+          <button class="stepper-btn" type="button" data-dir="-1" aria-label="5 km menos"><i data-ic="minus"></i></button>
+          <output class="stepper-v"><span class="fig">90</span><span class="u">km</span></output>
+          <button class="stepper-btn" type="button" data-dir="1" aria-label="5 km más"><i data-ic="plus"></i></button>
+        </div>
+      </div>
+      <div class="gen-group">
+        <p class="gen-label" id="g-dif-l">Dificultad para ti</p>
+        <div class="seg" role="group" aria-labelledby="g-dif-l" id="g-dif">
+          <button type="button" data-value="suave" aria-pressed="false"><svg class="ic bars" aria-hidden="true"><use href="#i-bars1"/></svg><span>Suave</span></button>
+          <button type="button" data-value="media" aria-pressed="true"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg><span>Media</span></button>
+          <button type="button" data-value="dura" aria-pressed="false"><svg class="ic bars" aria-hidden="true"><use href="#i-bars3"/></svg><span>Dura</span></button>
+        </div>
+      </div>
+      <div class="gen-group">
+        <div class="gen-label-row"><p class="gen-label" id="g-m-l">Desnivel</p><p class="gen-hint" id="g-m-hint"></p></div>
+        <div class="stepper" id="g-m" data-stepper data-min="0" data-max="5000" data-step="100" data-value="1500" role="group" aria-labelledby="g-m-l">
+          <button class="stepper-btn" type="button" data-dir="-1" aria-label="100 m menos"><i data-ic="minus"></i></button>
+          <output class="stepper-v"><span class="fig">1500</span><span class="u">m</span></output>
+          <button class="stepper-btn" type="button" data-dir="1" aria-label="100 m más"><i data-ic="plus"></i></button>
+        </div>
+      </div>
+      <div class="gen-group">
+        <p class="gen-label" id="g-salida-l">Sale de</p>
+        <div class="seg" role="group" aria-labelledby="g-salida-l" aria-describedby="g-salida-h" id="g-salida">
+          <button type="button" data-value="casa" aria-pressed="true"><i data-ic="house"></i><span>Casa</span></button>
+          <button type="button" data-value="aqui" aria-pressed="false"><i data-ic="navigation"></i><span>Aquí</span></button>
+          <button type="button" data-value="mapa" aria-pressed="false"><i data-ic="pin"></i><span>Mapa</span></button>
+        </div>
+        <p class="field-help" id="g-salida-h">Tu punto guardado en Ajustes. La IA nunca lo ve.</p>
+      </div>
+      <div class="gen-group">
+        <p class="gen-label" id="g-tipo-l">Recorrido</p>
+        <div class="seg seg--quiet" role="group" aria-labelledby="g-tipo-l" id="g-tipo">
+          <button type="button" data-value="circular" aria-pressed="true"><i data-ic="repeat"></i><span>Circular</span></button>
+          <button type="button" data-value="ida" aria-pressed="false"><i data-ic="swap"></i><span>Ida y vuelta</span></button>
+        </div>
+      </div>
+      <ul class="list list--inset">
+        <li><div class="row" data-m="time">
+          <span class="row-lead"><i data-ic="sparkles"></i></span>
+          <span class="row-main"><span class="row-title" id="g-nueva-l">Priorizar carretera nueva</span><span class="row-meta">Evita lo ya rodado</span></span>
+          <span class="row-trail"><button class="switch" type="button" role="switch" id="g-nueva" aria-checked="true" aria-labelledby="g-nueva-l"></button></span>
+        </div></li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block btn--lg btn--quota" type="button" id="g-generar"><i data-ic="route"></i>Generar 5 rutas</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: pasar el GPX al iGPSPORT ===== -->
+<dialog class="sheet" id="hoja-gpx" aria-labelledby="hoja-gpx-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-gpx-t">Llévala al iGPSPORT</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Para el BSC200S. El archivo es <span data-gpx-file>montseny-por-collformic.gpx</span>.</p>
+  </div>
+  <div class="sheet-body">
+    <ol class="steps">
+      <li><p>Pulsa <b>Exportar GPX</b>. El archivo se guarda en Descargas.</p></li>
+      <li><p>Abre la app <b>iGPSPORT</b>, ve a <b>Rutas</b> e importa el archivo.</p></li>
+      <li><p>Sincroniza el BSC200S. En el ciclocomputador, abre <b>Rutas</b> y elige «<span data-gpx-name>Montseny por Collformic</span>».</p></li>
+    </ol>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Entendido</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: la ruta en el mapa (en la app, Leaflet con CyclOSM) ===== -->
+<dialog class="sheet sheet--map" id="hoja-mapa" aria-labelledby="hoja-mapa-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-mapa-t" dir="auto">Recorrido</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar el mapa"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub" id="hoja-mapa-sub"></p>
+  </div>
+  <div class="sheet-body sheet-body--map">
+    <div class="rmap"><svg class="shape map" id="rmap-svg" role="img"></svg><p class="map-attr">© OpenStreetMap, CyclOSM</p></div>
+    <div class="rmap-prof">
+      <p class="rcard-prof-h"><span>Perfil por pendiente</span><span>cima <span class="fig" id="rmap-top"></span>&nbsp;m</span></p>
+      <svg class="profile" id="rmap-prof" role="img"></svg>
+      <div class="profile-axis" id="rmap-axis" aria-hidden="true"></div>
+      <div class="legend" id="rmap-legend" aria-hidden="true"></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="button" id="mapa-export"><i data-ic="download"></i>Exportar GPX</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: cómo conseguir la clave de rutas ===== -->
+<dialog class="sheet" id="hoja-clave" aria-labelledby="hoja-clave-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-clave-t">Tu clave de rutas</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Gratis y en dos minutos. La clave se queda en tu teléfono.</p>
+  </div>
+  <div class="sheet-body">
+    <ol class="steps">
+      <li><p>Crea una cuenta gratuita en <b>openrouteservice.org</b>.</p></li>
+      <li><p>En tu panel, pide una clave del plan gratuito.</p></li>
+      <li><p>Cópiala y pégala en <b>Ajustes</b>, en el apartado <b>Rutas</b>.</p></li>
+    </ol>
+  </div>
+  <div class="sheet-foot">
+    <a class="btn btn--primary btn--block" href="ajustes.html#rutas"><i data-ic="sliders"></i>Ir a Ajustes</a>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script src="rutas.js?v=123888e3"></script>
+</body>
+</html>

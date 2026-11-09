@@ -1,0 +1,28 @@
+{
+  "object": "chat.completion",
+  "created": 1793952010,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"explicaciones\":[{\"id\":\"r1\",\"texto\":\"62 km y 850 m de desnivel: un 10 % más de distancia que tu media, con el 40 % de carretera nueva.\"},{\"id\":\"r2\",\"texto\":\"51,1 km y 520 m: casi tu salida habitual, con un repecho de dificultad media.\"}]}",
+        "reasoning": "Cito la distancia y el desnivel de cada ruta."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "queue_time": 0.04,
+    "prompt_tokens": 540,
+    "prompt_time": 0.02,
+    "completion_tokens": 120,
+    "completion_time": 0.11,
+    "total_tokens": 660,
+    "total_time": 0.13
+  },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

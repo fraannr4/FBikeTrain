@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 34" width="104" height="136">
+  <title>FBikeTrain: hito kilométrico</title>
+  <defs><clipPath id="hito-clip"><path d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z"/></clipPath></defs>
+  <path d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z" fill="#FFFFFF" stroke="#0E1730" stroke-width="1.5"/>
+  <rect x="0" y="0" width="26" height="11" fill="#1F5FD6" clip-path="url(#hito-clip)"/>
+  <text x="13" y="28" text-anchor="middle" fill="#0E1730" font-family="'Barlow Semi Condensed', 'Barlow', sans-serif" font-weight="700" font-size="15">F</text>
+</svg>

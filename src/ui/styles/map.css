@@ -1,0 +1,77 @@
+/* Mapa CyclOSM oscuro, trazado luminoso y perfil. Lo rellena la tarea 8. */
+
+/* Controles de Leaflet (zoom) con zona táctil de 44x44 en cualquier puntero.
+   Leaflet los deja en 26-30 px; la especificidad supera a .leaflet-touch .leaflet-bar a. */
+.leaflet-container .leaflet-bar.leaflet-control a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 22px;
+}
+/* Zoom con los tokens del tema: sin los cuadros blancos de Leaflet en el modo oscuro */
+.leaflet-container .leaflet-control-container .leaflet-bar { border: 1px solid var(--line-strong); box-shadow: none; }
+.leaflet-container .leaflet-bar.leaflet-control a { background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
+.leaflet-container .leaflet-bar.leaflet-control a:hover { background: var(--surface-2); color: var(--ink); }
+.leaflet-container .leaflet-bar.leaflet-control a.leaflet-disabled { background: var(--surface); color: var(--ink-3); }
+
+/* Atribución de CyclOSM/OSM con los tokens del tema. La de Leaflet (blanco al 80 % y
+   enlaces #0078A8) se queda en 3,2:1 sobre el mapa oscuro. Fondo casi opaco para que
+   la tesela de debajo no cambie el contraste; enlaces subrayados (no solo por color).
+   La especificidad supera a la de leaflet.css, que puede cargarse después. */
+.leaflet-container .leaflet-control-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--ink-2);
+  padding: 2px 6px;
+  border-top-left-radius: 6px;
+}
+.leaflet-container .leaflet-control-container .leaflet-control-attribution a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---- RideMap: trazado, subidas, salida y cursor con tokens (siguen al tema) ---- */
+.rmap { background: var(--map-under); }
+.rmap .leaflet-tile-pane { filter: var(--map-filter); }
+.rmap .rmap-halo { stroke: var(--trace); stroke-width: 9; stroke-opacity: calc(0.4 * var(--glow, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-core { stroke: var(--trace); stroke-width: 3; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-climb { stroke-width: 5; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-climb.rmap-g0 { stroke: var(--g0); } .rmap .rmap-climb.rmap-g1 { stroke: var(--g1); } .rmap .rmap-climb.rmap-g2 { stroke: var(--g2); }
+.rmap .rmap-climb.rmap-g3 { stroke: var(--g3); } .rmap .rmap-climb.rmap-g4 { stroke: var(--g4); } .rmap .rmap-climb.rmap-g5 { stroke: var(--g5); }
+.rmap .rmap-start { fill: var(--good); fill-opacity: 1; stroke: var(--surface); stroke-width: 2.5; }
+.rmap .rmap-cur { fill: var(--ink); fill-opacity: 1; stroke: var(--trace); stroke-width: 3; }
+.rmap .rmap-pin-box { background: none; border: 0; }
+.rmap-pin {
+  display: grid; place-items: center; box-sizing: border-box; width: 100%; height: 24px; padding: 0 5px; border-radius: 12px;
+  background: var(--surface); border: 2.5px solid var(--g2); white-space: nowrap;
+  font: 700 12px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.rmap-pin.rmap-g0 { border-color: var(--g0); } .rmap-pin.rmap-g1 { border-color: var(--g1); } .rmap-pin.rmap-g2 { border-color: var(--g2); }
+.rmap-pin.rmap-g3 { border-color: var(--g3); } .rmap-pin.rmap-g4 { border-color: var(--g4); } .rmap-pin.rmap-g5 { border-color: var(--g5); }
+/* Mapa de solo mirar: el dedo desplaza la página, no el mapa */
+.rmap--static { cursor: default; }
+.rmap--static .leaflet-interactive { cursor: default; }
+
+/* ---- Trazado luminoso (tarea 8): halo, núcleo y un hilo blanco encima.
+   En claro --glow y --thread valen 0: queda solo el núcleo. ---- */
+.rmap .rmap-halo { stroke-opacity: calc(0.55 * var(--glow, 1)); }
+.rmap .rmap-thread { stroke: var(--on-action); stroke-width: 1; stroke-opacity: calc(0.85 * var(--thread, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Tinte azul noche entre las teselas (200) y los trazados (400). Va claro a propósito: más oscuro,
+   los rótulos de las poblaciones dejan de leerse. En claro es blanco y no cambia nada. */
+.rmap .leaflet-tint-pane { mix-blend-mode: multiply; pointer-events: none; }
+.rmap .map-tint {
+  position: absolute; left: -5000px; top: -5000px; width: 10000px; height: 10000px;
+  background: var(--map-tint); pointer-events: none;
+}
+
+@media (forced-colors: active) {
+  .rmap .leaflet-tint-pane { display: none; }
+  .rmap .rmap-core { stroke: Highlight; }
+  .rmap .rmap-halo, .rmap .rmap-thread { stroke-opacity: 0; }
+}
+
+/* Con zoom fraccionario (zoomSnap 0,25) las teselas escaladas no casan al píxel. Leaflet suma sus
+   bordes (plus-lighter), pero bajo el filtro oscuro la suma se ve como una rejilla clara. En su
+   lugar, cada tesela solapa 1 px a la siguiente. Leaflet pone el tamaño en línea: !important. */
+.rmap .leaflet-tile-container img.leaflet-tile { mix-blend-mode: normal; width: 257px !important; height: 257px !important; }

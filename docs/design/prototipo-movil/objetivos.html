@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es" data-theme="dark" data-view="data">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Objetivos, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+/* Vista de estado: ?state=empty|loading|error (o ?estado=vacio|carga|error) */
+(function () { var q = new URLSearchParams(location.search), s = q.get('state') || q.get('estado') || ''; var map = { empty: 'empty', vacio: 'empty', loading: 'loading', carga: 'loading', error: 'error' }; document.documentElement.dataset.view = map[s] || 'data'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<link rel="stylesheet" href="plan.css?v=2e5592c0">
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Objetivos</span>
+  <div class="appbar-actions">
+    <button class="btn btn--primary appbar-add" type="button" data-goal-new data-v="data"><i data-ic="plus"></i>Nuevo objetivo</button>
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <div class="page-head">
+    <h1 class="page-title">Plan</h1>
+    <nav class="seg-nav" aria-label="Vistas del plan">
+      <a href="calendario.html"><i data-ic="calendar"></i>Calendario</a>
+      <a href="objetivos.html" aria-current="page"><i data-ic="target"></i>Objetivos</a>
+    </nav>
+  </div>
+
+  <!-- ===== Volumen: semana y mes (primero: es lo que se mira casi a diario) =====
+       Lo pinta plan.js desde los objetivos. Regla: el anillo es la primera métrica
+       definida (distancia, después desnivel, después tiempo); las demás van como barras. -->
+  <section class="section" aria-labelledby="s-vol" data-v="data">
+    <div class="section-h"><h2 class="section-title" id="s-vol" tabindex="-1">Volumen</h2></div>
+    <p class="section-sub" id="vol-key"><span class="notch-key" aria-hidden="true"></span>La muesca marca dónde tendrías que ir hoy para llegar justo a tiempo.</p>
+    <div class="vol-grid stack" id="vol-grid"></div>
+  </section>
+
+  <!-- ===== Evento: fila compacta con la cuenta atrás; se despliega con un toque ===== -->
+  <section class="section" aria-labelledby="s-ev" data-v="data" data-goal="event">
+    <div class="section-h"><h2 class="section-title" id="s-ev" tabindex="-1">Tu próximo evento</h2><button class="icon-btn" type="button" id="ev-edit" data-goal-edit="event" aria-label="Editar el evento"><i data-ic="pencil"></i></button></div>
+    <article class="card ev" data-m="dist" id="ev-card" aria-labelledby="s-ev"></article>
+  </section>
+
+  <!-- Acción en línea (sin flotante: tapaba los lápices, la fila del evento y los % de «Anteriores»,
+       igual que en Calendario). Desde 600 px está en la barra superior. -->
+  <div class="goal-add" data-v="data">
+    <button class="btn btn--secondary btn--block" type="button" data-goal-new><i data-ic="plus"></i>Nuevo objetivo</button>
+  </div>
+
+  <!-- ===== Anteriores ===== -->
+  <section class="section prev" aria-labelledby="s-prev" data-v="data">
+    <div class="section-h"><h2 class="section-title" id="s-prev">Anteriores</h2><button class="card-link" type="button" id="prev-more" data-sheet-open="hoja-anteriores">Ver todos<i data-ic="chev"></i></button></div>
+    <ul class="list list--inset" id="prev-list"></ul>
+  </section>
+
+  <!-- ===== Vacío ===== -->
+  <section class="section" aria-labelledby="st-vacio" data-v="empty">
+    <div class="card state">
+      <span class="state-ic"><i data-ic="target"></i></span>
+      <h2 class="state-title" id="st-vacio">Ponte un objetivo</h2>
+      <p class="state-text">Una marcha con fecha o un volumen para cada semana o mes. Lo medimos con tus salidas importadas.</p>
+    </div>
+    <ul class="list list--inset">
+      <li><button class="row" type="button" data-goal-new="event" data-m="dist">
+        <span class="row-lead"><i data-ic="flag"></i></span>
+        <span class="row-main"><span class="row-title">Una marcha o evento</span><span class="row-meta">Cuenta atrás y si tus salidas ya llegan a esa distancia</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></button></li>
+      <li><button class="row" type="button" data-goal-new="volume" data-m="time">
+        <span class="row-lead"><i data-ic="calendar"></i></span>
+        <span class="row-main"><span class="row-title">Volumen por semana o mes</span><span class="row-meta">Tu semana media son 191&#8239;km: empieza por ahí</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></button></li>
+    </ul>
+  </section>
+
+  <!-- ===== Cargando ===== -->
+  <section class="section" aria-busy="true" data-v="loading">
+    <span class="sr-only">Cargando tus objetivos</span>
+    <div class="card" aria-hidden="true" style="display:grid;gap:14px">
+      <span class="sk sk-title" style="width:40%"></span>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center"><span class="sk sk-ring"></span><span style="display:grid;gap:12px"><span class="sk sk-line"></span><span class="sk sk-line" style="width:60%"></span><span class="sk sk-line" style="width:84%"></span></span></div>
+    </div>
+    <div class="card" aria-hidden="true" style="display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center">
+      <span class="sk" style="height:54px;border-radius:22px 22px 8px 8px"></span>
+      <span style="display:grid;gap:10px"><span class="sk sk-title" style="width:70%"></span><span class="sk sk-line" style="width:56%"></span><span class="sk sk-line"></span></span>
+    </div>
+  </section>
+
+  <!-- ===== Error ===== -->
+  <section class="section" aria-labelledby="st-error" data-v="error">
+    <div class="card state state--error" role="alert">
+      <span class="state-ic"><i data-ic="alert"></i></span>
+      <h2 class="state-title" id="st-error">No se han podido abrir tus objetivos</h2>
+      <p class="state-text">El navegador no ha dejado leer los datos guardados. Tus objetivos siguen ahí: vuelve a intentarlo.</p>
+      <a class="btn btn--secondary" href="objetivos.html"><i data-ic="refresh"></i>Reintentar</a>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="plan"></nav>
+
+<!-- ===== Hoja: todos los objetivos anteriores ===== -->
+<dialog class="sheet" id="hoja-anteriores" aria-labelledby="hoja-anteriores-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-anteriores-t">Objetivos anteriores</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub" id="prev-sum" aria-live="polite"></p>
+  </div>
+  <div class="sheet-body">
+    <div class="seg seg--quiet prev-seg" role="group" aria-label="Mostrar" id="prev-seg">
+      <button type="button" data-value="all" aria-pressed="true"><span>Todos</span></button>
+      <button type="button" data-value="week" aria-pressed="false"><span>Semanas</span></button>
+      <button type="button" data-value="month" aria-pressed="false"><span>Meses</span></button>
+    </div>
+    <ul class="list list--inset prev" id="prev-all"></ul>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: nuevo objetivo o editar ===== -->
+<dialog class="sheet" id="hoja-objetivo" aria-labelledby="hoja-objetivo-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-objetivo-t">Nuevo objetivo</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <form class="form" id="f-objetivo" novalidate>
+      <div class="seg" role="tablist" aria-label="Tipo de objetivo" id="fo-tipo">
+        <button type="button" role="tab" id="fo-t-ev" data-value="event" aria-controls="fo-p-ev" aria-selected="true"><i data-ic="flag"></i><span>Evento</span></button>
+        <button type="button" role="tab" id="fo-t-vol" data-value="volume" aria-controls="fo-p-vol" aria-selected="false"><i data-ic="calendar"></i><span>Volumen</span></button>
+      </div>
+      <p class="form-warn" id="fo-replace" aria-live="polite" hidden></p>
+
+      <div class="form" id="fo-p-ev" role="tabpanel" aria-labelledby="fo-t-ev">
+        <div class="field" id="fo-nombre-f">
+          <label class="field-label" for="fo-nombre">Nombre</label>
+          <input class="input" id="fo-nombre" name="nombre" type="text" autocomplete="off" maxlength="80" placeholder="Por ejemplo, Marxa del Lluçanès" aria-describedby="fo-nombre-e">
+          <p class="field-error" id="fo-nombre-e" hidden><i data-ic="alert"></i>Ponle un nombre para reconocerlo en la cuenta atrás.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="fo-fecha">Fecha</label>
+          <input class="input" id="fo-fecha" name="fecha" type="date" value="2026-12-13">
+        </div>
+        <div class="field-pair">
+          <div class="field">
+            <label class="field-label" for="fo-ekm">Distancia</label>
+            <div class="unit-wrap"><input class="input" id="fo-ekm" name="distancia" type="text" inputmode="decimal" autocomplete="off" aria-describedby="fo-ev-e fo-ev-h"><span class="sfx" aria-hidden="true">km</span></div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="fo-em">Desnivel</label>
+            <div class="unit-wrap"><input class="input" id="fo-em" name="desnivel" type="text" inputmode="numeric" autocomplete="off" aria-describedby="fo-ev-e fo-ev-h"><span class="sfx" aria-hidden="true">m</span></div>
+          </div>
+        </div>
+        <p class="field-error" id="fo-ev-e" data-num-err hidden></p>
+        <p class="field-help" id="fo-ev-h" style="margin-top:-10px">Opcionales. Con ellas comparamos el evento con tus mejores salidas.</p>
+      </div>
+
+      <div class="form" id="fo-p-vol" role="tabpanel" aria-labelledby="fo-t-vol" hidden>
+        <div class="field">
+          <span class="field-label" id="fo-periodo-l">Cada</span>
+          <div class="seg seg--quiet" role="group" aria-labelledby="fo-periodo-l" id="fo-periodo">
+            <button type="button" data-value="week" aria-pressed="true"><span>Semana</span></button>
+            <button type="button" data-value="month" aria-pressed="false"><span>Mes</span></button>
+          </div>
+        </div>
+        <div class="field-pair">
+          <div class="field">
+            <label class="field-label" for="fo-km">Distancia</label>
+            <div class="unit-wrap"><input class="input" id="fo-km" name="km" type="text" inputmode="decimal" autocomplete="off" aria-describedby="fo-vol-ne"><span class="sfx" aria-hidden="true">km</span></div>
+          </div>
+          <div class="field">
+            <label class="field-label" for="fo-m">Desnivel</label>
+            <div class="unit-wrap"><input class="input" id="fo-m" name="m" type="text" inputmode="numeric" autocomplete="off" aria-describedby="fo-vol-ne"><span class="sfx" aria-hidden="true">m</span></div>
+          </div>
+        </div>
+        <fieldset class="field field-set">
+          <legend class="field-label">Tiempo en movimiento</legend>
+          <div class="field-pair">
+            <div class="field">
+              <label class="sr-only" for="fo-h">Horas</label>
+              <div class="unit-wrap"><input class="input" id="fo-h" name="horas" type="text" inputmode="decimal" data-parse="h" autocomplete="off" aria-describedby="fo-vol-ne fo-vol-h"><span class="sfx" aria-hidden="true">h</span></div>
+            </div>
+            <div class="field">
+              <label class="sr-only" for="fo-min">Minutos</label>
+              <div class="unit-wrap"><input class="input" id="fo-min" name="minutos" type="text" inputmode="numeric" data-parse="min" autocomplete="off" maxlength="2" aria-describedby="fo-vol-ne fo-vol-h"><span class="sfx" aria-hidden="true">min</span></div>
+            </div>
+          </div>
+          <p class="field-help" id="fo-vol-h">Pon una cifra o varias. La primera (distancia, desnivel o tiempo) va en el anillo; las demás, en barras.</p>
+        </fieldset>
+        <p class="field-error" id="fo-vol-ne" data-num-err hidden></p>
+        <button class="fill-btn" type="button" data-goal-fill><i data-ic="activity"></i><span id="fo-media">Usar tu semana media: 191&nbsp;km, 2.450&nbsp;m y 7&nbsp;h&nbsp;12&nbsp;min</span></button>
+        <p class="form-err" id="fo-vol-e" role="alert" hidden><i data-ic="alert"></i><span>Pon al menos una cifra: distancia, desnivel o tiempo.</span></p>
+      </div>
+
+      <button class="btn btn--danger btn--block" type="button" data-edit-only hidden data-goal-delete><i data-ic="trash"></i>Borrar objetivo</button>
+    </form>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="submit" form="f-objetivo" id="fo-guardar">Crear objetivo</button>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script src="plan.js?v=a46f0b9a"></script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+/* Pantalla Rutas (rutas.html del prototipo móvil): receta, generador, progreso, mapa del inicio y
+   estados. La tarjeta de ruta vive en routes.css y el kit en kit.css. Sin hex sueltos: todo son tokens. */
+
+/* ---------- Receta: lo que has pedido, en una fila que abre el generador ---------- */
+.receta {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; min-height: 72px; padding: 12px 10px 12px 14px; text-align: left; color: inherit; font: inherit;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-card);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
+}
+.receta:active { transform: scale(0.985); }
+.receta .row-main { min-width: 0; }
+.receta-figs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: var(--t-sm); color: var(--ink-2); }
+.receta-figs b { margin-right: 3px; font: 700 21px/1.1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.receta-figs > span { white-space: nowrap; }
+.receta-figs .bars { display: inline-block; width: 13px; height: 13px; margin-right: 5px; vertical-align: -1px; }
+.receta-meta { display: block; margin-top: 3px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
+.receta-go { display: inline-flex; align-items: center; gap: 2px; padding-left: 4px; color: var(--link); font: 600 var(--t-sm)/1 var(--font-ui); }
+.receta-go .ic { width: 18px; height: 18px; }
+@media (hover: hover) and (pointer: fine) { .receta:hover { border-color: var(--line-strong); } }
+
+/* ---------- Generador (en la hoja, o en la página si aún no hay rutas) ---------- */
+.gen { display: grid; gap: 22px; }
+.gen-group { display: grid; gap: 8px; min-width: 0; }
+.gen-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
+.gen-label { font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+.gen-hint { font-size: var(--t-sm); color: var(--ink-2); }
+.gen-hint b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gen .list { margin: 0; }
+.gen-group > .btn--ghost { justify-self: start; }
+.gen-inline { display: grid; gap: 18px; padding: 18px 16px; }
+/* Dentro de la tarjeta del generador, la fila del interruptor va plana: sin tarjeta dentro de otra */
+.gen-inline .list--inset { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.gen-inline .list--inset .row { padding-inline: 0; }
+.rutas-usage { color: var(--ink-3); }
+/* Generador en carga: bloques con el alto del formulario real */
+.gen-sk .sk { display: block; }
+.kicker-sk { display: inline-block; height: 0.9em; vertical-align: middle; }
+.gen-sk-help { min-height: 42px; align-content: center; }
+/* Escritorio: el generador en una columna cómoda, no a todo lo ancho */
+@media (min-width: 900px) { .page--rutas .gen-inline, .page--ia .gen-inline { max-width: 560px; } }
+dialog.sheet .rutas-usage { margin-top: 18px; }
+
+/* Cuota agotada: el botón de generar lo dice y no se puede pulsar (legible, no apagado) */
+.btn--quota[disabled] { opacity: 1; background: var(--warning-bg); color: var(--ink); border-color: color-mix(in srgb, var(--warning) 35%, transparent); white-space: normal; text-align: center; }
+.btn--quota[disabled] .ic { color: var(--warning); }
+
+/* Antetítulo con estado (cuota, error): icono y color, en una línea */
+.kicker-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); }
+.kicker-state .ic { width: 16px; height: 16px; flex: none; }
+.kicker-state--warn .ic { color: var(--warning); }
+.kicker-state--error .ic { color: var(--critical); }
+
+/* ---------- Inicio en el mapa ---------- */
+.start-pick { display: grid; gap: 10px; }
+.start-map { height: clamp(220px, 42dvh, 360px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--map-under, var(--surface-2)); overflow: hidden; isolation: isolate; }
+.start-pin { display: grid; place-items: center; }
+.start-pin > span {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--action); border: 3px solid var(--on-action); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- Generando: pasos con progreso ---------- */
+.gen-progress { display: grid; gap: 14px; }
+.gen-progress .card-title:focus { outline: none; }
+.gen-progress .card-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.gen-progress-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.gen-progress-v { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.gen-progress-v .u { font: 600 var(--t-md)/1 var(--font-fig); color: var(--ink-2); }
+.genbar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.genbar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 520ms var(--ease-out); }
+.gensteps { display: grid; }
+.gensteps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 40px; font-size: 15px; color: var(--ink-3); }
+.gensteps li .ic { width: 20px; height: 20px; }
+.gensteps li span { text-wrap: pretty; }
+.gensteps li[data-s="done"] { color: var(--ink-2); }
+.gensteps li[data-s="done"] .ic { color: var(--good); }
+.gensteps li[aria-current="step"] { color: var(--ink); font-weight: 600; }
+.gensteps li[aria-current="step"] .ic { color: var(--link); }
+
+/* ---------- Resultados y estados ---------- */
+.rutas-res .section-title:focus { outline: none; }
+.rutas-res .section-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: 4px; }
+.rutas-actions { display: grid; justify-items: center; gap: 6px; }
+dialog.sheet .howto { margin-top: 0; }
+
+/* Título de los resultados solo para el lector de pantalla (el paginador ya dice «1 de 5»):
+   en pantallas bajas o estrechas, ese hueco es para el perfil */
+@media (max-width: 380px), (orientation: landscape) and (max-height: 500px) {
+  .rutas-res > .section-h { position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* Móviles estrechos (360-380 px): la receta cabe en tres líneas y el perfil entra sobre el dock */
+@media (max-width: 380px) {
+  .receta { position: relative; gap: 10px; }
+  .receta-go-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* ---------- Apaisado en teléfono: cabecera de una línea y la receta junto al título ---------- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .page--rutas { gap: 14px; grid-template-columns: auto minmax(0, 1fr); column-gap: 24px; }
+  .page--rutas > * { grid-column: 1 / -1; }
+  .page--rutas .page-kicker:not(:has(.kicker-state)) { display: none; }
+  .page--rutas .page-title { font-size: 26px; }
+  .page--rutas > .page-head { padding-top: 0; padding-bottom: 0; }
+  .page--rutas .page-lead { margin-top: 4px; max-width: none; }
+  .page--rutas > .page-head:has(~ .rutas-recipe) { grid-column: 1; grid-row: 1; align-self: center; }
+  .page--rutas > .rutas-recipe { grid-column: 2; grid-row: 1; }
+  .receta { grid-template-columns: minmax(0, 1fr) auto; min-height: 52px; padding: 4px 6px 4px 14px; }
+  .receta > .row-lead { display: none; }
+  .receta > .row-main { display: flex; align-items: baseline; gap: 16px; min-width: 0; }
+  .receta-figs { flex: none; flex-wrap: nowrap; }
+  .receta-meta { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .carousel > li { flex-basis: min(calc(100% - 26px), 560px); }
+  .start-map { height: calc(100dvh - 160px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receta { transition: none; }
+  .receta:active { transform: none; }
+  .genbar > i { transition: none; }
+}
+@media (forced-colors: active) {
+  .receta { border: 1px solid CanvasText; }
+  .genbar > i { background: Highlight; }
+}

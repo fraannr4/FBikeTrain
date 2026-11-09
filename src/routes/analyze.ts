@@ -1,0 +1,95 @@
+import { ELEVATION_HYSTERESIS_M, haversineM } from '../import/summary';
+import type { OrsExtra, OrsFeature } from './ors';
+
+/** Candidata de ORS medida por el código: distancia, desnivel, superficie, tipo de vía y pendiente. */
+
+export type Coord3 = [lng: number, lat: number, ele: number];
+/** Tramo de pendiente en metros acumulados; `cls` de −5 a 5 según la tabla `steepness` de ORS. */
+export type SteepSegment = { fromM: number; toM: number; cls: number };
+
+export type RouteCandidate = {
+  id: string;
+  seed: number;
+  coords: Coord3[];
+  distanceM: number;
+  elevGainM: number;
+  unpavedM: number;
+  trackM: number;
+  mainRoadPct: number;
+  unknownSurfacePct: number;
+  steep: SteepSegment[];
+  profile: { dM: number; ele: number }[];
+  maxSteepCls: number;
+};
+
+/** Superficies de ORS sin asfaltar. Adoquín (5) y desconocida (0) no cuentan. */
+export const UNPAVED_SURFACES: ReadonlySet<number> = new Set([2, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18]);
+const SURFACE_UNKNOWN = 0;
+const WAYTYPE_STATE_ROAD = 1;
+const WAYTYPE_TRACK = 5;
+
+export const ROAD_FILTER = { maxUnpavedM: 100, maxTrackM: 100, maxMainRoadPct: 20, lengthTolerance: 0.25 };
+
+export type RejectReason = 'sin asfaltar' | 'pistas' | 'carretera principal' | 'longitud';
+
+const sumSummary = (extra: OrsExtra, field: 'distance' | 'amount', match: (value: number) => boolean) =>
+  extra.summary.reduce((sum, s) => (match(s.value) ? sum + s[field] : sum), 0);
+
+/** Distancia acumulada en cada punto (m). */
+function cumulativeM(coords: Coord3[]): number[] {
+  const cum = [0];
+  for (let i = 1; i < coords.length; i++) {
+    const [aLng, aLat] = coords[i - 1];
+    const [bLng, bLat] = coords[i];
+    cum.push(cum[i - 1] + haversineM(aLat, aLng, bLat, bLng));
+  }
+  return cum;
+}
+
+/** Desnivel positivo con la misma histéresis que el historial. */
+function elevationGainM(coords: Coord3[]): number {
+  let gain = 0;
+  let ref: number | undefined;
+  for (const [, , ele] of coords) {
+    if (ref === undefined || ref - ele >= ELEVATION_HYSTERESIS_M) {
+      ref = ele;
+    } else if (ele - ref >= ELEVATION_HYSTERESIS_M) {
+      gain += ele - ref;
+      ref = ele;
+    }
+  }
+  return gain;
+}
+
+/** Distancia y desnivel salen de las coordenadas, no del `summary` de ORS, para medir igual que el historial. */
+export function analyzeRoute(f: OrsFeature, seed: number): RouteCandidate {
+  const coords = f.geometry.coordinates;
+  const { surface, waytypes, steepness } = f.properties.extras;
+  const cum = cumulativeM(coords);
+  const distanceM = cum[cum.length - 1] ?? 0;
+  const steep = steepness.values.map(([from, to, cls]) => ({ fromM: cum[from], toM: cum[to], cls }));
+
+  return {
+    id: `${seed}-${Math.round(distanceM)}`,
+    seed,
+    coords,
+    distanceM,
+    elevGainM: elevationGainM(coords),
+    unpavedM: sumSummary(surface, 'distance', (v) => UNPAVED_SURFACES.has(v)),
+    trackM: sumSummary(waytypes, 'distance', (v) => v === WAYTYPE_TRACK),
+    mainRoadPct: sumSummary(waytypes, 'amount', (v) => v === WAYTYPE_STATE_ROAD),
+    unknownSurfacePct: sumSummary(surface, 'amount', (v) => v === SURFACE_UNKNOWN),
+    steep,
+    profile: coords.map(([, , ele], i) => ({ dM: cum[i], ele })),
+    maxSteepCls: Math.max(0, ...steep.map((s) => s.cls)),
+  };
+}
+
+/** Motivo por el que una candidata no es de carretera o no se ajusta al objetivo; `null` si pasa. */
+export function rejectReason(c: RouteCandidate, targetM: number): RejectReason | null {
+  if (c.unpavedM > ROAD_FILTER.maxUnpavedM) return 'sin asfaltar';
+  if (c.trackM > ROAD_FILTER.maxTrackM) return 'pistas';
+  if (c.mainRoadPct > ROAD_FILTER.maxMainRoadPct) return 'carretera principal';
+  if (Math.abs(c.distanceM - targetM) > targetM * ROAD_FILTER.lengthTolerance) return 'longitud';
+  return null;
+}

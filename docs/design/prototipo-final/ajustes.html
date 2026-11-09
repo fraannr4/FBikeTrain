@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Ajustes</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="ajustes">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="app">
+  <aside class="side"></aside>
+  <main class="main" id="contenido">
+    <div class="wrap">
+      <header class="page-h">
+        <div>
+          <h1>Ajustes</h1>
+          <p>Todo se guarda en este navegador. Haz una copia de seguridad antes de cambiar de equipo o borrar los datos del navegador.</p>
+        </div>
+      </header>
+
+      <form class="set-grid" id="form" novalidate>
+        <nav class="set-nav" aria-label="Secciones de ajustes">
+          <a href="#perfil" aria-current="true"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg>Perfil</a>
+          <a href="#apariencia"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg>Apariencia</a>
+          <a href="#rutas" data-f="4"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Rutas</a>
+          <a href="#copia"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg>Copia de seguridad</a>
+          <a href="#borrar"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Borrar datos</a>
+        </nav>
+
+        <div class="set-col">
+          <!-- Perfil -->
+          <section class="card form-sec" id="perfil" aria-labelledby="h-perfil">
+            <div class="card-h" style="margin-bottom:0"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg><h2 id="h-perfil">Perfil</h2></div>
+            <div class="row2">
+              <div class="field">
+                <label for="f-nombre">Nombre</label>
+                <div class="input"><input id="f-nombre" name="nombre" value="Fran" autocomplete="given-name"></div>
+                <span class="help">Solo para el saludo de Inicio.</span>
+              </div>
+              <div class="field">
+                <label for="f-semana">Empieza la semana en</label>
+                <div class="input"><select id="f-semana" name="semana"><option selected>Lunes</option><option>Domingo</option></select><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-chevdown"/></svg></div>
+                <span class="help">Cambia cómo se agrupan las semanas en Progresión.</span>
+              </div>
+            </div>
+            <div class="sw-row">
+              <span><b id="l-mono">Contar solo salidas en carretera</b><small>Deja fuera BTT, gravel y rodillo al calcular tu media.</small></span>
+              <button type="button" class="switch press" role="switch" aria-checked="true" aria-labelledby="l-mono"></button>
+            </div>
+          </section>
+
+          <!-- Apariencia -->
+          <section class="card form-sec" id="apariencia" aria-labelledby="h-apa">
+            <div class="card-h" style="margin-bottom:0"><svg class="ic" aria-hidden="true"><use href="#i-palette"/></svg><h2 id="h-apa">Apariencia</h2></div>
+            <div class="field">
+              <span class="lbl" id="l-tema">Tema</span>
+              <div class="seg" role="group" aria-labelledby="l-tema" style="max-width:280px">
+                <button type="button" data-theme-set="dark" aria-pressed="true"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-moon"/></svg>Oscuro</button>
+                <button type="button" data-theme-set="light" aria-pressed="false"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-sun"/></svg>Claro</button>
+              </div>
+              <span class="help">El oscuro es el de siempre: el paisaje de noche y el trazado con luz. El claro es un amanecer, sin brillos.</span>
+            </div>
+            <div class="sw-row">
+              <span><b id="l-mov">Reducir el movimiento</b><small>Si tu sistema ya lo pide, se respeta siempre. Esto lo fuerza aquí.</small></span>
+              <button type="button" class="switch press" role="switch" aria-checked="false" aria-labelledby="l-mov"></button>
+            </div>
+          </section>
+
+          <!-- Rutas (F4) -->
+          <section class="card form-sec" id="rutas" aria-labelledby="h-rutas" data-f="4">
+            <div class="card-h" style="margin-bottom:0"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg><h2 id="h-rutas">Rutas</h2></div>
+            <div class="field">
+              <label for="f-casa">Casa</label>
+              <div class="input"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-pin"/></svg><input id="f-casa" name="casa" value="Punto de salida guardado" readonly aria-describedby="h-casa"><button type="button" class="link">Cambiar</button></div>
+              <span class="help" id="h-casa">Punto de salida de tus rutas. Se usa para pedirlas al servicio de mapas y nunca se envía a la IA.</span>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label for="f-ors">Clave de OpenRouteService</label>
+                <div class="input invalid"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-key"/></svg><input id="f-ors" name="ors" type="password" value="5b3ce3597851110001cf6248" autocomplete="off" spellcheck="false" aria-invalid="true" aria-describedby="e-ors h-ors"><button type="button" class="ib press" id="eye" aria-label="Mostrar la clave" aria-pressed="false"><svg class="ic ic-sm"><use href="#i-eye"/></svg></button></div>
+                <span class="err" id="e-ors"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>OpenRouteService rechaza esta clave. Cópiala de nuevo desde tu panel de ORS.</span>
+                <span class="help" id="h-ors">Gratuita. Se guarda solo en este navegador.</span>
+              </div>
+              <div class="field" data-f="5">
+                <label for="f-ia">Clave del servicio de IA</label>
+                <div class="input"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-key"/></svg><input id="f-ia" name="ia" type="password" placeholder="Pega aquí tu clave" autocomplete="off" spellcheck="false" aria-describedby="h-ia"></div>
+                <span class="help" id="h-ia">Opcional. La IA solo recibe cifras resumidas, nunca tus tracks.</span>
+              </div>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label for="f-dist">Distancia habitual</label>
+                <div class="input"><input id="f-dist" name="dist" inputmode="numeric" value="80"><span class="suffix">km</span></div>
+              </div>
+              <div class="field">
+                <label for="f-gpx">Exportar para</label>
+                <div class="input"><select id="f-gpx" name="gpx"><option selected>iGPSPORT BSC200S</option><option>GPX genérico</option></select><svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-chevdown"/></svg></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Copia de seguridad -->
+          <section class="card form-sec" id="copia" aria-labelledby="h-copia">
+            <div class="card-h" style="margin-bottom:0"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg><h2 id="h-copia">Copia de seguridad</h2><span class="end muted">Última: 25 de octubre</span></div>
+            <div class="backup">
+              <div class="bk">
+                <span class="bk-h"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Descargar una copia</span>
+                <p>Un único .json con tus 214 salidas, cifras y ajustes. Las claves no se incluyen.</p>
+                <button type="button" class="btn btn-primary press">Descargar copia</button>
+              </div>
+              <div class="bk">
+                <span class="bk-h"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>Restaurar una copia</span>
+                <p>Junta la copia con lo que ya tienes. Las salidas repetidas no se duplican.</p>
+                <label class="btn btn-ghost press">Elegir copia<input type="file" accept=".json" class="sr-only"></label>
+              </div>
+            </div>
+            <p class="privacy"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><span>FBikeTrain no tiene servidor. Tus salidas, tus rutas y la dirección de Casa solo están en este navegador y en las copias que descargues.</span></p>
+          </section>
+
+          <!-- Zona de peligro -->
+          <section class="card form-sec danger-zone" id="borrar" aria-labelledby="h-borrar">
+            <div class="card-h" style="margin-bottom:0;--ic:var(--critical)"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg><h2 id="h-borrar">Borrar datos</h2></div>
+            <div class="sw-row" style="grid-template-columns:minmax(0,1fr) auto">
+              <span><b>Borrar todas las salidas y ajustes</b><small>No se puede deshacer. Descarga antes una copia si quieres conservarlas.</small></span>
+              <button type="button" class="btn btn-danger press">Borrar todo</button>
+            </div>
+          </section>
+
+          <div class="form-foot">
+            <span class="muted" id="dirty">1 cambio sin guardar</span>
+            <button type="button" class="btn btn-ghost press">Descartar</button>
+            <button type="submit" class="btn btn-primary press">Guardar cambios</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+<script>
+(function () {
+  document.querySelectorAll('.switch').forEach(function (s) {
+    s.addEventListener('click', function () { s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true')); });
+  });
+  var eye = document.getElementById('eye'), key = document.getElementById('f-ors');
+  eye.addEventListener('click', function () {
+    var show = key.type === 'password';
+    key.type = show ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(show));
+    eye.setAttribute('aria-label', show ? 'Ocultar la clave' : 'Mostrar la clave');
+  });
+  document.getElementById('form').addEventListener('submit', function (e) { e.preventDefault(); document.getElementById('dirty').textContent = 'Cambios guardados'; });
+  /* Sección activa del índice */
+  var links = document.querySelectorAll('.set-nav a');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        links.forEach(function (a) { a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + en.target.id)); });
+      });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+    document.querySelectorAll('.set-col > section').forEach(function (s) { io.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

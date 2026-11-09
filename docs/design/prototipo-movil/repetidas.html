@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Repetidas, Historial, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* ---- Tu última repetida ---- */
+  /* Compacta y toda ella abre la hoja (.last--tap y .last-go, en el kit), como «Tu última subida» */
+  .last-top { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; }
+  .shape-box { aspect-ratio: 1; border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+  .rg-name, .last-name, #hr-t { unicode-bidi: plaintext; }   /* nombres en árabe o hebreo: sin reordenar el guion */
+  .last-meta { margin-top: 4px; font-size: var(--t-sm); color: var(--ink-2); }
+
+  /* ---- Tarjeta de grupo: toda ella es un botón ---- */
+  .groups { display: grid; gap: 12px; }
+  .rg {
+    display: grid; gap: 14px; width: 100%; padding: 14px 14px 12px; text-align: left; font: inherit; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  }
+  .rg-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+  .rg-top .shape-box { border-radius: 14px; }
+  .rg-name { display: block; font: 600 19px/1.15 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+  .rg-top .chev { width: 18px; height: 18px; color: var(--ink-3); }
+  .rg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--line); }
+  .rg-stats > span { display: grid; align-content: start; gap: 4px; min-width: 0; padding-left: 12px; }
+  .rg-stats > span:first-child { padding-left: 0; }
+  .rg-stats > span + span { border-left: 1px solid var(--line); }
+  .rg-k { font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-3); }
+  .rg-v { font: 700 20px/1.05 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .rg-v .u { font-size: 13px; margin: 0 3px 0 2px; }
+  .rg-v .u:last-child { margin-right: 0; }
+  .rg-v.delta { font: 600 var(--t-sm)/1.25 var(--font-ui); white-space: normal; }
+  .rg-v.delta .ic { flex: none; }
+  .rg-v.delta--up { color: var(--good); }      /* .rg-v pone --ink después de .delta--up: se repite aquí */
+  .rg-v.delta--down { color: var(--ink-2); }
+  .rg-v.flat { font: 500 var(--t-sm)/1.25 var(--font-ui); color: var(--ink-2); }
+  .stat3 dd.flat { font: 500 var(--t-md)/1.2 var(--font-ui); color: var(--ink-2); }
+  .rg .chip { justify-self: start; margin-top: 6px; }
+  .rg:active { transform: scale(0.985); }
+  .rg { transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease; }
+  @media (hover: hover) and (pointer: fine) { .rg:hover { border-color: var(--line-strong); } }
+
+  /* ---- Nombres largos: dos líneas en la tarjeta de grupo, tres en la última; enteros en la hoja ---- */
+  .rg-name, .last-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; }
+  .last-name { -webkit-line-clamp: 3; }
+  #hoja-ruta .sheet-h { align-items: flex-start; }
+  #hoja-ruta .sheet-title { padding-top: 9px; }
+  #hoja-ruta .sheet-sub { margin-top: 4px; }
+
+  /* ---- Hoja: la forma con el tiempo a batir ---- */
+  .rs-map { position: relative; height: 184px; border-radius: 18px; background: var(--surface-2); overflow: hidden; }
+  .rs-map .shape { position: absolute; inset: 6px 0 6px 30%; width: 70%; height: calc(100% - 12px); }
+  .rs-beat { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 4px; padding: 10px 14px 12px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--line-strong); }
+  .rs-beat span { font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+  .rs-beat b { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .rs-beat b .u { font-size: 17px; margin: 0 4px 0 2px; font-style: normal; }
+  .rs-beat b .u:last-child { margin-right: 0; }
+
+  .results { display: flex; align-items: center; min-height: 32px; margin: -4px 0 -6px; font-size: var(--t-sm); color: var(--ink-2); }
+  .results:empty { display: none; }   /* la región aria-live sigue en el DOM */
+  .more-left { font-weight: 500; color: var(--ink-3); }
+
+  .sk-group { display: grid; gap: 14px; }
+  .sk-group-top { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+  .sk-stack { display: grid; gap: 8px; }
+
+  @media (min-width: 600px) {
+    .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .last { grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: end; }
+    .last .card-h { grid-column: 1 / -1; }
+    .last .last-fig { margin-top: 0; }
+  }
+  @media (orientation: landscape) and (max-height: 500px) { .sheet-cols .rs-map { height: 128px; } .sheet-cols .rs-beat b { font-size: 28px; } }
+  @media (prefers-reduced-motion: reduce) { .rg:active { transform: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Repetidas</span>
+  <div class="appbar-actions">
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page page--dense">
+  <div class="page-head">
+    <h1 class="page-title">Historial</h1>
+  </div>
+
+  <nav class="seg seg--quiet" aria-label="Vistas del historial">
+    <a href="historial.html"><span>Salidas</span></a>
+    <a href="subidas.html"><span>Subidas</span></a>
+    <a href="repetidas.html" aria-current="page"><span>Repetidas</span></a>
+  </nav>
+  <!-- La entradilla va bajo el segmentado: así el segmentado no salta al cambiar de vista -->
+  <p class="page-lead page-lead--sub" id="lead">Las rutas que haces una y otra vez, vuelta a vuelta.</p>
+
+  <div id="vista" class="section"></div>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="historial" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: detalle de una ruta repetida ===== -->
+<dialog class="sheet" id="hoja-ruta" aria-labelledby="hr-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hr-t" dir="auto">Ruta</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub" id="hr-sub"></p>
+  </div>
+  <div class="sheet-body" data-m="time">
+    <div class="sheet-cols">
+      <div class="sheet-col">
+        <div class="rs-map">
+          <svg class="shape" id="hr-forma" role="img" aria-label=""></svg>
+          <p class="rs-beat"><span>Tiempo a batir</span><b id="hr-batir"></b></p>
+        </div>
+        <dl class="stat3" id="hr-stats"></dl>
+      </div>
+      <div class="sheet-col">
+        <section class="sheet-sec" aria-labelledby="hr-evo-t">
+          <div class="sheet-sec-h"><h3 id="hr-evo-t">Tus tiempos</h3><p>Desliza el dedo por la gráfica</p></div>
+          <div class="passes" id="hr-passes">
+            <div class="passes-read" aria-live="off"></div>
+            <svg role="img" aria-label=""></svg>
+            <p class="passes-key"><span><i class="k-best" aria-hidden="true"></i>Tu mejor</span><span><i class="k-mean" aria-hidden="true"></i><span data-mean>Tu media</span></span><span class="k-up">Arriba, más rápido</span></p>
+          </div>
+          <p class="sheet-note">Cada vuelta puede variar unos kilómetros. Por eso la tendencia compara tu velocidad media, no el tiempo.</p>
+        </section>
+      </div>
+    </div>
+
+    <section class="sheet-sec" aria-labelledby="hr-lista-t">
+      <div class="sheet-sec-h"><h3 id="hr-lista-t">Vueltas</h3><p>De la más reciente a la primera</p></div>
+      <ul class="list" id="hr-lista"></ul>
+      <button class="btn btn--ghost more-btn" type="button" id="hr-mas" aria-expanded="false" aria-controls="hr-lista" hidden></button>
+    </section>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script>
+(function () {
+'use strict';
+var FBT = window.FBT, fmt = FBT.fmt, dur = FBT.dur, icon = FBT.icon;
+var NB = ' ';
+var HOY = new Date(2026, 10, 6, 20, 0); // viernes 6 de noviembre de 2026 (datos de ejemplo)
+var q = new URLSearchParams(location.search), state = q.get('state') || q.get('estado') || '', caso = q.get('caso') || '';
+function D(y, m, d) { return new Date(y, m, d, 9, 15).getTime(); }
+function rnd(seed) { var s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function pl(n, one, many) { return fmt(n) + ' ' + (n === 1 ? one : many); }
+function $(id) { return document.getElementById(id); }
+
+var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+/* En la cabecera de la tarjeta, fecha corta («4 oct.»): «El 4 de octubre» partía el título en dos líneas a 360 px */
+function shortRel(t) { var d = daysAgo(t), x = new Date(t); return d < 7 ? cap(rel(t)) : x.getDate() + ' ' + MESES[x.getMonth()].slice(0, 3) + '.' + (x.getFullYear() !== HOY.getFullYear() ? ' ' + x.getFullYear() : ''); }
+function daysAgo(t) { var a = new Date(t), b = new Date(HOY); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0); return Math.round((b - a) / 864e5); }
+function rel(t) {
+  var d = daysAgo(t), x = new Date(t);
+  if (d === 0) return 'hoy';
+  if (d === 1) return 'ayer';
+  if (d < 7) return 'el ' + DIAS[x.getDay()];
+  return 'el ' + x.getDate() + ' de ' + MESES[x.getMonth()] + (x.getFullYear() !== HOY.getFullYear() ? ' de ' + x.getFullYear() : '');
+}
+function longDate(t) { var x = new Date(t); return cap(DIAS[x.getDay()]) + ' ' + x.getDate() + ' de ' + MESES[x.getMonth()] + (x.getFullYear() !== HOY.getFullYear() ? ' de ' + x.getFullYear() : ''); }
+function dayDate(t) { var x = new Date(t); return x.getDate() + ' de ' + MESES[x.getMonth()] + ' de ' + x.getFullYear(); }
+/* «1 h 22» con la h como unidad pequeña (el mismo formato que la gráfica de tiempos) */
+function hm(s) { var t = dur(s, 'hm'), m = t.match(/^(\d+) h (\d+)$/); return m ? m[1] + '<span class="u">h</span>' + m[2] : t.replace(' min', '<span class="u">min</span>'); }
+function kmh(v) { return v === null ? '—' : fmt(v, 1) + NB + 'km/h'; }
+
+/* ---------- Formas de ejemplo: lazos y una ida y vuelta ---------- */
+function outBack(seed) {
+  var r = rnd(seed), out = [], x = 0, y = 0, a = -0.6, i;
+  for (i = 0; i < 28; i++) { a += (r() - 0.5) * 0.7; x += Math.cos(a); y += Math.sin(a); out.push([x, y]); }
+  var back = out.slice().reverse().map(function (p) { return [p[0] + 0.5, p[1] + 0.5]; });
+  return [[0, 0]].concat(out, back, [[0.5, 0.5]]);
+}
+
+/* ---------- Datos de ejemplo (RouteGroup: activityIds; de cada salida, fecha, distancia, desnivel y tiempo en movimiento) ---------- */
+var ROUTES = [
+  { id: 'tona', name: 'Vuelta a Tona', km: 41.3, elev: 410, n: 23, best: 4900, last: 5050, first: D(2023, 2, 11), lastT: D(2026, 10, 1), seed: 19, trend: 0.06 },
+  { id: 'moia', name: 'Collsuspina y Moià', km: 87.6, elev: 1542, n: 7, best: 11180, last: 11520, first: D(2024, 4, 4), lastT: D(2026, 10, 5), seed: 3, trend: 0.03 },
+  { id: 'manana', name: 'Salida en bicicleta por la mañana', km: 58.2, elev: 720, n: 12, best: 7330, last: 7770, first: D(2024, 1, 18), lastT: D(2026, 9, 22), seed: 29, trend: -0.05 },
+  { id: 'plana', name: 'Plana de Vic por Gurb y Sant Bartomeu del Grau', km: 63.0, elev: 640, n: 5, best: 7865, lastIsBest: true, first: D(2025, 5, 14), lastT: D(2026, 9, 29), outBack: true, seed: 41, trend: 0.08 },
+  { id: 'seva', name: 'Montseny por Seva', km: 72.1, elev: 1180, n: 4, best: 10150, last: 10520, first: D(2025, 4, 3), lastT: D(2026, 8, 19), seed: 11, trend: 0 },
+  { id: 'prats', name: 'Lluçanès por Prats', km: 86.4, elev: 1320, n: 2, best: 11710, lastIsBest: true, first: D(2026, 5, 13), lastT: D(2026, 9, 24), seed: 7, trend: 0 }
+];
+
+/* ---------- Casos de prueba (?caso=): una, ninguna-mejor, largos, muchas, sin-gps ---------- */
+if (caso === 'una') ROUTES = ROUTES.slice(5, 6);
+if (caso === 'ninguna-mejor') ROUTES = ROUTES.slice(2, 3).concat(ROUTES.slice(5));
+if (caso === 'largos') {
+  ROUTES[1].name = 'Brevet 400 km Barcelona - Andorra - Barcelona per la Seu d’Urgell, el Port del Cantó i la Collada de Toses';
+  ROUTES[0].name = 'Coll de la Creu de Perves des del Pont de Suert per la carretera vella N-260 (variant de la Pobla de Segur)';
+}
+if (caso === 'rtl') ROUTES[0].name = 'مرتفع الأطلس الكبير — Tizi n’Tichka';
+if (caso === 'sin-gps') {
+  /* Una salida sin GPS (distancia 0) no forma grupo: antes pintaba «NaN km/h» */
+  ROUTES.push({ id: 'cinta', name: 'Rodillo en casa', km: 0, elev: 0, n: 3, best: 3600, first: D(2026, 0, 10), lastT: D(2026, 10, 2), seed: 61, trend: 0, noTrack: true });
+}
+if (caso === 'muchas') {
+  var BASE = ['Vuelta a Tona', 'Collsuspina y Moià', 'Plana de Vic', 'Montseny por Seva', 'Lluçanès por Prats', 'Guilleries por Sant Hilari', 'Bages por Avinyó', 'Collformic y el Brull'];
+  ROUTES[0].n = 1284; ROUTES[0].first = D(2014, 2, 3);
+  for (var gi = 0; gi < 294; gi++) {
+    var km = 30 + gi * 37 % 120;
+    ROUTES.push({ id: 'm' + gi, name: BASE[gi % 8] + (gi >= 8 ? ', variante ' + Math.ceil(gi / 8) : ''), km: km, elev: Math.round(km * (8 + gi % 12)), n: 2 + gi * 7 % 20,
+      best: Math.round(km / (24 + gi % 6) * 3600), first: D(2018 + gi % 6, gi % 12, 1 + gi % 27), lastT: D(2026, gi % 10, 1 + gi % 27), seed: 70 + gi, trend: (gi % 5 - 2) * 0.03 });
+  }
+}
+/* Sin track o con distancia 0 no se puede agrupar ni calcular la velocidad */
+ROUTES = ROUTES.filter(function (g) { return g.km > 0 && !g.noTrack; });
+
+function mkLaps(g) {
+  var r = rnd(g.seed + 200), n = g.n, out = [], i;
+  for (i = 0; i < n; i++) {
+    var f = n === 1 ? 1 : i / (n - 1);
+    var t = g.first + (g.lastT - g.first) * (i === 0 || i === n - 1 ? f : Math.min(0.97, Math.max(0.03, f + (r() - 0.5) * 0.1)));
+    var km = g.km * (1 + (r() - 0.5) * 0.05);
+    out.push({ t: t, km: km, s: g.best * (1.05 + g.trend * (0.5 - f) + r() * 0.05) * (km / g.km) });
+  }
+  out.sort(function (a, b) { return a.t - b.t; });
+  var bi = g.lastIsBest ? n - 1 : Math.min(n - 2, Math.max(0, Math.round((n - 1) * 0.7)));
+  out.forEach(function (p, j) { if (j !== bi && p.s <= g.best + 30) p.s = g.best + 60 + r() * 240; });
+  out[bi].s = g.best; out[bi].km = g.km;
+  if (g.last) { out[n - 1].s = g.last; out[n - 1].km = g.km; }
+  return out.map(function (p) { var s = Math.round(p.s); return { t: p.t, s: s, km: p.km, kmh: p.km > 0 && s > 0 ? p.km / s * 3600 : null }; });
+}
+/* Tendencia: velocidad media de las 3 últimas frente a las anteriores (las vueltas varían de distancia) */
+function trendOf(laps) {
+  laps = laps.filter(function (p) { return p.kmh !== null; });
+  if (laps.length < 3) return null;
+  var k = laps.slice(-3), prev = laps.slice(0, -3);
+  if (!prev.length) prev = laps.slice(0, 1);
+  var avg = function (a) { return a.reduce(function (s, p) { return s + p.kmh; }, 0) / a.length; };
+  return Math.round((avg(k) - avg(prev)) * 10) / 10;
+}
+ROUTES.forEach(function (g) {
+  g.laps = mkLaps(g);
+  g.lastL = g.laps[g.laps.length - 1];
+  g.bestL = g.laps.reduce(function (a, b) { return b.s < a.s ? b : a; });
+  g.delta = trendOf(g.laps);
+  g.pts = g.outBack ? outBack(g.seed) : FBT.synth.loop(g.seed);
+});
+
+/* ---------- Piezas ---------- */
+/* Con menos de 3 vueltas no hay tendencia: se dice cuánto falta, no «Con 3 vueltas» (se leía como un dato) */
+function missing(n) { var f = Math.max(1, 3 - n); return 'Falta ' + f + (f === 1 ? ' vuelta' : ' vueltas'); }
+function trendHtml(d, cls, n) {
+  if (d === null) return '<span class="' + cls + ' flat">' + missing(n) + '</span>';
+  if (Math.abs(d) < 0.2) return '<span class="' + cls + ' flat">Estable</span>';
+  return '<span class="' + cls + ' delta ' + (d > 0 ? 'delta--up' : 'delta--down') + '">' + icon(d > 0 ? 'up' : 'down') + (d > 0 ? '+' : '') + fmt(d, 1) + NB + 'km/h</span>';
+}
+function trendWords(d, n) {
+  if (d === null) return missing(n).toLowerCase() + ' para ver la tendencia';
+  if (Math.abs(d) < 0.2) return 'velocidad estable';
+  return 'vas ' + fmt(Math.abs(d), 1) + ' km/h más ' + (d > 0 ? 'rápido' : 'lento') + ' en tus 3 últimas';
+}
+function groupCard(g) {
+  var lastIsBest = g.n > 1 && g.lastL === g.bestL;
+  return '<li><button class="rg" type="button" data-route="' + g.id + '" aria-haspopup="dialog" aria-controls="hoja-ruta">' +
+    '<span class="rg-top"><span class="shape-box"><svg class="shape" data-shape="' + g.id + '" aria-hidden="true"></svg></span>' +
+      '<span><span class="rg-name" dir="auto" title="' + esc(g.name) + '">' + esc(g.name) + '</span>' +
+      '<span class="row-meta">' + fmt(g.km, 1) + NB + 'km, ' + fmt(g.elev) + NB + 'm</span>' +
+      '<span class="row-meta">' + fmt(g.n) + ' veces · última, ' + (daysAgo(g.lastT) < 7 ? rel(g.lastT) : shortRel(g.lastT)) + '</span>' +
+      (lastIsBest ? '<span class="row-meta"><span class="chip chip--done">' + icon('trend') + 'Mejor tiempo en la última</span></span>' : '') +
+      '</span>' + icon('chev', 'chev') + '</span>' +
+    '<span class="rg-stats">' +
+      '<span><span class="rg-k">Mejor</span><span class="rg-v">' + hm(g.best) + '</span></span>' +
+      '<span><span class="rg-k">Última</span><span class="rg-v">' + hm(g.lastL.s) + '</span></span>' +
+      '<span><span class="rg-k">Tendencia</span>' + trendHtml(g.delta, 'rg-v', g.n) + '</span>' +
+    '</span>' +
+  '</button></li>';
+}
+function rankOf(g, l) { return g.laps.filter(function (q) { return q.s < l.s; }).length + 1; }
+function gapTxt(s) { return s < 60 ? s + NB + 's' : dur(s, 'hm'); }
+function lastCard(g) {
+  var l = g.lastL, rank = rankOf(g, l);
+  var verdict = rank === 1
+    ? '<span class="delta delta--up">' + icon('up') + 'Tu mejor tiempo</span>'
+    : '<span><b>' + (rank === g.n ? 'La más lenta' : 'Tu ' + rank + '.ª mejor') + '</b> de ' + fmt(g.n) + '</span><span>a ' + gapTxt(l.s - g.best) + ' de tu mejor</span>';
+  return '<article class="card last last--tap" data-m="time" aria-labelledby="last-t">' +
+    '<div class="card-h"><span class="card-ic">' + icon('repeat') + '</span>' +
+      '<h2 class="card-title" id="last-t"><button class="last-go" type="button" data-route="' + g.id + '" aria-haspopup="dialog" aria-controls="hoja-ruta" aria-label="Tu última repetida, ver tus ' + fmt(g.n) + ' vueltas">Tu última repetida</button></h2>' +
+      '<span class="last-when">' + shortRel(l.t) + '</span>' + icon('chev', 'chev') + '</div>' +
+    '<div class="last-top"><span class="shape-box"><svg class="shape" data-shape="' + g.id + '" aria-hidden="true"></svg></span>' +
+      '<div><p class="last-name" dir="auto" title="' + esc(g.name) + '">' + esc(g.name) + '</p><p class="last-meta">' + fmt(l.km, 1) + NB + 'km, ' + fmt(g.elev) + NB + 'm, a ' + kmh(l.kmh) + '</p></div></div>' +
+    '<div class="last-fig"><span class="last-time">' + hm(l.s) + '</span><p class="last-rank">' + verdict + '</p></div>' +
+  '</article>';
+}
+var BYID = {};
+ROUTES.forEach(function (g) { BYID[g.id] = g; });
+function drawShapes(ctx) {
+  Array.prototype.forEach.call((ctx || document).querySelectorAll('svg[data-shape]'), function (s) {
+    var g = BYID[s.dataset.shape];
+    if (g) FBT.shape(s, g.pts);
+  });
+}
+
+/* ---------- Orden (se guarda en ?orden=) ---------- */
+var SORTS = {
+  veces: function (a, b) { return b.n - a.n || b.lastT - a.lastT; },
+  recientes: function (a, b) { return b.lastT - a.lastT; },
+  mejorando: function (a, b) { return (b.delta === null ? -99 : b.delta) - (a.delta === null ? -99 : a.delta); },
+  largas: function (a, b) { return b.km - a.km; }
+};
+var sortBy = SORTS[q.get('orden')] ? q.get('orden') : 'veces';
+function setParam(k, v) { try { var u = new URL(location.href); if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); history.replaceState(null, '', u); } catch (e) {} }
+
+/* ---------- Lista paginada: 20 y «Ver 20 más»; búsqueda con más de 20 ---------- */
+var PAGE = 20, shown = PAGE, query = '', rawQuery = '';
+function norm(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function drawLists() {
+  var rows = ROUTES.filter(function (g) { return !query || norm(g.name).indexOf(query) >= 0; }).sort(SORTS[sortBy]);
+  var l = $('lista'), b = $('lista-mas'), left = rows.length - shown;
+  l.innerHTML = rows.slice(0, shown).map(groupCard).join('');
+  l.hidden = !rows.length;
+  drawShapes(l);
+  b.hidden = left <= 0;
+  if (left > 0) b.innerHTML = icon('chevdown') + 'Ver ' + Math.min(PAGE, left) + ' más<span class="more-left">, quedan ' + fmt(left) + '</span>';
+  var res = $('resultado');
+  if (res) res.textContent = !query ? '' : rows.length ? pl(rows.length, 'ruta', 'rutas') + ' con «' + rawQuery + '»' : 'Ninguna ruta con «' + rawQuery + '». Prueba con otro nombre.';
+}
+
+var vista = $('vista'), lead = $('lead');
+
+function renderData() {
+  if (!ROUTES.length) return renderEmpty();
+  var latest = ROUTES.slice().sort(SORTS.recientes)[0];
+  var withTrend = ROUTES.filter(function (g) { return g.delta !== null; }).length;
+  var up = ROUTES.filter(function (g) { return g.delta !== null && g.delta >= 0.2; }).length;
+  lead.innerHTML = '<b>' + pl(ROUTES.length, 'ruta', 'rutas') + '</b> que repites.' +
+    (!withTrend ? '' : up ? ' En ' + fmt(up) + ' vas más rápido que antes.' : ' Aún no vas más rápido en ninguna.');
+  vista.innerHTML = lastCard(latest) +
+    '<section class="section" aria-labelledby="rep-t">' +
+      '<div class="section-h"><h2 class="section-title" id="rep-t">Tus rutas de siempre</h2></div>' +
+      (ROUTES.length > PAGE
+        ? '<div class="search" role="search">' + icon('search') + '<label class="sr-only" for="q-ruta">Buscar ruta</label>' +
+          '<input class="input" id="q-ruta" type="search" placeholder="Buscar ruta o pueblo…" autocomplete="off" enterkeyhint="search" spellcheck="false">' +
+          '<button class="icon-btn" type="button" id="q-clear" aria-label="Borrar la búsqueda" hidden>' + icon('x') + '</button></div>' +
+          '<p class="results" id="resultado" role="status"></p>'
+        : '') +
+      (ROUTES.length >= 3
+        ? '<div class="chips-scroll" role="group" aria-label="Ordenar rutas" data-single>' +
+          [['veces', 'Más veces'], ['recientes', 'Recientes'], ['mejorando', 'Mejorando'], ['largas', 'Más largas']].map(function (o) {
+            return '<button class="fchip" type="button" data-value="' + o[0] + '" aria-pressed="' + (o[0] === sortBy) + '"><span>' + icon('check', 'ic-check') + o[1] + '</span></button>';
+          }).join('') + '</div>'
+        : '') +
+      '<ul class="groups" id="lista"></ul>' +
+      '<button class="btn btn--ghost more-btn" type="button" id="lista-mas" hidden></button>' +
+    '</section>';
+  drawShapes(vista.querySelector('.last'));
+  drawLists();
+  FBT.chipsMore(vista);
+}
+function renderLoading() {
+  lead.textContent = 'Buscando las rutas que repites…';
+  vista.setAttribute('aria-busy', 'true');
+  var grp = '<div class="card sk-group"><div class="sk-group-top"><span class="sk" style="height:64px;border-radius:14px"></span><span class="sk-stack"><span class="sk sk-title" style="width:70%"></span><span class="sk sk-line" style="width:48%"></span><span class="sk sk-line" style="width:60%"></span></span></div><span class="sk sk-line" style="height:34px"></span></div>';
+  vista.innerHTML = '<span class="sr-only">Cargando rutas repetidas</span>' +
+    '<div class="card sk-last" aria-hidden="true"><span class="sk sk-title"></span><div class="sk-group-top"><span class="sk" style="height:64px;border-radius:14px"></span><span class="sk-stack"><span class="sk sk-title" style="width:80%"></span><span class="sk sk-line" style="width:55%"></span></span></div><span class="sk sk-fig" style="height:56px;width:48%"></span></div>' +
+    '<div class="groups" aria-hidden="true" style="margin-top:16px">' + grp + grp + '</div>';
+}
+function renderEmpty() {
+  lead.textContent = 'Las rutas que haces una y otra vez, vuelta a vuelta.';
+  vista.innerHTML = '<div class="card"><div class="state">' +
+    '<span class="state-ic">' + icon('repeat') + '</span>' +
+    '<h2 class="state-title">Aún no repites ninguna ruta</h2>' +
+    '<p class="state-text">Cuando hagas dos veces el mismo recorrido, aquí verás tus tiempos y si vas más rápido.</p>' +
+    '<a class="btn btn--primary" href="importar.html">' + icon('upload') + 'Importar salidas nuevas</a>' +
+  '</div></div>';
+}
+function renderError() {
+  lead.textContent = 'Las rutas que haces una y otra vez, vuelta a vuelta.';
+  vista.innerHTML = '<div class="card"><div class="state state--error">' +
+    '<span class="state-ic">' + icon('alert') + '</span>' +
+    '<h2 class="state-title">No se han podido leer tus salidas</h2>' +
+    '<p class="state-text">El almacenamiento de este navegador no ha respondido. Vuelve a intentarlo; si sigue igual, restaura tu copia desde Ajustes.</p>' +
+    '<a class="btn btn--secondary" href="repetidas.html">' + icon('refresh') + 'Reintentar</a>' +
+  '</div></div>';
+}
+({ empty: renderEmpty, vacio: renderEmpty, loading: renderLoading, carga: renderLoading, error: renderError }[state] || renderData)();
+
+vista.addEventListener('chipchange', function (e) {
+  if (!e.detail.on || !SORTS[e.detail.value]) return;
+  sortBy = e.detail.value; shown = PAGE;
+  setParam('orden', sortBy === 'veces' ? '' : sortBy);
+  drawLists();
+});
+vista.addEventListener('input', function (e) {
+  if (e.target.id !== 'q-ruta') return;
+  rawQuery = e.target.value.trim(); query = norm(rawQuery); shown = PAGE;
+  $('q-clear').hidden = !e.target.value;
+  drawLists();
+});
+vista.addEventListener('click', function (e) {
+  if (e.target.closest('#q-clear')) {
+    var inp = $('q-ruta'); inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus();
+    return;
+  }
+  if (e.target.closest('#lista-mas')) { shown += PAGE; drawLists(); return; }
+  var b = e.target.closest('[data-route]');
+  if (b) openRoute(b.dataset.route, b);
+});
+
+/* ---------- Hoja de detalle ---------- */
+var LIMIT = 5, cur = null;
+function lapRow(g, l) {
+  var isBest = l === g.bestL;
+  return '<li><a class="row row--plain" href="salida.html">' +
+    '<span class="row-main"><span class="row-title">' + longDate(l.t) + '</span>' +
+      '<span class="row-meta">' + fmt(l.km, 1) + NB + 'km a ' + kmh(l.kmh) + '</span>' +
+      (isBest ? '<span class="row-meta"><span class="chip chip--done">' + icon('check') + 'Tu mejor</span></span>' : '') + '</span>' +
+    '<span class="row-trail"><span class="row-val">' + hm(l.s) + '</span>' + icon('chev', 'chev') + '</span></a></li>';
+}
+function fillList(all) {
+  var ls = cur.laps.slice().reverse(), btn = $('hr-mas');
+  $('hr-lista').innerHTML = (all ? ls.slice(0, 200) : ls.slice(0, LIMIT)).map(function (l) { return lapRow(cur, l); }).join('');
+  btn.hidden = ls.length <= LIMIT;
+  btn.setAttribute('aria-expanded', !!all);
+  btn.innerHTML = icon('chevdown') + (all ? 'Ver solo las ' + LIMIT + ' últimas' : ls.length > 200 ? 'Ver las 200 últimas, de ' + fmt(ls.length) : 'Ver las ' + ls.length + ' vueltas');
+}
+function openRoute(id, trigger) {
+  var g = BYID[id];
+  if (!g) return;
+  cur = g;
+  $('hr-t').textContent = g.name;
+  $('hr-sub').textContent = fmt(g.km, 1) + NB + 'km, ' + fmt(g.elev) + NB + 'm de desnivel. Tiempos en movimiento.';
+  $('hr-batir').innerHTML = hm(g.best);
+  var forma = $('hr-forma');
+  forma.setAttribute('aria-label', 'Forma de ' + g.name + (g.outBack ? ', ida y vuelta' : ', circular'));
+  FBT.shape(forma, g.pts);
+  var trendCell = g.delta === null
+    ? '<dd class="flat">' + cap(trendWords(null, g.n)) + '</dd>'
+    : trendHtml(g.delta, 'stat-v', g.n).replace('<span class="stat-v', '<dd class="stat-v').replace(/<\/span>$/, '</dd>');
+  $('hr-stats').innerHTML =
+    '<div><dt>Veces</dt><dd>' + fmt(g.n) + '</dd></div>' +
+    '<div><dt>Última</dt><dd>' + hm(g.lastL.s) + '</dd></div>' +
+    '<div><dt>Tendencia</dt>' + trendCell + '</div>';
+  fillList(false);
+  FBT.sheet.open('hoja-ruta', trigger);
+  var wrap = $('hr-passes');
+  wrap._sel = undefined;
+  wrap.querySelector('svg').setAttribute('aria-label', 'Tus ' + fmt(g.n) + ' tiempos en ' + g.name + '. Tu mejor: ' + dur(g.best, 'hm') + ', el ' + longDate(g.bestL.t).toLowerCase() + '. La última: ' + dur(g.lastL.s, 'hm') + '; ' + trendWords(g.delta, g.n) + '. Con las flechas recorres las vueltas; la lista de vueltas tiene todos los datos.');
+  FBT.passes(wrap, { items: g.laps.map(function (l) { return { t: l.t, s: l.s, when: dayDate(l.t), sub: fmt(l.km, 1) + NB + 'km a ' + kmh(l.kmh) }; }), dur: 'hm', noun: 'vuelta' });
+  document.querySelector('#hoja-ruta .sheet-body').scrollTop = 0;
+}
+$('hr-mas').addEventListener('click', function () { fillList(this.getAttribute('aria-expanded') !== 'true'); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Kit móvil, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* Solo para esta página de muestra */
+  .route-top { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; align-items: center; }
+  .route-thumb { width: 76px; height: 76px; border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+  .route-name { font: 600 var(--t-xl)/1.15 var(--font-fig); color: var(--ink); }
+  .route-chips { margin-top: 12px; }
+  .route-prof { margin-top: 14px; }
+  .route-prof-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: var(--t-sm); color: var(--ink-2); }
+  .route-prof-h .fig { font-size: 18px; color: var(--ink); }
+  .route-actions { margin-top: 16px; }
+  .type-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .type-row:first-child { border-top: 0; padding-top: 0; }
+  .type-row small { flex: none; font-size: var(--t-xs); color: var(--ink-3); }
+  .state-panel { min-height: 220px; }
+  .sk-rows { display: grid; gap: 14px; padding: 4px 0; }
+  .sk-row { display: grid; grid-template-columns: 42px 1fr 56px; gap: 12px; align-items: center; }
+  .sk-row .sk-stack { display: grid; gap: 8px; }
+  .icons-row { display: flex; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="icon-btn" href="index.html" aria-label="Volver a la galería"><i data-ic="back"></i></a></div>
+  <span class="appbar-title" aria-hidden="true">Kit móvil</span>
+  <div class="appbar-actions">
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+    <button class="icon-btn" type="button" aria-label="Avisos, 2 nuevos"><i data-ic="bell"></i><span class="dot" aria-hidden="true"></span></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <div class="page-head">
+    <p class="page-kicker">Sistema de diseño, versión móvil</p>
+    <h1 class="page-title">Kit móvil</h1>
+    <p class="page-lead">Las piezas con las que se construye cada pantalla. Pensadas para <b>una mano y el pulgar</b>, de un vistazo.</p>
+  </div>
+
+  <!-- ===== Cifras ===== -->
+  <section class="section" aria-labelledby="s-cifras">
+    <div class="section-h"><h2 class="section-title" id="s-cifras">Cifras de un vistazo</h2></div>
+    <div class="card glance" data-m="dist">
+      <p class="glance-label"><i data-ic="target"></i>Objetivo de noviembre</p>
+      <p class="glance-v"><span>201</span><span class="u">de 800 km</span></p>
+      <div class="meter" style="--p:.251;--pace:.2" role="img" aria-label="25 % del objetivo; el ritmo esperado a día 6 es el 20 %: vas 41 km por delante del ritmo"><i></i><b></b></div>
+      <p class="meter-legend"><span><span class="delta delta--up"><i data-ic="up"></i>41&#8239;km</span> por delante del ritmo</span><span>Quedan 24 días</span></p>
+    </div>
+    <div class="kpis">
+      <article class="kpi" data-m="dist">
+        <p class="kpi-h"><i data-ic="bike"></i>Distancia</p>
+        <p class="kpi-v">160<span class="u">km</span></p>
+        <p class="delta delta--up"><i data-ic="up"></i>+25&#8239;%<span class="vs">vs tu media</span></p>
+      </article>
+      <article class="kpi" data-m="elev">
+        <p class="kpi-h"><i data-ic="mountain"></i>Desnivel</p>
+        <p class="kpi-v">2722<span class="u">m</span></p>
+        <p class="delta delta--up"><i data-ic="up"></i>+42&#8239;%<span class="vs">vs tu media</span></p>
+      </article>
+      <article class="kpi" data-m="time">
+        <p class="kpi-h"><i data-ic="timer"></i>En movimiento</p>
+        <p class="kpi-v">6<span class="u">h</span>08<span class="u">min</span></p>
+        <p class="delta delta--up"><i data-ic="up"></i>+30&#8239;%<span class="vs">vs tu media</span></p>
+      </article>
+      <article class="kpi" data-m="speed">
+        <p class="kpi-h"><i data-ic="gauge"></i>Velocidad media</p>
+        <p class="kpi-v">26,0<span class="u">km/h</span></p>
+        <p class="delta delta--down"><i data-ic="down"></i>&minus;4&#8239;%<span class="vs">vs tu media</span></p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== Tarjeta de ruta ===== -->
+  <section class="section" aria-labelledby="s-tarjeta">
+    <div class="section-h"><h2 class="section-title" id="s-tarjeta">Tarjeta</h2></div>
+    <article class="card card--accent" data-m="dist">
+      <div class="card-h">
+        <span class="card-ic"><i data-ic="route"></i></span>
+        <h3 class="card-title">La que mejor encaja</h3>
+        <a class="card-link" href="#">Todas<i data-ic="chev"></i></a>
+      </div>
+      <div class="route-top">
+        <div class="route-thumb"><svg class="shape" data-seed="7" role="img" aria-label="Forma de la ruta: un lazo hacia el norte"></svg></div>
+        <div>
+          <h4 class="route-name"><span class="fig-i">Lluçanès por Prats</span></h4>
+          <p class="route-meta"><span><b>86,4</b> km</span><span><b>1320</b> m</span><span><b>3 h 10</b> a tu ritmo</span></p>
+        </div>
+      </div>
+      <div class="cluster route-chips">
+        <span class="chip chip--mid"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media para ti</span>
+        <span class="chip chip--new"><i data-ic="sparkles"></i>74&#8239;% carretera nueva</span>
+      </div>
+      <div class="route-prof">
+        <p class="route-prof-h"><span>Perfil por pendiente</span><span>cima <span class="fig fig-i">1012</span> m</span></p>
+        <svg class="profile" data-seed="5" data-km="86.4" data-min="430" data-max="1012" data-legend="lg-ruta" role="img" aria-label="Perfil: sube 28 km hasta 1012 m con tramos del 7 al 10 %, después baja"></svg>
+        <div class="profile-axis" aria-hidden="true"><span>0</span><span>20</span><span>40</span><span>60</span><span>86 km</span></div>
+        <div class="legend" id="lg-ruta" style="margin-top:10px"></div>
+      </div>
+      <div class="btn-row route-actions">
+        <button class="btn btn--secondary" type="button">Ver ruta</button>
+        <button class="btn btn--primary" type="button" data-sheet-open="hoja-gpx"><i data-ic="download"></i>GPX</button>
+      </div>
+    </article>
+  </section>
+
+  <!-- ===== Chips ===== -->
+  <section class="section" aria-labelledby="s-chips">
+    <div class="section-h"><h2 class="section-title" id="s-chips">Chips</h2></div>
+    <div class="cluster" aria-label="Chips informativos">
+      <span class="chip chip--easy"><svg class="ic bars" aria-hidden="true"><use href="#i-bars1"/></svg>Suave</span>
+      <span class="chip chip--mid"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media</span>
+      <span class="chip chip--hard"><svg class="ic bars" aria-hidden="true"><use href="#i-bars3"/></svg>Dura</span>
+      <span class="chip chip--done"><i data-ic="check"></i>Hecho</span>
+      <span class="chip chip--ia"><i data-ic="sparkles"></i>Con IA</span>
+      <span class="chip"><i data-ic="repeat"></i>Circular</span>
+    </div>
+    <div class="chips-scroll" role="group" aria-label="Filtrar salidas">
+      <button class="fchip" type="button" aria-pressed="true"><span><i data-ic="check" class="ic-check"></i>Todas</span></button>
+      <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Más de 80 km</span></button>
+      <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Con puerto</span></button>
+      <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Repetidas</span></button>
+      <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Este mes</span></button>
+    </div>
+  </section>
+
+  <!-- ===== Segmentado y estados ===== -->
+  <section class="section" aria-labelledby="s-seg">
+    <div class="section-h"><h2 class="section-title" id="s-seg">Segmentado y estados</h2></div>
+    <div class="seg" role="group" aria-label="Periodo">
+      <button type="button" data-value="30d" aria-pressed="false"><span>30 días</span></button>
+      <button type="button" data-value="3m" aria-pressed="true"><span>3 meses</span></button>
+      <button type="button" data-value="12m" aria-pressed="false"><span>12 meses</span></button>
+      <button type="button" data-value="todo" aria-pressed="false"><span>Todo</span></button>
+    </div>
+    <div class="seg seg--quiet" role="tablist" aria-label="Estado de la lista">
+      <button type="button" role="tab" id="t-datos" aria-controls="p-datos" aria-selected="true"><span>Datos</span></button>
+      <button type="button" role="tab" id="t-carga" aria-controls="p-carga" aria-selected="false"><span>Carga</span></button>
+      <button type="button" role="tab" id="t-vacio" aria-controls="p-vacio" aria-selected="false"><span>Vacío</span></button>
+      <button type="button" role="tab" id="t-error" aria-controls="p-error" aria-selected="false"><span>Error</span></button>
+    </div>
+
+    <div id="p-datos" role="tabpanel" aria-labelledby="t-datos" class="state-panel">
+      <ul class="list list--inset">
+        <li><a class="row" href="#">
+          <span class="row-lead row-lead--shape"><svg class="shape" data-seed="3" aria-hidden="true"></svg></span>
+          <span class="row-main"><span class="row-title">Collsuspina y Moià</span><span class="row-meta">Ayer, jueves 5, con 1542 m</span></span>
+          <span class="row-trail"><span class="row-val">87,6<span class="u">km</span></span><i data-ic="chev" class="chev"></i></span>
+        </a></li>
+        <li><a class="row" href="#">
+          <span class="row-lead row-lead--shape"><svg class="shape" data-seed="11" aria-hidden="true"></svg></span>
+          <span class="row-main"><span class="row-title">Coll de Bracons desde Vic por la carretera vieja de Olot</span><span class="row-meta">Martes 3, con 1180 m</span></span>
+          <span class="row-trail"><span class="row-val">72,1<span class="u">km</span></span><i data-ic="chev" class="chev"></i></span>
+        </a></li>
+        <li><a class="row" href="#">
+          <span class="row-lead row-lead--shape"><svg class="shape" data-seed="19" aria-hidden="true"></svg></span>
+          <span class="row-main"><span class="row-title">Vuelta corta a Tona</span><span class="row-meta">Domingo 1, con 410 m</span></span>
+          <span class="row-trail"><span class="row-val">41,3<span class="u">km</span></span><i data-ic="chev" class="chev"></i></span>
+        </a></li>
+      </ul>
+    </div>
+    <div id="p-carga" role="tabpanel" aria-labelledby="t-carga" class="state-panel card" hidden aria-busy="true">
+      <span class="sr-only">Cargando salidas</span>
+      <div class="sk-rows" aria-hidden="true">
+        <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:72%"></span><span class="sk sk-line" style="width:44%"></span></span><span class="sk sk-line"></span></div>
+        <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:86%"></span><span class="sk sk-line" style="width:38%"></span></span><span class="sk sk-line"></span></div>
+        <div class="sk-row"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:58%"></span><span class="sk sk-line" style="width:50%"></span></span><span class="sk sk-line"></span></div>
+      </div>
+    </div>
+    <div id="p-vacio" role="tabpanel" aria-labelledby="t-vacio" class="state-panel card" hidden>
+      <div class="state">
+        <span class="state-ic"><i data-ic="bike"></i></span>
+        <h3 class="state-title">Aún no hay salidas</h3>
+        <p class="state-text">Importa tu archivo de Strava y aquí verás cada salida con su perfil.</p>
+        <a class="btn btn--primary" href="importar.html"><i data-ic="upload"></i>Importar salidas</a>
+      </div>
+    </div>
+    <div id="p-error" role="tabpanel" aria-labelledby="t-error" class="state-panel card" hidden>
+      <div class="state state--error">
+        <span class="state-ic"><i data-ic="alert"></i></span>
+        <h3 class="state-title">No se ha podido leer el archivo</h3>
+        <p class="state-text">El .zip está incompleto. Descárgalo otra vez desde Strava y vuelve a importarlo.</p>
+        <button class="btn btn--secondary" type="button"><i data-ic="refresh"></i>Reintentar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Lista ===== -->
+  <section class="section" aria-labelledby="s-lista">
+    <div class="section-h"><h2 class="section-title" id="s-lista">Lista</h2></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="#" data-m="elev">
+        <span class="row-lead"><i data-ic="mountain"></i></span>
+        <span class="row-main"><span class="row-title">Subidas</span><span class="row-meta">14 subidas, 8 las repites</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li><a class="row" href="#" data-m="time">
+        <span class="row-lead"><i data-ic="repeat"></i></span>
+        <span class="row-main"><span class="row-title">Rutas repetidas</span><span class="row-meta">6 rutas, en 4 vas más rápido</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+      <li><div class="row" data-m="dist">
+        <span class="row-lead"><i data-ic="navigation"></i></span>
+        <span class="row-main"><span class="row-title" id="sw-nueva">Priorizar carretera nueva</span><span class="row-meta">Evita lo que ya has rodado</span></span>
+        <span class="row-trail"><button class="switch" type="button" role="switch" aria-checked="true" aria-labelledby="sw-nueva"></button></span>
+      </div></li>
+    </ul>
+  </section>
+
+  <!-- ===== Botones ===== -->
+  <section class="section" aria-labelledby="s-botones">
+    <div class="section-h"><h2 class="section-title" id="s-botones">Botones</h2></div>
+    <button class="btn btn--primary btn--lg btn--block" type="button"><i data-ic="download"></i>Descargar GPX</button>
+    <div class="btn-row">
+      <button class="btn btn--secondary" type="button">Descartar</button>
+      <button class="btn btn--primary" type="button">Guardar</button>
+    </div>
+    <div class="cluster">
+      <button class="btn btn--ghost" type="button">Ver como tabla</button>
+      <button class="btn btn--danger" type="button"><i data-ic="trash"></i>Borrar todo</button>
+    </div>
+    <div class="icons-row">
+      <button class="icon-btn icon-btn--filled" type="button" aria-label="Buscar"><i data-ic="search"></i></button>
+      <button class="icon-btn icon-btn--filled" type="button" aria-label="Filtrar"><i data-ic="filter"></i></button>
+      <button class="icon-btn icon-btn--filled" type="button" aria-label="Ordenar"><i data-ic="sort"></i></button>
+      <button class="icon-btn" type="button" aria-label="Editar"><i data-ic="pencil"></i></button>
+    </div>
+  </section>
+
+  <!-- ===== Hojas inferiores y avisos ===== -->
+  <section class="section" aria-labelledby="s-hojas">
+    <div class="section-h"><h2 class="section-title" id="s-hojas">Hojas y avisos</h2></div>
+    <p class="section-sub">En lugar de modales y menús. Se cierran con el botón, deslizando el asa hacia abajo o tocando fuera.</p>
+    <div class="btn-row">
+      <button class="btn btn--secondary" type="button" data-sheet-open="hoja-filtros"><i data-ic="filter"></i>Filtros</button>
+      <button class="btn btn--secondary" type="button" data-sheet-open="hoja-nueva"><i data-ic="plus"></i>Nueva ruta</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn--secondary" type="button" data-toast="Ruta guardada en Mis rutas" data-tone="good" data-action="Deshacer">Aviso de éxito</button>
+      <button class="btn btn--secondary" type="button" data-toast="Sin conexión: la ruta se generará al volver la red" data-tone="warn">Aviso</button>
+    </div>
+    <div class="banner"><i data-ic="info"></i><p>La IA solo ve <b>cifras resumidas</b>: nunca tus tracks ni tu punto de salida.</p></div>
+    <div class="banner banner--warn"><i data-ic="warn"></i><p><b>3 salidas sin GPS.</b> Cuentan en tus cifras, pero no tienen mapa.</p></div>
+    <div class="banner banner--error"><i data-ic="wifioff"></i><p><b>Sin conexión.</b> No se pueden generar rutas ahora.</p><button class="btn btn--ghost" type="button">Reintentar</button></div>
+  </section>
+
+  <!-- ===== Formulario ===== -->
+  <section class="section" aria-labelledby="s-form">
+    <div class="section-h"><h2 class="section-title" id="s-form">Formulario</h2></div>
+    <div class="field">
+      <label class="field-label" for="f-km">Distancia de la ruta</label>
+      <input class="input" id="f-km" type="text" inputmode="numeric" value="80" aria-describedby="f-km-h">
+      <p class="field-help" id="f-km-h">Tu salida media: 74 km</p>
+    </div>
+    <div class="field" data-invalid>
+      <label class="field-label" for="f-clave">Clave de rutas</label>
+      <input class="input" id="f-clave" type="text" value="5b3ce3597851110001cf6248" aria-invalid="true" aria-describedby="f-clave-e" autocomplete="off" spellcheck="false">
+      <p class="field-error" id="f-clave-e"><i data-ic="alert"></i>La clave no es válida. Cópiala otra vez desde tu cuenta de OpenRouteService.</p>
+    </div>
+  </section>
+
+  <!-- ===== Tipografía y tema ===== -->
+  <section class="section" aria-labelledby="s-tipo">
+    <div class="section-h"><h2 class="section-title" id="s-tipo">Tipografía</h2></div>
+    <div class="card">
+      <div class="type-row"><span class="fig fig-i" style="font-size:var(--t-glance)">214</span><small>Cifra de un vistazo</small></div>
+      <div class="type-row"><span class="fig fig-i" style="font-size:var(--t-kpi)">2722 m</span><small>KPI</small></div>
+      <div class="type-row"><span class="page-title" style="animation:none">Historial</span><small>Título grande</small></div>
+      <div class="type-row"><span class="section-title">Tu progresión</span><small>Sección, 22</small></div>
+      <div class="type-row"><span class="card-title">Tu última salida</span><small>Tarjeta, 18</small></div>
+      <div class="type-row"><span>Texto de lectura a 16 px.</span><small>Texto, 16</small></div>
+      <div class="type-row"><span class="meta">Ayer, jueves 5 de noviembre</span><small>Meta, 14</small></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="s-tema">
+    <div class="section-h"><h2 class="section-title" id="s-tema">Tema</h2></div>
+    <div class="seg theme-switch" role="group" aria-label="Tema" data-theme-toggle>
+      <button type="button" data-value="dark" aria-pressed="true"><i data-ic="moon"></i><span>Oscuro</span></button>
+      <button type="button" data-value="light" aria-pressed="false"><i data-ic="sun"></i><span>Claro</span></button>
+    </div>
+  </section>
+</main>
+
+<button class="fab" type="button" data-sheet-open="hoja-nueva"><i data-ic="plus"></i>Nueva ruta</button>
+<nav class="tabbar" data-tabbar data-current="mas" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: filtros ===== -->
+<dialog class="sheet" id="hoja-filtros" aria-labelledby="hoja-filtros-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-filtros-t">Filtros</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar filtros"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="sheet-group">
+      <p class="sheet-group-title" id="fg-periodo">Periodo</p>
+      <div class="seg" role="group" aria-labelledby="fg-periodo">
+        <button type="button" aria-pressed="false"><span>3 meses</span></button>
+        <button type="button" aria-pressed="true"><span>12 meses</span></button>
+        <button type="button" aria-pressed="false"><span>Todo</span></button>
+      </div>
+    </div>
+    <div class="sheet-group">
+      <p class="sheet-group-title" id="fg-dif">Dificultad para ti</p>
+      <div class="cluster" role="group" aria-labelledby="fg-dif">
+        <button class="fchip" type="button" aria-pressed="true"><span><i data-ic="check" class="ic-check"></i>Suave</span></button>
+        <button class="fchip" type="button" aria-pressed="true"><span><i data-ic="check" class="ic-check"></i>Media</span></button>
+        <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Dura</span></button>
+      </div>
+    </div>
+    <div class="sheet-group">
+      <p class="sheet-group-title" id="fg-tipo">Recorrido</p>
+      <div class="cluster" role="group" aria-labelledby="fg-tipo" data-single>
+        <button class="fchip" type="button" aria-pressed="true"><span><i data-ic="check" class="ic-check"></i>Cualquiera</span></button>
+        <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Circular</span></button>
+        <button class="fchip" type="button" aria-pressed="false"><span><i data-ic="check" class="ic-check"></i>Ida y vuelta</span></button>
+      </div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="button" data-sheet-close>Ver 24 salidas</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: nueva ruta ===== -->
+<dialog class="sheet" id="hoja-nueva" aria-labelledby="hoja-nueva-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-nueva-t">Nueva ruta</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Sale de tu punto guardado. Cinco propuestas en unos segundos.</p>
+  </div>
+  <div class="sheet-body">
+    <a class="choice press" href="rutas.html" data-m="dist">
+      <span class="row-lead"><i data-ic="route"></i></span>
+      <span><b>Con tus cifras</b><span>Eliges distancia y desnivel</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+    <a class="choice press" href="ia.html" data-m="elev">
+      <span class="row-lead"><i data-ic="sparkles"></i></span>
+      <span><b>Pregunta a la IA</b><span>Tres preguntas y te propone rutas</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: exportar GPX ===== -->
+<dialog class="sheet" id="hoja-gpx" aria-labelledby="hoja-gpx-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-gpx-t">Llévala al iGPSPORT</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <ol class="stack">
+      <li class="banner"><span class="fig" aria-hidden="true">1</span><p>Descarga el <b>GPX</b>. Se guarda en Descargas.</p></li>
+      <li class="banner"><span class="fig" aria-hidden="true">2</span><p>Ábrelo con la app <b>iGPSPORT</b> y envíalo al BSC200S.</p></li>
+      <li class="banner"><span class="fig" aria-hidden="true">3</span><p>En el ciclocomputador, <b>Rutas</b> y elige «Lluçanès por Prats».</p></li>
+    </ol>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block btn--lg" type="button" data-sheet-close data-toast="GPX descargado: lluçanes-por-prats.gpx" data-tone="good"><i data-ic="download"></i>Descargar GPX</button>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+</body>
+</html>

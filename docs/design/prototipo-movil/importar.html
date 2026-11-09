@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Importar salidas, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* ---- Elegir: la tarjeta lleva curvas de nivel tenues, como un mapa en el que aún no hay nada ---- */
+  .pick { display: grid; gap: 14px; overflow: hidden; isolation: isolate; }
+  .pick::before {
+    content: ""; position: absolute; z-index: -1; inset: -40px -120px auto auto; width: 420px; height: 260px; pointer-events: none;
+    background: var(--ridge-line); opacity: 0.14;
+    -webkit-mask: var(--relieve) right top / 420px 262px no-repeat; mask: var(--relieve) right top / 420px 262px no-repeat;
+  }
+  :root[data-theme="light"] .pick::before { background: var(--ridge-near); opacity: 0.1; }
+  .pick .card-h { margin-bottom: 0; }
+  .pick-text { font-size: 15px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+  .pick-text b { color: var(--ink); font-weight: 600; }
+  .pick-actions { display: grid; gap: 10px; }
+  .pick-actions .btn--secondary { min-height: 52px; }
+  @media (min-width: 600px) { .pick-actions { grid-template-columns: 3fr 2fr; } .pick-actions .btn--secondary { min-height: 56px; } }
+  .pick .card-foot { margin-top: 2px; display: flex; gap: 8px; align-items: center; }
+  .pick .card-foot .ic { width: 16px; height: 16px; color: var(--ink-3); }
+
+  /* ---- Pasos con forma de hito kilométrico (la marca de FBikeTrain) unidos por la carretera ---- */
+  .steps { display: grid; gap: 0; counter-reset: paso; }
+  .steps > li { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 14px; padding-bottom: 18px; }
+  .steps > li:last-child { padding-bottom: 0; }
+  .steps > li:not(:last-child)::after { /* tramo de carretera hasta el siguiente hito */
+    content: ""; position: absolute; left: 14px; top: 38px; bottom: 4px; width: 0;
+    border-left: 2px dashed var(--line-strong);
+  }
+  .steps > li[data-st="done"]:not(:last-child)::after { border-left-style: solid; border-color: var(--good); }
+  .hito-n {
+    position: relative; display: grid; place-items: end center; width: 30px; height: 36px; padding-bottom: 4px; overflow: hidden;
+    border-radius: 15px 15px 5px 5px; background: var(--surface-2); border: 1.5px solid var(--line-strong);
+    font: 700 16px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums;
+  }
+  .hito-n::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 11px; background: var(--hito-band); }
+  .hito-n .ic { width: 16px; height: 16px; stroke-width: 2.6; margin-bottom: 1px; }
+  .steps > li[data-st="done"] .hito-n { border-color: var(--good); color: var(--good); }
+  .steps > li[data-st="done"] .hito-n::before { background: var(--good); }
+  .steps > li[data-st="now"] .hito-n { border-color: var(--action); box-shadow: 0 0 0 4px color-mix(in srgb, var(--action) 22%, transparent); }
+  .steps > li[data-st="todo"] .hito-n { color: var(--ink-3); }
+  .steps > li[data-st="todo"] .hito-n::before { background: var(--line-strong); }
+  .step-main { min-width: 0; padding-top: 3px; }
+  .step-title { display: block; font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+  .step-text { display: block; margin-top: 2px; font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+  .step-text b { color: var(--ink); font-weight: 600; }
+  .steps > li[data-st="todo"] .step-title { color: var(--ink-2); }
+  .step-state { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font: 600 var(--t-sm)/1.3 var(--font-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .step-state .ic { width: 16px; height: 16px; }
+  .steps > li[data-st="done"] .step-state { color: var(--good); }
+  .steps > li[data-st="now"] .step-state { color: var(--link); }
+
+  /* ---- En curso ---- */
+  .run { display: grid; gap: 16px; }
+  .file-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; }
+  /* Nombre del fichero: una línea, recortado por el centro en JS (se ve la extensión); el completo, en title */
+  .file-name { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+  .file-meta { display: block; font-size: var(--t-sm); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .run .glance-v { color: var(--ink); }
+  .run .glance-v .u { color: var(--ink-2); }
+  .run-sub { font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+  .run .meter > i { transition: transform 280ms linear; }
+  .run-steps { padding-top: 16px; border-top: 1px solid var(--line); }
+  .run-stop { margin-top: -4px; }
+  /* Apaisado: el progreso a la izquierda y las fases a la derecha, con «Parar» debajo: todo a la vista */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .run { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "file steps" "glance steps" "glance stop"; column-gap: 24px; align-items: start; }
+    .run > .file-row { grid-area: file; }
+    .run > .glance { grid-area: glance; }
+    .run > .run-steps { grid-area: steps; padding: 0 0 0 20px; border-top: 0; border-left: 1px solid var(--line); }
+    .run > .run-stop { grid-area: stop; margin-top: 0; align-self: end; }
+  }
+
+  /* ---- Informe ---- */
+  .done-card { display: grid; gap: 14px; }
+  .done-card .glance-v { color: var(--good); }
+  .done-card[data-nada] .glance-v { color: var(--ink-2); }
+  .status-line[data-tone="info"] > .ic { color: var(--link); }
+  .done-card .glance-v .u { color: var(--ink); font-size: 24px; }
+  .done-sub { font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+  .done-actions { display: grid; gap: 10px; margin-top: 4px; }
+  .row-lead--good { color: var(--good); background: var(--good-bg); }
+  .row-lead--bad { color: var(--critical); background: var(--critical-bg); }
+  .row-lead--quiet { color: var(--ink-2); background: var(--surface-2); }
+  div.row { cursor: default; }
+  div.row:active { transform: none; }
+  .row-val.is-good { color: var(--good); }
+  .skip-file { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .banner p + p, .banner > .skip-list, .banner > .skip-more { grid-column: 2; }
+  /* Varios ficheros sin leer: un solo aviso, los 3 primeros a la vista y el resto plegado */
+  .skip-list { display: grid; gap: 2px; margin-top: 4px; font-size: var(--t-sm); }
+  .skip-list li { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .skip-more > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-left: -12px; padding: 0 12px; border-radius: var(--r-md); list-style: none; cursor: pointer; font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+  .skip-more > summary::-webkit-details-marker { display: none; }
+  .skip-more > summary .ic { width: 16px; height: 16px; transition: transform var(--dur-ui) var(--ease-out); }
+  .skip-more[open] > summary .ic { transform: rotate(180deg); }
+  .skip-more .skip-list { margin: 0 0 4px; }
+  .skip-more { margin-top: -4px; }
+  .banner > .skip-list + .btn { margin-top: 2px; }
+
+  /* ---- Error ---- */
+  .err-card .state { padding: 20px 4px 6px; }
+  .err-card .state-text b { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+  .tech-more { font-size: var(--t-sm); color: var(--ink-2); text-align: center; }
+  .tech-more > summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: var(--r-md); list-style: none; cursor: pointer; font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+  .tech-more > summary::-webkit-details-marker { display: none; }
+  .tech-more > summary .ic { width: 16px; height: 16px; transition: transform var(--dur-ui) var(--ease-out); }
+  .tech-more[open] > summary .ic { transform: rotate(180deg); }
+  .tech-more p { margin: 0 0 6px; overflow-wrap: anywhere; }
+  .tech-more b { color: var(--ink); font-weight: 600; }
+
+  .help-actions { display: grid; }
+  .page-head.is-quiet .page-lead { display: none; }
+  @media (hover: hover) and (pointer: fine) { div.row:hover { background: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="icon-btn" href="mas.html" aria-label="Volver a Más"><i data-ic="back"></i></a></div>
+  <span class="appbar-title" aria-hidden="true">Importar</span>
+  <div class="appbar-actions"><button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button></div>
+</header>
+
+<main id="main" class="page page--narrow">
+  <div class="page-head">
+    <h1 class="page-title">Importar salidas</h1>
+    <p class="page-lead" data-when="default loading done error nada">Se leen aquí, en el navegador. <b>Nada sale de tu teléfono</b> y lo que ya tienes no se duplica.</p>
+    <p class="page-lead" data-when="empty">Empieza por <b>tu historial completo</b> de Strava. Se lee aquí, en el navegador: nada sale de tu teléfono.</p>
+  </div>
+
+  <!-- ===================== Elegir ===================== -->
+  <section class="section" aria-labelledby="pick-t" data-view="pick">
+    <div class="card pick" data-m="dist">
+      <div class="card-h">
+        <span class="card-ic"><i data-ic="upload"></i></span>
+        <h2 class="card-title" id="pick-t" tabindex="-1"><span data-when="default loading done error nada">Añadir salidas nuevas</span><span data-when="empty">Tu archivo de Strava</span></h2>
+      </div>
+      <p class="pick-text" data-when="default loading done error nada">Ficheros sueltos <b>.fit, .gpx o .tcx</b> (también en .gz) o el <b>.zip</b> completo de Strava.</p>
+      <p class="pick-text" data-when="empty">El <b>.zip</b> que Strava te envía por correo, tal cual: sin descomprimirlo ni cambiarle el nombre.</p>
+      <div class="pick-actions">
+      <label class="btn btn--primary btn--lg btn--block">
+        <input class="sr-only" type="file" accept=".zip,.fit,.gpx,.tcx,.gz" multiple data-pick>
+        <i data-ic="file"></i><span data-when="default loading done error nada">Elegir ficheros</span><span data-when="empty">Elegir el .zip</span>
+      </label>
+      <a class="btn btn--secondary btn--block" data-when="empty" href="https://www.strava.com/athlete/delete_your_account" target="_blank" rel="noopener noreferrer"><i data-ic="external"></i>Pedir el archivo a Strava<span class="sr-only"> (se abre en otra pestaña)</span></a>
+      <label class="btn btn--secondary btn--block" data-folder data-when="default loading done error nada">
+        <input class="sr-only" type="file" webkitdirectory multiple data-pick>
+        <i data-ic="folder"></i>Elegir una carpeta
+      </label>
+      </div>
+      <p class="card-foot" data-when="default"><i data-ic="clock"></i>Última importación: ayer, jueves 5 de noviembre</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="ayuda-t" data-view="pick">
+    <div class="section-h"><h2 class="section-title" id="ayuda-t">Cómo conseguir los ficheros</h2></div>
+
+    <details class="disclosure" name="ayuda" data-when="default" id="como-suelta">
+      <summary data-m="time">
+        <span class="row-lead"><i data-ic="file"></i></span>
+        <span class="row-main"><span class="row-title">Una salida suelta</span><span class="row-meta">Desde la web de Strava, en un minuto</span></span>
+        <i data-ic="chevdown" class="chev"></i>
+      </summary>
+      <div class="disclosure-body">
+        <ol class="steps">
+          <li><span class="hito-n" aria-hidden="true">1</span><span class="step-main"><span class="step-title">Abre la salida en strava.com</span><span class="step-text">Desde el navegador del teléfono; la app de Strava no exporta.</span></span></li>
+          <li><span class="hito-n" aria-hidden="true">2</span><span class="step-main"><span class="step-title">Exporta el fichero</span><span class="step-text">En el menú de la salida, <b>Exportar original</b> (o Exportar GPX). Se guarda en Descargas.</span></span></li>
+          <li><span class="hito-n" aria-hidden="true">3</span><span class="step-main"><span class="step-title">Vuelve aquí y elígelo</span><span class="step-text">Puedes elegir varios a la vez.</span></span></li>
+        </ol>
+      </div>
+    </details>
+
+    <details class="disclosure" name="ayuda" id="como-zip" data-when="default empty error">
+      <summary data-m="elev">
+        <span class="row-lead"><i data-ic="mail"></i></span>
+        <span class="row-main"><span class="row-title">Todo tu historial</span><span class="row-meta">El .zip de Strava; llega por correo en unas horas</span></span>
+        <i data-ic="chevdown" class="chev"></i>
+      </summary>
+      <div class="disclosure-body">
+        <ol class="steps">
+          <li><span class="hito-n" aria-hidden="true">1</span><span class="step-main"><span class="step-title">Pide el archivo</span><span class="step-text">En strava.com: Ajustes, Mi cuenta, <b>Descargar o eliminar tu cuenta</b> y Solicitar tu archivo.</span></span></li>
+          <li><span class="hito-n" aria-hidden="true">2</span><span class="step-main"><span class="step-title">Espera el correo</span><span class="step-text">Strava lo prepara y te lo envía. Suele tardar <b>unas horas</b>.</span></span></li>
+          <li><span class="hito-n" aria-hidden="true">3</span><span class="step-main"><span class="step-title">Descárgalo y elígelo aquí</span><span class="step-text">Toca el enlace del correo: el .zip se guarda en Descargas. No lo descomprimas.</span></span></li>
+        </ol>
+        <div class="help-actions">
+          <a class="btn btn--secondary btn--block" href="https://www.strava.com/athlete/delete_your_account" target="_blank" rel="noopener noreferrer"><i data-ic="external"></i>Abrir Strava<span class="sr-only"> (se abre en otra pestaña)</span></a>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===================== En curso ===================== -->
+  <section class="section" aria-labelledby="run-t" data-view="run" hidden>
+    <h2 class="sr-only" id="run-t" tabindex="-1">Importando</h2>
+    <div class="card run" data-m="dist">
+      <div class="file-row">
+        <span class="row-lead"><i data-ic="file"></i></span>
+        <span class="row-main"><span class="file-name" data-file-name>export_48213907.zip</span><span class="file-meta" data-file-meta>412 MB</span></span>
+      </div>
+
+      <div class="glance">
+        <p class="glance-v"><span data-pct>65</span><span class="u">%</span></p>
+        <div class="meter" data-meter style="--p:.65" role="progressbar" aria-labelledby="run-t" aria-valuemin="0" aria-valuemax="218" aria-valuenow="142" aria-valuetext="142 de 218 salidas de bici"><i></i></div>
+        <p class="run-sub"><b class="fig" data-done style="font-size:17px">142</b> de <span data-total>218</span> salidas de bici. El archivo trae <span data-acts>1310</span> actividades; las que no son de bici no cuentan.</p>
+      </div>
+
+      <ol class="steps run-steps" aria-label="Fases">
+        <li data-st="done" data-step="1"><span class="hito-n" aria-hidden="true"><i data-ic="check"></i></span><span class="step-main"><span class="step-title">Abrir el archivo</span><span class="step-state" data-state-text>Hecho</span></span></li>
+        <li data-st="now" data-step="2" aria-current="step"><span class="hito-n" aria-hidden="true">2</span><span class="step-main"><span class="step-title">Leer las salidas de bici</span><span class="step-state" data-state-text><i data-ic="loader" class="spin"></i>Leyendo</span></span></li>
+        <li data-st="todo" data-step="3"><span class="hito-n" aria-hidden="true">3</span><span class="step-main"><span class="step-title">Guardar en este navegador</span><span class="step-state" data-state-text>Pendiente</span></span></li>
+      </ol>
+      <!-- Fuera de la fila del fichero y al alcance del pulgar; pide confirmación (hoja) -->
+      <button class="btn btn--secondary btn--block run-stop" type="button" data-sheet-open="hoja-parar">Parar la importación</button>
+    </div>
+    <div class="banner"><i data-ic="info"></i><p>Deja esta pestaña abierta. Si cambias de app, el teléfono puede pausar la importación.</p></div>
+    <p class="sr-only" role="status" aria-live="polite" data-live></p>
+  </section>
+
+  <!-- ===================== Informe ===================== -->
+  <section class="section" aria-labelledby="done-t" data-view="done" hidden>
+    <div class="card done-card" data-done-card>
+      <p class="status-line" data-tone="good" data-done-status><i data-ic="checkc"></i><span id="done-t" tabindex="-1"><b data-done-title>Importación terminada</b></span></p>
+      <p class="glance-v"><span class="fig-i" data-added>13</span><span class="u" data-added-u>salidas nuevas</span></p>
+      <p class="done-sub"><span data-file-name>export_48213907.zip</span>: <span data-acts>1310</span> actividades leídas en 48&#8239;s.</p>
+      <p class="done-sub" data-done-skip hidden></p>
+      <div class="done-actions">
+        <a class="btn btn--primary btn--lg btn--block" href="historial.html" data-added-btn>Ver las 13 salidas nuevas</a>
+        <a class="btn btn--secondary btn--block" href="inicio.html" data-home-btn>Ir a Inicio</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="desglose-t" data-view="done" hidden>
+    <div class="section-h"><h2 class="section-title" id="desglose-t">Qué traía el archivo</h2></div>
+    <ul class="list list--inset">
+      <li><div class="row">
+        <span class="row-lead row-lead--good" data-added-lead><i data-ic="plus"></i></span>
+        <span class="row-main"><span class="row-title">Salidas nuevas</span><span class="row-meta" data-added-meta>Ya cuentan en tu progresión</span></span>
+        <span class="row-trail"><span class="row-val is-good" data-added>13</span></span>
+      </div></li>
+      <li><div class="row">
+        <span class="row-lead row-lead--quiet"><i data-ic="checkc"></i></span>
+        <span class="row-main"><span class="row-title">Ya estaban</span><span class="row-meta">No se duplican</span></span>
+        <span class="row-trail"><span class="row-val" data-already>201</span></span>
+      </div></li>
+      <li><div class="row">
+        <span class="row-lead row-lead--quiet"><i data-ic="timer"></i></span>
+        <span class="row-main"><span class="row-title">Demasiado cortas</span><span class="row-meta">Menos de 200 m o de 1 min en movimiento</span></span>
+        <span class="row-trail"><span class="row-val">3</span></span>
+      </div></li>
+      <li><div class="row">
+        <span class="row-lead row-lead--quiet"><i data-ic="activity"></i></span>
+        <span class="row-main"><span class="row-title">No son de bici</span><span class="row-meta">Carrera, caminatas y otros deportes</span></span>
+        <span class="row-trail"><span class="row-val">1092</span></span>
+      </div></li>
+      <li><div class="row">
+        <span class="row-lead row-lead--bad"><i data-ic="alert"></i></span>
+        <span class="row-main"><span class="row-title">Sin leer</span><span class="row-meta">El detalle, justo debajo</span></span>
+        <span class="row-trail"><span class="row-val" data-skip-n>1</span></span>
+      </div></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="fallos-t" data-view="done" hidden>
+    <div class="section-h"><h2 class="section-title" id="fallos-t">Un fichero sin leer</h2></div>
+    <!-- Lo pinta renderSkipped(): 1 fichero, su nombre en la frase; varios, un solo aviso con los 3 primeros y el resto plegado -->
+    <div class="banner banner--error" data-skipped>
+      <i data-ic="alert"></i>
+      <p><span class="skip-file" title="activities/9876543210.tcx.gz">9876543210.tcx.gz</span> está dañado.</p>
+      <p>Si es una salida que quieres, descárgala otra vez de Strava y elígela aquí.</p>
+      <label class="btn btn--ghost"><input class="sr-only" type="file" accept=".fit,.gpx,.tcx,.gz" data-pick>Elegir ese fichero</label>
+    </div>
+  </section>
+
+  <!-- ===================== Error ===================== -->
+  <section class="section" aria-labelledby="err-t" data-view="error" hidden>
+    <div class="card err-card" role="alert">
+      <div class="state state--error">
+        <span class="state-ic"><i data-ic="alert"></i></span>
+        <h2 class="state-title" id="err-t" tabindex="-1">No es el archivo de Strava</h2>
+        <p class="state-text">Elige el .zip que te llegó por correo de Strava, tal cual: sin descomprimirlo ni cambiarle el nombre.</p>
+        <label class="btn btn--primary btn--block"><input class="sr-only" type="file" accept=".zip,.fit,.gpx,.tcx,.gz" multiple data-pick><i data-ic="file"></i>Elegir otro archivo</label>
+        <details class="tech-more">
+          <summary>Detalle técnico<i data-ic="chevdown"></i></summary>
+          <p>A <b data-err-file>export_48213907.zip</b> le falta activities.csv: no es el archivo completo de Strava.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="mas" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: parar la importación (acción destructiva: se confirma) ===== -->
+<dialog class="sheet" id="hoja-parar" aria-labelledby="hoja-parar-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-parar-t">¿Parar la importación?</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Lo ya guardado se queda.</p>
+  </div>
+  <div class="sheet-body">
+    <p class="run-sub">Para traer el resto, vuelve a elegir el mismo archivo: lo que ya está no se duplica.</p>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--danger btn--block" type="button" data-cancel>Parar</button>
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Seguir importando</button>
+  </div>
+</dialog>
+
+<script>
+/* Estados del prototipo: ?state=empty (primera vez) | loading (importando) | done (informe) | nada (0 nuevas) | error
+   Datos extremos: ?file=<nombre del fichero> · ?fallos=<n.º de ficheros sin leer> */
+(function () {
+  var s = 'default';
+  try { s = new URLSearchParams(location.search).get('state') || 'default'; } catch (e) {}
+  if (['empty', 'loading', 'done', 'nada', 'error'].indexOf(s) < 0) s = 'default';
+  document.documentElement.dataset.state = s;
+  document.querySelectorAll('[data-when]').forEach(function (n) { n.hidden = n.dataset.when.split(' ').indexOf(s) < 0; });
+  var view = { loading: 'run', done: 'done', nada: 'done', error: 'error' }[s] || 'pick';
+  document.querySelectorAll('[data-view]').forEach(function (n) { n.hidden = n.dataset.view !== view; });
+  if (s === 'error') {   // el error va primero y la ayuda del .zip debajo, abierta a un toque
+    var h = document.querySelector('[aria-labelledby="ayuda-t"]'), er = document.querySelector('[data-view="error"]');
+    if (h && er) { h.hidden = false; h.parentNode.insertBefore(er, h); }
+  }
+  if (s === 'empty') {
+    var z = document.getElementById('como-zip'); if (z) z.open = true;
+    var tb = document.querySelector('[data-tabbar]'); if (tb) tb.removeAttribute('data-badge');
+  }
+  if (s === 'loading' || s === 'done' || s === 'nada') document.querySelector('.page-head').classList.add('is-quiet');
+})();
+</script>
+<script src="movil.js?v=588a4775"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, c) { return (c || document).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+
+  /* La carpeta solo se ofrece si el navegador sabe elegir carpetas (Safari de iOS no) */
+  var probe = document.createElement('input');
+  if (!('webkitdirectory' in probe)) $$('[data-folder]').forEach(function (n) { n.hidden = true; });
+
+  function show(view) {
+    $$('[data-view]').forEach(function (n) { n.hidden = n.dataset.view !== view; });
+    $('.page-head').classList.toggle('is-quiet', view === 'run' || view === 'done');   // en curso e informe: el resultado sube
+    window.scrollTo(0, 0);
+    var h = { pick: '#pick-t', run: '#run-t', done: '#done-t', error: '#err-t' }[view];
+    if (h && $(h)) $(h).focus({ preventScroll: true });
+  }
+  var P = new URLSearchParams(location.search);
+  var state = document.documentElement.dataset.state;
+  /* Recorte por el centro: se ve el principio y la extensión. El nombre completo va en title. */
+  function mid(name) { return name.length <= 26 ? name : name.slice(0, 14) + '…' + name.slice(-10); }
+  function base(path) { return path.split('/').pop(); }
+  function esc(t) { return t.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function setName(name) {
+    $$('[data-file-name]').forEach(function (n) { n.textContent = mid(name); n.title = name; });
+    var eb = $('[data-err-file]'); if (eb) { eb.textContent = mid(name); eb.title = name; }
+  }
+  function skipItem(path) { return '<li title="' + esc(path) + '">' + esc(mid(base(path))) + '</li>'; }
+
+  /* Ficheros sin leer: 1, con su nombre en la frase; varios, un aviso único y un solo botón */
+  var skippedN = 0;
+  function renderSkipped(paths) {
+    var n = paths.length, sec = $('[aria-labelledby="fallos-t"]'), box = $('[data-skipped]');
+    skippedN = n;
+    $('[data-skip-n]').textContent = FBT.fmt(n);
+    if (!n) { sec.dataset.view = 'none'; sec.hidden = true; return; }
+    $('#fallos-t').textContent = n === 1 ? 'Un fichero sin leer' : FBT.fmt(n) + ' ficheros sin leer';
+    var accept = '.fit,.gpx,.tcx,.gz';
+    if (n === 1) {
+      box.innerHTML = FBT.icon('alert') +
+        '<p><span class="skip-file" title="' + esc(paths[0]) + '">' + esc(mid(base(paths[0]))) + '</span> está dañado.</p>' +
+        '<p>Si es una salida que quieres, descárgala otra vez de Strava y elígela aquí.</p>' +
+        '<label class="btn btn--ghost"><input class="sr-only" type="file" accept="' + accept + '" data-pick>Elegir ese fichero</label>';
+      return;
+    }
+    box.innerHTML = FBT.icon('alert') +
+      '<p><b>Están dañados.</b> Si son salidas que quieres, descárgalas otra vez de Strava y elígelas aquí.</p>' +
+      '<ul class="skip-list">' + paths.slice(0, 3).map(skipItem).join('') + '</ul>' +
+      '<label class="btn btn--ghost"><input class="sr-only" type="file" accept="' + accept + '" multiple data-pick>Elegir ficheros</label>' +
+      /* El botón va antes de la lista plegada: con 86 nombres abiertos no queda al fondo */
+      (n > 3 ? '<details class="skip-more"><summary>Ver los ' + FBT.fmt(n) + FBT.icon('chevdown') + '</summary><ul class="skip-list">' + paths.slice(3).map(skipItem).join('') + '</ul></details>' : '');
+  }
+  function fakeSkipped(n) {
+    var ext = ['tcx.gz', 'fit.gz', 'gpx'], out = [];
+    for (var i = 0; i < n; i++) out.push('activities/' + (9876543210 - i * 7919) + '.' + ext[i % 3]);
+    return out;
+  }
+
+  function size(b) { return b >= 1e6 ? FBT.fmt(b / 1e6, b < 1e7 ? 1 : 0) + ' MB' : FBT.fmt(Math.max(1, b / 1e3)) + ' kB'; }
+
+  /* ---- Simulación de la importación (en la app: mensajes progress del Worker) ---- */
+  var timer = null;
+  function setStep(n) {
+    $$('.run-steps > li').forEach(function (li) {
+      var k = +li.dataset.step, st = k < n ? 'done' : k === n ? 'now' : 'todo';
+      li.dataset.st = st;
+      if (st === 'now') li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+      $('.hito-n', li).innerHTML = st === 'done' ? FBT.icon('check') : String(k);
+      $('[data-state-text]', li).innerHTML = st === 'done' ? 'Hecho' : st === 'now' ? FBT.icon('loader', 'spin') + (k === 1 ? 'Abriendo' : k === 2 ? 'Leyendo' : 'Guardando') : 'Pendiente';
+    });
+    var live = $('[data-live]');
+    if (live) live.textContent = ['', 'Abriendo el archivo', 'Leyendo las salidas de bici', 'Guardando en este navegador'][n] || '';
+  }
+  function setCount(done, total) {
+    var p = total ? done / total : 0, m = $('[data-meter]');
+    m.style.setProperty('--p', p.toFixed(3));
+    m.setAttribute('aria-valuenow', done); m.setAttribute('aria-valuemax', total);
+    m.setAttribute('aria-valuetext', FBT.fmt(done) + ' de ' + FBT.fmt(total) + ' salidas de bici');
+    $('[data-pct]').textContent = Math.round(p * 100);
+    $('[data-done]').textContent = FBT.fmt(done);
+    $('[data-total]').textContent = FBT.fmt(total);
+  }
+  function start(files) {
+    if (!files || !files.length) return;
+    var f = files[0], many = files.length > 1;
+    var name = many ? FBT.fmt(files.length) + ' ficheros' : (f.webkitRelativePath ? f.webkitRelativePath.split('/')[0] : f.name);
+    var bytes = 0; for (var i = 0; i < files.length; i++) bytes += files[i].size;
+    setName(name);
+    $('[data-file-meta]').textContent = size(bytes);
+    var zip = /\.zip$/i.test(f.name) && !many;
+    var total = zip ? 218 : Math.max(1, files.length), acts = zip ? 1310 : files.length;
+    $$('[data-acts]').forEach(function (n) { n.textContent = FBT.fmt(acts); });
+    show('run'); setStep(1); setCount(0, total);
+    var t0 = Date.now(), dur = zip ? 4200 : 1400;
+    clearInterval(timer);
+    timer = setInterval(function () {
+      var k = Math.min(1, (Date.now() - t0) / dur);
+      if (k < 0.15) { setStep(1); return; }
+      var done = Math.round(((k - 0.15) / 0.75) * total);
+      if (k < 0.9) { setStep(2); setCount(Math.min(done, total), total); return; }
+      setStep(3); setCount(total, total);
+      if (k >= 1) { clearInterval(timer); FBT.sheet.close('hoja-parar'); finish(zip ? 13 : files.length, zip ? 201 : 0, true); }
+    }, 120);
+  }
+  /* Informe. added = salidas nuevas; already = las que ya estaban. Con 0 nuevas (volver a importar
+     el mismo .zip) no hay nada que celebrar ni que ver: «Ya lo tenías todo» e «Ir a Inicio».
+     Si además hay ficheros sin leer, no se puede decir «todo»: «Nada nuevo» y se señala el aviso. */
+  function finish(added, already, withToast) {
+    var nada = added === 0, st = $('[data-done-status]');
+    $('[data-done-card]').toggleAttribute('data-nada', nada);
+    st.dataset.tone = nada ? 'info' : 'good';
+    st.querySelector('.ic').outerHTML = FBT.icon(nada ? 'info' : 'checkc');
+    $('[data-done-title]').textContent = nada ? (skippedN ? 'Nada nuevo' : 'Ya lo tenías todo') : 'Importación terminada';
+    var ds = $('[data-done-skip]');
+    ds.hidden = !(nada && skippedN);
+    ds.textContent = skippedN === 1 ? '1 fichero sin leer: míralo abajo.' : FBT.fmt(skippedN) + ' ficheros sin leer: míralos abajo.';
+    $$('[data-added]').forEach(function (n) { n.textContent = FBT.fmt(added); n.classList.toggle('is-good', !nada && n.classList.contains('row-val')); });
+    $('[data-already]').textContent = FBT.fmt(already);
+    $('[data-added-u]').textContent = added === 1 ? 'salida nueva' : 'salidas nuevas';
+    var b = $('[data-added-btn]');
+    b.hidden = nada;
+    b.textContent = added === 1 ? 'Ver la salida nueva' : 'Ver las ' + FBT.fmt(added) + ' salidas nuevas';
+    $('[data-home-btn]').className = nada ? 'btn btn--primary btn--lg btn--block' : 'btn btn--secondary btn--block';
+    $('[data-added-lead]').className = 'row-lead ' + (nada ? 'row-lead--quiet' : 'row-lead--good');
+    $('[data-added-meta]').textContent = nada ? 'Nada que añadir' : 'Ya cuentan en tu progresión';
+    if (!withToast) return;
+    show('done');
+    if (nada) FBT.toast('Nada nuevo: las ' + FBT.fmt(already) + ' salidas ya estaban', { tone: 'info' });
+    else FBT.toast(added === 1 ? '1 salida importada' : FBT.fmt(added) + ' salidas importadas', { tone: 'good' });
+  }
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches('[data-pick]')) return;
+    start(e.target.files); e.target.value = '';
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-cancel]')) return;
+    clearInterval(timer); FBT.sheet.close('hoja-parar'); show('pick');
+    FBT.toast('Importación parada. Lo ya guardado se queda', { tone: 'info' });
+  });
+
+  /* Estado inicial del prototipo */
+  if (P.get('file')) setName(P.get('file'));
+  renderSkipped(fakeSkipped(P.has('fallos') ? Math.max(0, parseInt(P.get('fallos'), 10) || 0) : 1));
+  if (state === 'nada') finish(0, 214, false);
+  if (state === 'loading') setStep(2);
+})();
+</script>
+</body>
+</html>

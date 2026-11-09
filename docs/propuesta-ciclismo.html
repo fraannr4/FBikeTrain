@@ -1,0 +1,525 @@
+<title>Plataforma de ciclismo personal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: one reading column (max 74ch) with wide breakouts for tables, diagram and UI mockups; left aligned. Signature: col kilometre markers (white sign, yellow top band) mark the roadmap. */
+:root{
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#1B2220; --muted:#56635F; --line:#D5DCD9;
+  --accent:#0E6B66; --accent-soft:#E2F0EE; --band:#F2C200; --sign:#FFFFFF; --sign-ink:#1B2220;
+  --ok:#256B41; --warn:#8A5300; --bad:#B3261E; --ok-bg:#E5F2EA; --warn-bg:#FBF0DD; --bad-bg:#FBE7E5;
+  --hill:#DCE6E2; --hill-line:#0E6B66;
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121715; --surface:#1A211F; --ink:#E4EAE7; --muted:#9AA8A3; --line:#2D3734;
+  --accent:#57B8AE; --accent-soft:#1D3331; --band:#E3B50A; --sign:#E9EEEC; --sign-ink:#121715;
+  --ok:#6CC08C; --warn:#E0A647; --bad:#F08A80; --ok-bg:#183024; --warn-bg:#33270F; --bad-bg:#3A1A17;
+  --hill:#1F2D2A; --hill-line:#57B8AE; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121715; --surface:#1A211F; --ink:#E4EAE7; --muted:#9AA8A3; --line:#2D3734;
+  --accent:#57B8AE; --accent-soft:#1D3331; --band:#E3B50A; --sign:#E9EEEC; --sign-ink:#121715;
+  --ok:#6CC08C; --warn:#E0A647; --bad:#F08A80; --ok-bg:#183024; --warn-bg:#33270F; --bad-bg:#3A1A17;
+  --hill:#1F2D2A; --hill-line:#57B8AE; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 80px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+.col{max-width:74ch;min-width:0}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.4rem,6vw,3.8rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.8rem,4vw,2.4rem)}
+h3{font-size:1.35rem;font-weight:600}
+p{margin:0}
+section{display:flex;flex-direction:column;gap:18px;min-width:0}
+.lede{font-size:1.15rem}
+.muted{color:var(--muted)}
+.small{font-size:.9rem}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+code{font-size:.88em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+ul.plain,ol.plain{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+.num{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+.profile{overflow-x:auto;margin-top:8px}
+.profile svg{min-width:680px;width:100%;height:auto;display:block}
+.profile text{font-family:var(--f-display)}
+.decided{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px 28px}
+.decided div{border-top:1px solid var(--line);padding-top:10px;min-width:0}
+.decided dt{font-weight:600;font-size:.85rem;color:var(--muted)}
+.decided dd{margin:2px 0 0}
+dl{margin:0}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.finding{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--bad);border-radius:0 0 6px 6px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.finding.w{border-top-color:var(--warn)}
+.finding.g{border-top-color:var(--ok)}
+.finding h3{font-size:1.25rem}
+.finding p{font-size:.95rem}
+.src{font-size:.82rem;color:var(--muted)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.93rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.85rem;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-bad{background:var(--bad-bg);color:var(--bad)}
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;overflow-x:auto}
+.steps{counter-reset:s;list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:2rem 1fr;gap:12px;align-items:baseline}
+.steps li::before{content:counter(s);font-family:var(--f-display);font-weight:700;font-size:1.3rem;color:var(--accent)}
+.steps b{font-weight:600}
+.mocks{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,500px),1fr));gap:20px}
+.mock{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden;min-width:0;display:flex;flex-direction:column}
+.mock-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--bg);font-size:.8rem;color:var(--muted)}
+.mock-bar b{color:var(--ink);font-family:var(--f-display);font-size:1rem;letter-spacing:.02em}
+.mock-bar .ex{margin-left:auto;background:var(--warn-bg);color:var(--warn);padding:1px 8px;border-radius:999px;font-weight:600}
+.mock-body{padding:16px;display:flex;flex-direction:column;gap:14px}
+.mock-cap{padding:10px 16px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpi{border-left:3px solid var(--band);padding:2px 0 2px 12px}
+.kpi .v{font-family:var(--f-display);font-size:1.7rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:.75rem;color:var(--muted)}
+.kpi .d{font-size:.75rem;color:var(--ok)}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{font-family:var(--f-body);font-size:10px;fill:var(--muted)}
+.notice{background:var(--warn-bg);border-radius:6px;padding:10px 12px;font-size:.85rem}
+.notice b{color:var(--warn)}
+.rows{display:flex;flex-direction:column;font-size:.85rem}
+.row{display:grid;grid-template-columns:4.2rem 1fr auto auto;gap:12px;padding:7px 0;border-top:1px solid var(--line);align-items:baseline;font-variant-numeric:tabular-nums}
+.row .n{color:var(--muted)}
+.row.best{font-weight:600}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{border:1px solid var(--line);border-radius:6px;padding:9px;min-height:96px;display:flex;flex-direction:column;gap:4px;font-size:.74rem;min-width:0}
+.day .dn{font-weight:700;color:var(--muted)}
+.day .t{font-family:var(--f-display);font-size:.95rem;font-weight:600;line-height:1.1}
+.day.done{background:var(--ok-bg)}
+.day.miss{background:var(--bad-bg)}
+.day.rest{background:var(--bg)}
+.day .s{margin-top:auto;font-weight:600}
+.s-ok{color:var(--ok)} .s-bad{color:var(--bad)} .s-next{color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.78rem;color:var(--muted)}
+.ask{display:flex;flex-direction:column;gap:6px;font-size:.84rem}
+.ask .q{font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:.8rem;background:var(--surface);color:var(--ink)}
+.chip.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.cands{display:flex;flex-direction:column;gap:8px;font-size:.84rem}
+.cand{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:6px}
+.cand.best{border-color:var(--accent);background:var(--accent-soft)}
+.cand .top{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font-variant-numeric:tabular-nums}
+.cand .top b{font-family:var(--f-display);font-size:1.05rem}
+.cand .top .act{margin-left:auto}
+.btn{font:600 .8rem var(--f-body);border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:6px;padding:4px 10px}
+.btn.solid{background:var(--accent);color:var(--surface)}
+.phases{display:flex;flex-direction:column;border-left:2px solid var(--line);margin-left:22px}
+.phase{display:grid;grid-template-columns:52px 1fr;gap:16px;padding:0 0 26px 0;margin-left:-23px;min-width:0}
+.borne{width:44px;height:50px;background:var(--sign);border:1.5px solid var(--sign-ink);border-radius:5px 5px 3px 3px;overflow:hidden;display:flex;flex-direction:column;align-items:center}
+.borne i{display:block;width:100%;height:14px;background:var(--band);border-bottom:1.5px solid var(--sign-ink)}
+.borne span{font-family:var(--f-display);font-weight:700;font-size:1.3rem;color:var(--sign-ink);line-height:32px}
+.phase h3{margin-bottom:4px}
+.phase p{font-size:.95rem}
+.done-crit{font-size:.88rem;color:var(--muted);margin-top:6px}
+footer{font-size:.85rem;color:var(--muted);border-top:1px solid var(--line);padding-top:18px}
+@media (max-width:620px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .week{grid-template-columns:repeat(4,1fr)}
+  .row{grid-template-columns:3.6rem 1fr auto}
+  .row .hide-s{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="col" style="display:flex;flex-direction:column;gap:16px">
+  <p class="muted small">Propuesta técnica y funcional · versión 3 · 6 de noviembre de 2026 · sin implementar</p>
+  <h1>Plataforma de ciclismo personal</h1>
+  <p class="lede">Una web gratuita en GitHub Pages que lee tus salidas exportadas de Strava, te enseña tu progresión y te propone rutas nuevas de carretera para progresar, listas para descargar en GPX y cargar en el iGPSPORT. La IA solo interviene en las rutas. Sin suscripción a Strava, sin servidor y sin coste.</p>
+</header>
+
+<section aria-labelledby="h-climb">
+  <h2 id="h-climb" class="col">El recorrido, por fases</h2>
+  <p class="col muted">Cada fase deja algo usable. Las rutas con IA van al final porque se apoyan en el historial y en el generador.</p>
+  <div class="profile" role="img" aria-label="Perfil de subida con seis fases: F0 base técnica, F1 importar y panel, F2 historial y repetidas, F3 calendario, F4 generador de rutas, F5 asistente de rutas con IA">
+    <svg viewBox="0 0 1000 250" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 212 L80 200 L240 176 L400 150 L560 122 L720 92 L900 52 L1000 44 L1000 222 L0 222 Z" fill="var(--hill)"/>
+      <path d="M0 212 L80 200 L240 176 L400 150 L560 122 L720 92 L900 52 L1000 44" fill="none" stroke="var(--hill-line)" stroke-width="3" stroke-linejoin="round"/>
+      <line x1="0" y1="222" x2="1000" y2="222" stroke="var(--line)" stroke-width="1"/>
+      <g font-size="15">
+        <g transform="translate(80 200)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F0</text></g>
+        <g transform="translate(240 176)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F1</text></g>
+        <g transform="translate(400 150)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F2</text></g>
+        <g transform="translate(560 122)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F3</text></g>
+        <g transform="translate(720 92)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F4</text></g>
+        <g transform="translate(900 52)"><line y1="0" y2="-26" stroke="var(--ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="40" rx="4" fill="var(--sign)" stroke="var(--sign-ink)" stroke-width="1.5"/><rect x="-18" y="-66" width="36" height="11" rx="3" fill="var(--band)" stroke="var(--sign-ink)" stroke-width="1.5"/><text y="-35" text-anchor="middle" font-weight="700" fill="var(--sign-ink)">F5</text></g>
+      </g>
+      <g font-size="16" font-weight="600" fill="var(--ink)" text-anchor="middle">
+        <text x="80" y="242">Base técnica</text><text x="240" y="242">Importar y panel</text><text x="400" y="242">Historial</text>
+        <text x="560" y="242">Calendario</text><text x="720" y="242">Generador</text><text x="900" y="242">Rutas con IA</text>
+      </g>
+    </svg>
+  </div>
+</section>
+
+<section aria-labelledby="h-dec">
+  <h2 id="h-dec" class="col">Lo que hemos decidido</h2>
+  <dl class="decided">
+    <div><dt>Origen de los datos</dt><dd>Strava sigue guardándolos. La app lee lo que exportas: el archivo «Descargar tu cuenta» una vez, y después cada salida nueva.</dd></div>
+    <div><dt>Copia en la app</dt><dd>En tu navegador, para abrir al instante. Si se borra, se reconstruye reimportando el archivo.</dd></div>
+    <div><dt>Lo que solo existe en la app</dt><dd>Calendario, objetivos y ajustes. Se protegen con «Exportar copia» y «Restaurar».</dd></div>
+    <div><dt>Funciones sin IA</dt><dd>Panel de progresión, historial con detalle, rutas y subidas repetidas, calendario manual.</dd></div>
+    <div><dt>Papel de la IA</dt><dd>Solo rutas. Pregunta, lee tus rutas anteriores y propone una lista de rutas nuevas para progresar.</dd></div>
+    <div><dt>Tipo de ruta</dt><dd>Bici de carretera. Sin autovías y sin tramos sin asfaltar.</dd></div>
+    <div><dt>Motor de IA</dt><dd>Nube gratuita, configurable, con Groq por defecto. Cada usuario pone su clave.</dd></div>
+    <div><dt>Motor de rutas</dt><dd>OpenRouteService. Cada usuario pone su clave gratuita.</dd></div>
+    <div><dt>Punto de salida</dt><dd>«Casa» por defecto. Al generar se confirma o se cambia en el mapa.</dd></div>
+    <div><dt>Amigos</dt><dd>Misma web, cada uno en su navegador con sus datos y sus claves.</dd></div>
+    <div><dt>Tecnología</dt><dd>Vite + React + TypeScript en GitHub Pages, repositorio público.</dd></div>
+    <div><dt>Aspecto</dt><dd>Panel oscuro según tu referencia, con modo claro. Mapa CyclOSM. Tarjetas de ruta con forma y perfil.</dd></div><div><dt>Nivel</dt><dd>Todo se mide contra la referencia propia de cada usuario: etiquetas, porcentajes y rutas propuestas.</dd></div>
+  </dl>
+</section>
+
+<section aria-labelledby="h-find">
+  <h2 id="h-find" class="col">Por qué así</h2>
+  <div class="findings">
+    <article class="finding">
+      <h3>Conectar la cuenta exige pagar</h3>
+      <p>Desde junio de 2026 la API de Strava y su conector MCP piden suscripción. Montar un MCP propio sobre la API también está prohibido (§5.16).</p>
+      <p class="src">Strava API FAQ; strava.com/legal/api_policy</p>
+    </article>
+    <article class="finding g">
+      <h3>Tus exportaciones son tuyas</h3>
+      <p>Lo que descargas tú desde Strava o desde el iGPSPORT no pasa por la API. Por eso la IA puede leerlo sin chocar con la prohibición de IA ni con el límite de 7 días.</p>
+      <p class="src">Interpretación propia de la API Policy, no asesoría legal</p>
+    </article>
+    <article class="finding w">
+      <h3>GitHub Pages no tiene servidor</h3>
+      <p>Todo corre en el navegador: lectura de ficheros, cálculos, llamadas a la IA y al motor de rutas. Las claves se guardan en el navegador de cada usuario, nunca en el repositorio público.</p>
+      <p class="src">docs.github.com/pages</p>
+    </article>
+    <article class="finding w">
+      <h3>iGPSPORT no tiene API</h3>
+      <p>Las rutas llegan al BSC200S importando el GPX en la app de iGPSPORT, que lo envía al dispositivo. El paso es manual.</p>
+      <p class="src">Manual del BSC200S, igpsport.com</p>
+    </article>
+  </div>
+</section>
+
+<section aria-labelledby="h-data">
+  <h2 id="h-data" class="col">Qué datos tendrás</h2>
+  <p class="col">Con GPS y sensor de cadencia y velocidad. Si un día añades pulsómetro o potenciómetro, la app lo leerá del mismo fichero.</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Dato</th><th>En tus ficheros</th><th>Para qué sirve</th></tr></thead>
+      <tbody>
+        <tr><td>Distancia, tiempo, desnivel, velocidad</td><td><span class="pill p-ok">Sí</span></td><td>Panel de progresión por semana y mes.</td></tr>
+        <tr><td>Track GPS y altitud punto a punto</td><td><span class="pill p-ok">Sí</span></td><td>Mapa, subidas detectadas, VAM, rutas repetidas y zonas ya recorridas.</td></tr>
+        <tr><td>Cadencia</td><td><span class="pill p-ok">Sí</span></td><td>Cadencia en llano y en subida.</td></tr>
+        <tr><td>Frecuencia cardíaca, potencia</td><td><span class="pill p-bad">No, sin sensor</span></td><td>Sin zonas ni carga fisiológica. Preparado para cuando los tengas.</td></tr>
+        <tr><td>Nombre y tipo de actividad</td><td><span class="pill p-warn">Solo en el archivo de Strava</span></td><td>El FIT del iGPSPORT no trae el título que pones en Strava.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="col small muted">Se comprueba en la fase 0: que el archivo «Descargar tu cuenta» está disponible sin suscripción y qué trae dentro, y si el BSC200S deja copiar sus FIT por USB.</p>
+</section>
+
+<section aria-labelledby="h-arch">
+  <h2 id="h-arch" class="col">Arquitectura</h2>
+  <p class="col">Todo en el navegador. La web solo habla con tres servicios externos, con las claves de cada usuario.</p>
+  <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  BSC["iGPSPORT BSC200S"] -->|sincroniza solo| STR["Strava"]
+  STR -->|Descargar tu cuenta / Export Original| F["Ficheros FIT, GPX, CSV"]
+  BSC -.->|FIT por app o USB| F
+  subgraph NAV["Tu navegador (web en GitHub Pages)"]
+    P["Lector de ficheros en segundo plano"] --> DB[("IndexedDB: salidas, calendario, ajustes")]
+    DB --> UI["Panel, historial, calendario, rutas"]
+  end
+  F --> P
+  UI -->|resumen de tu nivel, sin GPS| IA["IA en la nube (Groq por defecto)"]
+  UI -->|parámetros de ruta| ORS["OpenRouteService"]
+  UI --> OSM["Mapa OpenStreetMap"]
+  UI -->|GPX| APP["App iGPSPORT"] --> BSC
+  DB -->|Exportar copia| BK["Fichero de copia"]
+</pre>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Pieza</th><th>Propuesta</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td>Web</td><td>Vite + React + TypeScript</td><td>Estática, se publica tal cual en GitHub Pages.</td></tr>
+        <tr><td>Lectura de ficheros</td><td><code>@garmin/fitsdk</code> para FIT, lector propio de GPX, JSZip para el archivo de Strava</td><td>Se procesa en un Web Worker para no bloquear la pantalla con cientos de salidas.</td></tr>
+        <tr><td>Almacenamiento</td><td>IndexedDB (con Dexie)</td><td>Aguanta años de salidas en el navegador. Las claves de API van aparte, en ajustes.</td></tr>
+        <tr><td>Gráficas y mapa</td><td>ECharts; Leaflet o MapLibre con OpenStreetMap</td><td>Gratis y sin clave. Uso personal dentro de la política de teselas de OSM.</td></tr>
+        <tr><td>Rutas</td><td>OpenRouteService, perfil <code>cycling-road</code>, <code>round_trip</code>, elevación y <code>extra_info</code> de superficie y tipo de vía</td><td>Genera circulares con distancia objetivo; la superficie y el tipo de vía permiten descartar tramos sin asfaltar o carreteras principales.</td></tr>
+        <tr><td>IA</td><td>Interfaz compatible con OpenAI: Groq por defecto, OpenRouter o Gemini en ajustes</td><td>Cambiar de proveedor es cambiar la URL y la clave.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="col small muted">Pendiente de la fase 0: confirmar que OpenRouteService y Groq aceptan llamadas directas desde el navegador (CORS). Si alguno las bloquea, el plan B es un reenvío mínimo en Cloudflare Workers, gratuito y sin guardar datos.</p>
+</section>
+
+<section aria-labelledby="h-routes">
+  <h2 id="h-routes" class="col">Cómo se crea una ruta</h2>
+  <div class="col" style="display:flex;flex-direction:column;gap:14px">
+    <p>La IA no dibuja la ruta. Entiende lo que quieres y explica las opciones. Las carreteras las pone el motor de rutas y las cifras las calcula el código, así la ruta siempre existe y cada número se puede comprobar.</p>
+    <ol class="steps">
+      <li><span><b>Preguntas guiadas.</b> Qué quieres trabajar (distancia, subida, llano o zonas nuevas), tiempo disponible, salida («Casa» o un punto del mapa) y si quieres repetir zona o descubrir.</span></li>
+      <li><span><b>Tu nivel en cifras.</b> El código resume tu historial: distancia y desnivel habituales, tu salida más larga, tu subida más dura, tu velocidad media en llano.</span></li>
+      <li><span><b>La IA fija el objetivo.</b> Con ese resumen y tus respuestas decide distancia, desnivel y tipo de recorrido para un paso de progresión razonable. Devuelve un JSON fijo, no texto libre.</span></li>
+      <li><span><b>OpenRouteService genera candidatas.</b> Entre 6 y 10 rutas circulares desde la salida, con distintas semillas, en perfil de bici de carretera.</span></li>
+      <li><span><b>El código filtra y ordena.</b> Descarta las que tienen tramos sin asfaltar o mucha carretera principal. Puntúa por cercanía al objetivo y por porcentaje de carretera nueva frente a tu historial.</span></li>
+      <li><span><b>Lista de 3 a 5 rutas.</b> Cada una con mapa, perfil, comparación con tus salidas y una explicación de la IA que cita las cifras. Botón «Descargar GPX».</span></li>
+    </ol>
+    <p class="small muted">Privacidad: a la IA solo le llegan cifras resumidas, nunca tus tracks GPS ni la dirección de «Casa». El motor de rutas sí recibe el punto de salida, porque lo necesita para calcular.</p>
+    <p class="small muted">Las autovías están prohibidas para bicis en OpenStreetMap, así que el perfil de bici no las usa. El filtro por tipo de vía evita además las nacionales con mucho tráfico.</p>
+  </div>
+</section>
+
+<section aria-labelledby="h-ui">
+  <h2 id="h-ui" class="col">Propuesta de interfaz: Inicio</h2>
+  <p class="col">Basada en tu referencia, con tres cambios: sin pulso hasta que haya pulsómetro, mapa CyclOSM en lugar de satélite y tarjetas de ruta con forma y perfil en lugar de fotos. Todas las cifras son de ejemplo. En el móvil, desliza la maqueta hacia los lados.</p>
+<style>
+.appwrap{overflow-x:auto;border-radius:14px}
+.app{--a-bg:#0C1320;--a-panel:#131C2A;--a-panel2:#18233A;--a-line:#24324A;--a-ink:#E9EEF6;--a-muted:#8E9DB4;--a-blue:#3B82F6;--a-orange:#F59E2B;--a-green:#3DD68C;--a-yellow:#F5C842;--a-red:#F2555A;
+  min-width:980px;background:var(--a-bg);color:var(--a-ink);display:grid;grid-template-columns:168px 1fr;font-family:var(--f-body);font-size:13px;line-height:1.4;border-radius:14px;overflow:hidden}
+.app *{box-sizing:border-box}
+.a-side{background:#0A101B;padding:18px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--a-line)}
+.a-logo{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-size:1.35rem;font-weight:700;padding:0 6px 16px}
+.a-nav{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--a-muted)}
+.a-nav.on{background:var(--a-blue);color:#fff;font-weight:600}
+.a-nav svg{width:16px;height:16px;flex:none}
+.a-nav .ia{margin-left:auto;font-size:.65rem;background:#2A2F55;color:#B9B4FF;padding:1px 6px;border-radius:999px}
+.a-sep{height:1px;background:var(--a-line);margin:10px 6px}
+.a-level{margin-top:auto;background:var(--a-panel);border:1px solid var(--a-line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px}
+.a-level b{font-family:var(--f-display);font-size:1.05rem}
+.a-level span{color:var(--a-muted);font-size:.72rem}
+.a-main{padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.a-hero{position:relative;border-radius:12px;overflow:hidden;min-height:180px;padding:22px 24px;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(180deg,#2B3550 0%,#5B4B5E 38%,#C27A4E 62%,#1A2233 63%,#121A28 100%)}
+.a-hero .mt{position:absolute;inset:auto 0 0 0;width:100%;height:120px}
+.a-hero > *{position:relative}
+.a-hero h3{font-family:var(--f-display);font-size:2.3rem;color:#fff;margin:0}
+.a-hero p{color:#D9E0EC}
+.a-photo{position:absolute;top:12px;right:14px;font-size:.68rem;background:rgba(0,0,0,.45);color:#D9E0EC;padding:2px 8px;border-radius:999px}
+.a-hk{display:flex;gap:28px;margin-top:18px}
+.a-hk div{display:flex;flex-direction:column}
+.a-hk span{color:#C9D2E0;font-size:.75rem}
+.a-hk b{font-family:var(--f-display);font-size:1.6rem;color:#fff;font-variant-numeric:tabular-nums}
+.a-hk i{font-style:normal;color:var(--a-green);font-size:.75rem;margin-left:6px}
+.a-row{display:grid;gap:14px;min-width:0}
+.a-r2{grid-template-columns:1.55fr 1fr 1fr}
+.a-r3{grid-template-columns:1.25fr 1fr 1fr}
+.a-card{background:var(--a-panel);border:1px solid var(--a-line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.a-ch{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.a-ch h4{margin:0;font-family:var(--f-display);font-size:1.15rem;font-weight:600}
+.a-ch .r{margin-left:auto;color:var(--a-blue);font-size:.75rem}
+.a-seg{margin-left:auto;display:flex;background:var(--a-bg);border-radius:7px;padding:2px}
+.a-seg span{padding:3px 9px;border-radius:5px;color:var(--a-muted);font-size:.72rem}
+.a-seg span.on{background:var(--a-blue);color:#fff}
+.a-leg{display:flex;gap:14px;color:var(--a-muted);font-size:.72rem}
+.a-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.a-card svg text{font-family:var(--f-body);font-size:10px;fill:var(--a-muted)}
+.a-perf{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+.a-perf div{display:flex;flex-direction:column;gap:2px}
+.a-perf span{color:var(--a-muted);font-size:.72rem}
+.a-perf b{font-family:var(--f-display);font-size:1.35rem;font-variant-numeric:tabular-nums}
+.a-perf i{font-style:normal;color:var(--a-green);font-size:.72rem}
+.a-perf .off b{color:var(--a-muted);font-size:1rem}
+.a-goal b{font-family:var(--f-display);font-size:1.1rem}
+.a-bar{height:8px;background:var(--a-bg);border-radius:999px;overflow:hidden}
+.a-bar i{display:block;height:100%;width:72%;background:var(--a-green);border-radius:999px}
+.a-meta{display:flex;justify-content:space-between;color:var(--a-muted);font-size:.72rem}
+.a-next{display:grid;grid-template-columns:36px 54px 1fr;gap:10px;align-items:center;padding-top:8px;border-top:1px solid var(--a-line)}
+.a-date{display:flex;flex-direction:column;align-items:center;line-height:1.05;color:var(--a-muted);font-size:.65rem}
+.a-date b{font-family:var(--f-display);font-size:1.3rem;color:var(--a-ink)}
+.a-thumb{width:54px;height:40px;background:var(--a-panel2);border-radius:6px}
+.a-nt b{display:block;font-size:.82rem}
+.a-nt span{color:var(--a-muted);font-size:.72rem}
+.a-pill{display:inline-block;font-size:.65rem;font-weight:600;padding:3px 9px;border-radius:999px;margin-left:4px}
+.a-easy{background:#15382A;color:var(--a-green)} .a-mid{background:#3A3216;color:var(--a-yellow)} .a-hard{background:#3D1B20;color:var(--a-red)}
+.a-map{position:relative;border-radius:8px;overflow:hidden;background:#E9E5DC;height:150px}
+.a-map svg{width:100%;height:100%;display:block}
+.a-stats{position:absolute;left:8px;top:8px;background:rgba(12,19,32,.88);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums}
+.a-stats b{font-size:.8rem}
+.a-badge{position:absolute;left:8px;bottom:8px;background:#15382A;color:var(--a-green);font-weight:600;font-size:.7rem;padding:2px 8px;border-radius:999px}
+.a-rec{display:grid;grid-template-columns:88px 1fr;gap:12px;align-items:center}
+.a-rec .sh{background:var(--a-panel2);border-radius:8px;height:78px}
+.a-rec b{font-family:var(--f-display);font-size:1.15rem;display:block}
+.a-rec span{color:var(--a-muted);font-size:.72rem}
+.a-rec p{font-size:.75rem;color:#C9D2E0;margin-top:4px}
+.a-btn{align-self:flex-start;background:var(--a-blue);color:#fff;font-weight:600;font-size:.75rem;border-radius:7px;padding:5px 12px}
+.a-btn.o{background:transparent;border:1px solid var(--a-blue);color:var(--a-blue)}
+.a-why{font-size:.72rem;color:var(--a-muted);border-top:1px solid var(--a-line);padding-top:8px}
+</style>
+  <div class="appwrap" role="img" aria-label="Maqueta de la pantalla Inicio en modo oscuro: menú lateral, cabecera con saludo y cifras de la semana, gráfica de progresión, rendimiento, objetivo, próximas salidas, última salida en mapa y ruta recomendada">
+  <div class="app">
+    <aside class="a-side">
+      <div class="a-logo"><svg width="26" height="18" viewBox="0 0 26 18"><path d="M1 17 L9 5 L13 10 L17 3 L25 17 Z" fill="#3B82F6"/></svg>Nombre app</div>
+      <div class="a-nav on"><svg viewBox="0 0 16 16"><path d="M2 8 L8 2 L14 8 V14 H10 V10 H6 V14 H2 Z" fill="currentColor"/></svg>Inicio</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M2 14 V9 H5 V14 Z M6.5 14 V4 H9.5 V14 Z M11 14 V7 H14 V14 Z" fill="currentColor"/></svg>Historial</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M2 4 H14 V14 H2 Z M2 7 H14" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Calendario</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M8 15 C4 10 3 8 3 6 A5 5 0 0 1 13 6 C13 8 12 10 8 15 Z" fill="currentColor"/></svg>Rutas</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M2 12 L6 6 L9 9 L14 3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Subidas</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M8 1 L9.6 6.4 L15 8 L9.6 9.6 L8 15 L6.4 9.6 L1 8 L6.4 6.4 Z" fill="currentColor"/></svg>Nueva ruta<span class="ia">IA</span></div>
+      <div class="a-sep"></div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/></svg>Ajustes</div>
+      <div class="a-nav"><svg viewBox="0 0 16 16"><path d="M8 2 V10 M4.5 6.5 L8 10 L11.5 6.5 M3 14 H13" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Importar</div>
+      <div class="a-level"><span>Tu referencia (10 semanas)</span><b>96 km · 1.180 m</b><span>por semana. Suave, Media y Dura se miden contra esto.</span></div>
+    </aside>
+    <div class="a-main">
+      <div class="a-hero">
+        <svg class="mt" viewBox="0 0 800 120" preserveAspectRatio="none"><path d="M0 70 L90 40 L170 66 L260 20 L360 62 L450 34 L560 70 L650 28 L740 58 L800 44 L800 120 L0 120 Z" fill="#1E2738"/><path d="M0 92 L120 72 L230 90 L340 66 L470 92 L590 70 L700 90 L800 76 L800 120 L0 120 Z" fill="#141C2A"/></svg>
+        <span class="a-photo">Foto libre de derechos o tuya</span>
+        <div><h3>¡Hola, Fran!</h3><p>Semana 45. Llevas el 92 % de tu volumen habitual y quedan 2 días.</p></div>
+        <div class="a-hk">
+          <div><span>Esta semana</span><b>88 km<i>−8 % vs tu media</i></b></div>
+          <div><span>Desnivel</span><b>1.240 m<i>+5 %</i></b></div>
+          <div><span>Tiempo en bici</span><b>3 h 42 min<i>+2 %</i></b></div>
+        </div>
+      </div>
+
+      <div class="a-row a-r2">
+        <div class="a-card">
+          <div class="a-ch"><h4>Tu progresión</h4><div class="a-seg"><span class="on">12 meses</span><span>6 meses</span><span>3 meses</span><span>30 días</span></div></div>
+          <div class="a-leg"><span><i class="a-dot" style="background:var(--a-blue)"></i>Distancia al mes (km)</span><span><i class="a-dot" style="background:var(--a-orange)"></i>Desnivel al mes (×10 m)</span></div>
+          <svg viewBox="0 0 440 150">
+            <g stroke="#24324A"><line x1="30" y1="10" x2="436" y2="10"/><line x1="30" y1="50" x2="436" y2="50"/><line x1="30" y1="90" x2="436" y2="90"/><line x1="30" y1="130" x2="436" y2="130"/></g>
+            <text x="24" y="13" text-anchor="end">600</text><text x="24" y="53" text-anchor="end">400</text><text x="24" y="93" text-anchor="end">200</text><text x="24" y="133" text-anchor="end">0</text>
+            <polyline points="40,82 75,76 110,70 145,62 180,58 215,48 250,40 285,44 320,52 355,46 390,38 425,34" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
+            <polyline points="40,104 75,100 110,96 145,92 180,86 215,80 250,74 285,78 320,84 355,76 390,70 425,64" fill="none" stroke="#F59E2B" stroke-width="2.5"/>
+            <circle cx="425" cy="34" r="4.5" fill="#3B82F6" stroke="#E9EEF6" stroke-width="1.5"/>
+            <text x="418" y="26" text-anchor="end" fill="#E9EEF6" font-weight="600">480 km</text>
+            <text x="40" y="146" text-anchor="middle">dic</text><text x="145" y="146" text-anchor="middle">mar</text><text x="250" y="146" text-anchor="middle">jun</text><text x="355" y="146" text-anchor="middle">sep</text><text x="425" y="146" text-anchor="middle">nov</text>
+          </svg>
+        </div>
+        <div class="a-card">
+          <div class="a-ch"><h4>Tu rendimiento</h4><span class="r">últimas 4 semanas</span></div>
+          <div class="a-perf">
+            <div><span>Velocidad media</span><b>24,6 km/h</b><i>+0,8 vs tus 3 meses</i></div>
+            <div><span>Desnivel por salida</span><b>620 m</b><i>+8 %</i></div>
+            <div><span>Tiempo en movimiento</span><b>14 h 20 min</b><i>+11 %</i></div>
+            <div><span>Cadencia media</span><b>78 rpm</b><i>+2</i></div>
+            <div class="off"><span>Pulso medio</span><b>Sin pulsómetro</b></div>
+            <div><span>Mejor VAM</span><b>712 m/h</b><i>Collformic, 9 nov</i></div>
+          </div>
+        </div>
+        <div class="a-card">
+          <div class="a-ch"><h4>Tu objetivo</h4></div>
+          <div class="a-goal"><b>Marcha 120 km / 2.000 m · 14 dic</b></div>
+          <div class="a-bar"><i></i></div>
+          <div class="a-meta"><span>Salida más larga: 96 km</span><span>72 %</span></div>
+          <div class="a-ch" style="margin-top:4px"><h4>Próximas salidas</h4><span class="r">Ver calendario</span></div>
+          <div class="a-next"><div class="a-date">Sáb<b>15</b>nov</div>
+            <svg class="a-thumb" viewBox="0 0 54 40"><path d="M10 30 C6 18 16 8 26 10 C38 6 48 16 42 26 C38 34 22 36 10 30 Z" fill="none" stroke="#3B82F6" stroke-width="2"/></svg>
+            <div class="a-nt"><b>Coll d’Estenalles</b><span>72 km · 1.320 m</span><span class="a-pill a-mid">Media para ti</span></div></div>
+          <div class="a-next"><div class="a-date">Dom<b>16</b>nov</div>
+            <svg class="a-thumb" viewBox="0 0 54 40"><path d="M8 26 L18 10 L30 14 L44 8 L46 24 L30 32 Z" fill="none" stroke="#3B82F6" stroke-width="2"/></svg>
+            <div class="a-nt"><b>Sant Miquel del Fai</b><span>89 km · 1.780 m</span><span class="a-pill a-hard">Dura para ti</span></div></div>
+        </div>
+      </div>
+
+      <div class="a-row a-r3">
+        <div class="a-card">
+          <div class="a-ch"><h4>Tu última salida</h4><span class="r">Domingo 9 nov</span></div>
+          <div class="a-map">
+            <svg viewBox="0 0 420 150" preserveAspectRatio="xMidYMid slice">
+              <rect width="420" height="150" fill="#ECE8DF"/>
+              <path d="M0 40 C80 30 140 60 220 50 S360 20 420 34" stroke="#F6F3EC" stroke-width="7" fill="none"/>
+              <path d="M60 150 C90 100 120 80 170 70" stroke="#F6F3EC" stroke-width="5" fill="none"/>
+              <path d="M260 0 C250 40 280 90 330 150" stroke="#F6F3EC" stroke-width="4" fill="none"/>
+              <path d="M300 90 C330 70 380 80 420 100 L420 150 L300 150 Z" fill="#CFE3C3"/>
+              <path d="M0 110 C40 100 60 130 90 150 L0 150 Z" fill="#CFE3C3"/>
+              <path d="M180 120 C150 90 170 50 220 42 C270 30 320 48 318 80 C316 108 286 118 262 108 C240 128 206 134 180 120 Z" fill="none" stroke="#1D4ED8" stroke-width="4" stroke-linejoin="round"/>
+              <circle cx="180" cy="120" r="5" fill="#0C1320" stroke="#fff" stroke-width="2"/>
+            </svg>
+            <div class="a-stats"><b>87,6 km</b><b>1.542 m</b><b>3 h 12 min</b><b>27,4 km/h</b></div>
+            <span class="a-badge">Entre tus 5 mejores</span>
+          </div>
+          <svg viewBox="0 0 420 46">
+            <path d="M0 40 L40 36 L80 26 L110 12 L140 18 L180 30 L220 24 L260 8 L290 14 L330 30 L370 34 L420 40 L420 46 L0 46 Z" fill="#1D3A6E"/>
+            <path d="M0 40 L40 36 L80 26 L110 12 L140 18 L180 30 L220 24 L260 8 L290 14 L330 30 L370 34 L420 40" fill="none" stroke="#3B82F6" stroke-width="2"/>
+          </svg>
+          <p class="a-why">Mapa CyclOSM: carreteras, carriles bici y pendientes. «Entre tus 5 mejores» compara con tus salidas de 80 a 100 km.</p>
+        </div>
+        <div class="a-card" style="grid-column:span 2">
+          <div class="a-ch"><h4>Rutas recomendadas</h4><span class="a-pill a-mid" style="margin-left:0">IA · 3 opciones</span><span class="r">Ver todas</span></div>
+          <div class="a-rec">
+            <svg class="sh" viewBox="0 0 88 78"><path d="M18 60 C8 40 20 16 42 14 C64 10 80 28 72 46 C66 62 50 54 44 64 C36 74 24 70 18 60 Z" fill="none" stroke="#3B82F6" stroke-width="2.5" stroke-linejoin="round"/><circle cx="18" cy="60" r="3.5" fill="#E9EEF6"/></svg>
+            <div>
+              <b>Collformic y Coll Formic Nord</b>
+              <span>96 km · 1.820 m · 3 h 50 min estimadas</span><span class="a-pill a-hard">Dura para ti</span>
+              <p>Tu salida más dura tiene 1.542 m; esta sube un 18 % más. Añade una segunda subida de 5,1 km al 6,4 %. El 22 % de las carreteras son nuevas para ti.</p>
+            </div>
+          </div>
+          <svg viewBox="0 0 640 60">
+            <path d="M0 52 L60 50 L120 46 L170 30 L210 14 L240 20 L290 44 L340 48 L390 36 L430 22 L470 30 L540 48 L640 52 L640 60 L0 60 Z" fill="#18233A"/>
+            <path d="M0 52 L60 50 L120 46" fill="none" stroke="#3DD68C" stroke-width="3"/>
+            <path d="M120 46 L170 30 L210 14" fill="none" stroke="#F2555A" stroke-width="3"/>
+            <path d="M210 14 L240 20 L290 44 L340 48" fill="none" stroke="#3DD68C" stroke-width="3"/>
+            <path d="M340 48 L390 36 L430 22" fill="none" stroke="#F5C842" stroke-width="3"/>
+            <path d="M430 22 L470 30 L540 48 L640 52" fill="none" stroke="#3DD68C" stroke-width="3"/>
+            <text x="165" y="10">7,2 km al 5,8 %</text><text x="388" y="16">5,1 km al 6,4 %</text>
+          </svg>
+          <div style="display:flex;gap:10px;align-items:center"><span class="a-btn">Descargar GPX</span><span class="a-btn o">Ver en el mapa</span><span class="a-why" style="border:0;padding:0;margin-left:auto">Perfil por pendiente: verde &lt; 4 %, amarillo 4–6 %, rojo &gt; 6 %.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="col" style="display:flex;flex-direction:column;gap:10px">
+    <h3>Cómo se adapta a cada uno</h3>
+    <ul class="plain">
+      <li>Cada usuario tiene una referencia propia, calculada con sus últimas 8 a 12 semanas: km y desnivel por semana, salida más larga, velocidad en llano y mejor VAM.</li>
+      <li>Suave, Media y Dura se miden contra esa referencia, así que la misma ruta puede ser «Dura» para un amigo y «Media» para ti.</li>
+      <li>Los porcentajes comparan siempre con tu propia media, nunca con la de otros.</li>
+      <li>Las rutas recomendadas apuntan entre un 5 y un 15 % por encima de tu referencia en lo que eliges trabajar.</li>
+      <li>Si alguien tiene menos de 5 salidas, al empezar contesta tres preguntas sobre su nivel.</li>
+      <li>Cada tarjeta se oculta o cambia si faltan los datos, como el pulso.</li>
+    </ul>
+    <p class="small muted">Otras pantallas con este mismo estilo: Historial, Calendario, Rutas repetidas, Subidas, Nueva ruta (preguntas guiadas y lista de opciones), Importar y Ajustes con las claves.</p>
+  </div>
+</section>
+
+<section aria-labelledby="h-cost">
+  <h2 id="h-cost" class="col">Costes, límites y riesgos</h2>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Servicio</th><th>Coste</th><th>Límite que importa</th></tr></thead>
+      <tbody>
+        <tr><td>GitHub Pages</td><td>0 €</td><td>Repositorio público: ninguna clave en el código.</td></tr>
+        <tr><td>Exportación de Strava</td><td>0 €</td><td>El archivo completo llega por correo y puede tardar horas.</td></tr>
+        <tr><td>OpenRouteService</td><td>0 €</td><td>2.000 rutas al día y 40 por minuto, por clave. Cada búsqueda gasta de 6 a 10.</td></tr>
+        <tr><td>IA en la nube (Groq por defecto)</td><td>0 € en plan gratuito</td><td>Límites diarios del proveedor. Una búsqueda de rutas hace 2 llamadas.</td></tr>
+        <tr><td>Mapa OpenStreetMap</td><td>0 €</td><td>Política de uso de teselas: adecuada para uso personal.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="plain col">
+    <li>Si se borran los datos del navegador, las salidas se recuperan reimportando, pero el calendario solo vuelve desde el fichero de copia. La app recuerda hacer la copia.</li>
+    <li>Los planes gratuitos de IA cambian de condiciones. Como el proveedor se cambia en ajustes, no hay dependencia de uno solo. Antes de programar reviso la política de datos de Groq.</li>
+    <li>Las rutas generadas no saben de obras ni de tráfico real. Revisa la ruta en el mapa antes de salir.</li>
+    <li>Importar es manual. La app enseña la fecha de la última importación para que el historial no se quede atrás.</li>
+  </ul>
+</section>
+
+<section aria-labelledby="h-road">
+  <h2 id="h-road" class="col">Fases</h2>
+  <div class="phases col">
+    <div class="phase"><div class="borne"><i></i><span>F0</span></div><div><h3>Base técnica</h3><p>Proyecto Vite, publicación en GitHub Pages, ajustes con claves y comprobaciones: contenido del archivo de Strava, CORS de OpenRouteService y Groq, FIT del BSC200S por USB.</p><p class="done-crit">Listo cuando: la web publicada guarda las claves y hace una llamada de prueba a cada servicio.</p></div></div>
+    <div class="phase"><div class="borne"><i></i><span>F1</span></div><div><h3>Importar y panel</h3><p>Importador del archivo de Strava y de ficheros sueltos, sin duplicados. Panel de km, desnivel, horas y velocidad por semana y mes. Exportar copia y restaurar.</p><p class="done-crit">Listo cuando: los totales de un mes coinciden con los de Strava.</p></div></div>
+    <div class="phase"><div class="borne"><i></i><span>F2</span></div><div><h3>Historial y repetidas</h3><p>Lista de salidas con mapa y perfil, subidas detectadas, rutas y subidas repetidas con tiempo, velocidad y VAM.</p><p class="done-crit">Listo cuando: una subida que has hecho varias veces aparece con todas sus pasadas.</p></div></div>
+    <div class="phase"><div class="borne"><i></i><span>F3</span></div><div><h3>Calendario</h3><p>Entrenos y objetivos con fecha, marcados como hechos al importar la salida de ese día.</p><p class="done-crit">Listo cuando: importar una salida marca su día del calendario.</p></div></div>
+    <div class="phase"><div class="borne"><i></i><span>F4</span></div><div><h3>Generador de rutas</h3><p>Rutas circulares con OpenRouteService desde «Casa» o el mapa, filtros de asfalto y tipo de vía, puntuación frente a tu historial y descarga GPX. Todavía sin IA, con un formulario.</p><p class="done-crit">Listo cuando: un GPX generado navega bien en el BSC200S.</p></div></div>
+    <div class="phase"><div class="borne"><i></i><span>F5</span></div><div><h3>Rutas con IA</h3><p>Preguntas guiadas, resumen de tu nivel, objetivo de progresión con la IA y explicación de cada opción. Proveedor configurable.</p><p class="done-crit">Listo cuando: cada explicación cita cifras que se pueden comprobar en el panel.</p></div></div>
+  </div>
+</section>
+
+<footer class="col">
+  Fuentes principales: strava.com/legal/api_policy (vigente 1 jun 2026); Strava API FAQ en communityhub.strava.com; soporte de Strava sobre exportación de datos; manual y ficha del BSC200S en igpsport.com; openrouteservice.org/plans y documentación de la API de direcciones. Lo pendiente de comprobar está marcado en cada sección.
+</footer>
+
+</div>

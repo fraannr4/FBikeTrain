@@ -1,0 +1,581 @@
+/* =====================================================================
+   Inicio: hero con el paisaje, KPI de vidrio con chispa, avisos y pasos
+   para pedir el archivo. Primero el móvil; a partir de 900 px, escritorio.
+   Todo color sale de tokens.css.
+   ===================================================================== */
+
+.home { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+.loading { color: var(--ink-2); }
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  /* A sangre en el móvil: se come el relleno lateral y el superior del contenido. */
+  margin: calc(-16px - env(safe-area-inset-top)) -16px 0;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
+  /* Al girar el teléfono, el rótulo de la cima pasa un fotograma en la posición del ancho anterior:
+     clip lo recorta sin crear un contenedor de desplazamiento. */
+  overflow-x: clip;
+  overflow-wrap: anywhere;
+}
+/* La caja del paisaje acaba al pie de las KPI (--land-h, medido en Hero); la frase de la semana
+   queda debajo, sobre el fondo de la página. Sin KPI (vacío), ocupa todo el hero. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: var(--land-h, 100%);
+  border-radius: 0 0 26px 26px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sky-1);
+  pointer-events: none;
+}
+.hero:not(.hero-empty) { padding-bottom: 0; }
+.hero-empty { min-height: 560px; }
+.land {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  width: 100%;
+  height: calc(var(--land-h, 100%) - 1px);
+  border-radius: 0 0 25px 25px;
+}
+.land-stars circle { fill: var(--star); }
+.land-stars { opacity: var(--stars); }
+.land-orb { fill: var(--orb); }
+.land-edge { fill: none; stroke: var(--ridge-line); stroke-width: 1; }
+.land-contours path { fill: none; stroke: var(--contour); stroke-width: 1; }
+.road-edge { fill: var(--road-edge); }
+.road-body { fill: var(--road); }
+.road-dash {
+  fill: none;
+  stroke: var(--road-dash);
+  stroke-width: 1.4;
+  stroke-dasharray: 8 8;
+  stroke-linecap: round;
+  stroke-opacity: 0.9;
+}
+.ridge-light path { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ridge-halo { stroke: var(--ridge-line); stroke-width: 9; stroke-opacity: calc(var(--glow) * 0.5); }
+.ridge-core { stroke: var(--ridge-line); stroke-width: 2.2; }
+.ridge-thread { stroke: var(--star); stroke-width: 0.8; stroke-opacity: calc(var(--thread) * 0.9); }
+.ridge-light.still .ridge-core { stroke-width: 1.6; stroke-opacity: 0.75; }
+
+/* Barra superior: marca (solo móvil), avisos y avatar */
+.hero-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.m-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.m-brand .hito-logo { width: 22px; height: 29px; }
+.m-brand-name { font: 700 20px / 1 var(--font-fig); letter-spacing: -0.01em; }
+.acts { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.round {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--target);
+  height: var(--target);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--glass-strong);
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.round .badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--badge);
+  color: var(--on-action);
+  font: 700 12px / 19px var(--font-ui);
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--sky-1);
+}
+.avatar { border-color: transparent; background: var(--action); color: var(--on-action); font: 700 18px / 1 var(--font-fig); }
+@media (hover: hover) and (pointer: fine) {
+  .round:hover { border-color: var(--ink-3); }
+  .avatar:hover { background: var(--action-hover); }
+}
+
+/* Avisos: el panel solo existe abierto */
+.notices { position: relative; }
+.notices-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 10;
+  width: 330px;
+  max-width: calc(100vw - 24px);
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+}
+.notices-panel h2 { margin: 2px 4px 8px; font: 600 15px / 1.3 var(--font-ui); }
+.notices-panel li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 6px 6px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.notices-panel li svg { margin-top: 2px; color: var(--ink-2); }
+.notices-panel .link { min-height: var(--target); padding-inline: 0; }
+
+/* Saludo y frase */
+.hero-copy { position: relative; z-index: 2; margin-top: 8px; }
+.hero-date { margin-bottom: 6px; color: var(--ink); font-size: 14px; font-weight: 500; opacity: 0.85; }
+.hello { color: var(--ink); font: 700 var(--fs-hello) / 1 var(--font-fig); letter-spacing: -0.02em; }
+.hello-long { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.08; }
+.hero-copy .sub { max-width: 44ch; margin-top: 8px; color: var(--ink); font-size: 16px; line-height: 1.45; opacity: 0.9; }
+.hero-copy .sub b { font-weight: 600; }
+.hero .notice {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--glass-strong);
+  font-size: 14px;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.hero-cta { margin-top: 18px; min-height: 48px; padding-inline: 20px; font-size: 15.5px; }
+
+/* Vértice geodésico: la cima de tu última salida, rotulada en el cielo. El vértice va centrado en
+   la cima; el texto, donde Hero le encuentre sitio (a un lado con la guía, o encima). */
+.summit-pin,
+.summit-lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-bubble) ease;
+}
+.summit-pin.on,
+.summit-lbl.on { opacity: 1; }
+.summit-pin { width: 16px; height: 16px; margin: -8px 0 0 -8px; }
+.summit-vertex { display: block; }
+.summit-vertex path { fill: var(--sky-1); stroke: var(--ridge-line); stroke-width: 1.6; stroke-linejoin: round; }
+.summit-vertex circle { fill: var(--ridge-line); }
+/* La guía: 20 px entre el vértice y el texto (SUMMIT_GAP en scene.ts) */
+.summit-lead { position: absolute; top: 8px; left: 16px; width: 20px; height: 1px; background: var(--ridge-line); opacity: 0.7; }
+.summit-pin[data-side='left'] .summit-lead { left: auto; right: 16px; }
+.summit-pin[data-side='up'] .summit-lead { display: none; }
+.summit-lbl {
+  line-height: 1.15;
+  white-space: nowrap;
+  /* Halo del color de la página: se lee aunque detrás asome un monte */
+  text-shadow: 0 0 2px var(--bg), 0 0 4px var(--bg), 0 0 8px var(--bg), 0 0 12px var(--bg);
+}
+/* Sin sitio (Hero, `fits: false`): solo el vértice. Oculto pero medible: Hero lo vuelve a probar al cambiar el ancho. */
+.summit-lbl[aria-hidden='true'] { visibility: hidden; }
+.summit-lbl[data-side='left'] { text-align: right; }
+.summit-lbl[data-side='up'] { text-align: center; }
+.summit-lbl b {
+  display: block;
+  color: var(--ink);
+  font: 700 italic 18px / 1.05 var(--font-fig);
+  font-variant-numeric: tabular-nums;
+}
+.summit-lbl span { color: var(--ink-2); font-size: 12px; font-weight: 500; }
+/* Versión estrecha, cuando la de una línea no cabe junto a la cima */
+.summit-lbl.is-narrow span { display: block; max-width: 9.5em; white-space: normal; text-wrap: balance; }
+
+/* ---------- KPI de vidrio con chispa ---------- */
+/* El paisaje entre la frase y las KPI es una franja, como en el prototipo: la tarjeta de «Próximo
+   entreno» tiene que asomar en el primer pantallazo. */
+.week { position: relative; z-index: 2; margin-top: 72px; }
+.hero-empty .week { display: none; }
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kpis > li { display: grid; min-width: 0; }
+.kpi {
+  position: relative;
+  /* Un botón centra su contenido en vertical: en columna, la cifra queda arriba y la chispa abajo. */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 116px;
+  padding: 12px 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+  text-align: left;
+  container-type: inline-size;
+  -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  backdrop-filter: blur(12px) saturate(1.15);
+}
+.kpi[aria-pressed='true'] { border-color: var(--acc); box-shadow: var(--shadow-float), inset 0 0 0 1px var(--acc); }
+/* La de partida, sin haber elegido nada: solo el icono de tendencia la señala (como el prototipo). */
+.kpi[aria-pressed='true'][data-quiet] { border-color: var(--line-strong); box-shadow: var(--shadow-float); }
+@media (hover: hover) and (pointer: fine) {
+  .kpi[aria-pressed='false']:hover { border-color: color-mix(in srgb, var(--acc) 60%, var(--line-strong)); }
+  .kpi[aria-pressed='false']:hover .kpi-on { opacity: 0.6; }
+}
+.kpi-h { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--ink-2); font-size: 13.5px; font-weight: 500; }
+.kpi-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--acc) 17%, transparent);
+  color: var(--acc);
+}
+.kpi-label { min-width: 0; line-height: 1.15; }
+.kpi-on {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--acc) 16%, transparent);
+  color: var(--acc);
+  transition: opacity var(--dur-fast) ease;
+}
+.kpi[aria-pressed='false'] .kpi-on { opacity: 0; }
+/* En tarjetas estrechas la etiqueta manda: el icono de tendencia sobra (el borde ya marca la elegida). */
+@container (max-width: 190px) {
+  .kpi-on { display: none; }
+}
+.kpi-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 8px 0 6px; white-space: nowrap; }
+.kpi-value { color: var(--ink); font-size: 26px; line-height: 1; }
+.kpi-value .fig { letter-spacing: -0.01em; }
+.kpi-value .unit { margin-left: 0; font-size: 15px; }
+.kpi-note { color: var(--ink-2); font-size: 12.5px; font-weight: 500; }
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: 600 13.5px / 1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+.delta.up { color: var(--good); }
+.delta.down, .delta.flat { color: var(--ink-2); }
+/* La versión completa («−8 % vs tu media») solo se ve desde 1280 px; antes la leen los lectores de pantalla. */
+.delta-full {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* En el flujo, al pie: si la variación baja de línea, la tarjeta crece en vez de pisar la chispa. */
+.spark { position: relative; flex: none; height: 26px; margin: auto -2px 7px; }
+.spark svg { width: 100%; height: 100%; overflow: visible; }
+.spark-stop-top { stop-color: var(--acc); stop-opacity: 0.32; }
+.spark-stop-bottom { stop-color: var(--acc); stop-opacity: 0; }
+.spark-mean { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; stroke-opacity: 0.75; vector-effect: non-scaling-stroke; }
+.spark-glow, .spark-line { fill: none; stroke: var(--acc); stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.spark-glow { stroke-width: 5; stroke-opacity: calc(var(--glow) * 0.5); }
+.spark-line { stroke-width: 1.8; }
+.spark-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--acc);
+  border-radius: 50%;
+  background: var(--surface);
+  transform: translate(-50%, -50%);
+}
+
+/* ---------- Cómo conseguir tu archivo de Strava ---------- */
+.howto-card { max-width: 760px; }
+.howto { display: grid; gap: 12px; margin-top: 4px; counter-reset: paso; }
+.howto li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  color: var(--ink-2);
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.howto li::before {
+  content: counter(paso);
+  counter-increment: paso;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 700 14px / 1 var(--font-fig);
+}
+.howto li span { padding-top: 4px; }
+.howto b { color: var(--ink); font-weight: 600; }
+
+/* ---------- Escritorio y tableta ---------- */
+@media (min-width: 900px) {
+  .hero {
+    display: flex;
+    flex-direction: column;
+    min-height: 432px;
+    margin: 0;
+    padding: 30px 16px 16px;
+  }
+  .hero:not(.hero-empty) { padding-bottom: 0; }
+  .hero::before {
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-card);
+  }
+  .land {
+    inset: 1px 1px auto;
+    width: calc(100% - 2px);
+    height: calc(var(--land-h, 100%) - 2px);
+    border-radius: calc(var(--r-xl) - 1px);
+  }
+  .hero-empty { min-height: 432px; }
+  .hero-top { position: absolute; top: 18px; right: 18px; }
+  .m-brand { display: none; }
+  .hero-copy { max-width: 486px; margin: 0 16px; }
+  .hero-date { margin-bottom: 8px; }
+  .hero-copy .sub { margin-top: 10px; font-size: var(--fs-lead); }
+  .summit-lbl b { font-size: 22px; }
+  .summit-lbl span { font-size: 13px; }
+  .week { margin-top: auto; padding-top: 32px; }
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+  .kpi { min-height: 124px; padding: 14px 16px 0; }
+  .kpi-h { gap: 10px; font-size: 14px; }
+  .kpi-ic { width: 30px; height: 30px; }
+  .kpi-value { font-size: var(--fs-kpi); }
+  .kpi-value .unit { font-size: var(--fs-kpi-unit); }
+  .kpi-row { gap: 4px 10px; }
+  .spark { height: 34px; margin-bottom: 8px; }
+}
+@media (min-width: 1280px) {
+  .delta-short { display: none; }
+  .delta-full { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+}
+
+/* ---------- Movimiento reducido y colores forzados ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .summit-pin, .summit-lbl, .kpi-on { transition: none; }
+}
+@media (forced-colors: active) {
+  .kpi, .round { border: 1px solid CanvasText; }
+  .kpi[aria-pressed='true'] { outline: 2px solid Highlight; }
+}
+
+/* =====================================================================
+   Inicio del prototipo móvil (inicio.html): cifras compactas, objetivo,
+   próximo entreno, evento, Tus datos, vacío con ejemplo y carga.
+   ===================================================================== */
+
+/* ---------- Cifras compactas: la cifra y su diferencia en la misma línea ---------- */
+.kpi--compact { min-height: 0; padding: 12px; }
+.kpi--compact .kpi-row { justify-content: space-between; gap: 2px 6px; margin: 8px 0 0; }
+/* --fit (KpiCard) encoge la cifra para que quepa con su diferencia: las cuatro tarjetas, igual de altas.
+   La unidad va en em para encoger con ella. */
+.kpi--compact .kpi-value { font-size: calc(clamp(25px, 7.2vw, 28px) * var(--fit, 1)); }
+.kpi--compact .kpi-value .unit { font-size: 0.58em; }
+/* La referencia («frente a tus semanas a estas alturas») la dice una vez la línea de debajo */
+.kpi--compact .delta-short { display: inline; }
+.kpi--compact .delta-full {
+  position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+/* Debajo del paisaje (que acaba 16 px bajo las KPI), sobre el fondo de la página */
+.week-cap { position: relative; margin-top: 26px; color: var(--ink-2); font-size: var(--t-sm); line-height: 1.4; text-wrap: pretty; }
+
+/* Acción fija de la cabecera: generar ruta */
+.hero-route { color: var(--link); }
+
+/* ---------- Objetivo, próximo entreno y evento: lo de ahora ---------- */
+.duo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+
+.goal { padding-block: 14px; }
+.goal-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.goal-v { display: flex; align-items: baseline; gap: 5px; color: var(--ink); font: italic 700 24px / 1 var(--font-fig); font-variant-numeric: tabular-nums; }
+.goal-v .u { font: 600 15px / 1 var(--font-fig); font-style: normal; color: var(--ink-2); }
+.goal .meter { margin-top: 10px; }
+.goal .meter-legend { margin-top: 8px; }
+.goal .meter-legend .delta { margin-right: 4px; font-size: var(--t-md); }
+
+a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.goal-event */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  color: var(--ink);
+}
+.goal-event .row-lead { width: 36px; height: 36px; border-radius: 10px; }
+.goal-event-main b { display: block; font: 600 var(--t-md) / 1.3 var(--font-ui); color: var(--ink); overflow-wrap: anywhere; }
+.goal-event-main span { display: block; font-size: var(--t-sm); color: var(--ink-2); }
+.goal-event .chev { width: 18px; height: 18px; color: var(--ink-3); }
+@media (hover: hover) and (pointer: fine) {
+  a.card.goal-event:hover { background: var(--surface-2); }
+}
+
+.next-main { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; }
+.next-body { min-width: 0; }
+/* Nombres largos: tres líneas como mucho; «Ver nombre entero» (NextWorkout) los despliega */
+.next-title {
+  margin-top: 2px;
+  color: var(--ink);
+  font: 600 20px / 1.2 var(--font-fig);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.next-title.is-open { display: block; overflow: visible; }
+.next-more {
+  min-height: var(--target);
+  margin-block: -6px -8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font: 600 var(--t-sm) / 1 var(--font-ui);
+  cursor: pointer;
+}
+.next-notes { margin-top: 6px; color: var(--ink-2); font-size: var(--t-sm); overflow-wrap: anywhere; }
+.next-actions { margin-top: 14px; }
+.next-empty { display: grid; justify-items: start; gap: 12px; color: var(--ink-2); }
+
+/* ---------- Vacío: importar o ver el ejemplo ---------- */
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.hero-ctas .btn { flex: 1 1 220px; }
+.hero-demo-note { flex-basis: 100%; color: var(--ink-2); font-size: var(--t-sm); }
+
+/* ---------- Carga ---------- */
+.home-loading { display: grid; gap: var(--gap); }
+.sk-hero { display: grid; gap: 12px; padding: 24px 0 8px; }
+.sk-kpi { display: grid; gap: 12px; min-height: 76px; }
+.home-loading .sk-stack { display: grid; gap: 10px; }
+
+/* ---------- Tableta y escritorio: objetivo y evento a la izquierda, entreno a la derecha ---------- */
+@media (min-width: 600px) {
+  .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .duo > .next { grid-column: 2; grid-row: 1 / span 3; }
+  .duo > .next:first-child { grid-column: auto; grid-row: auto; }
+}
+@media (min-width: 900px) {
+  .kpi--compact { min-height: 0; padding: 14px 16px; }
+  .kpi--compact .kpi-value { font-size: calc(var(--fs-kpi) * var(--fit, 1)); }
+  .kpi--compact .kpi-value .unit { font-size: 0.53em; }
+}
+/* Apaisado en el teléfono: el saludo se encoge, el paisaje queda en una franja y las cifras suben.
+   Sin salidas, la frase y la nota del ejemplo se quedan: son las que explican qué hacer. */
+@media (max-height: 500px) and (max-width: 899px) {
+  .hero:not(.hero-empty) .hero-copy .sub { display: none; }
+  .hero-copy .hello { font-size: 28px; }
+  .hero .week { margin-top: 20px; }
+  .hero .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* =====================================================================
+   Tu última salida (tarea 8, inicio.html): mapa CyclOSM oscuro con el trazado
+   luminoso y la dificultad, nombre, fecha, cifras y perfil por pendiente.
+   ===================================================================== */
+.lastride .card-h { padding: 16px 16px 0; margin: -6px 0 6px; }
+.lastride-map {
+  position: relative; height: 184px;
+  background: var(--map-under); border-block: 1px solid var(--line);
+}
+.lastride-map .rmap { position: absolute; inset: 0; z-index: 0; }
+/* Sin teselas todavía (cargando o sin cobertura) el filtro y el tinte, solos, pintan un bloque lavanda */
+.lastride-map:not(.has-tiles) :is(.leaflet-tile-pane, .leaflet-tint-pane) { visibility: hidden; }
+/* Todo el mapa abre la salida; por debajo de la atribución (800), que sigue con sus enlaces. */
+.lastride-tap { position: absolute; inset: 0; z-index: 500; -webkit-tap-highlight-color: transparent; }
+.lastride-level { position: absolute; left: 12px; top: 12px; z-index: 600; pointer-events: none; }
+.lastride-level .chip {
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.lastride-level .chip--easy { background: color-mix(in srgb, var(--surface) 82%, var(--easy-ink)); }
+.lastride-level .chip--mid  { background: color-mix(in srgb, var(--surface) 82%, var(--mid-ink)); }
+.lastride-level .chip--hard { background: color-mix(in srgb, var(--surface) 82%, var(--hard-ink)); }
+/* La atribución, abajo a la derecha; la dificultad va arriba para que no se tapen en 360 px */
+.lastride-map .leaflet-control-attribution { font-size: var(--t-xs); line-height: 1.5; }
+/* Sus enlaces, de 24 px de alto como mínimo (WCAG 2.5.8): están encima del mapa que abre la salida */
+.lastride-map .leaflet-control-attribution a { display: inline-block; padding-block: 5px; line-height: 14px; }
+
+.lastride-body { padding: 14px 16px 16px; }
+.lastride-name { font: 600 20px/1.2 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
+.lastride-date { margin-top: 2px; font-size: var(--t-sm); color: var(--ink-2); }
+.lastride-nomap { margin-top: 10px; font-size: var(--t-sm); color: var(--ink-2); }
+/* Cuatro en fila; con cifras extremas (400 km y 14 h) la última baja de línea en vez de salirse */
+.lastride-stats {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 8px;
+  margin: 14px 0 16px; padding: 12px 0; border-block: 1px solid var(--line);
+}
+.lastride-stat { display: grid; gap: 6px; min-width: 0; }
+.lastride-stat dt { display: flex; }
+.lastride-stat .ic { width: 16px; height: 16px; color: var(--acc, var(--ink-2)); }
+.lastride-stat dd {
+  font: 700 clamp(17px, 5.6vw, 21px)/1 var(--font-fig); color: var(--ink);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.lastride-stat .unit { font-size: 13px; }
+.lastride-body > .lastride-stats:last-child { margin-bottom: 0; }
+
+.lastride .prof-h {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  margin-bottom: 8px; font-size: var(--t-sm); color: var(--ink-2);
+}
+.lastride .prof-h .fig { font-size: 18px; color: var(--ink); }
+.lastride .profile { height: 72px; }
+/* Eje de km proporcional a la distancia (ProfileSvg con axis="ticks") */
+.profile-axis--ticks { position: relative; display: block; height: 16px; }
+.profile-axis--ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.profile-axis--ticks span:first-child { transform: none; }
+.profile-axis--ticks span.is-end { transform: translateX(-100%); }
+
+@media (min-width: 600px) {
+  .lastride-map { height: 240px; }
+}
+/* Escritorio: cifras y perfil lado a lado bajo un mapa más alto */
+@media (min-width: 900px) {
+  .lastride-map { height: 300px; }
+  .lastride-body {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    column-gap: 32px; align-items: start; padding: 18px 20px 20px;
+  }
+  .lastride-body > :not(.prof-h, .profile-fig) { grid-column: 1; }
+  .lastride-body > .prof-h { grid-column: 2; grid-row: 1; }
+  .lastride-body > .profile-fig { grid-column: 2; grid-row: 2 / span 3; }
+  .lastride-stats { margin-bottom: 0; }
+}
+@media (forced-colors: active) {
+  .lastride-level .chip { border: 1px solid CanvasText; }
+}

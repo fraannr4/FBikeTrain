@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Importar</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="importar">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="app">
+  <aside class="side"></aside>
+  <main class="main" id="contenido">
+    <div class="wrap">
+      <header class="page-h">
+        <div>
+          <h1>Importar salidas</h1>
+          <p>Lee tu archivo de Strava aquí mismo, en el navegador. Nada sale de tu equipo y las salidas que ya tienes no se duplican.</p>
+        </div>
+      </header>
+
+      <!-- Dropzone: soltar o elegir (alternativa de un solo toque, WCAG 2.5.7) -->
+      <label class="drop" id="drop" data-over="false">
+        <svg class="drop-topo" id="drop-topo" viewBox="0 0 1200 140" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"></svg>
+        <span class="drop-ic"><svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg></span>
+        <span>
+          <h2 id="drop-t">Suelta aquí tu archivo de Strava</h2>
+          <p id="drop-s">El .zip completo que te envía Strava, o ficheros sueltos de salidas.</p>
+          <span class="types" aria-label="Formatos admitidos"><span class="chip info">.zip</span><span class="chip info">.fit</span><span class="chip info">.gpx</span><span class="chip info">.tcx</span><span class="chip info">.gz</span></span>
+        </span>
+        <span class="btn btn-primary btn-lg press" aria-hidden="true"><svg class="ic ic-sm"><use href="#i-file"/></svg>Elegir archivo</span>
+        <input class="file-in" type="file" accept=".zip,.fit,.gpx,.tcx,.gz" multiple aria-describedby="drop-s">
+      </label>
+
+      <div class="imp-grid">
+        <!-- Progreso (estado=progreso) -->
+        <section class="card" aria-labelledby="h-run" id="run" hidden>
+          <div class="card-h"><svg class="ic spin" aria-hidden="true" style="color:var(--link)"><use href="#i-loader"/></svg><h2 id="h-run">Importando</h2><span class="end muted">Puedes seguir usando la app</span></div>
+          <div class="file-row">
+            <span class="fi"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg></span>
+            <span style="min-width:0"><b>export_48213907.zip</b><small>412 MB, recibido de Strava el 3 de noviembre</small></span>
+            <button type="button" class="btn btn-ghost press">Cancelar</button>
+          </div>
+          <div class="bar-row"><span class="fig fig-i">62 %</span><span class="muted num">812 de 1.310 actividades</span></div>
+          <div class="bar" role="progressbar" aria-label="Progreso de la importación" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62"><i style="width:62%"></i></div>
+          <ol class="steps" style="margin-top:12px" aria-label="Pasos">
+            <li class="step done"><span class="st"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-check"/></svg></span><span><b>Abrir el archivo</b><small>activities.csv y 1.310 ficheros</small></span><span class="r">Hecho</span></li>
+            <li class="step now" aria-current="step"><span class="st">2</span><span><b>Leer las actividades</b><small>Solo las de bici cuentan para tu progresión</small></span><span class="r">812 de 1.310</span></li>
+            <li class="step"><span class="st">3</span><span><b>Calcular cifras y perfiles</b><small>Distancia, desnivel, tiempo, velocidad y cadencia</small></span><span class="r">Pendiente</span></li>
+            <li class="step"><span class="st">4</span><span><b>Guardar en este navegador</b><small>Sin servidor: se queda en tu equipo</small></span><span class="r">Pendiente</span></li>
+          </ol>
+        </section>
+
+        <!-- ImportReport -->
+        <section class="card" aria-labelledby="h-rep" id="report">
+          <div class="card-h"><svg class="ic" aria-hidden="true" style="color:var(--good)"><use href="#i-checkc"/></svg><h2 id="h-rep">Importación terminada</h2><span class="end muted">Hace 3 días</span></div>
+          <p class="card-sub">export_48213907.zip, 1.310 actividades leídas en 48&nbsp;s.</p>
+          <div class="report-sum">
+            <div class="rs ok"><span class="fig fig-i">13</span><span>salidas nuevas</span></div>
+            <div class="rs"><span class="fig">201</span><span>ya estaban, no se duplican</span></div>
+            <div class="rs"><span class="fig">1.092</span><span>no son de bici, omitidas</span></div>
+            <div class="rs"><span class="fig">3</span><span>demasiado cortas, omitidas</span></div>
+          </div>
+          <ul class="issues" aria-label="Avisos de la importación">
+            <li class="issue w"><svg class="ic" aria-hidden="true"><use href="#i-warn"/></svg><div><b>Una salida sin GPS: 12 de septiembre</b><p>activities/11874502231.fit.gz no trae posiciones. Guardamos sus cifras, sin mapa ni perfil.</p></div></li>
+            <li class="issue e"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg><div><b>Un fichero no se pudo leer</b><p>activities/9876543210.tcx.gz está dañado. Si es una salida que quieres, descárgala de nuevo en Strava y suéltala aquí.</p></div></li>
+            <li class="issue i"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg><div><b>Cadencia en 5 de las 13 salidas nuevas</b><p>Las demás no traen sensor. La cadencia media solo cuenta las que la tienen.</p></div></li>
+          </ul>
+          <div class="route-foot" style="justify-content:flex-start">
+            <a class="btn btn-primary press" href="historial.html">Ver las 13 salidas nuevas</a>
+            <a class="btn btn-ghost press" href="inicio.html">Ir a Inicio</a>
+          </div>
+        </section>
+
+        <div style="display:grid;gap:var(--gap);align-content:start">
+          <section class="card" aria-labelledby="h-how">
+            <div class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg><h2 id="h-how">Cómo conseguir el archivo</h2></div>
+            <ol class="howto">
+              <li><span>En strava.com abre <b>Ajustes, Mi cuenta</b> y pulsa <b>Descargar o eliminar tu cuenta</b>.</span></li>
+              <li><span>Pide el archivo. Strava lo envía por correo y puede tardar unas horas.</span></li>
+              <li><span>Suelta el <b>.zip</b> arriba. Puedes volver a importarlo cuando quieras: solo entra lo nuevo.</span></li>
+            </ol>
+          </section>
+          <section class="card" aria-labelledby="h-prev">
+            <div class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg><h2 id="h-prev">Importaciones anteriores</h2></div>
+            <ul class="recent">
+              <li><span class="mini" style="display:grid;place-items:center;color:var(--good)"><svg class="ic" aria-hidden="true"><use href="#i-checkc"/></svg></span><span><span class="t">3 de noviembre</span><span class="s">13 salidas nuevas, 1 fichero sin leer</span></span><span class="chip ok">Hecho</span></li>
+              <li><span class="mini" style="display:grid;place-items:center;color:var(--good)"><svg class="ic" aria-hidden="true"><use href="#i-checkc"/></svg></span><span><span class="t">2 de septiembre</span><span class="s">38 salidas nuevas</span></span><span class="chip ok">Hecho</span></li>
+              <li><span class="mini" style="display:grid;place-items:center;color:var(--good)"><svg class="ic" aria-hidden="true"><use href="#i-checkc"/></svg></span><span><span class="t">14 de marzo</span><span class="s">Primera importación, 163 salidas</span></span><span class="chip ok">Hecho</span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+<script>
+(function () {
+  var drop = document.getElementById('drop');
+  window.FBT.topo(document.getElementById('drop-topo'), 9, 1010, 70, 11, 15);
+  if (new URLSearchParams(location.search).get('estado') === 'progreso') {
+    document.getElementById('run').hidden = false;
+    document.getElementById('report').hidden = true;
+    document.getElementById('drop-t').textContent = 'Leyendo tu archivo';
+    document.getElementById('drop-s').textContent = 'Puedes soltar más ficheros: entrarán cuando acabe este.';
+  }
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.dataset.over = 'true'; }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.dataset.over = 'false'; }); });
+})();
+</script>
+</body>
+</html>

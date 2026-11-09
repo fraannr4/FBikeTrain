@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Inicio, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+/* Estado del prototipo (sin parámetro, con datos):
+   ?state=empty      sin salidas importadas;
+   ?state=nohistory  hay salidas esta semana, pero menos de 3 semanas completas con salidas
+                     (vuelta tras una lesión o el invierno, o solo se ha importado la última semana):
+                     se ven las cifras, sin porcentajes ni línea de media;
+   ?state=loading    leyendo los datos guardados;
+   ?state=error      los datos guardados no responden. */
+(function () { var s = ''; try { s = new URLSearchParams(location.search).get('state') || ''; } catch (e) {} if (/^(empty|nohistory|loading|error)$/.test(s)) document.documentElement.dataset.state = s; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* ---------- Estados: cada bloque dice en cuáles aparece (data-when) ---------- */
+  html:not([data-state]) [data-when]:not([data-when~="ok"]),
+  html[data-state="nohistory"] [data-when]:not([data-when~="ok"]):not([data-when~="nohistory"]),
+  html[data-state="empty"] [data-when]:not([data-when~="empty"]),
+  html[data-state="loading"] [data-when]:not([data-when~="loading"]),
+  html[data-state="error"] [data-when]:not([data-when~="error"]) { display: none !important; }
+
+  /* ---------- Hero: paisaje compacto. La cresta cercana es tu última salida ---------- */
+  .hero { padding-bottom: 0; }
+  .hero::before { display: none; }              /* el paisaje sustituye al relieve de las demás cabeceras */
+  .hero-scene {
+    position: absolute; z-index: -1; left: 0; width: 100%; pointer-events: none;
+    top: calc(-1 * (var(--appbar-h) + var(--safe-t)));
+    height: calc(100% + var(--appbar-h) + var(--safe-t) + var(--hero-tuck));
+  }
+  .hero { --hero-tuck: 64px; }                  /* lo que el paisaje se mete bajo las cifras */
+  .hero .page-kicker, .hero .page-lead { color: var(--ink); }
+  .hero .page-kicker { font-weight: 600; }
+  .hero .page-lead { max-width: 30ch; }
+  /* Una línea; el nombre lleva a la tarjeta del próximo entreno */
+  .hero .lead-link { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  .hero-land { position: relative; height: 92px; }
+  .summit {
+    position: absolute; top: 0; left: 0; display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 10px 0 8px; border-radius: var(--r-pill);
+    background: var(--glass-strong); border: 1px solid var(--line-strong); box-shadow: var(--shadow-float);
+    font: 500 var(--t-xs)/1 var(--font-ui); color: var(--ink-2); white-space: nowrap;
+    opacity: 0; transition: opacity var(--dur-bubble) ease;
+  }
+  .summit.is-in { opacity: 1; }
+  .summit > [aria-hidden] { display: inline-flex; align-items: center; gap: 6px; }
+  .summit b { font: italic 700 15px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .summit svg { width: 10px; height: 9px; fill: var(--ink); }
+  .hero-scene .ridge-light { stroke-dasharray: 1; stroke-dashoffset: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-scene.is-drawing .ridge-light { stroke-dashoffset: 1; }
+    .hero-scene .ridge-light { transition: stroke-dashoffset var(--dur-draw) var(--ease-out); }
+  }
+
+  /* Las cifras de la semana se apoyan en el pie del paisaje */
+  .week { position: relative; }
+  .hero + .week, .hero + .week + .week { margin-top: -64px; }   /* 28 de hueco de la página: las cifras empiezan 36 px dentro del paisaje */
+  .week .kpi { background: var(--glass); border-color: var(--line-strong); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); }
+  /* Compactas (unos 76 px): la cifra y su diferencia en la misma línea; si no caben, la diferencia baja */
+  .week .kpi { padding: 12px; }
+  .week .kpi-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 6px; margin-top: 8px; }
+  .week .kpi-v { margin-top: 0; font-size: clamp(25px, 7.2vw, 28px); }
+  .week .kpi .delta { gap: 1px; }
+  .week .kpi .delta { margin-top: 0; }
+  .week .kpi .delta:empty { display: none; }
+  .week-cap { margin-top: -2px; font-size: var(--t-sm); color: var(--ink-3); text-wrap: pretty; }
+  .week .kpi-v.is-none { color: var(--ink-3); }          /* sin velocidad: no hay tiempo esta semana */
+  /* Acción principal fija en la cabecera: sigue a mano al desplazar */
+  .appbar .appbar-route { color: var(--acc); }
+  .kpi.is-loading { display: grid; gap: 10px; }
+
+  /* ---------- Próximo entreno ---------- */
+  .next-main { display: grid; grid-template-columns: auto minmax(0, 1fr) 64px; gap: 14px; align-items: start; }
+  /* Nombres largos: tres líneas como mucho; el nombre entero está en title, en la hoja GPX y en Rutas */
+  .next-title, .ride-title { overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; text-overflow: ellipsis; }
+  .next-title { margin-top: 2px; font: 600 20px/1.2 var(--font-fig); color: var(--ink); }
+  .next-shape { width: 64px; height: 64px; border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+  .next-chips { margin-top: 10px; }
+  .next-actions { margin-top: 12px; }
+
+  /* ---------- Objetivo de volumen: compacto, justo debajo de las cifras ---------- */
+  .goal { padding-block: 14px; }
+  .goal-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+  .goal-v { display: flex; align-items: baseline; gap: 5px; font: italic 700 24px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .goal-v .u { margin: 0; }
+  .goal .meter { margin-top: 10px; }
+  .goal .meter-legend { margin-top: 8px; }
+  /* ---------- Objetivo de evento: una fila ---------- */
+  a.goal-event {                                /* a.card del kit pone display:block */
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    min-height: 56px; padding: 10px 14px;
+  }
+  .goal-event .row-lead { width: 36px; height: 36px; border-radius: 10px; }
+  .goal-event b { display: block; font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+  .goal-event span span { display: block; font-size: var(--t-sm); color: var(--ink-2); }
+  .goal-event .chev { width: 18px; height: 18px; color: var(--ink-3); }
+  @media (hover: hover) and (pointer: fine) { .goal-event:hover { background: var(--surface-2); } }
+
+  /* ---------- Tu última salida: mapa oscuro con trazo luminoso ---------- */
+  .ride { overflow: hidden; }
+  .ride .card-h { padding: 16px 16px 0; margin: -6px 0 6px; }
+  .ride-map { position: relative; display: block; height: 184px; background: var(--map-under); border-block: 1px solid var(--line); }
+  .ride-map svg { width: 100%; height: 100%; }
+  .ride-map .road { fill: none; stroke: var(--line-strong); stroke-width: 1.4; stroke-linecap: round; }
+  .ride-map .road--main { stroke-width: 2.4; }
+  .ride-map .river { fill: none; stroke: color-mix(in srgb, var(--acc-dist) 30%, transparent); stroke-width: 2; }
+  .ride-map .contour { fill: none; stroke: var(--contour); stroke-width: 1; }
+  .ride-map .halo { fill: none; stroke: var(--trace); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; opacity: calc(0.5 * var(--glow)); }
+  .ride-map .core { fill: none; stroke: var(--trace); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+  .ride-map .thread { fill: none; stroke: #fff; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; opacity: calc(0.85 * var(--thread)); }
+  .ride-map .start { fill: var(--good); stroke: #fff; stroke-width: 2.5; }
+  .ride-map .chip { position: absolute; left: 12px; bottom: 12px; box-shadow: var(--shadow-float); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .ride-map .chip--mid { background: color-mix(in srgb, var(--surface) 82%, var(--mid-ink)); }
+  .ride-body { padding: 14px 16px 16px; }
+  .ride-title { font: 600 20px/1.2 var(--font-fig); color: var(--ink); }
+  .ride-date { margin-top: 2px; font-size: var(--t-sm); color: var(--ink-2); }
+  /* Cuatro en fila; con cifras extremas (una BRM de 1.219 km y 89 h) la última baja de línea en vez de salirse */
+  .ride-stats { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 8px; margin: 14px 0 16px; padding: 12px 0; border-block: 1px solid var(--line); }
+  .ride-stat { display: grid; gap: 6px; }
+  .ride-stat .ic { width: 16px; height: 16px; color: var(--acc); }
+  .ride-stat .v { font: 700 clamp(17px, 5.6vw, 21px)/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ride-stat .u { font-size: 13px; margin: 0 0 0 2px; }
+  .prof-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; font-size: var(--t-sm); color: var(--ink-2); }
+  .prof-h .fig { font-size: 18px; color: var(--ink); }
+  /* Eje del perfil: marcas proporcionales a los km, generadas por inicio.js */
+  .ride .profile-axis { position: relative; display: block; height: 16px; }
+  .ride .profile-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  .ride .profile-axis span:first-child { transform: none; }
+  .ride .profile-axis span.is-end { transform: translateX(-100%); }
+
+  /* ---------- Tendencia de 12 semanas ---------- */
+  .trend .seg { margin-bottom: 14px; }
+  .trend-read { min-height: 44px; font-size: 15px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+  .trend-read b { color: var(--ink); font-weight: 600; }
+  .trend-chart { display: block; width: 100%; height: 188px; margin-top: 6px; touch-action: pan-y; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .trend-chart text { font: 500 12px var(--font-ui); fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .trend-chart .grid { stroke: var(--line); stroke-width: 1; }
+  .trend-chart .base { stroke: var(--line-strong); stroke-width: 1; }
+  .trend-chart .bar { fill: color-mix(in srgb, var(--acc) 40%, var(--surface)); }
+  .trend-chart .bar.is-on { fill: var(--acc); }
+  .trend-chart .mean { stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; }
+  /* La media se rotula en el eje (fuera de los datos), como una marca más con fondo */
+  .trend-chart .mean-pill { fill: var(--surface-2); stroke: var(--ink-3); stroke-width: 1; }
+  .trend-chart .mean-t { fill: var(--ink); font-weight: 600; }
+  .trend-chart .val { font: italic 700 15px var(--font-fig); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+  /* «A estas alturas»: marca corta sobre la barra de la semana en curso */
+  .trend-chart .td { stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; }
+  .trend-chart .td-halo { stroke: var(--surface); stroke-width: 5; stroke-linecap: round; }
+  /* Leyenda en la frase: una barra en miniatura con su marca, la misma forma que en la gráfica */
+  .td-key { position: relative; display: inline-block; width: 8px; height: 13px; margin: 0 7px 0 4px; vertical-align: -1px; border-radius: 2px 2px 0 0; background: var(--acc); }
+  .td-key::after { content: ""; position: absolute; left: -3px; right: -3px; top: 5px; border-top: 2px solid var(--ink-2); box-shadow: 0 0 0 1.5px var(--surface); border-radius: 1px; }
+  .td-note { font-size: var(--t-xs); font-weight: 400; color: var(--ink-3); }
+  .trend-chart .line { fill: none; stroke: var(--acc); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .trend-chart .dot { fill: var(--surface); stroke: var(--acc); stroke-width: 2; }
+  .trend-chart .dot.is-on { fill: var(--acc); stroke: var(--surface); stroke-width: 2.5; }
+  .trend-chart .xl-now { fill: var(--ink-2); font-weight: 600; }
+  .trend-plot { transition: opacity var(--dur-fast) ease; }
+  .trend-plot.is-swapping { opacity: 0; transition-duration: 0ms; }
+  .trend-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .trend-foot .meta { flex: 1; min-width: 0; }
+  .trend-nav { display: flex; gap: 4px; margin-left: -4px; }
+  .trend-nav .icon-btn:disabled { opacity: .35; }
+  .trend-nav .flip { transform: scaleX(-1); }
+  .mean-key { display: inline-block; width: 16px; margin: 0 4px 0 0; vertical-align: middle; border-top: 1.5px dashed var(--ink-2); }
+  .trend-foot .btn--ghost { margin-right: -12px; }
+  .trend-table { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+  .trend-table caption { text-align: left; padding-bottom: 8px; color: var(--ink-2); font-size: var(--t-sm); }
+  .trend-table th, .trend-table td { padding: 10px 4px; border-top: 1px solid var(--line); text-align: right; }
+  .trend-table th:first-child, .trend-table td:first-child { text-align: left; padding-left: 0; }
+  .trend-table thead th { border-top: 0; color: var(--ink-3); font-weight: 600; }
+  .trend-table td { color: var(--ink); }
+  .trend-table td:last-child { color: var(--ink-2); }
+  .trend-table tr.is-now td { font-weight: 600; }
+
+  /* ---------- Vacío: tres pasos (aquí sí son una secuencia) ---------- */
+  .steps { display: grid; gap: 14px; counter-reset: paso; }
+  .steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; color: var(--ink-2); font-size: 15px; }
+  .steps li::before { counter-increment: paso; content: counter(paso); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--action) 20%, transparent); color: var(--link); font: italic 700 17px/1 var(--font-fig); }
+  .steps b { color: var(--ink); font-weight: 600; }
+  .empty-note { display: flex; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: var(--t-sm); color: var(--ink-2); }
+  .empty-note .ic { width: 18px; height: 18px; color: var(--good); margin-top: 1px; }
+
+  /* ---------- Carga ---------- */
+  .sk-stack { display: grid; gap: 8px; }
+  .sk-kpi { display: grid; gap: 12px; }
+
+  /* ---------- Tus datos ---------- */
+  .row-lead--warn { --acc: var(--warning); }
+
+  /* ---------- Tableta y apaisado ---------- */
+  /* En el teléfono: objetivo, próximo entreno, acciones y evento, en ese orden */
+  /* Objetivo y próximo entreno, juntos: lo de ahora. El GPX entra en la primera pantalla a 390x844 */
+  .duo { display: grid; gap: 16px; }
+  .duo { margin-top: -12px; }                  /* el objetivo prolonga las cifras de la semana */
+  @media (min-width: 600px) {
+    .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "goal next" "event next"; gap: 16px; align-items: start; align-content: start; }
+    .duo > .goal { grid-area: goal; }
+    .duo > .next { grid-area: next; }
+    .duo > .goal-event { grid-area: event; }
+    .hero .page-lead { max-width: 44ch; }
+  }
+  @media (max-width: 379px) {
+    .trend .seg button { padding: 0 2px; font-size: 14px; }   /* «Velocidad» cabe entera a 360 px */
+  }
+  /* Apaisado: el saludo se encoge y el paisaje queda en una franja; las tarjetas suben */
+  @media (max-height: 500px) and (max-width: 899px) {
+    .hero .page-lead { display: none; }
+    .hero .page-title { font-size: 28px; }
+    .hero-land { height: 56px; }
+    .hero { --hero-tuck: 48px; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería del prototipo"><span data-hito></span><span aria-hidden="true">FBikeTrain</span></a></div>
+  <span class="appbar-title" aria-hidden="true">Inicio</span>
+  <div class="appbar-actions">
+    <button class="icon-btn icon-btn--filled appbar-route" type="button" data-sheet-open="hoja-ruta" data-m="dist" aria-label="Generar ruta" data-when="ok nohistory"><i data-ic="route"></i></button>
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <!-- ===== Hero: saludo y paisaje (la cresta cercana es el perfil de tu última salida) ===== -->
+  <div class="page-head hero">
+    <svg class="hero-scene" id="hero-scene" aria-hidden="true" focusable="false"></svg>
+    <p class="page-kicker">Viernes 6 de noviembre</p>
+    <h1 class="page-title">Hola, Fran</h1>
+    <!-- Lo que toca y cómo vas, en palabras: las cifras están justo debajo y no se repiten aquí -->
+    <p class="page-lead" data-when="ok" id="hero-lead">Mañana toca <a class="lead-link" href="#s-proximo">Lluçanès</a>.</p>
+    <p class="page-lead" data-when="empty">Importa tus salidas de Strava y aquí verás tu semana, tu objetivo y tu última salida.</p>
+    <div class="page-lead sk-stack" data-when="loading" aria-hidden="true"><span class="sk sk-line" style="width:88%"></span><span class="sk sk-line" style="width:60%"></span></div>
+    <div class="hero-land">
+      <p class="summit" id="summit" data-when="ok"><span aria-hidden="true"><svg viewBox="0 0 10 9"><path d="M5 0 10 9H0z"/></svg><b>911 m</b>cima del jueves</span><span class="sr-only" id="summit-sr">Cima de tu última salida: 911 m, el jueves</span></p>
+    </div>
+  </div>
+
+  <!-- ===== Esta semana ===== -->
+  <section class="section week" aria-labelledby="s-semana" data-when="ok">
+    <h2 class="sr-only" id="s-semana">Esta semana, frente a tus semanas a estas alturas</h2>
+    <!-- inicio.js rellena cifras y diferencias con los mismos datos de la tendencia (y las quita sin media) -->
+    <div class="kpis">
+      <article class="kpi" data-m="dist" data-k="dist">
+        <p class="kpi-h"><i data-ic="bike"></i>Distancia</p>
+        <div class="kpi-row"><p class="kpi-v">160<span class="u">km</span></p><p class="delta delta--up"><i data-ic="up"></i>+25&#8239;%<span class="sr-only"> frente a tus semanas a estas alturas</span></p></div>
+      </article>
+      <article class="kpi" data-m="elev" data-k="elev">
+        <p class="kpi-h"><i data-ic="mountain"></i>Desnivel</p>
+        <div class="kpi-row"><p class="kpi-v">2722<span class="u">m</span></p><p class="delta delta--up"><i data-ic="up"></i>+42&#8239;%<span class="sr-only"> frente a tus semanas a estas alturas</span></p></div>
+      </article>
+      <article class="kpi" data-m="time" data-k="time">
+        <p class="kpi-h"><i data-ic="timer"></i>En movimiento</p>
+        <div class="kpi-row"><p class="kpi-v">6<span class="u">h</span>08</p><p class="delta delta--up"><i data-ic="up"></i>+30&#8239;%<span class="sr-only"> frente a tus semanas a estas alturas</span></p></div>
+      </article>
+      <article class="kpi" data-m="speed" data-k="speed">
+        <p class="kpi-h"><i data-ic="gauge"></i>Velocidad media</p>
+        <div class="kpi-row"><p class="kpi-v">26,0<span class="u">km/h</span></p><p class="delta delta--down"><i data-ic="down"></i>&minus;3&#8239;%<span class="sr-only"> frente a tu media</span></p></div>
+      </article>
+    </div>
+    <p class="week-cap" id="week-cap">2 salidas esta semana, frente a tus semanas a estas alturas</p>
+  </section>
+
+  <!-- Carga: los esqueletos imitan la forma real para que nada salte -->
+  <section class="section week" data-when="loading" aria-busy="true">
+    <span class="sr-only">Cargando tus salidas</span>
+    <div class="kpis" aria-hidden="true">
+      <div class="kpi sk-kpi"><span class="sk sk-line" style="width:62%"></span><span class="sk sk-fig"></span></div>
+      <div class="kpi sk-kpi"><span class="sk sk-line" style="width:56%"></span><span class="sk sk-fig"></span></div>
+      <div class="kpi sk-kpi"><span class="sk sk-line" style="width:70%"></span><span class="sk sk-fig"></span></div>
+      <div class="kpi sk-kpi"><span class="sk sk-line" style="width:64%"></span><span class="sk sk-fig"></span></div>
+    </div>
+  </section>
+  <div class="card" data-when="loading" aria-hidden="true" style="margin-top:-12px"><span class="sk-stack"><span class="sk sk-line" style="width:70%"></span><span class="sk" style="height:10px;border-radius:5px;margin-top:6px"></span><span class="sk sk-line" style="width:55%"></span></span></div>
+  <div class="card" data-when="loading" aria-hidden="true">
+    <div class="next-main"><span class="sk" style="width:52px;height:66px;border-radius:26px 26px 8px 8px"></span><span class="sk-stack"><span class="sk sk-line" style="width:50%"></span><span class="sk sk-title" style="width:90%"></span><span class="sk sk-line" style="width:70%"></span></span><span class="sk" style="width:64px;height:64px;border-radius:14px"></span></div>
+    <div class="btn-row next-actions"><span class="sk" style="height:48px;border-radius:12px"></span><span class="sk" style="height:48px;border-radius:12px"></span></div>
+  </div>
+  <div class="card card--flush" data-when="loading" aria-hidden="true">
+    <span class="sk" style="display:block;height:184px;border-radius:0"></span>
+    <div class="ride-body sk-stack"><span class="sk sk-title"></span><span class="sk sk-line" style="width:45%"></span><span class="sk" style="height:72px;margin-top:12px"></span></div>
+  </div>
+
+  <!-- ===== Error: no se abre la base de datos local ===== -->
+  <div class="card" data-when="error">
+    <div class="state state--error" role="alert">
+      <span class="state-ic"><i data-ic="alert"></i></span>
+      <h2 class="state-title">Tus salidas no se han podido cargar</h2>
+      <p class="state-text">Los datos de este navegador no responden. Vuelve a intentarlo; si sigue igual, restaura tu copia de seguridad.</p>
+      <a class="btn btn--primary" href="inicio.html"><i data-ic="refresh"></i>Reintentar</a>
+      <a class="btn btn--ghost" href="ajustes.html">Restaurar copia</a>
+    </div>
+  </div>
+
+  <!-- ===== Vacío: cómo conseguir el archivo ===== -->
+  <section class="card" aria-labelledby="s-pasos" data-when="empty">
+    <div class="card-h"><span class="card-ic"><i data-ic="file"></i></span><h2 class="card-title" id="s-pasos">Cómo conseguir tu archivo de Strava</h2></div>
+    <ol class="steps">
+      <li><span>En la web de Strava, abre <b>Ajustes</b> y después <b>Mi cuenta</b>.</span></li>
+      <li><span>Pulsa <b>Solicita tu archivo</b>. Strava te lo manda por correo; puede tardar unas horas.</span></li>
+      <li><span>Descarga el <b>.zip</b> en este teléfono e impórtalo aquí.</span></li>
+    </ol>
+    <p class="empty-note"><i data-ic="shield"></i><span>El archivo se lee en tu teléfono y no se sube a ningún servidor.</span></p>
+  </section>
+
+  <div class="duo" data-when="ok">
+    <!-- ===== Objetivo de volumen: solo el medidor, a la vista sin desplazar ===== -->
+    <article class="card goal" data-m="dist" aria-labelledby="s-objetivo">
+      <div class="goal-h">
+        <h2 class="glance-label" id="s-objetivo"><i data-ic="target"></i>Objetivo de noviembre</h2>
+        <p class="goal-v"><span id="goal-done">201</span><span class="u">de 800&#8239;km</span></p>
+      </div>
+      <div class="meter" id="goal-meter" style="--p:.251;--pace:.2" role="img" aria-label="El 25 % del objetivo. A día 6, el ritmo esperado es el 20 %: vas 41 km por delante del ritmo"><i></i><b></b></div>
+      <p class="meter-legend"><span id="goal-pace"><span class="delta delta--up"><i data-ic="up"></i>41&#8239;km</span> por delante del ritmo</span><span>Quedan 24 días</span></p>
+    </article>
+
+    <!-- ===== Próximo entreno (antes de salir) ===== -->
+    <article class="card next" data-m="time" aria-labelledby="s-proximo">
+      <div class="card-h">
+        <span class="card-ic"><i data-ic="calendar"></i></span>
+        <h2 class="card-title" id="s-proximo">Próximo entreno</h2>
+        <a class="card-link" href="calendario.html" aria-label="Ver el plan de entrenos">Plan<i data-ic="chev"></i></a>
+      </div>
+      <div class="next-main">
+        <!-- La fecha va en la ficha («sáb / 7 / mañana»; el mes sobra si es mañana): una línea menos y el GPX sube -->
+        <div class="hito-date" aria-hidden="true"><span class="hito-date-d">sáb</span><span class="hito-date-n">7</span><span class="hito-date-m">mañana</span></div>
+        <div>
+          <p class="sr-only">Mañana, sábado 7 de noviembre</p>
+          <h3 class="next-title" title="Lluçanès por Prats">Lluçanès por Prats</h3>
+          <p class="route-meta"><span><b>86</b> km</span><span><b>1320</b> m</span><span>unas <b>3 h 10</b></span></p>
+        </div>
+        <div class="next-shape"><svg class="shape" data-seed="12" role="img" aria-label="Forma de la ruta: circular"></svg></div>
+      </div>
+      <div class="cluster next-chips">
+        <span class="chip chip--mid"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media para ti</span>
+        <span class="chip"><i data-ic="repeat"></i>Circular</span>
+      </div>
+      <div class="btn-row next-actions">
+        <a class="btn btn--secondary" href="rutas.html">Ver ruta</a>
+        <button class="btn btn--primary" type="button" data-sheet-open="hoja-gpx"><i data-ic="download"></i><span class="sr-only">Descargar </span>GPX</button>
+      </div>
+      <p class="card-foot">Y el domingo 8, 50&#8239;km suaves.</p>
+    </article>
+
+    <!-- Generar ruta está fijo en la cabecera; Importar, en «Tus datos» -->
+
+    <!-- ===== Objetivo de evento ===== -->
+    <a class="card goal-event press" href="objetivos.html" data-m="elev">
+      <span class="row-lead"><i data-ic="flag"></i></span>
+      <span><b>Marxa del Lluçanès</b><span>13 de diciembre, faltan 37 días</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+  </div>
+
+  <!-- ===== Tu última salida ===== -->
+  <article class="card card--flush ride" data-m="dist" aria-labelledby="s-ultima" data-when="ok">
+    <div class="card-h">
+      <span class="card-ic"><i data-ic="pin"></i></span>
+      <h2 class="card-title" id="s-ultima">Tu última salida</h2>
+      <a class="card-link" href="salida.html">Ver salida<i data-ic="chev"></i></a>
+    </div>
+    <a class="ride-map" href="salida.html" tabindex="-1" aria-hidden="true">
+      <svg id="ride-map" focusable="false"></svg>
+      <span class="chip chip--mid"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media para ti</span>
+    </a>
+    <div class="ride-body">
+      <h3 class="ride-title" title="Collsuspina y Moià">Collsuspina y Moià</h3>
+      <p class="ride-date">Ayer, jueves 5 de noviembre</p>
+      <div class="ride-stats">
+        <p class="ride-stat" data-m="dist"><i data-ic="bike"></i><span class="v">87,6<span class="u">km</span></span><span class="sr-only">de distancia</span></p>
+        <p class="ride-stat" data-m="elev"><i data-ic="mountain"></i><span class="v">1542<span class="u">m</span></span><span class="sr-only">de desnivel</span></p>
+        <p class="ride-stat" data-m="time"><i data-ic="timer"></i><span class="v">3<span class="u">h</span> 12</span><span class="sr-only">minutos en movimiento</span></p>
+        <p class="ride-stat" data-m="speed"><i data-ic="gauge"></i><span class="v">27,4<span class="u">km/h</span></span><span class="sr-only">de media</span></p>
+      </div>
+      <p class="prof-h"><span>Perfil por pendiente</span><span>cima <span class="fig fig-i" id="ride-top">911</span> m</span></p>
+      <svg class="profile" id="ride-profile" role="img" aria-label="Perfil por pendiente de la salida"></svg>
+      <div class="profile-axis" id="ride-axis" aria-hidden="true"></div>
+      <div class="legend" id="lg-ultima" style="margin-top:10px"></div>
+    </div>
+  </article>
+
+  <!-- ===== Tendencia: 12 semanas ===== -->
+  <section class="card trend" data-m="dist" aria-labelledby="s-tendencia" data-when="ok" id="tendencia">
+    <div class="card-h">
+      <span class="card-ic"><i data-ic="trend"></i></span>
+      <h2 class="card-title" id="s-tendencia">Tus últimas 12 semanas</h2>
+    </div>
+    <div class="seg seg--quiet" role="group" aria-label="Métrica de la gráfica" id="trend-metric">
+      <button type="button" data-value="dist" aria-pressed="true"><span>Distancia</span></button>
+      <button type="button" data-value="elev" aria-pressed="false"><span>Desnivel</span></button>
+      <button type="button" data-value="time" aria-pressed="false"><span>Tiempo</span></button>
+      <button type="button" data-value="speed" aria-pressed="false"><span>Velocidad</span></button>
+    </div>
+    <p class="trend-read" id="trend-read" aria-live="polite"></p>
+    <svg class="trend-chart" id="trend-chart" role="img"></svg>
+    <div class="trend-foot">
+      <div class="trend-nav">
+        <button class="icon-btn icon-btn--filled" type="button" id="trend-prev" aria-label="Semana anterior" aria-controls="trend-read"><i data-ic="chev" class="flip"></i></button>
+        <button class="icon-btn icon-btn--filled" type="button" id="trend-next" aria-label="Semana siguiente" aria-controls="trend-read"><i data-ic="chev"></i></button>
+      </div>
+      <p class="meta" id="trend-key" aria-hidden="true"><span class="mean-key"></span>tu media</p>
+      <button class="btn btn--ghost" type="button" id="trend-toggle" aria-expanded="false" aria-controls="trend-table-wrap"><i data-ic="table"></i>Ver tabla</button>
+    </div>
+    <div id="trend-table-wrap" hidden></div>
+  </section>
+
+  <!-- ===== Tus datos ===== -->
+  <section class="section" aria-labelledby="s-datos" data-when="ok">
+    <div class="section-h"><h2 class="section-title" id="s-datos">Tus datos</h2></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="importar.html" data-m="dist">
+        <span class="row-lead"><i data-ic="upload"></i></span>
+        <span class="row-main"><span class="row-title">Importar salidas</span><span class="row-meta">Ayer: 2 salidas nuevas</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="ajustes.html">
+        <span class="row-lead row-lead--warn"><i data-ic="archive"></i></span>
+        <span class="row-main"><span class="row-title">Hacer copia de seguridad</span><span class="row-meta">Tu última copia es de hace 12 días, anterior a la última importación</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+</main>
+
+<a class="fab" href="importar.html" data-when="empty"><i data-ic="upload"></i><span class="fab-l">Importar salidas</span></a>
+<nav class="tabbar" data-tabbar data-current="inicio" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: generar ruta ===== -->
+<dialog class="sheet" id="hoja-ruta" aria-labelledby="hoja-ruta-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-ruta-t">Generar ruta</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Sale de tu punto guardado. Cinco propuestas en unos segundos.</p>
+  </div>
+  <div class="sheet-body">
+    <a class="choice press" href="rutas.html" data-m="dist">
+      <span class="row-lead"><i data-ic="route"></i></span>
+      <span><b>Con tus cifras</b><span>Eliges distancia y desnivel</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+    <a class="choice press" href="ia.html" data-m="elev">
+      <span class="row-lead"><i data-ic="sparkles"></i></span>
+      <span><b>Pregunta a la IA</b><span>Tres preguntas y te propone rutas</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: llevar el próximo entreno al ciclocomputador ===== -->
+<dialog class="sheet" id="hoja-gpx" aria-labelledby="hoja-gpx-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-gpx-t">Llévala al iGPSPORT</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <ol class="stack">
+      <li class="banner"><span class="fig" aria-hidden="true">1</span><p>Descarga el <b>GPX</b>. Se guarda en Descargas.</p></li>
+      <li class="banner"><span class="fig" aria-hidden="true">2</span><p>Ábrelo con la app <b>iGPSPORT</b> y envíalo al BSC200S.</p></li>
+      <li class="banner"><span class="fig" aria-hidden="true">3</span><p>En el ciclocomputador, <b>Rutas</b> y elige «Lluçanès por Prats».</p></li>
+    </ol>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block btn--lg" type="button" data-sheet-close data-toast="GPX descargado: llucanes-por-prats.gpx" data-tone="good"><i data-ic="download"></i>Descargar GPX</button>
+  </div>
+</dialog>
+
+<script>
+/* La acción flotante solo existe sin salidas (Importar); se quita en los demás estados antes de que el kit la enlace.
+   Sin salidas o con error no hay entrenos pendientes que avisar: fuera el contador de Plan. */
+(function () { var s = document.documentElement.dataset.state || 'ok'; Array.prototype.forEach.call(document.querySelectorAll('body > .fab[data-when]'), function (f) { if ((' ' + f.dataset.when + ' ').indexOf(' ' + s + ' ') < 0) f.remove(); });
+  if (s === 'empty' || s === 'error') { var nav = document.querySelector('.tabbar[data-badge]'); if (nav) nav.removeAttribute('data-badge'); } })();
+</script>
+<script src="movil.js?v=588a4775"></script>
+<script src="inicio.js?v=81edaa7e"></script>
+</body>
+</html>

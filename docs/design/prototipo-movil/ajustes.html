@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Ajustes, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  .settings { display: grid; gap: 10px; }
+  .row-lead--warn { color: var(--warning); background: var(--warning-bg); }
+  .row-lead--bad { color: var(--critical); background: var(--critical-bg); }
+  .sum-warn { display: inline-flex; align-items: center; gap: 4px; }
+  .sum-warn .ic { width: 15px; height: 15px; color: var(--warning); }
+  .sum-bad .ic { color: var(--critical); }
+
+  .sub-h { display: flex; align-items: center; gap: 8px; font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+  .sub-h .ic { width: 18px; height: 18px; color: var(--ink-3); }
+  .key-group { display: grid; gap: 12px; }
+  .key-group + .key-group { padding-top: 18px; border-top: 1px solid var(--line); }
+  .help { font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); text-wrap: pretty; }
+  .help b { color: var(--ink); font-weight: 600; }
+
+  /* Interruptor de fila completa: toda la línea es el role=switch (como en las apps nativas).
+     El dibujo es el .switch del kit, decorativo; el estado lo lleva el botón. */
+  .switch-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin: -6px 0; padding: 6px 0; text-align: left; border-radius: var(--r-md); }
+  .switch-line .row-title { font-weight: 600; }
+  .switch-line[aria-checked="true"] .switch::before { background: var(--action); border-color: var(--action); }
+  .switch-line[aria-checked="true"] .switch::after { transform: translateX(22px); background: var(--on-action); }
+  /* Enlace para conseguir la clave: justo debajo del campo, alineado con el texto */
+  .key-get { justify-self: start; margin: -6px 0 0 -12px; }
+  .key-get .ic { width: 18px; height: 18px; }
+
+
+  .sk-sum { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 68px; padding: 12px 14px; }
+  .sk-sum .sk-stack { display: grid; gap: 8px; }
+
+  /* Hojas: opciones grandes (como en el kit) */
+  .choice { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 14px; border-radius: var(--r-lg); border: 1px solid var(--line-strong); background: var(--surface-2); text-align: left; }
+  .choice + .choice { margin-top: 10px; }
+  .choice b { display: block; font: 600 var(--t-lg)/1.25 var(--font-ui); color: var(--ink); }
+  .choice > span:not(.row-lead) > span { display: block; font-size: var(--t-sm); color: var(--ink-2); }
+  .choice .chev { color: var(--ink-3); }
+  .sheet-body .banner { margin-top: 16px; }
+  .sheet-body .field + .field { margin-top: 16px; }
+  .sheet-body .btn--ghost { margin: 10px 0 0 -12px; }
+  /* Resumen de Perfil: el nombre es del usuario, una sola línea */
+  [data-sum="perfil"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Clave con dos acciones: Pegar y Mostrar (44x44 cada una) */
+  .input-wrap--2 > .input { padding-right: 98px; }
+  .input-wrap--2 > [data-paste] { right: 47px; }
+  /* La hoja de restaurar se abre sola al llegar desde Más (#restaurar): el título recibe el foco sin anillo */
+  .sheet-title[tabindex="-1"]:focus-visible { outline: none; box-shadow: none; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="icon-btn" href="mas.html" aria-label="Volver a Más"><i data-ic="back"></i></a></div>
+  <span class="appbar-title" aria-hidden="true">Ajustes</span>
+  <div class="appbar-actions"><button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button></div>
+</header>
+
+<main id="main" class="page page--narrow">
+  <div class="page-head">
+    <h1 class="page-title">Ajustes</h1>
+    <p class="page-lead">Todo queda en este navegador y <b>cada cambio se guarda al momento</b>.</p>
+  </div>
+
+  <div class="banner" data-when="empty" data-setup>
+    <i data-ic="route"></i>
+    <p data-setup-text><b>Para crear rutas faltan dos cosas:</b> tu Casa y la clave de OpenRouteService.</p>
+    <button class="btn btn--ghost" type="button" data-open="casa" data-setup-btn>Empezar por Casa</button>
+  </div>
+
+  <!-- ===== Carga: la forma de las filas, sin saltos ===== -->
+  <section class="section" data-when="loading" aria-busy="true">
+    <span class="sr-only" role="status">Cargando tus ajustes</span>
+    <div class="settings" aria-hidden="true">
+      <div class="disclosure sk-sum"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:38%"></span><span class="sk sk-line" style="width:24%"></span></span></div>
+      <div class="disclosure sk-sum"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:30%"></span><span class="sk sk-line" style="width:56%"></span></span></div>
+      <div class="disclosure sk-sum"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:52%"></span><span class="sk sk-line" style="width:64%"></span></span></div>
+      <div class="disclosure sk-sum"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:42%"></span><span class="sk sk-line" style="width:20%"></span></span></div>
+      <div class="disclosure sk-sum"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:60%"></span><span class="sk sk-line" style="width:44%"></span></span></div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="Secciones de ajustes" data-when="default empty error">
+    <div class="settings">
+
+      <!-- ===== Perfil ===== -->
+      <details class="disclosure" name="ajustes" id="perfil">
+        <summary data-m="dist">
+          <span class="row-lead"><i data-ic="user"></i></span>
+          <span class="row-main"><span class="row-title">Perfil</span><span class="row-meta" data-sum="perfil">Fran</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <div class="field">
+            <label class="field-label" for="f-nombre">Nombre</label>
+            <input class="input" id="f-nombre" type="text" value="Fran" maxlength="40" autocomplete="given-name" autocapitalize="words" enterkeyhint="done" placeholder="Tu nombre" aria-describedby="f-nombre-h">
+            <p class="field-help" id="f-nombre-h">Solo para el saludo de Inicio.</p>
+          </div>
+        </div>
+      </details>
+
+      <!-- ===== Casa ===== -->
+      <details class="disclosure" name="ajustes" id="casa">
+        <summary data-m="elev">
+          <span class="row-lead" data-lead="casa"><i data-ic="pin"></i></span>
+          <span class="row-main"><span class="row-title">Casa</span><span class="row-meta" data-sum="casa">Punto de salida guardado</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <p class="status-line" data-tone="good" data-when="default error"><i data-ic="checkc"></i><span><b>Punto de salida guardado.</b> Aquí no se muestra la dirección, por privacidad.</span></p>
+          <p class="status-line" data-tone="warn" data-when="empty"><i data-ic="warn"></i><span><b>Aún no has elegido Casa.</b> Las rutas salen y vuelven a ella.</span></p>
+          <div class="banner"><i data-ic="shield"></i><p><b>La IA nunca recibe Casa.</b> Solo la usa OpenRouteService para trazar tus rutas, y va en tus copias de seguridad.</p></div>
+          <button class="btn btn--secondary btn--block" type="button" data-sheet-open="hoja-casa"><i data-ic="pin"></i><span data-when="default error">Cambiar Casa</span><span data-when="empty">Elegir Casa</span></button>
+        </div>
+      </details>
+
+      <!-- ===== Claves de servicio ===== -->
+      <details class="disclosure" name="ajustes" id="claves">
+        <summary data-m="time">
+          <span class="row-lead" data-lead="claves"><i data-ic="key"></i></span>
+          <span class="row-main"><span class="row-title">Claves de servicio</span><span class="row-meta" data-sum="claves">Rutas: conectada · IA: conectada</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <div class="key-group" data-key="ors">
+            <h2 class="sub-h"><i data-ic="route"></i>Rutas: OpenRouteService</h2>
+            <div class="field" id="field-ors">
+              <label class="field-label" for="f-ors">Clave de OpenRouteService</label>
+              <div class="input-wrap input-wrap--2">
+                <input class="input input--key" id="f-ors" type="password" value="clave-de-ejemplo-no-real-0000000000000000" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="f-ors-h f-ors-e">
+                <button class="icon-btn" type="button" data-paste="f-ors" aria-label="Pegar la clave"><i data-ic="paste"></i></button>
+                <button class="icon-btn" type="button" data-eye="f-ors" aria-pressed="false" aria-label="Mostrar la clave"><i data-ic="eye"></i></button>
+              </div>
+              <p class="field-error" id="f-ors-e" hidden><i data-ic="alert"></i><span data-err>OpenRouteService rechaza esta clave. Cópiala otra vez desde tu panel de ORS.</span></p>
+              <p class="field-help" id="f-ors-h">Es gratis. Solo se guarda en este navegador.</p>
+            </div>
+            <a class="btn btn--ghost key-get" href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener noreferrer"><i data-ic="external"></i>Conseguir una clave gratis<span class="sr-only"> en openrouteservice.org (se abre en otra pestaña)</span></a>
+            <p class="status-line" role="status" data-status="ors" data-tone="good"><i data-ic="checkc"></i><span><b>Conectada.</b> Probada hoy a las 9:12.</span></p>
+            <button class="btn btn--secondary btn--block" type="button" data-probe="ors"><i data-ic="refresh"></i>Probar conexión</button>
+          </div>
+
+          <div class="key-group" data-key="ia">
+            <h2 class="sub-h"><i data-ic="sparkles"></i><span>IA: <span data-provider>Groq</span></span></h2>
+            <div class="field" id="field-ia">
+              <label class="field-label" for="f-ia">Clave de <span data-provider>Groq</span></label>
+              <div class="input-wrap input-wrap--2">
+                <input class="input input--key" id="f-ia" type="password" value="clave-de-ejemplo-del-prototipo" placeholder="Pégala aquí…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="f-ia-h f-ia-e">
+                <button class="icon-btn" type="button" data-paste="f-ia" aria-label="Pegar la clave"><i data-ic="paste"></i></button>
+                <button class="icon-btn" type="button" data-eye="f-ia" aria-pressed="false" aria-label="Mostrar la clave"><i data-ic="eye"></i></button>
+              </div>
+              <p class="field-error" id="f-ia-e" hidden><i data-ic="alert"></i><span data-err>Pega la clave antes de probarla.</span></p>
+              <p class="field-help" id="f-ia-h">Opcional. La IA solo recibe cifras resumidas: nunca tus tracks ni Casa.</p>
+            </div>
+            <a class="btn btn--ghost key-get" href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" data-groq-only><i data-ic="external"></i>Conseguir una clave gratis<span class="sr-only"> en console.groq.com (se abre en otra pestaña)</span></a>
+            <p class="status-line" role="status" data-status="ia" data-tone="good"><i data-ic="checkc"></i><span><b>Conectada.</b> Probada hoy a las 9:12.</span></p>
+            <button class="btn btn--secondary btn--block" type="button" data-probe="ia"><i data-ic="refresh"></i>Probar conexión</button>
+            <button class="btn btn--ghost" type="button" data-sheet-open="hoja-ia">Usar otro proveedor</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- ===== Apariencia ===== -->
+      <details class="disclosure" name="ajustes" id="apariencia">
+        <summary>
+          <span class="row-lead"><i data-ic="palette"></i></span>
+          <span class="row-main"><span class="row-title">Apariencia</span><span class="row-meta" data-sum="tema">Oscuro</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <div class="seg theme-switch" role="group" aria-label="Tema" data-theme-toggle>
+            <button type="button" data-value="dark" aria-pressed="true"><i data-ic="moon"></i><span>Oscuro</span></button>
+            <button type="button" data-value="light" aria-pressed="false"><i data-ic="sun"></i><span>Claro</span></button>
+          </div>
+          <p class="help">El oscuro es la montaña de noche, con el trazado iluminado. El claro, un amanecer sin brillos, mejor a pleno sol.</p>
+        </div>
+      </details>
+
+      <!-- ===== Copia de seguridad ===== -->
+      <details class="disclosure" name="ajustes" id="copia">
+        <summary data-m="dist">
+          <span class="row-lead" data-lead="copia"><i data-ic="archive"></i></span>
+          <span class="row-main"><span class="row-title">Copia de seguridad</span><span class="row-meta" data-sum="copia">Última: 25 de octubre</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <div class="banner banner--warn" data-when="default error" data-copy-warn><i data-ic="warn"></i><p><b>Tienes cambios sin copiar.</b> Has tocado el calendario o los objetivos después de la última copia, del 25 de octubre.</p></div>
+          <p class="help">La copia guarda tus <b>ajustes, calendario y objetivos</b> en un .json. Las salidas no van: se recuperan importando otra vez el archivo de Strava.</p>
+          <button class="switch-line" type="button" role="switch" aria-checked="false" aria-labelledby="sw-claves" aria-describedby="sw-claves-d">
+            <span class="row-main"><span class="row-title" id="sw-claves">Incluir las claves</span><span class="row-meta" id="sw-claves-d">Para pasar a otro teléfono. Guarda el fichero en un sitio seguro.</span></span>
+            <span class="switch" aria-hidden="true"></span>
+          </button>
+          <button class="btn btn--primary btn--block" type="button" data-backup><i data-ic="download"></i>Descargar copia</button>
+          <button class="btn btn--secondary btn--block" type="button" data-sheet-open="hoja-restaurar"><i data-ic="upload"></i>Restaurar una copia</button>
+        </div>
+      </details>
+
+      <!-- ===== Borrar datos: en el mismo patrón, al final y sin gritar ===== -->
+      <details class="disclosure disclosure--danger" name="ajustes" id="borrar">
+        <summary>
+          <span class="row-lead row-lead--bad"><i data-ic="trash"></i></span>
+          <span class="row-main"><span class="row-title">Borrar datos</span><span class="row-meta">Empezar de cero</span></span>
+          <i data-ic="chevdown" class="chev"></i>
+        </summary>
+        <div class="disclosure-body">
+          <p class="help">Borra de este navegador las salidas, el calendario, los objetivos y los ajustes. Te pedirá confirmación.</p>
+          <button class="btn btn--danger btn--block" type="button" data-sheet-open="hoja-borrar"><i data-ic="trash"></i>Borrar todos los datos</button>
+        </div>
+      </details>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="mas" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: cambiar Casa ===== -->
+<dialog class="sheet" id="hoja-casa" aria-labelledby="hoja-casa-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-casa-t">Casa</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">El punto donde empiezan y acaban tus rutas.</p>
+  </div>
+  <div class="sheet-body">
+    <button class="choice press" type="button" data-m="dist" data-sheet-close data-casa-set data-toast="Casa guardada" data-tone="good">
+      <span class="row-lead"><i data-ic="navigation"></i></span>
+      <span><b>Usar mi ubicación</b><span>El teléfono te pedirá permiso una vez</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </button>
+    <a class="choice press" href="rutas.html" data-m="elev">
+      <span class="row-lead"><i data-ic="pin"></i></span>
+      <span><b>Elegir en el mapa</b><span>Mueve el marcador hasta tu salida</span></span>
+      <i data-ic="chev" class="chev"></i>
+    </a>
+    <div class="banner"><i data-ic="shield"></i><p>Se guarda en este navegador. <b>La IA nunca la recibe.</b></p></div>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: otro proveedor de IA ===== -->
+<dialog class="sheet" id="hoja-ia" aria-labelledby="hoja-ia-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-ia-t">Proveedor de IA</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Cualquiera compatible con la API de OpenAI. Groq va por defecto.</p>
+  </div>
+  <div class="sheet-body">
+    <div class="field">
+      <label class="field-label" for="f-url">Dirección del servicio</label>
+      <input class="input" id="f-url" type="url" inputmode="url" value="https://api.groq.com/openai/v1" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="f-url-h f-url-e">
+      <p class="field-error" id="f-url-e" hidden><i data-ic="alert"></i><span>Escribe la dirección completa, empezando por https://</span></p>
+      <p class="field-help" id="f-url-h">La que termina en /v1, tal como la da tu proveedor.</p>
+    </div>
+    <div class="field">
+      <label class="field-label" for="f-modelo">Modelo</label>
+      <input class="input" id="f-modelo" type="text" value="" placeholder="El de tu proveedor por defecto" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <button class="btn btn--ghost" type="button" data-provider-reset hidden><i data-ic="refresh"></i>Volver a Groq</button>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="button" data-provider-save>Guardar proveedor</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: restaurar ===== -->
+<dialog class="sheet" id="hoja-restaurar" aria-labelledby="hoja-restaurar-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-restaurar-t">Restaurar una copia</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="banner banner--warn" style="margin-top:0" data-when="default error"><i data-ic="warn"></i><p><b>Sustituye tu calendario y tus objetivos</b> por los de la copia. Tus salidas no cambian.</p></div>
+    <p class="help" style="margin-top:14px" data-when="default error">Tus ajustes también vienen de la copia. Si no lleva claves, se quedan las que tienes.</p>
+    <p class="help" data-when="empty">Trae tus <b>ajustes, calendario y objetivos</b> del .json que descargaste en el otro teléfono. Las salidas se importan aparte, con el archivo de Strava.</p>
+  </div>
+  <div class="sheet-foot">
+    <label class="btn btn--primary btn--block"><input class="sr-only" type="file" accept=".json,application/json" data-restore><i data-ic="file"></i>Elegir la copia</label>
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Cancelar</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: borrar todo ===== -->
+<dialog class="sheet" id="hoja-borrar" aria-labelledby="hoja-borrar-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-borrar-t">Borrar todos los datos</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <p class="help" data-borrar-text>Se borran de este navegador <b>214 salidas</b>, el calendario, los objetivos, Casa y las claves. <b>No se puede deshacer.</b></p>
+    <p class="help" style="margin-top:10px">Las salidas vuelven importando el archivo de Strava; el resto, solo con una copia.</p>
+    <button class="btn btn--ghost" type="button" data-backup style="margin:6px 0 0 -12px"><i data-ic="download"></i>Descargar una copia antes</button>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--danger btn--block" type="button" data-sheet-close data-toast="Datos borrados de este navegador" data-tone="info"><i data-ic="trash"></i>Borrar todo</button>
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Cancelar</button>
+  </div>
+</dialog>
+
+<script>
+/* Estados del prototipo: ?state=empty (primera vez) | loading | error (clave rechazada) */
+(function () {
+  var s = 'default';
+  try { s = new URLSearchParams(location.search).get('state') || 'default'; } catch (e) {}
+  if (['empty', 'loading', 'error'].indexOf(s) < 0) s = 'default';
+  document.documentElement.dataset.state = s;
+  document.querySelectorAll('[data-when]').forEach(function (n) { n.hidden = n.dataset.when.split(' ').indexOf(s) < 0; });
+  function q(x) { return document.querySelector(x); }
+  var warnIc = '<i data-ic="warn"></i>';
+  if (s === 'default') {
+    q('[data-lead="copia"]').classList.add('row-lead--warn');
+    q('[data-sum="copia"]').innerHTML = '<span class="sum-warn">' + warnIc + 'Hay cambios sin copiar</span>';
+  }
+  if (s === 'empty') {
+    q('[data-tabbar]').removeAttribute('data-badge');
+    q('#f-nombre').value = '';
+    q('[data-sum="perfil"]').textContent = 'Sin nombre';
+    q('[data-lead="casa"]').classList.add('row-lead--warn');
+    q('[data-sum="casa"]').innerHTML = '<span class="sum-warn">' + warnIc + 'Sin elegir</span>';
+    q('#f-ors').value = '';
+    q('[data-lead="claves"]').classList.add('row-lead--warn');
+    q('[data-sum="claves"]').innerHTML = '<span class="sum-warn">' + warnIc + 'Falta la clave de rutas</span>';
+    var st = q('[data-status="ors"]'); st.removeAttribute('data-tone');
+    st.innerHTML = '<i data-ic="info"></i><span><b>Sin clave.</b> Sin ella no se pueden generar rutas.</span>';
+    q('#f-ia').value = '';                                  // primera vez: tampoco hay clave de IA
+    var si = q('[data-status="ia"]'); si.removeAttribute('data-tone');
+    si.innerHTML = '<i data-ic="info"></i><span><b>Sin clave.</b> Las rutas se generan igual, sin las preguntas guiadas.</span>';
+    q('[data-sum="copia"]').textContent = 'Aún no has hecho ninguna';
+  }
+  if (s === 'error') {
+    q('#claves').open = true;
+    q('[data-lead="claves"]').classList.add('row-lead--bad');
+    q('[data-sum="claves"]').innerHTML = '<span class="sum-warn sum-bad"><i data-ic="alert"></i>Rutas: la clave no funciona</span>';
+    q('#field-ors').setAttribute('data-invalid', '');
+    q('#f-ors').setAttribute('aria-invalid', 'true');
+    q('#f-ors-e').hidden = false;
+    var se = q('[data-status="ors"]'); se.removeAttribute('data-tone');
+    se.innerHTML = '<i data-ic="clock"></i><span>Probada hoy a las 9:12.</span>';
+    q('[data-lead="copia"]').classList.add('row-lead--warn');
+    q('[data-sum="copia"]').innerHTML = '<span class="sum-warn">' + warnIc + 'Hay cambios sin copiar</span>';
+  }
+  /* Prototipo: ?nombre= para probar nombres largos */
+  var nm = null; try { nm = new URLSearchParams(location.search).get('nombre'); } catch (e) {}
+  if (nm) { q('#f-nombre').value = nm.slice(0, 40); q('[data-sum="perfil"]').textContent = nm.slice(0, 40); }
+  /* Enlace profundo: ajustes.html#copia abre esa sección (desde Más o desde un aviso) */
+  var h = location.hash.slice(1);
+  if (h === 'restaurar') { q('#copia').open = true; window.__openRestore = true; }   /* «¿Vienes de otro teléfono?» desde Más */
+  else if (h && q('details#' + h)) q('details#' + h).open = true;
+})();
+</script>
+<script src="movil.js?v=588a4775"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s, c) { return (c || document).querySelector(s); };
+  var $$ = function (s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); };
+
+  /* Mostrar u ocultar la clave */
+  document.addEventListener('click', function (e) {
+    var eye = e.target.closest('[data-eye]');
+    if (eye) {
+      var inp = document.getElementById(eye.dataset.eye), show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      eye.setAttribute('aria-pressed', String(show));
+      eye.setAttribute('aria-label', show ? 'Ocultar la clave' : 'Mostrar la clave');
+      eye.innerHTML = FBT.icon(show ? 'eyeoff' : 'eye');
+      return;
+    }
+    var pr = e.target.closest('[data-probe]');
+    if (pr) { probe(pr.dataset.probe, pr); return; }
+    var bk = e.target.closest('[data-backup]');
+    if (bk) { backup(); return; }
+    var op = e.target.closest('[data-open]');
+    if (op) { var d = document.getElementById(op.dataset.open); d.open = true; d.scrollIntoView({ block: 'start', behavior: FBT.reduced() ? 'auto' : 'smooth' }); $('summary', d).focus({ preventScroll: true }); }
+  });
+
+  /* «Probar conexión»: guarda la clave si conecta. Mismo verbo en el aviso. */
+  var tries = { ors: 0, ia: 0 };
+  var state = document.documentElement.dataset.state;
+  /* Por defecto la IA está conectada, como en Rutas con IA. ?ia=sin-clave muestra el estado sin clave */
+  if (new URLSearchParams(location.search).get('ia') === 'sin-clave') {
+    $('#f-ia').value = '';
+    var stIa = $('[data-status="ia"]'); stIa.removeAttribute('data-tone');
+    stIa.innerHTML = FBT.icon('info') + '<span><b>Sin clave.</b> Las rutas se generan igual, sin las preguntas guiadas.</span>';
+    $('[data-sum="claves"]').textContent = 'Rutas: conectada · IA: sin clave';
+  }
+  var GROQ_URL = 'https://api.groq.com/openai/v1', provider = 'Groq';
+
+  /* Primera vez: el banner dice solo lo que falta y su botón lleva a ello */
+  var setup = { casa: state !== 'empty', ors: state !== 'empty' };
+  function syncSetup() {
+    var box = $('[data-setup]'); if (!box || state !== 'empty') return;
+    var txt = $('[data-setup-text]'), btn = $('[data-setup-btn]');
+    if (setup.casa && setup.ors) { box.hidden = true; return; }
+    if (setup.casa) { txt.innerHTML = '<b>Para crear rutas falta la clave</b> de OpenRouteService. Es gratis.'; btn.textContent = 'Añadir la clave'; btn.dataset.open = 'claves'; }
+    else if (setup.ors) { txt.innerHTML = '<b>Para crear rutas falta tu Casa:</b> el punto donde empiezan y acaban.'; btn.textContent = 'Elegir Casa'; btn.dataset.open = 'casa'; }
+  }
+  function casaSet() {
+    setup.casa = true;
+    $('[data-lead="casa"]').classList.remove('row-lead--warn');
+    $('[data-sum="casa"]').textContent = 'Punto de salida guardado';
+    $$('#casa [data-when]').forEach(function (n) { n.hidden = n.dataset.when.split(' ').indexOf('default') < 0; });
+    syncSetup();
+  }
+
+  /* Proveedor de IA: el nombre que se ve sale del host de la dirección */
+  function providerName(url) {
+    var h = new URL(url).hostname.toLowerCase();
+    return /(^|\.)groq\.com$/.test(h) ? 'Groq' : h.replace(/^(api|www)\./, '');
+  }
+  function setProvider(url) {
+    provider = providerName(url);
+    $$('[data-provider]').forEach(function (n) { n.textContent = provider; });
+    var groq = provider === 'Groq';
+    $$('[data-groq-only]').forEach(function (n) { n.hidden = !groq; });
+    $('[data-provider-reset]').hidden = groq;
+  }
+  function saveProvider(url) {
+    var inp = $('#f-url'), err = $('#f-url-e'), field = inp.closest('.field'), ok = false;
+    try { ok = /^https?:$/.test(new URL(url).protocol); } catch (x) { ok = false; }
+    field.toggleAttribute('data-invalid', !ok); inp.toggleAttribute('aria-invalid', !ok); err.hidden = ok;
+    if (!ok) { inp.focus(); return; }
+    setProvider(url);
+    FBT.sheet.close('hoja-ia');
+    FBT.toast(provider === 'Groq' ? 'Proveedor: Groq, el de siempre' : 'Proveedor guardado: ' + provider, { tone: 'good' });
+  }
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-casa-set]')) { casaSet(); return; }
+    if (e.target.closest('[data-provider-save]')) { saveProvider($('#f-url').value.trim()); return; }
+    if (e.target.closest('[data-provider-reset]')) { $('#f-url').value = GROQ_URL; $('#f-modelo').value = ''; saveProvider(GROQ_URL); }
+  });
+  function probe(k, btn) {
+    if (btn.getAttribute('aria-disabled') === 'true') return;   // ya está probando
+    var inp = document.getElementById('f-' + k), field = document.getElementById('field-' + k), err = document.getElementById('f-' + k + '-e');
+    var st = $('[data-status="' + k + '"]');
+    var name = k === 'ors' ? 'OpenRouteService' : provider;
+    field.removeAttribute('data-invalid'); inp.removeAttribute('aria-invalid'); err.hidden = true;
+    if (!inp.value.trim()) {
+      field.setAttribute('data-invalid', ''); inp.setAttribute('aria-invalid', 'true');
+      $('[data-err]', err).textContent = 'Pega la clave antes de probarla.'; err.hidden = false; inp.focus();
+      return;
+    }
+    btn.setAttribute('aria-disabled', 'true');
+    st.dataset.tone = 'busy';
+    st.innerHTML = FBT.icon('loader', 'spin') + '<span>Probando con ' + name + '…</span>';
+    setTimeout(function () {
+      btn.removeAttribute('aria-disabled');
+      tries[k]++;
+      var fail = state === 'error' && k === 'ors' && tries[k] === 1;
+      if (fail) {
+        field.setAttribute('data-invalid', ''); inp.setAttribute('aria-invalid', 'true');
+        $('[data-err]', err).textContent = name + ' rechaza esta clave. Cópiala otra vez desde tu panel de ORS.'; err.hidden = false;
+        st.removeAttribute('data-tone'); st.innerHTML = FBT.icon('clock') + '<span>Probada ahora.</span>';
+        FBT.toast('La conexión con ' + name + ' ha fallado', { tone: 'error' });
+        return;
+      }
+      st.dataset.tone = 'good'; st.innerHTML = FBT.icon('checkc') + '<span><b>Conectada.</b> Clave guardada en este navegador.</span>';
+      FBT.toast('Conexión probada: ' + name + ' responde', { tone: 'good' });
+      var sum = $('[data-sum="claves"]'), ors = $('[data-status="ors"]').dataset.tone === 'good', ia = $('[data-status="ia"]').dataset.tone === 'good';
+      if (ors) {
+        sum.textContent = 'Rutas: conectada · IA: ' + (ia ? 'conectada' : 'sin clave');
+        $('[data-lead="claves"]').classList.remove('row-lead--bad', 'row-lead--warn');
+        setup.ors = true; syncSetup();
+      }
+    }, 1100);
+  }
+
+  /* Pegar la clave: en el móvil, pegar en un campo de contraseña pide pulsación larga y puntería */
+  var canPaste = !!(navigator.clipboard && navigator.clipboard.readText);
+  document.querySelectorAll('[data-paste]').forEach(function (b) {
+    if (!canPaste) { b.hidden = true; b.closest('.input-wrap').classList.remove('input-wrap--2'); return; }
+    b.addEventListener('click', function () {
+      var inp = document.getElementById(b.dataset.paste);
+      navigator.clipboard.readText().then(function (t) {
+        t = (t || '').trim();
+        if (!t) { FBT.toast('El portapapeles está vacío', { tone: 'info' }); return; }
+        inp.value = t; inp.dispatchEvent(new Event('input', { bubbles: true }));
+        FBT.toast('Clave pegada. Pruébala para guardarla', { tone: 'good' });
+      }, function () {
+        FBT.toast('No se pudo leer el portapapeles. Mantén pulsado el campo y elige Pegar', { tone: 'info' });
+        inp.focus();
+      });
+    });
+  });
+
+  /* Recuentos con plural y separador de miles (en la app, del total real de salidas).
+     FBT.fmt agrupa desde 5 cifras (1214, 12.140), como el resto de la app. */
+  var pr = new Intl.PluralRules('es-ES');
+  function borrarText(n) {
+    var lead = n > 0 ? '<b>' + FBT.fmt(n) + ' ' + (pr.select(n) === 'one' ? 'salida' : 'salidas') + '</b>, el calendario' : 'el calendario';
+    return 'Se borran de este navegador ' + lead + ', los objetivos, Casa y las claves. <b>No se puede deshacer.</b>';
+  }
+  $('[data-borrar-text]').innerHTML = borrarText(state === 'empty' ? 0 : 214);
+  if (window.__openRestore) FBT.sheet.open('hoja-restaurar');
+
+  /* Nombre: se guarda al salir del campo */
+  $('#f-nombre').addEventListener('change', function () {
+    var v = this.value.trim();
+    $('[data-sum="perfil"]').textContent = v || 'Sin nombre';
+    FBT.toast(v ? 'Nombre guardado' : 'Nombre borrado', { tone: 'good' });
+  });
+
+  /* Tema: el resumen de la sección sigue al tema */
+  function syncTheme() { $('[data-sum="tema"]').textContent = FBT.theme.get() === 'light' ? 'Claro' : 'Oscuro'; }
+  document.addEventListener('themechange', syncTheme); syncTheme();
+
+  /* Copia */
+  function backup() {
+    var w = $('[data-copy-warn]'); if (w) w.hidden = true;
+    $('[data-lead="copia"]').classList.remove('row-lead--warn');
+    $('[data-sum="copia"]').textContent = 'Última: hoy';
+    FBT.toast('Copia descargada: fbiketrain-2026-11-06.json', { tone: 'good' });
+  }
+  $('[data-restore]').addEventListener('change', function () {
+    if (!this.files.length) return;
+    FBT.sheet.close('hoja-restaurar');
+    FBT.toast('Copia restaurada', { tone: 'good' });
+    this.value = '';
+  });
+})();
+</script>
+</body>
+</html>

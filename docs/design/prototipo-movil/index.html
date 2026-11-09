@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Prototipo móvil, FBikeTrain</title>
+<script>
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  .tab-tag { display: inline-flex; align-items: center; gap: 6px; font: 600 var(--t-sm)/1 var(--font-ui); color: var(--ink-2); }
+  .tab-tag .ic { width: 16px; height: 16px; color: var(--link); }
+  .build { margin-top: -8px; }
+  .build b { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><span class="brand"><span data-hito></span>FBikeTrain</span></div>
+  <span class="appbar-title" aria-hidden="true">Prototipo móvil</span>
+  <div class="appbar-actions">
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <div class="page-head">
+    <h1 class="page-title">Prototipo móvil</h1>
+    <p class="page-lead">Cada pantalla, agrupada por la pestaña desde la que se llega. Ábrela en el teléfono y recórrela <b>con el pulgar</b>.</p>
+  </div>
+
+  <!-- Qué versión se está viendo: version.mjs la reescribe cada vez que cambia un fichero del prototipo -->
+  <div class="banner build" role="note">
+    <i data-ic="info"></i>
+    <p>Versión <b data-build>45d8f38 · 7 nov, 04:06</b>. Si en el móvil ves otra, recarga la página: cada cambio lleva su propia versión y no se queda en caché.</p>
+  </div>
+
+  <section class="section" aria-labelledby="g-inicio">
+    <div class="section-h"><h2 class="section-title" id="g-inicio">Inicio</h2><span class="tab-tag" aria-hidden="true"><i data-ic="house"></i></span></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="inicio.html" data-m="dist">
+        <span class="row-lead"><i data-ic="house"></i></span>
+        <span class="row-main"><span class="row-title">Inicio</span><span class="row-meta">Tu semana, el próximo entreno, el objetivo, la última salida y 12 semanas</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="inicio.html?state=empty">
+        <span class="row-lead"><i data-ic="upload"></i></span>
+        <span class="row-main"><span class="row-title">Inicio sin salidas</span><span class="row-meta">Cómo conseguir el archivo de Strava e Importar</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="inicio.html?state=nohistory">
+        <span class="row-lead"><i data-ic="trend"></i></span>
+        <span class="row-main"><span class="row-title">Inicio sin media todavía</span><span class="row-meta">Menos de 3 semanas con salidas: cifras sin porcentajes ni línea de media</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="inicio.html?state=loading">
+        <span class="row-lead"><i data-ic="loader"></i></span>
+        <span class="row-main"><span class="row-title">Inicio cargando</span><span class="row-meta">Esqueletos con la forma real</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="inicio.html?state=error">
+        <span class="row-lead"><i data-ic="alert"></i></span>
+        <span class="row-main"><span class="row-title">Inicio con error</span><span class="row-meta">Los datos guardados no responden</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="g-historial">
+    <div class="section-h"><h2 class="section-title" id="g-historial">Historial</h2><span class="tab-tag" aria-hidden="true"><i data-ic="chart"></i></span></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="historial.html" data-m="dist">
+        <span class="row-lead"><i data-ic="chart"></i></span>
+        <span class="row-main"><span class="row-title">Historial</span><span class="row-meta">Salidas por mes, búsqueda y filtros</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="salida.html" data-m="dist">
+        <span class="row-lead"><i data-ic="pin"></i></span>
+        <span class="row-main"><span class="row-title">Salida</span><span class="row-meta">Mapa, cifras y perfil por pendiente</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="subidas.html" data-m="elev">
+        <span class="row-lead"><i data-ic="mountain"></i></span>
+        <span class="row-main"><span class="row-title">Subidas</span><span class="row-meta">Longitud, pendiente, VAM y tiempo</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="repetidas.html" data-m="time">
+        <span class="row-lead"><i data-ic="repeat"></i></span>
+        <span class="row-main"><span class="row-title">Repetidas</span><span class="row-meta">La misma ruta, vuelta a vuelta</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="g-rutas">
+    <div class="section-h"><h2 class="section-title" id="g-rutas">Rutas</h2><span class="tab-tag" aria-hidden="true"><i data-ic="route"></i></span></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="rutas.html" data-m="dist">
+        <span class="row-lead"><i data-ic="route"></i></span>
+        <span class="row-main"><span class="row-title">Rutas</span><span class="row-meta">Generar, forma, perfil y GPX para el BSC200S</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="ia.html" data-m="elev">
+        <span class="row-lead"><i data-ic="sparkles"></i></span>
+        <span class="row-main"><span class="row-title">Rutas con IA</span><span class="row-meta">Preguntas guiadas y propuestas explicadas</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="g-plan">
+    <div class="section-h"><h2 class="section-title" id="g-plan">Plan</h2><span class="tab-tag" aria-hidden="true"><i data-ic="calendar"></i></span></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="calendario.html" data-m="time">
+        <span class="row-lead"><i data-ic="calendar"></i></span>
+        <span class="row-main"><span class="row-title">Calendario</span><span class="row-meta">Entrenos planificados, hechos y pendientes</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="objetivos.html" data-m="speed">
+        <span class="row-lead"><i data-ic="target"></i></span>
+        <span class="row-main"><span class="row-title">Objetivos</span><span class="row-meta">Evento y volumen de la semana o del mes</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="g-mas">
+    <div class="section-h"><h2 class="section-title" id="g-mas">Más</h2><span class="tab-tag" aria-hidden="true"><i data-ic="more"></i></span></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="mas.html">
+        <span class="row-lead"><i data-ic="more"></i></span>
+        <span class="row-main"><span class="row-title">Más</span><span class="row-meta">Importar, ajustes y tema</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="importar.html">
+        <span class="row-lead"><i data-ic="upload"></i></span>
+        <span class="row-main"><span class="row-title">Importar</span><span class="row-meta">Archivo de Strava y su informe</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="ajustes.html">
+        <span class="row-lead"><i data-ic="sliders"></i></span>
+        <span class="row-main"><span class="row-title">Ajustes</span><span class="row-meta">Perfil, claves, copia de seguridad</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+      <li><a class="row" href="ajustes.html?ia=sin-clave">
+        <span class="row-lead"><i data-ic="key"></i></span>
+        <span class="row-main"><span class="row-title">Ajustes sin clave de IA</span><span class="row-meta">Las rutas se generan igual, sin las preguntas guiadas</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="g-kit">
+    <div class="section-h"><h2 class="section-title" id="g-kit">Sistema</h2></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="kit.html" data-m="dist">
+        <span class="row-lead"><i data-ic="grid"></i></span>
+        <span class="row-main"><span class="row-title">Kit móvil</span><span class="row-meta">Todos los componentes y sus estados</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span></a></li>
+    </ul>
+    <div class="seg theme-switch" role="group" aria-label="Tema" data-theme-toggle>
+      <button type="button" data-value="dark" aria-pressed="true"><i data-ic="moon"></i><span>Oscuro</span></button>
+      <button type="button" data-value="light" aria-pressed="false"><i data-ic="sun"></i><span>Claro</span></button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" data-tabbar></nav>
+<script src="movil.js?v=588a4775"></script>
+</body>
+</html>

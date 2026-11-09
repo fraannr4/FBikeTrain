@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Inicio</title>
+<script>
+  /* Tema antes del pintado: ?theme= manda (capturas), luego localStorage; oscuro por defecto. */
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<!-- Solo en el prototipo: Leaflet y ECharts desde CDN. La app los trae de npm. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" integrity="sha384-pPi0zxBAoDu6+JXW/C68UZLvBUUtU+7zonhif43rqj7pxsGyqyqzcian2Rj37Rss" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="inicio">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="app">
+  <aside class="side"></aside>
+
+  <main class="main" id="contenido">
+    <h1 class="sr-only">Inicio</h1>
+    <div class="wrap grid home" id="home">
+
+      <!-- Hero: el horizonte es tu última salida -->
+      <section class="hero" aria-label="Resumen de la semana">
+        <svg class="land" id="land" aria-hidden="true" preserveAspectRatio="none"></svg>
+        <div class="hero-top">
+          <a class="m-brand" href="inicio.html" aria-label="FBikeTrain, inicio"><svg class="hito-logo" viewBox="0 0 26 34" aria-hidden="true"><path class="body" d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z"/><rect class="band" x="0" y="0" width="26" height="11" clip-path="url(#hito-clip)"/><text x="13" y="28" text-anchor="middle">F</text></svg><span class="brand-name">FBikeTrain</span></a>
+          <div class="acts">
+            <label class="search" data-f="2">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="search" placeholder="Buscar salidas y rutas" aria-label="Buscar en tus salidas y rutas" autocomplete="off">
+              <kbd aria-hidden="true">/</kbd>
+            </label>
+            <button class="round round-search press" type="button" aria-label="Buscar" data-f="2"><svg class="ic"><use href="#i-search"/></svg></button>
+            <button class="round press" type="button" popovertarget="avisos" aria-label="Avisos, 2 sin leer"><svg class="ic"><use href="#i-bell"/></svg><span class="badge" aria-hidden="true">2</span></button>
+            <a class="round avatar press" href="ajustes.html" aria-label="Ajustes de Fran">F</a>
+          </div>
+        </div>
+        <div class="hero-copy" id="hero-copy">
+          <span class="hero-date">Viernes 6 de noviembre</span>
+          <p class="hello">Hola, Fran</p>
+          <p class="sub" id="hero-sub">Esta semana llevas <b>3 salidas</b> y vas por encima de tu media en distancia y desnivel.</p>
+        </div>
+        <div class="summit" id="summit" aria-hidden="true">
+          <span class="lbl"><b>1.012 m</b><span>cima de tu última salida, km 52</span></span>
+          <span class="lead"></span>
+          <svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5 14.6 13.5H1.4Z" fill="var(--sky-1)" stroke="var(--ridge-line)" stroke-width="1.6" stroke-linejoin="round"/><circle cx="8" cy="9.4" r="1.8" fill="var(--ridge-line)"/></svg>
+        </div>
+        <ul class="kpis" id="kpis" aria-label="Esta semana frente a tu media de 4 semanas">
+          <li><button type="button" class="kpi press" data-metric="dist" aria-pressed="true" aria-controls="prog" aria-describedby="kpi-hint" style="--acc:var(--acc-dist)">
+            <span class="kpi-h"><span class="kpi-ic"><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg></span>Distancia<span class="kpi-on" aria-hidden="true"><svg class="ic"><use href="#i-trend"/></svg></span></span>
+            <span class="kpi-row"><span class="kpi-v fig fig-i">214<span class="u">km</span></span><span class="delta up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>+12 %<span class="vs">vs tu media</span><span class="sr-only"> de 4 semanas</span></span></span>
+            <svg class="spark" data-spark="dist" aria-hidden="true"></svg>
+          </button></li>
+          <li><button type="button" class="kpi press" data-metric="elev" aria-pressed="false" aria-controls="prog" aria-describedby="kpi-hint" style="--acc:var(--acc-elev)">
+            <span class="kpi-h"><span class="kpi-ic"><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg></span>Desnivel<span class="kpi-on" aria-hidden="true"><svg class="ic"><use href="#i-trend"/></svg></span></span>
+            <span class="kpi-row"><span class="kpi-v fig fig-i">3.480<span class="u">m</span></span><span class="delta up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>+18 %<span class="vs">vs tu media</span><span class="sr-only"> de 4 semanas</span></span></span>
+            <svg class="spark" data-spark="elev" aria-hidden="true"></svg>
+          </button></li>
+          <li><button type="button" class="kpi press" data-metric="time" aria-pressed="false" aria-controls="prog" aria-describedby="kpi-hint" style="--acc:var(--acc-time)">
+            <span class="kpi-h"><span class="kpi-ic"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg></span><span class="d-only">Tiempo en movimiento</span><span class="m-only">Tiempo</span><span class="kpi-on" aria-hidden="true"><svg class="ic"><use href="#i-trend"/></svg></span></span>
+            <span class="kpi-row"><span class="kpi-v fig fig-i">8<span class="u">h</span> 05<span class="u">min</span></span><span class="delta up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>+9 %<span class="vs">vs tu media</span><span class="sr-only"> de 4 semanas</span></span></span>
+            <svg class="spark" data-spark="time" aria-hidden="true"></svg>
+          </button></li>
+          <li><button type="button" class="kpi press" data-metric="speed" aria-pressed="false" aria-controls="prog" aria-describedby="kpi-hint" style="--acc:var(--acc-speed)">
+            <span class="kpi-h"><span class="kpi-ic"><svg class="ic" aria-hidden="true"><use href="#i-gauge"/></svg></span><span class="d-only">Velocidad media</span><span class="m-only">Velocidad</span><span class="kpi-on" aria-hidden="true"><svg class="ic"><use href="#i-trend"/></svg></span></span>
+            <span class="kpi-row"><span class="kpi-v fig fig-i">26,5<span class="u">km/h</span></span><span class="delta down"><svg class="ic" aria-hidden="true"><use href="#i-down"/></svg>−2 %<span class="vs">vs tu media</span><span class="sr-only"> de 4 semanas</span></span></span>
+            <svg class="spark" data-spark="speed" aria-hidden="true"></svg>
+          </button></li>
+        </ul>
+        <p class="sr-only" id="kpi-hint">Pulsa para verla en Tu progresión.</p>
+      </section>
+
+      <!-- Tu progresión: una sola fila de controles; la métrica se elige en las KPI del hero -->
+      <section class="card prog" aria-labelledby="h-prog" id="prog">
+        <div class="card-h" style="--ic:var(--acc-dist)" id="prog-h">
+          <svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>
+          <h2 id="h-prog">Tu progresión</h2>
+          <div class="end prog-ctrl">
+            <div class="ranges" role="group" aria-label="Periodo de la gráfica">
+              <span class="ind" aria-hidden="true"></span>
+              <button type="button" class="press" data-range="12m" aria-pressed="true">12 meses</button>
+              <button type="button" class="press" data-range="6m" aria-pressed="false">6 meses</button>
+              <button type="button" class="press" data-range="3m" aria-pressed="false">3 meses</button>
+              <button type="button" class="press" data-range="30d" aria-pressed="false">30 días</button>
+            </div>
+          </div>
+        </div>
+        <div class="prog-sub">
+          <p class="prog-sum" id="prog-sum" aria-live="polite"></p>
+          <div class="legend" id="legend" style="--acc:var(--acc-dist)" aria-hidden="true"><span><i class="lc"></i><span id="lg-cur">12 meses</span></span><span><i class="lp"></i><span id="lg-prev">Los 12 anteriores</span></span></div>
+        </div>
+        <div class="chart" id="chart" role="img" aria-label=""></div>
+        <div class="prog-foot">
+          <button type="button" class="link press" id="tbl-btn" aria-expanded="false" aria-controls="tbl"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-table"/></svg><span>Ver como tabla</span></button>
+        </div>
+        <div class="table-wrap" id="tbl" hidden><table class="data-table" id="chart-table"></table></div>
+      </section>
+
+      <!-- Tu rendimiento -->
+      <section class="card rend" aria-labelledby="h-rend">
+        <div class="card-h" style="--ic:var(--acc-speed)">
+          <svg class="ic" aria-hidden="true"><use href="#i-activity"/></svg>
+          <h2 id="h-rend">Tu rendimiento</h2>
+        </div>
+        <p class="card-sub">Últimos 30 días. La barra es tu rango de 12 meses.</p>
+        <ul class="stats" id="stats"></ul>
+      </section>
+
+      <!-- Tu objetivo -->
+      <section class="card obj" aria-labelledby="h-obj" id="obj">
+        <div class="card-h" style="--ic:var(--good)">
+          <svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>
+          <h2 id="h-obj">Tu objetivo</h2>
+          <span class="end"><a class="icon-btn press" href="#" aria-label="Editar objetivo"><svg class="ic ic-sm"><use href="#i-pencil"/></svg></a></span>
+        </div>
+        <div class="goal-body" id="goal-body">
+          <div class="ring-wrap"><svg class="ring" id="ring" viewBox="0 0 200 200" aria-hidden="true"></svg><p class="ring-c" id="ring-c"></p></div>
+          <div class="goal-txt"><p class="goal-t" id="goal-t">Noviembre: 800 km</p><ul class="goal-lines" id="goal-lines"></ul></div>
+        </div>
+      </section>
+
+      <!-- Tu última salida -->
+      <section class="card ult" aria-labelledby="h-ult">
+        <div class="card-h" style="--ic:var(--trace)">
+          <svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>
+          <h2 id="h-ult">Tu última salida</h2>
+          <span class="muted">Ayer, jueves 5 de noviembre</span>
+          <a class="end link" href="#">Ver detalle<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="map-wrap" id="map-wrap">
+          <svg class="map-under" id="map-under" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg>
+          <div class="map" id="map" role="region" aria-label="Mapa del recorrido de la última salida"></div>
+          <div class="map-plate" aria-label="Cifras de la salida">
+            <div style="--acc:var(--acc-dist)"><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>87,6 km</div>
+            <div style="--acc:var(--acc-elev)"><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>1.542 m</div>
+            <div style="--acc:var(--acc-time)"><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>3 h 12 min</div>
+            <div style="--acc:var(--acc-speed)"><svg class="ic" aria-hidden="true"><use href="#i-gauge"/></svg>27,4 km/h</div>
+          </div>
+          <div class="map-ctrl">
+            <button type="button" class="press d-only" id="zin" aria-label="Acercar"><svg class="ic"><use href="#i-plus"/></svg></button>
+            <button type="button" class="press d-only" id="zout" aria-label="Alejar"><svg class="ic"><use href="#i-minus"/></svg></button>
+            <button type="button" class="press" id="fs" aria-label="Ver el mapa a pantalla completa"><svg class="ic"><use href="#i-max"/></svg></button>
+          </div>
+          <div class="map-badge" data-f="4"><span class="chip mid"><svg class="bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media para ti</span></div>
+        </div>
+        <div class="prof" data-prof="last">
+          <div class="prof-h"><span class="muted">Perfil por pendiente</span><span class="slope-legend" data-legend></span></div>
+          <svg data-h="58"></svg>
+          <div class="prof-tip"></div>
+        </div>
+      </section>
+
+      <!-- Rutas recomendadas por IA: tarjeta héroe -->
+      <section class="card rut" aria-labelledby="h-rut" data-f="4">
+        <div class="card-h" style="--ic:var(--acc-elev)">
+          <svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg>
+          <h2 id="h-rut">Rutas recomendadas por IA</h2>
+          <a class="end link" href="rutas.html?modo=ia">Ver las 5<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="rut-strip">
+          <svg class="rut-shape" data-shape="montsenyc" data-big data-box="0.46 0.06 0.5 0.88" viewBox="0 0 400 176" role="img" aria-label="Forma de la ruta Circular por el Montseny: un lazo hacia el norte que sale y vuelve a Casa"></svg>
+          <div class="rut-over">
+            <span class="chip hard"><svg class="bars" aria-hidden="true"><use href="#i-bars3"/></svg>Dura para ti</span>
+            <h3 class="route-t">Circular por el Montseny</h3>
+            <p class="meta"><span><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>96 km</span><span><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>1.600 m</span><span><svg class="ic" aria-hidden="true"><use href="#i-timer"/></svg>4 h 07 min</span></p>
+            <p class="rut-why">550 m más que tu media, por Collformic y Santa Fe</p>
+          </div>
+          <a class="icon-btn rut-gpx press" href="#" aria-label="Descargar GPX de Circular por el Montseny"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg></a>
+        </div>
+        <div class="prof rut-prof" data-prof="route">
+          <div class="prof-h sr-only"><span>Perfil por pendiente</span><span class="slope-legend" data-legend></span></div>
+          <svg data-h="56"></svg>
+          <div class="prof-tip"></div>
+        </div>
+        <a href="rutas.html?modo=ia" class="btn btn-primary btn-block press rut-cta">Ver ruta</a>
+        <ul class="alts" aria-label="Otras rutas propuestas">
+          <li><a class="alt press" href="#"><svg class="mini" data-shape="montcau" viewBox="0 0 36 36" aria-hidden="true"></svg><span style="min-width:0"><span class="alt-t">Vuelta al Montcau</span><span class="meta"><span>68 km</span><span>820 m</span><span class="dif mid"><svg class="bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media</span></span></span><svg class="ic ic-sm chev" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+          <li><a class="alt press" href="#"><svg class="mini" data-shape="garraf" viewBox="0 0 36 36" aria-hidden="true"></svg><span style="min-width:0"><span class="alt-t">Costa del Garraf</span><span class="meta"><span>78 km</span><span>410 m</span><span class="dif easy"><svg class="bars" aria-hidden="true"><use href="#i-bars1"/></svg>Suave</span></span></span><svg class="ic ic-sm chev" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+        </ul>
+      </section>
+
+      <!-- Próximas salidas -->
+      <section class="card prox" aria-labelledby="h-prox" data-f="3">
+        <div class="card-h" style="--ic:var(--acc-dist)">
+          <svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>
+          <h2 id="h-prox"><span class="d-only">Próximas salidas</span><span class="m-only">Próxima salida</span></h2>
+          <a class="end link d-only" href="#" aria-label="Ver todas las salidas del calendario">Todas<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <ul class="rides">
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Sáb</span><span class="d fig">7</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="next-date muted">Mañana, sábado 7</span>
+              <span class="ride-t">Coll d'Estenalles</span>
+              <span class="meta"><span><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>72 km</span><span><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>1.320 m</span></span>
+              <span class="chip mid"><svg class="bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media</span>
+              <span class="sr-only">Sábado 7 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="estenalles" viewBox="0 0 40 40" aria-hidden="true"></svg>
+            <span class="next-map"><svg data-shape="estenalles" data-big viewBox="0 0 150 86" aria-hidden="true" style="width:100%;height:86px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)"></svg></span>
+          </a></li>
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Dom</span><span class="d fig">8</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="ride-t">Sant Miquel del Fai</span>
+              <span class="meta"><span><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>89 km</span><span><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>1.780 m</span></span>
+              <span class="chip hard"><svg class="bars" aria-hidden="true"><use href="#i-bars3"/></svg>Dura</span>
+              <span class="sr-only">Domingo 8 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="santmiquel" viewBox="0 0 40 40" aria-hidden="true"></svg>
+          </a></li>
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Mar</span><span class="d fig">10</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="ride-t">Rodaje de recuperación</span>
+              <span class="meta"><span><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>45 km</span><span><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>380 m</span></span>
+              <span class="chip easy"><svg class="bars" aria-hidden="true"><use href="#i-bars1"/></svg>Suave</span>
+              <span class="sr-only">Martes 10 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="recuperacion" viewBox="0 0 40 40" aria-hidden="true"></svg>
+          </a></li>
+        </ul>
+        <p class="prox-sum d-only"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-flag"/></svg><span>Próximos 7 días: <b>3 salidas, 206 km</b>. Un 8 % más que tu semana media.</span></p>
+      </section>
+
+      <!-- F1: estado de la importación en lugar de rutas y próximas salidas -->
+      <section class="card imp" aria-labelledby="h-imp" hidden>
+        <div class="card-h">
+          <svg class="ic" aria-hidden="true"><use href="#i-upload"/></svg>
+          <h2 id="h-imp">Tus datos</h2>
+          <a class="end link" href="importar.html?fase=1">Importar<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <ul class="recent">
+          <li><span class="mini" style="display:grid;place-items:center;color:var(--good)"><svg class="ic" aria-hidden="true"><use href="#i-checkc"/></svg></span><span><span class="t">Última importación hace 3 días</span><span class="s">13 salidas nuevas desde tu archivo de Strava</span></span><span class="chip ok">Al día</span></li>
+          <li><span class="mini" style="display:grid;place-items:center;color:var(--ink-2)"><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg></span><span><span class="t">214 salidas de bici</span><span class="s">Desde marzo de 2024</span></span><span class="num muted">9.842 km</span></li>
+          <li><span class="mini" style="display:grid;place-items:center;color:var(--ink-2)"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg></span><span><span class="t">Copia de seguridad</span><span class="s">La última, hace 12 días</span></span><a class="link" href="ajustes.html?fase=1#copia">Hacer copia</a></li>
+        </ul>
+      </section>
+
+      <!-- Banda móvil -->
+      <section class="cta" aria-label="Nueva ruta" data-f="5">
+        <a href="rutas.html?modo=ia" class="press">
+          <span class="ci"><svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg></span>
+          <span><b>¿Nueva ruta?</b><span class="s">Pide una ruta para progresar</span></span>
+          <svg class="ic ic-end" aria-hidden="true"><use href="#i-chev"/></svg>
+        </a>
+      </section>
+    </div>
+
+    <!-- Estado sin salidas: solo el hero invita a importar -->
+    <div class="wrap" id="empty-howto" hidden>
+      <section class="card" aria-labelledby="h-how" style="margin-top:var(--gap);max-width:760px">
+        <div class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-archive"/></svg><h2 id="h-how">Cómo conseguir tu archivo de Strava</h2></div>
+        <ol class="howto">
+          <li><span>En strava.com, abre <b>Ajustes, Mi cuenta</b> y pulsa <b>Descargar o eliminar tu cuenta</b>.</span></li>
+          <li><span>Pide el archivo. Strava te lo envía por correo; puede tardar unas horas.</span></li>
+          <li><span>Suelta el <b>.zip</b> en Importar. Se lee en tu navegador: nada sale de tu equipo.</span></li>
+        </ol>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+<script src="inicio.js"></script>
+</body>
+</html>

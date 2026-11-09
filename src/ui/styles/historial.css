@@ -1,0 +1,120 @@
+/* Pantalla Historial (vista Salidas). Portado de docs/design/prototipo-movil/historial.html; el kit vive en kit.css. */
+
+/* El foco no queda bajo la barra de arriba + la del mes, ni bajo la barra inferior */
+html:has(.hist) { scroll-padding: calc(var(--appbar-h) + var(--safe-t) + 60px) 0 calc(var(--nav-space) + 16px); }
+
+/* ---- Herramientas: segmentado, búsqueda, filtros aplicados y recuento ---- */
+.hist-tools { display: grid; gap: 12px; min-width: 0; }
+.hist-tools > .page-lead--sub { margin: 0; }
+.hist .applied { margin-top: -2px; }
+.hist .results { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin: -6px 0 -10px; font-size: var(--t-sm); color: var(--ink-2); }
+.hist .results-count { margin: 0; }
+/* Sin recuento, la región viva sigue en el DOM pero no ocupa sitio */
+.hist .results:has(> .results-count:empty) { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; overflow: hidden; clip-path: inset(50%); }
+.hist .results b { font: 600 var(--t-md)/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.hist .results .btn--ghost { margin-right: -12px; }
+.toolbar > .icon-btn { position: relative; }
+
+/* ---- Mes: barra pegajosa, cifras y tira de días ---- */
+.months { display: grid; gap: 28px; min-width: 0; }
+.month { display: grid; gap: 10px; min-width: 0; }
+.month-bar { position: sticky; top: calc(var(--appbar-h) + var(--safe-t)); z-index: 5; margin: 0 calc(-1 * var(--gutter)); container-type: scroll-state; }
+.month-bar-in {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 8px var(--gutter) 6px; background: var(--bg);
+  transition: box-shadow var(--dur-fast) ease;
+}
+@container scroll-state(stuck: top) { .month-bar-in { box-shadow: inset 0 -1px 0 var(--line); } }
+.month-name { min-width: 0; font: 600 var(--t-xl)/1.15 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; }
+.month-note { margin-left: 2px; font: 500 var(--t-sm)/1 var(--font-ui); color: var(--ink-2); }
+.month-km { flex: none; display: flex; align-items: baseline; gap: 3px; font: italic 700 26px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.month-km .u { margin: 0; font-style: normal; }
+.month-count { flex: none; font-size: var(--t-sm); color: var(--ink-2); }
+.month-sum { display: grid; gap: 10px; margin-top: -4px; min-width: 0; }
+.month-figs { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--ink-2); font-size: var(--t-sm); }
+.month-figs > span { display: inline-flex; align-items: baseline; }
+.month-figs b { font: 600 19px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.month-figs .u { font-size: 13px; margin: 0 1px; white-space: pre; }
+.month-figs .w { white-space: pre; }   /* «4 salidas»: en texto normal, con su espacio */
+.month-figs > span > .u:last-child { margin-right: 0; }
+
+.days { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); align-items: end; gap: 2px; height: 30px; }
+.days > i { display: block; height: 3px; border-radius: 1.5px; background: var(--line-strong); }
+.days > i.on { height: max(5px, calc(var(--h) * 100%)); border-radius: 3px 3px 1.5px 1.5px; background: var(--acc-dist); }
+.days > i.fut { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.month--past .days { height: 22px; }
+.days-axis { position: relative; height: 14px; margin-top: -6px; font: 500 var(--t-xs)/1 var(--font-ui); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.days-axis > span { position: absolute; top: 0; white-space: nowrap; }
+.days-axis .today { transform: translateX(-50%); color: var(--ink); font-weight: 600; }
+.days-axis .end { right: 0; }
+.month-sum .delta { white-space: normal; flex-wrap: wrap; }
+/* El verde de «sube» está calibrado sobre la tarjeta blanca; sobre el fondo de página, un punto más oscuro */
+:root[data-theme="light"] .month-sum .delta--up { color: color-mix(in srgb, var(--good) 86%, var(--ink)); }
+
+/* ---- Filas de salida ---- */
+.rides > li { content-visibility: auto; contain-intrinsic-size: auto 76px; }   /* miles de filas: solo se pinta lo que se ve */
+.rides .row { align-items: start; }                 /* con dos líneas de nombre, miniatura y cifras arriba */
+.rides .row-lead { position: relative; width: 48px; height: 48px; border-radius: 13px; color: var(--ink-3); }
+.rides .row-trail { min-height: 48px; }
+.ride-thumb { display: block; width: 100%; height: 100%; }
+/* La forma se dibuja en 100 × 100 y se ve a 48 px: el trazo, en píxeles de pantalla, como en el prototipo */
+.ride-thumb .shape path, .ride-thumb .shape ellipse { vector-effect: non-scaling-stroke; }
+/* El nombre es dato de Strava: como mucho dos líneas; el completo, en el detalle y en title */
+.rides .row-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+.rides.list--inset > li + li::before { margin-left: 74px; }
+.ride-meta { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.ride-meta > span:not(.sr-only) { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ride-meta .ic { width: 14px; height: 14px; color: var(--acc); }
+.ride-meta .when { color: var(--ink-2); font-weight: 500; }
+.ride-meta [data-m="speed"] { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ride-meta .no-gps { padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-2); font-size: var(--t-xs); line-height: 18px; }
+.rides .row-val .u { margin-left: 0; }
+.ride-figs { display: grid; justify-items: end; gap: 5px; }
+.ride-figs .row-time { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--t-sm)/1 var(--font-ui); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Ruta repetida: insignia en la esquina de la miniatura */
+.rep-badge {
+  position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1px var(--line-strong); color: var(--ink-2);
+}
+.rep-badge .ic { width: 12px; height: 12px; stroke-width: 2.4; }
+.rides .row-lead > .ic { width: 22px; height: 22px; }
+/* Búsqueda: lo encontrado, resaltado */
+.rides mark { padding: 0 1px; border-radius: 3px; background: color-mix(in srgb, var(--action) 30%, transparent); color: inherit; }
+
+/* ---- Más salidas y final ---- */
+.more-sentinel { height: 1px; margin-top: -1px; }
+.hist .more-rides { margin-top: -12px; }
+.end-note { padding: 4px 0 0; text-align: center; font-size: var(--t-sm); color: var(--ink-3); }
+
+/* ---- Carga ---- */
+.hist .sk-days { display: block; height: 30px; border-radius: 6px; }
+.hist .sk-list { padding: 12px 14px; }
+
+/* ---- Hoja de filtros ---- */
+.hist-sheet .sheet-group .meta { margin: -4px 0 8px; }
+.hist-sheet .sheet-foot .meta { margin-bottom: 8px; text-align: center; }
+.hist-sheet .fchip .dif { display: inline-flex; }
+
+/* Apaisado y tableta: segmentado y búsqueda en una sola fila */
+@media (min-width: 600px) {
+  .hist-tools { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; column-gap: 12px; }
+  .hist-tools > .applied, .hist-tools > .results, .hist-tools > .page-lead--sub { grid-column: 1 / -1; }
+  .days { height: 40px; }
+  .month--past .days { height: 28px; }
+}
+/* Apaisado en teléfono: fuera el título grande (queda en la barra de arriba), tira de días mínima y
+   resumen del mes en una línea. Objetivo: dos filas a la vista. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .hist.page { gap: 12px; }
+  .hist > .page-head { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip-path: inset(50%); }  /* el h1 sigue para lectores de pantalla */
+  .app:has(.hist) .appbar-title { opacity: 1; transform: none; }
+  .months { gap: 16px; }
+  .month { gap: 6px; }
+  .month-bar-in { padding-top: 4px; padding-bottom: 4px; }
+  .month-sum { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 16px; margin-top: 0; }
+  .month-sum .days { grid-column: 1 / -1; grid-row: 2; height: 20px; }
+  .month-sum .days-axis { display: none; }
+  .month-sum .delta { justify-self: end; }
+  .month--past .days { display: none; }
+  .hist .sk-days { height: 20px; }
+}

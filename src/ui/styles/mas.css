@@ -1,0 +1,19 @@
+/* Pantalla Más (prototipo-movil/mas.html). El kit vive en kit.css. */
+
+/* Todo el menú en una pantalla (360 × 780): metas de una línea, títulos de sección sin la altura
+   táctil (no son botones) y algo menos de aire entre secciones. */
+.page--mas { gap: 22px; }
+.page--mas .section-h { min-height: 0; }
+.page--mas .page-lead { max-width: none; }
+.page--mas .row-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.page--mas .row-meta .sk { display: block; width: 62%; margin-top: 6px; }
+.page--mas .row-val { font-size: 17px; color: var(--ink-2); }
+/* En qué pestaña se abre: junto al nombre, para que la meta quede para el dato */
+.row-where { font: 500 var(--t-sm)/1.3 var(--font-ui); color: var(--ink-3); margin-left: 2px; }
+.trail-warn { width: 18px; height: 18px; color: var(--warning); }
+.lead-sk { display: grid; gap: 8px; margin-top: 4px; max-width: 300px; }
+.start-card { margin-bottom: 12px; }
+.start-card .state { padding: 20px 8px 8px; }
+.start-card .btn--ghost { white-space: normal; text-align: center; min-height: 48px; padding-block: 8px; }
+/* Error de almacenamiento: solo el nombre, atenuado; el aviso ya explica el porqué */
+.list--off .row { opacity: 0.55; }

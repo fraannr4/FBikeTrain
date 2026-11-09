@@ -1,0 +1,1423 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Inicio</title>
+<script>
+  /* Tema antes del pintado: ?theme= manda (capturas), luego localStorage, y por defecto oscuro. */
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<!-- Solo en el prototipo: Leaflet y ECharts desde CDN. La app usa npm. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" integrity="sha384-pPi0zxBAoDu6+JXW/C68UZLvBUUtU+7zonhif43rqj7pxsGyqyqzcian2Rj37Rss" crossorigin="anonymous"></script>
+<style>
+/* ---------- Fuentes autoalojadas (OFL) ---------- */
+@font-face { font-family: 'Barlow'; font-weight: 400; font-style: normal; font-display: swap; src: url(fonts/barlow-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow'; font-weight: 500; font-style: normal; font-display: swap; src: url(fonts/barlow-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow'; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/barlow-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 600; font-style: normal; font-display: swap; src: url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-style: normal; font-display: swap; src: url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-style: italic; font-display: swap; src: url(fonts/barlow-semi-condensed-latin-700-italic.woff2) format('woff2'); }
+
+/* ---------- Tokens: oscuro por defecto ---------- */
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0A1122;
+  --side: #0C1427;
+  --surface: #111A2E;
+  --surface-2: #17223B;
+  --surface-3: #1E2B49;
+  --glass: rgba(16, 25, 46, 0.74);
+  --glass-strong: rgba(12, 19, 36, 0.84);
+  --line: rgba(148, 176, 230, 0.14);
+  --line-strong: rgba(148, 176, 230, 0.26);
+  --ink: #EAF0FA;
+  --ink-2: #A9B6CF;
+  --ink-3: #8C9AB5;
+  --action: #2A64DA;
+  --action-hover: #2459C8;
+  --on-action: #FFFFFF;
+  --focus: #7FB2FF;
+  --good: #3DD68C;
+
+  /* Un acento por métrica: carretera al anochecer (hora azul, malva, farola de sodio) */
+  --acc-dist: #3B8BFF;
+  --acc-elev: #9277F2;
+  --acc-time: #1AA597;
+  --acc-speed: #C9820B;
+  --trace: #4C9BFF;
+
+  /* Pendiente, código del libro de ruta */
+  --g0: #5C6B8A; --g1: #F4D77E; --g2: #F2A44E; --g3: #EC7343; --g4: #E04A5E; --g5: #B0368C;
+
+  /* Dificultad: texto y fondo */
+  --easy-ink: #5BE09A;  --easy-bg: rgba(61, 214, 140, 0.13);
+  --mid-ink: #F2B24C;   --mid-bg: rgba(201, 130, 11, 0.18);
+  --hard-ink: #FF8590;  --hard-bg: rgba(224, 74, 94, 0.17);
+
+  /* Paisaje: noche a horizonte malva */
+  --sky-0: #060A15; --sky-1: #0B1430; --sky-2: #1A2558; --sky-3: #3B3470; --sky-4: #A0586A;
+  --sun: #E98A74;
+  --ridge-far: #263470; --ridge-mid: #18234F; --ridge-near: #0E1734; --ridge-line: #8DBBFF;
+  --contour: rgba(141, 187, 255, 0.10);
+
+  --hito: #EAF0FA; --hito-stroke: transparent; --hito-band: #2A64DA; --hito-ink: #0A1122;
+
+  --glow: 0.55;
+  --shadow-card: 0 24px 48px -28px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-float: 0 18px 40px -18px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --map-filter: invert(1) hue-rotate(185deg) brightness(0.74) contrast(1.08) saturate(0.85);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #EEF2F8;
+  --side: #F7F9FC;
+  --surface: #FFFFFF;
+  --surface-2: #F2F5FA;
+  --surface-3: #E7EDF6;
+  --glass: rgba(255, 255, 255, 0.86);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+  --line: #D9E1EE;
+  --line-strong: #C3CEE0;
+  --ink: #0E1730;
+  --ink-2: #3E4C68;
+  --ink-3: #56657F;
+  --action: #1F5FD6;
+  --action-hover: #1A52BC;
+  --focus: #1F5FD6;
+  --good: #15803D;
+
+  --acc-dist: #1F66E0;
+  --acc-elev: #6E4BD8;
+  --acc-time: #0B8C80;
+  --acc-speed: #B86E00;
+  --trace: #1F66E0;
+
+  --g0: #A7B3C8; --g1: #D6A21F; --g2: #D9782A; --g3: #C2452B; --g4: #972530; --g5: #5A1634;
+
+  --easy-ink: #136B33; --easy-bg: rgba(21, 128, 61, 0.11);
+  --mid-ink: #8A4A00;  --mid-bg: rgba(184, 110, 0, 0.13);
+  --hard-ink: #A11D2E; --hard-bg: rgba(194, 40, 60, 0.10);
+
+  --sky-0: #C9D9F2; --sky-1: #DCE6F7; --sky-2: #EEF1FA; --sky-3: #F8E6DA; --sky-4: #F6D2BF;
+  --sun: #F7B996;
+  --ridge-far: #C3CFE5; --ridge-mid: #A6B8DA; --ridge-near: #8299C6; --ridge-line: #1F55C8;
+  --contour: rgba(31, 85, 200, 0.10);
+
+  --hito: #FFFFFF; --hito-stroke: #0E1730; --hito-band: #1F5FD6; --hito-ink: #0E1730;
+
+  --glow: 0;
+  --shadow-card: 0 1px 2px rgba(14, 23, 48, 0.06), 0 12px 32px -18px rgba(14, 23, 48, 0.22);
+  --shadow-float: 0 1px 2px rgba(14, 23, 48, 0.08), 0 16px 36px -18px rgba(14, 23, 48, 0.32);
+  --map-filter: none;
+}
+
+:root {
+  --font-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-fig: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --r-xl: 22px; --r-lg: 16px; --r-md: 12px; --r-sm: 8px; --r-pill: 999px;
+  --gap: 12px; --pad: 20px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 15px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+h1, h2, h3, p, ul, ol, figure { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+svg { display: block; }
+.ic { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ic-sm { width: 16px; height: 16px; }
+.sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px; }
+.fig { font-family: var(--font-fig); font-weight: 700; font-style: italic; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.press { transition: transform 160ms var(--ease-out), background-color 160ms ease, border-color 160ms ease, color 160ms ease; }
+.press:active { transform: scale(0.97); }
+
+/* ---------- Esqueleto de la app ---------- */
+.app { display: grid; grid-template-columns: 224px minmax(0, 1fr); min-height: 100vh; }
+.side {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 18px;
+  padding: 22px 14px 16px; background: var(--side); border-right: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 11px; padding: 0 8px; }
+.brand-name { font: 700 21px/1 var(--font-fig); letter-spacing: -0.01em; }
+.hito-logo { width: 26px; height: 34px; }
+.hito-logo .body { fill: var(--hito); stroke: var(--hito-stroke); stroke-width: 1.5; }
+.hito-logo .band { fill: var(--hito-band); }
+.hito-logo text { fill: var(--hito-ink); font: 700 15px var(--font-fig); }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a {
+  display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 12px;
+  border-radius: var(--r-md); color: var(--ink-2); font-weight: 500;
+}
+.nav a[aria-current="page"] { background: var(--action); color: var(--on-action); box-shadow: 0 10px 24px -14px var(--action); }
+.nav .tag { margin-left: auto; font: 600 12px/1 var(--font-ui); padding: 4px 7px; border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.nav-sep { height: 1px; background: var(--line); margin: 8px 12px; }
+@media (hover: hover) and (pointer: fine) {
+  .nav a:not([aria-current]):hover { background: var(--surface-2); color: var(--ink); }
+}
+
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 14px; }
+.import-card {
+  position: relative; overflow: hidden; padding: 16px; border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-card);
+}
+.import-card .contours { position: absolute; inset: auto -20px -30px auto; width: 150px; height: 120px; opacity: 1; pointer-events: none; }
+.import-card p { position: relative; }
+.import-card .t { font: 600 15px/1.3 var(--font-ui); }
+.import-card .s { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 0 16px; border-radius: var(--r-md);
+  font: 600 14.5px/1 var(--font-ui); white-space: nowrap;
+}
+.btn-primary { background: var(--action); color: var(--on-action); }
+.btn-ghost { border: 1px solid var(--line-strong); color: var(--ink); background: transparent; }
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover { background: var(--action-hover); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--ink-3); }
+}
+.import-card .btn { position: relative; margin-top: 12px; min-height: 36px; padding: 0 14px; }
+
+/* Control segmentado del tema */
+.seg {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; gap: 0;
+  border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--line);
+}
+.seg::before {
+  content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
+  border-radius: var(--r-pill); background: var(--action);
+  transition: transform 240ms var(--ease-out);
+}
+:root[data-theme="light"] .seg::before { transform: translateX(100%); }
+.seg button { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; border-radius: var(--r-pill); font-weight: 600; font-size: 14px; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { color: var(--on-action); }
+.version { color: var(--ink-3); font-size: 12.5px; text-align: center; }
+
+/* ---------- Contenido ---------- */
+.main { padding: 16px 20px 28px; min-width: 0; }
+.grid {
+  display: grid; gap: var(--gap); max-width: 1400px; margin: 0 auto;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "hero hero hero hero hero hero hero hero hero hero hero hero"
+    "prog prog prog prog prog prog rend rend rend obj obj obj"
+    "ult ult ult ult ult rut rut rut rut prox prox prox";
+}
+.hero { grid-area: hero; } .prog { grid-area: prog; } .rend { grid-area: rend; } .obj { grid-area: obj; }
+.ult { grid-area: ult; } .rut { grid-area: rut; } .prox { grid-area: prox; } .cta { display: none; }
+
+.card {
+  position: relative; min-width: 0; padding: 18px var(--pad) var(--pad);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-card);
+}
+.card-h { display: flex; align-items: center; gap: 10px; min-height: 32px; margin-bottom: 12px; }
+.card-h h2 { font: 600 17px/1.2 var(--font-ui); letter-spacing: -0.005em; white-space: nowrap; }
+.card-h .ic { color: var(--ic, var(--ink-2)); }
+.card-h .end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.link { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; color: var(--focus); font-weight: 600; font-size: 14px; border-radius: 6px; padding: 4px 2px; }
+:root[data-theme="light"] .link { color: var(--action); }
+@media (hover: hover) and (pointer: fine) { .link:hover { text-decoration: underline; text-underline-offset: 3px; } }
+.muted { color: var(--ink-3); font-size: 13.5px; }
+.icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-md); color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { .icon-btn:hover { background: var(--surface-2); color: var(--ink); } }
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative; overflow: hidden; isolation: isolate;
+  height: 296px; border-radius: var(--r-xl); border: 1px solid var(--line);
+  background: var(--sky-1); box-shadow: var(--shadow-card);
+}
+.land { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.hero-top { position: absolute; top: 18px; right: 18px; display: flex; align-items: center; gap: 10px; }
+.m-brand { display: none; }
+.search {
+  display: flex; align-items: center; gap: 10px; width: 290px; height: 44px; padding: 0 14px;
+  border-radius: var(--r-pill); background: var(--glass-strong); border: 1px solid var(--line-strong);
+  color: var(--ink-3); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: 400 14.5px var(--font-ui); }
+.search input::placeholder { color: var(--ink-3); opacity: 1; }
+.search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.round {
+  position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: var(--r-pill);
+  background: var(--glass-strong); border: 1px solid var(--line-strong); color: var(--ink);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.round .badge {
+  position: absolute; top: -3px; right: -3px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px;
+  background: #D3343B; color: #fff; font: 700 12px/19px var(--font-ui); text-align: center; box-shadow: 0 0 0 2px var(--sky-1);
+}
+.avatar { font: 700 18px/1 var(--font-fig); background: var(--action); color: var(--on-action); border-color: transparent; }
+@media (hover: hover) and (pointer: fine) { .round:hover { border-color: var(--ink-3); } }
+.round-search { display: none; }
+
+.hero-copy { position: absolute; top: 30px; left: 32px; max-width: 520px; }
+.hello { font: 700 clamp(34px, 5vw, 56px)/1 var(--font-fig); letter-spacing: -0.02em; color: var(--ink); }
+.hero-copy p.sub { margin-top: 10px; font-size: 17px; line-height: 1.45; color: var(--ink-2); max-width: 46ch; }
+:root[data-theme="dark"] .hero-copy p.sub { color: #B9C5DC; }
+
+.summit { position: absolute; display: flex; align-items: center; gap: 8px; pointer-events: none; opacity: 0; transition: opacity 260ms ease; }
+.summit.on { opacity: 1; }
+.summit .vg { width: 14px; height: 14px; }
+.summit .vg path { fill: var(--surface); stroke: var(--ridge-line); stroke-width: 1.6; }
+.summit .vg circle { fill: var(--ridge-line); }
+.summit .lbl { padding: 5px 10px 6px; border-radius: var(--r-md); background: var(--glass-strong); border: 1px solid var(--line-strong); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); line-height: 1.15; white-space: nowrap; }
+.summit .lbl b { display: block; font: 700 italic 17px/1.1 var(--font-fig); font-variant-numeric: tabular-nums; }
+.summit .lbl span { font-size: 12px; color: var(--ink-2); }
+
+.kpis { position: absolute; left: 16px; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+.kpi {
+  position: relative; overflow: hidden; min-width: 0; height: 116px; padding: 14px 16px 0;
+  border-radius: var(--r-lg); background: var(--glass); border: 1px solid var(--line-strong);
+  backdrop-filter: blur(12px) saturate(1.15); -webkit-backdrop-filter: blur(12px) saturate(1.15);
+  box-shadow: var(--shadow-float);
+}
+.kpi-h { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-weight: 500; font-size: 14px; }
+.kpi-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: var(--acc); background: color-mix(in srgb, var(--acc) 17%, transparent); }
+.kpi-ic .ic { width: 18px; height: 18px; }
+.kpi-row { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; white-space: nowrap; }
+.kpi-v { font-size: 32px; line-height: 1; }
+.kpi-v .u { font: 600 17px var(--font-fig); font-style: normal; color: var(--ink-2); margin-left: 3px; letter-spacing: 0; }
+.delta { display: inline-flex; align-items: center; gap: 2px; font: 600 13.5px/1 var(--font-ui); font-variant-numeric: tabular-nums; }
+.delta .ic { width: 14px; height: 14px; stroke-width: 2.5; }
+.delta.up { color: var(--good); }
+.delta.down { color: var(--ink-2); }
+.kpi .spark { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 36px; }
+
+/* ---------- Tu progresión ---------- */
+.prog-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: -2px 0 2px; }
+.ranges { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); }
+.ranges .ind { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 4); border-radius: 9px; background: var(--action); transition: transform 240ms var(--ease-out); }
+.ranges button { position: relative; z-index: 1; min-height: 30px; padding: 0 11px; border-radius: 9px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.ranges button[aria-pressed="true"] { color: var(--on-action); }
+@media (hover: hover) and (pointer: fine) { .ranges button[aria-pressed="false"]:hover { color: var(--ink); } }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 0 12px 0 10px;
+  border-radius: var(--r-pill); border: 1px solid var(--line); color: var(--ink-2); font-size: 13.5px; font-weight: 600;
+}
+.pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
+.pill[aria-pressed="true"] { color: var(--ink); border-color: var(--acc); background: color-mix(in srgb, var(--acc) 14%, transparent); }
+@media (hover: hover) and (pointer: fine) { .pill[aria-pressed="false"]:hover { background: var(--surface-2); color: var(--ink); } }
+.legend-mean { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 13px; }
+.legend-mean i { width: 18px; border-top: 1.5px dashed var(--ink-3); }
+.chart { height: 184px; margin: 2px -6px -8px; }
+
+/* ---------- Tu rendimiento ---------- */
+.stats { display: grid; margin-top: -4px; }
+.stat { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; min-width: 0; }
+.stat + .stat { border-top: 1px solid var(--line); }
+.stat-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: var(--acc); background: color-mix(in srgb, var(--acc) 15%, transparent); }
+.stat-ic .ic { width: 18px; height: 18px; }
+.stat-txt { display: grid; min-width: 0; }
+.stat-l { color: var(--ink); font-size: 14px; font-weight: 500; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-v { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.stat-v .fig { font-size: 27px; line-height: 1; }
+.stat-v .u { font: 600 15px var(--font-fig); color: var(--ink-2); }
+.stat-d { display: flex; align-items: center; gap: 2px; margin-top: 2px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-d .ic { width: 13px; height: 13px; stroke-width: 2.5; flex: none; }
+.stat-d.up { color: var(--good); font-weight: 600; }
+
+/* ---------- Tu objetivo ---------- */
+.ring-wrap { display: grid; place-items: center; margin-top: -4px; }
+.ring { width: 144px; height: 144px; }
+.ring .track { stroke: var(--surface-2); }
+.ring .arc { stroke: var(--good); filter: drop-shadow(0 0 calc(var(--glow) * 10px) color-mix(in srgb, var(--good) 70%, transparent)); }
+.ring .topo { fill: none; stroke: var(--contour); stroke-width: 1; }
+.ring .notch { stroke: var(--ink); stroke-width: 2; }
+.ring .c1 { font: 700 italic 34px var(--font-fig); fill: var(--ink); }
+.ring .c2 { font: 500 13px var(--font-ui); fill: var(--ink-2); }
+.goal-t { margin-top: 6px; text-align: center; font-weight: 600; }
+.goal-s { display: flex; justify-content: center; align-items: center; gap: 6px; text-align: center; color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
+.goal-s .ic { color: var(--good); width: 16px; height: 16px; }
+.goal-days { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 2px; color: var(--ink-3); font-size: 13.5px; }
+
+/* ---------- Última salida ---------- */
+.map-wrap { position: relative; height: 156px; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); isolation: isolate; }
+.map { position: absolute; inset: 0; background: var(--surface-2); }
+.map .leaflet-tile-pane { filter: var(--map-filter); }
+.leaflet-container { font: 400 12px var(--font-ui); background: var(--surface-2); }
+.map .leaflet-control-attribution { font-size: 12px; background: var(--glass-strong); color: var(--ink-2); padding: 1px 6px; border-top-left-radius: 8px; }
+.map .leaflet-control-attribution a { color: var(--ink); }
+path.trk-halo { stroke: var(--trace); stroke-opacity: calc(var(--glow) * 0.55); stroke-width: 12px; }
+path.trk-core { stroke: var(--trace); stroke-width: 3.5px; }
+path.trk-thread { stroke: #FFFFFF; stroke-opacity: calc(var(--glow) * 1.3); stroke-width: 1.1px; }
+:root[data-theme="light"] path.trk-halo { stroke: #FFFFFF; stroke-opacity: 1; stroke-width: 7px; }
+.map-plate {
+  position: absolute; z-index: 500; top: 10px; left: 10px; padding: 10px 12px; border-radius: var(--r-md);
+  background: var(--glass-strong); border: 1px solid var(--line-strong); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: grid; gap: 4px; font-size: 14px; font-weight: 600;
+}
+.map-plate div { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.map-plate .ic { width: 15px; height: 15px; color: var(--acc); }
+.map-ctrl { position: absolute; z-index: 500; top: 10px; right: 10px; display: grid; gap: 6px; }
+.map-ctrl button { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--glass-strong); border: 1px solid var(--line-strong); color: var(--ink); }
+.map-ctrl .ic { width: 17px; height: 17px; }
+@media (hover: hover) and (pointer: fine) { .map-ctrl button:hover { background: var(--surface-3); } }
+.map-badge { position: absolute; z-index: 500; left: 10px; bottom: 10px; }
+.map-wrap:fullscreen { border-radius: 0; height: 100%; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: var(--r-sm); font: 600 12.5px/1 var(--font-ui); white-space: nowrap; }
+.chip .bars { width: 12px; height: 12px; }
+.chip.easy { color: var(--easy-ink); background: var(--easy-bg); }
+.chip.mid  { color: var(--mid-ink);  background: var(--mid-bg); }
+.chip.hard { color: var(--hard-ink); background: var(--hard-bg); }
+.map-badge .chip { background: var(--glass-strong); border: 1px solid var(--line-strong); }
+.map-badge .chip.mid { color: var(--mid-ink); }
+
+.prof { position: relative; margin-top: 10px; }
+.prof svg { width: 100%; }
+.prof-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.prof-h .muted { font-size: 12.5px; }
+.slope-legend { display: flex; flex-wrap: wrap; gap: 4px 9px; font-size: 12px; color: var(--ink-3); }
+.slope-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.slope-legend i { width: 9px; height: 9px; border-radius: 2px; }
+.prof-tip {
+  position: absolute; z-index: 5; top: 0; transform: translate(-50%, -100%); padding: 5px 8px; border-radius: var(--r-sm);
+  background: var(--surface-3); border: 1px solid var(--line-strong); font-size: 12.5px; white-space: nowrap; pointer-events: none;
+  font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 120ms ease; box-shadow: var(--shadow-float);
+}
+.prof-tip.on { opacity: 1; }
+.prof .xline { stroke: var(--ink); stroke-width: 1; opacity: 0; }
+.prof .xline.on { opacity: 0.6; }
+
+/* ---------- Rutas para ti ---------- */
+.route { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 14px; align-items: start; }
+.thumb { width: 104px; height: 104px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.thumb svg { width: 100%; height: 100%; }
+.shape-halo { fill: none; stroke: var(--trace); stroke-opacity: calc(var(--glow) * 0.55); stroke-width: 7; stroke-linejoin: round; }
+.shape-core { fill: none; stroke: var(--trace); stroke-width: 2.2; stroke-linejoin: round; }
+.shape-thread { fill: none; stroke: #fff; stroke-opacity: calc(var(--glow) * 1.2); stroke-width: 0.8; stroke-linejoin: round; }
+.topo-line { fill: none; stroke: var(--contour); stroke-width: 1; }
+.shape-start { fill: var(--surface); stroke: var(--trace); stroke-width: 2; }
+.route-t { font: 600 19px/1.15 var(--font-fig); letter-spacing: -0.005em; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; color: var(--ink-2); font-size: 13.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.meta span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.meta .ic { width: 15px; height: 15px; color: var(--ink-3); }
+.route-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+.route-why { margin-top: 8px; font-size: 13.5px; color: var(--ink-2); line-height: 1.4; }
+.route-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.route-foot .muted { margin-right: auto; }
+.route-foot .btn { min-height: 38px; padding: 0 14px; }
+
+/* ---------- Próximas salidas ---------- */
+.rides { display: grid; }
+.rides li + li { border-top: 1px solid var(--line); }
+.ride { display: grid; grid-template-columns: 46px minmax(0, 1fr) 44px; gap: 12px; align-items: center; padding: 10px 8px; margin: 0 -8px; border-radius: var(--r-md); }
+@media (hover: hover) and (pointer: fine) { .ride:hover { background: var(--surface-2); } }
+.hito-date { display: grid; grid-template-rows: 17px 1fr auto; width: 46px; height: 60px; text-align: center; border-radius: 23px 23px 7px 7px; background: var(--surface-2); border: 1px solid var(--line-strong); overflow: hidden; }
+.hito-date .wd { background: var(--hito-band); color: #fff; font: 600 12px/17px var(--font-ui); }
+.hito-date .d { font-size: 22px; line-height: 1.05; padding-top: 2px; }
+.hito-date .mo { font-size: 12px; color: var(--ink-2); line-height: 1; padding-bottom: 6px; }
+.ride-t { display: block; font-weight: 600; font-size: 15px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ride .meta { margin-top: 2px; font-size: 13px; gap: 2px 10px; }
+.ride .chip { margin-top: 5px; height: 22px; }
+.mini { width: 44px; height: 44px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.mini .shape-core { stroke-width: 1.8; }
+.mini .shape-halo { stroke-width: 5; }
+
+/* ---------- Banda «Nueva ruta» y barra inferior (móvil) ---------- */
+.cta { grid-area: cta; }
+.cta a { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-xl); background: var(--action); color: var(--on-action); }
+.cta .ci { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: rgba(255, 255, 255, 0.16); }
+.cta b { display: block; font: 700 18px/1.15 var(--font-fig); }
+.cta span.s { font-size: 13.5px; opacity: 0.92; }
+.cta .ic-end { margin-left: auto; }
+.tabbar { display: none; }
+
+/* Hoja «Más» y avisos */
+dialog.sheet {
+  position: fixed; inset: auto 0 0 0; width: 100%; max-width: 560px; margin: 0 auto; padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+  border: 1px solid var(--line-strong); border-bottom: 0; border-radius: 22px 22px 0 0; background: var(--surface); color: var(--ink);
+  box-shadow: 0 -20px 50px -20px rgba(0, 0, 0, 0.6);
+}
+dialog.sheet[open] { animation: sheet-in 320ms var(--ease-drawer); }
+dialog.sheet::backdrop { background: rgba(4, 8, 18, 0.55); }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.grab { width: 40px; height: 4px; border-radius: 4px; background: var(--line-strong); margin: 4px auto 12px; }
+.sheet h2 { font: 600 17px var(--font-ui); margin: 0 4px 8px; }
+.sheet-list a { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 0 8px; border-radius: var(--r-md); font-weight: 500; }
+.sheet-list .ic { color: var(--ink-2); }
+@media (hover: hover) and (pointer: fine) { .sheet-list a:hover { background: var(--surface-2); } }
+.sheet .seg { margin-top: 12px; }
+.sheet-close { position: absolute; top: 10px; right: 10px; }
+
+#avisos {
+  margin: 0; inset: auto; width: 320px; padding: 12px; border-radius: var(--r-lg); border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-float);
+}
+#avisos h2 { font: 600 15px var(--font-ui); margin: 2px 4px 8px; }
+#avisos li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 10px 6px; border-top: 1px solid var(--line); font-size: 14px; }
+#avisos li .ic { color: var(--ink-2); margin-top: 2px; }
+#avisos li span { display: block; color: var(--ink-3); font-size: 12.5px; }
+
+/* ---------- Coreografía de carga ---------- */
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.ready .draw { animation: draw 900ms var(--ease-out) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* ---------- Puntos de corte ---------- */
+@media (max-width: 1279px) {
+  .app { grid-template-columns: 84px minmax(0, 1fr); }
+  .side { padding-inline: 12px; align-items: center; }
+  .brand-name, .nav .tag, .import-card, .version, .side .seg { display: none; }
+  .nav a span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .nav a { justify-content: center; padding: 0; width: 48px; }
+  .grid {
+    grid-template-areas:
+      "hero hero hero hero hero hero hero hero hero hero hero hero"
+      "prog prog prog prog prog prog prog prog obj obj obj obj"
+      "rend rend rend rend ult ult ult ult ult ult ult ult"
+      "rut rut rut rut rut rut rut prox prox prox prox prox";
+  }
+}
+@media (max-width: 899px) {
+  .app { display: block; }
+  .side { display: none; }
+  .main { padding: 0 16px calc(96px + env(safe-area-inset-bottom)); }
+  .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "hero hero" "prog prog" "obj prox" "ult ult" "rend rend" "rut rut" "cta cta";
+  }
+  .cta { display: block; }
+  .hero { height: auto; margin: 0 -16px; border-radius: 0 0 26px 26px; border-width: 0 0 1px; padding: 0 16px 16px; }
+  .hero-top { position: relative; top: auto; right: auto; display: flex; justify-content: space-between; padding: calc(12px + env(safe-area-inset-top)) 0 0; }
+  .m-brand { display: flex; align-items: center; gap: 9px; }
+  .m-brand .brand-name { font-size: 20px; }
+  .m-brand .hito-logo { width: 22px; height: 29px; }
+  .hero-top .acts { display: flex; gap: 10px; }
+  .search { display: none; }
+  .round-search { display: grid; }
+  .avatar { display: none; }
+  .hero-copy { position: relative; top: auto; left: auto; margin-top: 20px; }
+  .hero-copy p.sub { font-size: 16px; margin-top: 8px; }
+  .kpis { position: relative; left: auto; right: auto; bottom: auto; margin-top: 112px; grid-template-columns: 1fr 1fr; }
+  .kpi { height: 112px; padding: 12px 14px 0; }
+  .kpi-h { font-size: 13.5px; gap: 8px; }
+  .kpi-ic { width: 28px; height: 28px; }
+  .kpi-v { font-size: 26px; }
+  .kpi-v .u { font-size: 15px; }
+  .kpi-row { flex-wrap: wrap; gap: 2px 8px; margin-top: 6px; }
+  .kpi .spark { height: 26px; }
+  .delta { font-size: 13px; }
+  .card { padding: 16px; }
+  .prog-tools { gap: 10px; }
+  .ranges { width: 100%; }
+  .ranges button { padding: 0 6px; }
+  .chart { height: 200px; }
+  .obj .ring { width: 128px; height: 128px; }
+  .obj .goal-t { font-size: 14px; }
+  .goal-s, .goal-days { font-size: 13px; }
+  .prox .rides li:nth-child(n+2) { display: none; }
+  .prox .ride { grid-template-columns: 1fr; gap: 10px; padding: 0; margin: 0; }
+  .prox .mini { display: none; }
+  .prox .next-map { display: block; }
+  .map-wrap { height: 220px; }
+  .route { grid-template-columns: 96px minmax(0, 1fr); }
+  .thumb { width: 96px; height: 96px; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; z-index: 1000; left: 0; right: 0; bottom: 0;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: var(--glass-strong);
+    border-top: 1px solid var(--line-strong); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  }
+  .tabbar a, .tabbar button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; border-radius: 14px; color: var(--ink-3); font-size: 12px; font-weight: 600; }
+  .tabbar .tic { display: grid; place-items: center; width: 52px; height: 28px; border-radius: 999px; }
+  .tabbar [aria-current="page"] { color: var(--focus); }
+  :root[data-theme="light"] .tabbar [aria-current="page"] { color: var(--action); }
+  .tabbar [aria-current="page"] .tic { background: color-mix(in srgb, var(--action) 22%, transparent); }
+}
+.next-map, .m-only { display: none; }
+@media (max-width: 899px) {
+  .m-only { display: inline; }
+  .d-only { display: none !important; }
+  .m-brand .brand-name { display: inline; }
+  .prog .card-h { flex-wrap: wrap; row-gap: 12px; }
+  .prog .card-h .end { margin-left: 0; width: 100%; }
+  .ult .card-h { flex-wrap: wrap; row-gap: 0; }
+  .ult .card-h .muted { order: 3; width: 100%; padding-left: 30px; margin-top: -4px; }
+  .map-wrap { height: auto; }
+  .map { position: relative; height: 220px; }
+  .map-plate {
+    position: static; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 6px;
+    border: 0; border-top: 1px solid var(--line); border-radius: 0; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--surface); padding: 12px 12px;
+  }
+  .map-plate .ic { width: 14px; height: 14px; }
+  .map-plate div { gap: 5px; font-size: 13.5px; }
+  .map-badge { bottom: auto; top: 178px; }
+}
+@media (max-width: 359px) {
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hero" "prog" "obj" "prox" "ult" "rend" "rut" "cta"; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .ready .draw { animation: fade 200ms ease both; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .seg::before, .ranges .ind { transition: none; }
+  .press:active { transform: none; }
+  dialog.sheet[open] { animation: fade 200ms ease; }
+}
+@media (forced-colors: active) { .seg::before, .ranges .ind { background: Highlight; } }
+</style>
+</head>
+<body>
+
+<!-- Iconos lucide (trazos copiados del set, 24x24) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7"/><path d="M10 4H3"/><path d="M21 12h-9"/><path d="M8 12H3"/><path d="M21 20h-5"/><path d="M12 20H3"/><path d="M14 2v4"/><path d="M8 10v4"/><path d="M16 18v4"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-milestone" viewBox="0 0 24 24"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M4 6a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h13a2 2 0 0 0 1.152-.365l3.424-2.317a1 1 0 0 0 0-1.635l-3.424-2.318A2 2 0 0 0 17 6z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-bars1" viewBox="0 0 12 12"><rect x="1" y="7" width="2.4" height="4" rx=".6" fill="currentColor" stroke="none"/><rect x="4.8" y="4" width="2.4" height="7" rx=".6" fill="currentColor" stroke="none" opacity=".3"/><rect x="8.6" y="1" width="2.4" height="10" rx=".6" fill="currentColor" stroke="none" opacity=".3"/></symbol>
+    <symbol id="i-bars2" viewBox="0 0 12 12"><rect x="1" y="7" width="2.4" height="4" rx=".6" fill="currentColor" stroke="none"/><rect x="4.8" y="4" width="2.4" height="7" rx=".6" fill="currentColor" stroke="none"/><rect x="8.6" y="1" width="2.4" height="10" rx=".6" fill="currentColor" stroke="none" opacity=".3"/></symbol>
+    <symbol id="i-bars3" viewBox="0 0 12 12"><rect x="1" y="7" width="2.4" height="4" rx=".6" fill="currentColor" stroke="none"/><rect x="4.8" y="4" width="2.4" height="7" rx=".6" fill="currentColor" stroke="none"/><rect x="8.6" y="1" width="2.4" height="10" rx=".6" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- ===== Menú lateral ===== -->
+  <aside class="side" aria-label="Barra lateral">
+    <a class="brand" href="#" aria-label="FBikeTrain, inicio">
+      <svg class="hito-logo" viewBox="0 0 26 34" aria-hidden="true">
+        <clipPath id="hito-clip"><path d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z"/></clipPath>
+        <path class="body" d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z"/>
+        <rect class="band" x="0" y="0" width="26" height="11" clip-path="url(#hito-clip)"/>
+        <text x="13" y="28" text-anchor="middle">F</text>
+      </svg>
+      <span class="brand-name">FBikeTrain</span>
+    </a>
+    <nav aria-label="Menú principal">
+      <ul class="nav">
+        <li><a href="#" aria-current="page" class="press"><svg class="ic"><use href="#i-house"/></svg><span>Inicio</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-chart"/></svg><span>Historial</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-mountain"/></svg><span>Subidas</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-calendar"/></svg><span>Calendario</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-route"/></svg><span>Rutas</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-sparkles"/></svg><span>Rutas con IA</span><span class="tag">IA</span></a></li>
+        <li class="nav-sep" role="presentation"></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-upload"/></svg><span>Importar</span></a></li>
+        <li><a href="#" class="press"><svg class="ic"><use href="#i-sliders"/></svg><span>Ajustes</span></a></li>
+      </ul>
+    </nav>
+    <div class="side-foot">
+      <div class="import-card">
+        <svg class="contours" viewBox="0 0 150 120" aria-hidden="true" data-topo="side"></svg>
+        <p class="t">Última importación hace 3 días</p>
+        <p class="s">8 salidas nuevas desde Strava</p>
+        <a href="#" class="btn btn-primary press"><svg class="ic ic-sm"><use href="#i-upload"/></svg>Importar</a>
+      </div>
+      <div class="seg" role="group" aria-label="Tema">
+        <button type="button" data-theme-set="dark" class="press"><svg class="ic ic-sm"><use href="#i-moon"/></svg>Oscuro</button>
+        <button type="button" data-theme-set="light" class="press"><svg class="ic ic-sm"><use href="#i-sun"/></svg>Claro</button>
+      </div>
+      <p class="version">FBikeTrain v0.2.0</p>
+    </div>
+  </aside>
+
+  <!-- ===== Contenido ===== -->
+  <main class="main" id="contenido">
+    <h1 class="sr-only">Inicio</h1>
+    <div class="grid">
+
+      <!-- Hero: el horizonte es tu última salida -->
+      <section class="hero" aria-label="Resumen de la semana">
+        <svg class="land" aria-hidden="true" preserveAspectRatio="none"></svg>
+        <div class="hero-top">
+          <a class="m-brand" href="#" aria-label="FBikeTrain, inicio">
+            <svg class="hito-logo" viewBox="0 0 26 34" aria-hidden="true">
+              <path class="body" d="M1.5 33V13A11.5 11.5 0 0 1 24.5 13V33Z"/>
+              <rect class="band" x="0" y="0" width="26" height="11" clip-path="url(#hito-clip)"/>
+              <text x="13" y="28" text-anchor="middle">F</text>
+            </svg>
+            <span class="brand-name">FBikeTrain</span>
+          </a>
+          <div class="acts" style="display:flex;gap:10px;align-items:center">
+            <label class="search">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+              <input type="search" placeholder="Buscar salidas y rutas" aria-label="Buscar en tus salidas y rutas" autocomplete="off">
+            </label>
+            <button class="round round-search press" type="button" aria-label="Buscar"><svg class="ic"><use href="#i-search"/></svg></button>
+            <button class="round press" type="button" popovertarget="avisos" aria-label="Avisos, 2 sin leer" id="bell"><svg class="ic"><use href="#i-bell"/></svg><span class="badge" aria-hidden="true">2</span></button>
+            <a class="round avatar press" href="#" aria-label="Ajustes de Fran">F</a>
+          </div>
+        </div>
+        <div class="hero-copy">
+          <p class="hello">Hola, Fran</p>
+          <p class="sub">Esta semana llevas 3 salidas y vas por encima de tu media en distancia y desnivel.</p>
+        </div>
+        <div class="summit" id="summit" aria-hidden="true">
+          <svg class="vg" viewBox="0 0 14 14"><path d="M7 1.5 12.8 12.3H1.2Z"/><circle cx="7" cy="8.6" r="1.6"/></svg>
+          <span class="lbl"><b>1.012 m</b><span>cima de tu última salida, km 52</span></span>
+        </div>
+        <ul class="kpis" aria-label="Esta semana frente a tu media de 4 semanas">
+          <li class="kpi" style="--acc:var(--acc-dist)">
+            <div class="kpi-h"><span class="kpi-ic"><svg class="ic"><use href="#i-bike"/></svg></span>Distancia</div>
+            <div class="kpi-row"><p class="kpi-v fig">214<span class="u">km</span></p><span class="delta up"><svg class="ic"><use href="#i-up"/></svg>+12 %<span class="sr-only"> frente a tu media de 4 semanas</span></span></div>
+            <svg class="spark" data-spark="dist" aria-hidden="true"></svg>
+          </li>
+          <li class="kpi" style="--acc:var(--acc-elev)">
+            <div class="kpi-h"><span class="kpi-ic"><svg class="ic"><use href="#i-mountain"/></svg></span>Desnivel</div>
+            <div class="kpi-row"><p class="kpi-v fig">3.480<span class="u">m</span></p><span class="delta up"><svg class="ic"><use href="#i-up"/></svg>+18 %<span class="sr-only"> frente a tu media de 4 semanas</span></span></div>
+            <svg class="spark" data-spark="elev" aria-hidden="true"></svg>
+          </li>
+          <li class="kpi" style="--acc:var(--acc-time)">
+            <div class="kpi-h"><span class="kpi-ic"><svg class="ic"><use href="#i-timer"/></svg></span><span class="d-only">Tiempo en movimiento</span><span class="m-only">Tiempo</span></div>
+            <div class="kpi-row"><p class="kpi-v fig">8<span class="u">h</span> 05<span class="u">min</span></p><span class="delta up"><svg class="ic"><use href="#i-up"/></svg>+9 %<span class="sr-only"> frente a tu media de 4 semanas</span></span></div>
+            <svg class="spark" data-spark="time" aria-hidden="true"></svg>
+          </li>
+          <li class="kpi" style="--acc:var(--acc-speed)">
+            <div class="kpi-h"><span class="kpi-ic"><svg class="ic"><use href="#i-gauge"/></svg></span>Velocidad media</div>
+            <div class="kpi-row"><p class="kpi-v fig">26,5<span class="u">km/h</span></p><span class="delta down"><svg class="ic"><use href="#i-down"/></svg>−2 %<span class="sr-only"> frente a tu media de 4 semanas</span></span></div>
+            <svg class="spark" data-spark="speed" aria-hidden="true"></svg>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Tu progresión -->
+      <section class="card prog" aria-labelledby="h-prog">
+        <div class="card-h" style="--ic:var(--acc-dist)">
+          <svg class="ic" aria-hidden="true"><use href="#i-trend"/></svg>
+          <h2 id="h-prog">Tu progresión</h2>
+          <div class="end">
+            <div class="ranges" role="group" aria-label="Periodo">
+              <span class="ind" aria-hidden="true"></span>
+              <button type="button" class="press" data-range="12m" aria-pressed="true">12 meses</button>
+              <button type="button" class="press" data-range="6m" aria-pressed="false">6 meses</button>
+              <button type="button" class="press" data-range="3m" aria-pressed="false">3 meses</button>
+              <button type="button" class="press" data-range="30d" aria-pressed="false">30 días</button>
+            </div>
+          </div>
+        </div>
+        <div class="prog-tools">
+          <div class="pills" role="group" aria-label="Métrica">
+            <button type="button" class="pill press" data-metric="dist" aria-pressed="true" style="--acc:var(--acc-dist)"><i class="dot"></i>Distancia</button>
+            <button type="button" class="pill press" data-metric="elev" aria-pressed="false" style="--acc:var(--acc-elev)"><i class="dot"></i>Desnivel</button>
+            <button type="button" class="pill press" data-metric="time" aria-pressed="false" style="--acc:var(--acc-time)"><i class="dot"></i>Tiempo</button>
+            <button type="button" class="pill press" data-metric="speed" aria-pressed="false" style="--acc:var(--acc-speed)"><i class="dot"></i>Velocidad</button>
+          </div>
+        </div>
+        <div class="chart" id="chart" role="img" aria-label=""></div>
+        <table class="sr-only" id="chart-table"></table>
+      </section>
+
+      <!-- Tu rendimiento -->
+      <section class="card rend" aria-labelledby="h-rend">
+        <div class="card-h" style="--ic:var(--acc-speed)">
+          <svg class="ic" aria-hidden="true"><use href="#i-activity"/></svg>
+          <h2 id="h-rend">Tu rendimiento</h2>
+          <span class="end muted">Octubre</span>
+        </div>
+        <ul class="stats">
+          <li class="stat" style="--acc:var(--acc-speed)">
+            <span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-gauge"/></svg></span>
+            <span class="stat-txt"><span class="stat-l">Velocidad media</span><span class="stat-d up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>+0,8 km/h<span class="sr-only"> sobre tu media</span><span class="m-only">&nbsp;sobre tu media</span></span></span>
+            <span class="stat-v"><span class="fig">27,2</span><span class="u">km/h</span></span>
+          </li>
+          <li class="stat" style="--acc:var(--acc-elev)">
+            <span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg></span>
+            <span class="stat-txt"><span class="stat-l">Desnivel por salida</span><span class="stat-d up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>+6 %<span class="sr-only"> sobre tu media</span><span class="m-only">&nbsp;sobre tu media</span></span></span>
+            <span class="stat-v"><span class="fig">870</span><span class="u">m</span></span>
+          </li>
+          <li class="stat" style="--acc:var(--acc-time)">
+            <span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-rotate"/></svg></span>
+            <span class="stat-txt"><span class="stat-l">Cadencia media</span><span class="stat-d">En 5 de 13 salidas</span></span>
+            <span class="stat-v"><span class="fig">86</span><span class="u">rpm</span></span>
+          </li>
+          <li class="stat" style="--acc:var(--acc-dist)">
+            <span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-milestone"/></svg></span>
+            <span class="stat-txt"><span class="stat-l">Salida más larga</span><span class="stat-d">Domingo 19</span></span>
+            <span class="stat-v"><span class="fig">112</span><span class="u">km</span></span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Tu objetivo -->
+      <section class="card obj" aria-labelledby="h-obj">
+        <div class="card-h" style="--ic:var(--good)">
+          <svg class="ic" aria-hidden="true"><use href="#i-target"/></svg>
+          <h2 id="h-obj">Tu objetivo</h2>
+          <span class="end"><button class="icon-btn press" type="button" aria-label="Editar objetivo"><svg class="ic ic-sm"><use href="#i-pencil"/></svg></button></span>
+        </div>
+        <div class="ring-wrap">
+          <svg class="ring" id="ring" viewBox="0 0 156 156" role="img" aria-label="Objetivo de noviembre: 214 de 800 km, 27 %. Vas 7 puntos por delante del ritmo."></svg>
+        </div>
+        <p class="goal-t">Noviembre: 800 km</p>
+        <p class="goal-s"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg><span class="d-only">Vas 7 puntos por delante del ritmo</span><span class="m-only">7 puntos por delante</span></p>
+        <p class="goal-days"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-calendar"/></svg>Quedan 24 días</p>
+      </section>
+
+      <!-- Próximas salidas -->
+      <section class="card prox" aria-labelledby="h-prox">
+        <div class="card-h" style="--ic:var(--acc-dist)">
+          <svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>
+          <h2 id="h-prox"><span class="d-only">Próximas salidas</span><span class="m-only">Próxima salida</span></h2>
+          <a class="end link d-only" href="#">Ver todas<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <ul class="rides">
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Sáb</span><span class="d fig">8</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="ride-t" style="display:block">Coll d'Estenalles</span>
+              <span class="meta"><span><svg class="ic"><use href="#i-bike"/></svg>72 km</span><span><svg class="ic"><use href="#i-mountain"/></svg>1.320 m</span></span>
+              <span class="chip mid"><svg class="bars"><use href="#i-bars2"/></svg>Media</span>
+              <span class="sr-only">Sábado 8 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="11" viewBox="0 0 44 44" aria-hidden="true"></svg>
+            <span class="next-map"><svg class="thumb-next" data-shape="11" data-big="1" viewBox="0 0 140 84" aria-hidden="true" style="width:100%;height:84px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)"></svg></span>
+          </a></li>
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Dom</span><span class="d fig">9</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="ride-t" style="display:block">Sant Miquel del Fai</span>
+              <span class="meta"><span><svg class="ic"><use href="#i-bike"/></svg>89 km</span><span><svg class="ic"><use href="#i-mountain"/></svg>1.780 m</span></span>
+              <span class="chip hard"><svg class="bars"><use href="#i-bars3"/></svg>Dura</span>
+              <span class="sr-only">Domingo 9 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="23" viewBox="0 0 44 44" aria-hidden="true"></svg>
+          </a></li>
+          <li><a class="ride press" href="#">
+            <span class="hito-date" aria-hidden="true"><span class="wd">Mar</span><span class="d fig">11</span><span class="mo">nov</span></span>
+            <span style="min-width:0">
+              <span class="ride-t" style="display:block">Rodaje de recuperación</span>
+              <span class="meta"><span><svg class="ic"><use href="#i-bike"/></svg>45 km</span><span><svg class="ic"><use href="#i-mountain"/></svg>380 m</span></span>
+              <span class="chip easy"><svg class="bars"><use href="#i-bars1"/></svg>Suave</span>
+              <span class="sr-only">Martes 11 de noviembre</span>
+            </span>
+            <svg class="mini" data-shape="37" viewBox="0 0 44 44" aria-hidden="true"></svg>
+          </a></li>
+        </ul>
+      </section>
+
+      <!-- Última salida -->
+      <section class="card ult" aria-labelledby="h-ult">
+        <div class="card-h" style="--ic:var(--trace)">
+          <svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>
+          <h2 id="h-ult">Tu última salida</h2>
+          <span class="muted">Sábado 1 de noviembre</span>
+          <a class="end link" href="#">Ver detalle<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="map-wrap" id="map-wrap">
+          <div class="map" id="map" aria-label="Mapa del recorrido de la última salida" role="region"></div>
+          <div class="map-plate" aria-label="Cifras de la salida">
+            <div style="--acc:var(--acc-dist)"><svg class="ic"><use href="#i-bike"/></svg>87,6 km</div>
+            <div style="--acc:var(--acc-elev)"><svg class="ic"><use href="#i-mountain"/></svg>1.542 m</div>
+            <div style="--acc:var(--acc-time)"><svg class="ic"><use href="#i-timer"/></svg>3 h 12 min</div>
+            <div style="--acc:var(--acc-speed)"><svg class="ic"><use href="#i-gauge"/></svg>27,4 km/h</div>
+          </div>
+          <div class="map-ctrl">
+            <button type="button" class="press" id="zin" aria-label="Acercar"><svg class="ic"><use href="#i-plus"/></svg></button>
+            <button type="button" class="press" id="zout" aria-label="Alejar"><svg class="ic"><use href="#i-minus"/></svg></button>
+            <button type="button" class="press" id="fs" aria-label="Ver el mapa a pantalla completa"><svg class="ic"><use href="#i-max"/></svg></button>
+          </div>
+          <div class="map-badge"><span class="chip mid"><svg class="bars"><use href="#i-bars2"/></svg>Media para ti</span></div>
+        </div>
+        <div class="prof" data-prof="last">
+          <div class="prof-h"><span class="muted">Perfil por pendiente</span><span class="slope-legend" data-legend></span></div>
+          <svg data-h="54" aria-hidden="true"></svg>
+          <div class="prof-tip"></div>
+        </div>
+      </section>
+
+      <!-- Rutas recomendadas -->
+      <section class="card rut" aria-labelledby="h-rut">
+        <div class="card-h" style="--ic:var(--acc-elev)">
+          <svg class="ic" aria-hidden="true"><use href="#i-sparkles"/></svg>
+          <h2 id="h-rut">Rutas recomendadas por IA</h2>
+          <a class="end link" href="#">Ver las 5<svg class="ic ic-sm" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="route">
+          <div class="thumb"><svg data-shape="5" data-big="1" viewBox="0 0 104 104" role="img" aria-label="Forma de la ruta Circular por el Montseny"></svg></div>
+          <div style="min-width:0">
+            <h3 class="route-t">Circular por el Montseny</h3>
+            <p class="meta"><span><svg class="ic"><use href="#i-bike"/></svg>96 km</span><span><svg class="ic"><use href="#i-mountain"/></svg>1.820 m</span><span><svg class="ic"><use href="#i-timer"/></svg>3 h 35 min</span></p>
+            <div class="route-chips"><span class="chip hard"><svg class="bars"><use href="#i-bars3"/></svg>Dura para ti</span><span>74 % carretera nueva</span></div>
+            <p class="route-why">Sube un 15 % más que tu media y encadena 2 puertos que ya conoces.</p>
+          </div>
+        </div>
+        <div class="prof" data-prof="route">
+          <div class="prof-h"><span class="slope-legend" data-legend></span></div>
+          <svg data-h="50" aria-hidden="true"></svg>
+          <div class="prof-tip"></div>
+        </div>
+        <div class="route-foot">
+          <span class="muted">1 de 5</span>
+          <a href="#" class="btn btn-ghost press"><svg class="ic ic-sm"><use href="#i-download"/></svg>Descargar GPX</a>
+          <a href="#" class="btn btn-primary press">Ver ruta</a>
+        </div>
+      </section>
+
+      <!-- Banda móvil -->
+      <section class="cta" aria-label="Nueva ruta">
+        <a href="#" class="press">
+          <span class="ci"><svg class="ic"><use href="#i-route"/></svg></span>
+          <span><b>¿Nueva ruta?</b><span class="s">Pide una ruta para progresar</span></span>
+          <svg class="ic ic-end" aria-hidden="true"><use href="#i-chev"/></svg>
+        </a>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- Barra inferior (móvil) -->
+<nav class="tabbar" aria-label="Menú principal">
+  <a href="#" aria-current="page" class="press"><span class="tic"><svg class="ic"><use href="#i-house"/></svg></span>Inicio</a>
+  <a href="#" class="press"><span class="tic"><svg class="ic"><use href="#i-chart"/></svg></span>Historial</a>
+  <a href="#" class="press"><span class="tic"><svg class="ic"><use href="#i-route"/></svg></span>Rutas</a>
+  <a href="#" class="press"><span class="tic"><svg class="ic"><use href="#i-sparkles"/></svg></span>IA</a>
+  <button type="button" class="press" id="more" aria-haspopup="dialog" aria-controls="sheet"><span class="tic"><svg class="ic"><use href="#i-more"/></svg></span>Más</button>
+</nav>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sheet-h">
+  <div class="grab" aria-hidden="true"></div>
+  <h2 id="sheet-h">Más</h2>
+  <button class="icon-btn sheet-close press" type="button" aria-label="Cerrar" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+  <ul class="sheet-list">
+    <li><a href="#"><svg class="ic"><use href="#i-mountain"/></svg>Subidas</a></li>
+    <li><a href="#"><svg class="ic"><use href="#i-calendar"/></svg>Calendario</a></li>
+    <li><a href="#"><svg class="ic"><use href="#i-upload"/></svg>Importar</a></li>
+    <li><a href="#"><svg class="ic"><use href="#i-sliders"/></svg>Ajustes</a></li>
+  </ul>
+  <div class="seg" role="group" aria-label="Tema">
+    <button type="button" data-theme-set="dark" class="press"><svg class="ic ic-sm"><use href="#i-moon"/></svg>Oscuro</button>
+    <button type="button" data-theme-set="light" class="press"><svg class="ic ic-sm"><use href="#i-sun"/></svg>Claro</button>
+  </div>
+</dialog>
+
+<div id="avisos" popover>
+  <h2>Avisos</h2>
+  <ul>
+    <li><svg class="ic"><use href="#i-check"/></svg><p>Importación terminada: 8 salidas nuevas<span>Hace 3 días</span></p></li>
+    <li><svg class="ic"><use href="#i-calendar"/></svg><p>Mañana: Coll d'Estenalles, 72 km<span>Sábado 8 de noviembre</span></p></li>
+  </ul>
+</div>
+
+<script>
+(function () {
+'use strict';
+var root = document.documentElement;
+var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+var NS = 'http://www.w3.org/2000/svg';
+
+/* ---------- Utilidades ---------- */
+function nf(v, d) {
+  d = d || 0;
+  return new Intl.NumberFormat('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: 'always' }).format(v);
+}
+function hm(h) { var t = Math.round(h * 60); return Math.floor(t / 60) + ' h ' + String(t % 60).padStart(2, '0') + ' min'; }
+function tok(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
+function hexA(hex, a) {
+  var h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+  return 'rgba(' + parseInt(h.slice(0, 2), 16) + ',' + parseInt(h.slice(2, 4), 16) + ',' + parseInt(h.slice(4, 6), 16) + ',' + a + ')';
+}
+function el(tag, attrs, parent) {
+  var n = document.createElementNS(NS, tag);
+  for (var k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function smoothstep(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+var uid = 0; function gid(p) { return p + (++uid); }
+
+/* ---------- Perfiles sintéticos (km, m) ---------- */
+function makeProfile(keys, total, seed) {
+  var r = rng(seed), out = [], step = 0.2;
+  var ph1 = r() * 6, ph2 = r() * 6;
+  for (var km = 0; km <= total + 1e-6; km += step) {
+    var i = 0; while (i < keys.length - 2 && keys[i + 1][0] < km) i++;
+    var a = keys[i], b = keys[i + 1], t = (km - a[0]) / (b[0] - a[0]);
+    var e = a[1] + (b[1] - a[1]) * t + Math.sin(km * 1.7 + ph1) * 6 + Math.sin(km * 0.55 + ph2) * 11;
+    out.push([Math.round(km * 10) / 10, e]);
+  }
+  for (var pass = 0; pass < 2; pass++) {
+    out = out.map(function (p, j) {
+      var s = 0, n = 0; for (var k = -2; k <= 2; k++) { var q = out[j + k]; if (q) { s += q[1]; n++; } }
+      return [p[0], s / n];
+    });
+  }
+  return out;
+}
+var LAST = makeProfile([[0,40],[6,70],[12,110],[15,140],[21,330],[27,470],[29,440],[34,210],[38,190],[42,420],[46,640],[47.5,800],[49,880],[52,1012],[55,860],[60,520],[64,190],[66,170],[68.5,330],[69.4,450],[70,520],[73,430],[78,210],[83,90],[87.6,40]], 87.6, 7);
+var ROUTE = makeProfile([[0,210],[8,260],[14,420],[22,780],[26,1050],[29,1120],[33,900],[40,560],[46,480],[52,610],[58,980],[61,1180],[63,1240],[67,1010],[74,720],[80,520],[88,330],[96,210]], 96, 19);
+
+function gradeClass(g) { return g < 1 ? 0 : g < 4 ? 1 : g < 7 ? 2 : g < 10 ? 3 : g < 16 ? 4 : 5; }
+function gradeRuns(prof) {
+  var runs = [], seg = 0.6, total = prof[prof.length - 1][0];
+  function eleAt(km) { var i = Math.min(prof.length - 1, Math.round(km / 0.2)); return prof[i][1]; }
+  for (var x = 0; x < total - 1e-6; x += seg) {
+    var x1 = Math.min(total, x + seg), g = (eleAt(x1) - eleAt(x)) / ((x1 - x) * 1000) * 100, c = gradeClass(g);
+    var last = runs[runs.length - 1];
+    if (last && last.c === c) { last.x1 = x1; last.gs.push(g); } else runs.push({ x0: x, x1: x1, c: c, gs: [g] });
+  }
+  return runs;
+}
+var SLOPE_LABELS = ['menos de 1 %', '1–4 %', '4–7 %', '7–10 %', '10–16 %', '16 % o más'];
+var SLOPE_SHORT = ['<1 %', '1–4', '4–7', '7–10', '10–16', '16+ %'];
+
+/* ---------- Perfil por pendiente (SVG, píxeles reales) ---------- */
+function renderProfile(box, prof) {
+  var svg = box.querySelector('svg'), H = +svg.getAttribute('data-h'), W = Math.max(120, svg.clientWidth || box.clientWidth);
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('height', H);
+  svg.textContent = '';
+  var total = prof[prof.length - 1][0], emin = Infinity, emax = -Infinity;
+  prof.forEach(function (p) { emin = Math.min(emin, p[1]); emax = Math.max(emax, p[1]); });
+  var top = 4, bot = H - 2;
+  var X = function (km) { return km / total * W; }, Y = function (e) { return top + (1 - (e - emin) / (emax - emin)) * (bot - top) * 0.92 + (bot - top) * 0.04; };
+  var id = gid('pg'), defs = el('defs', {}, svg), lg = el('linearGradient', { id: id, x1: 0, x2: 1, y1: 0, y2: 0 }, defs);
+  gradeRuns(prof).forEach(function (r) {
+    ['x0', 'x1'].forEach(function (k) { el('stop', { offset: (r[k] / total).toFixed(4), style: 'stop-color:var(--g' + r.c + ')' }, lg); });
+  });
+  var d = prof.map(function (p, i) { return (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join('');
+  el('path', { d: d + 'L' + W + ' ' + H + 'L0 ' + H + 'Z', fill: 'url(#' + id + ')' }, svg);
+  el('path', { d: d, fill: 'none', stroke: 'var(--ink)', 'stroke-opacity': '.55', 'stroke-width': 1.2, 'stroke-linejoin': 'round' }, svg);
+  var xl = el('line', { class: 'xline', x1: 0, x2: 0, y1: 0, y2: H }, svg);
+  var tip = box.querySelector('.prof-tip');
+  function move(ev) {
+    var r = svg.getBoundingClientRect(), x = Math.min(W, Math.max(0, ev.clientX - r.left)), km = x / W * total;
+    var i = Math.min(prof.length - 1, Math.round(km / 0.2)), j = Math.min(prof.length - 1, i + 3), k0 = Math.max(0, i - 2);
+    var g = (prof[j][1] - prof[k0][1]) / ((prof[j][0] - prof[k0][0]) * 1000 || 1) * 100;
+    xl.setAttribute('x1', x); xl.setAttribute('x2', x); xl.classList.add('on');
+    tip.textContent = 'km ' + nf(prof[i][0], 1) + ', ' + nf(prof[i][1]) + ' m, ' + (g < 0 ? '−' : '') + nf(Math.abs(g), 1) + ' %';
+    tip.style.left = Math.min(r.width - 70, Math.max(70, x)) + 'px'; tip.style.top = (svg.offsetTop - 4) + 'px'; tip.classList.add('on');
+  }
+  svg.onpointermove = move; svg.onpointerleave = function () { xl.classList.remove('on'); tip.classList.remove('on'); };
+  svg.setAttribute('aria-label', 'Perfil de ' + nf(total, 1) + ' km, de ' + nf(emin) + ' a ' + nf(emax) + ' m');
+}
+function renderLegend(holder, prof) {
+  var used = {}; gradeRuns(prof).forEach(function (r) { used[r.c] = 1; });
+  holder.textContent = '';
+  [1, 2, 3, 4, 5, 0].forEach(function (c) {
+    if (!used[c]) return;
+    var s = document.createElement('span'); s.title = 'Pendiente ' + SLOPE_LABELS[c];
+    s.innerHTML = '<i style="background:var(--g' + c + ')"></i>' + SLOPE_SHORT[c]; holder.appendChild(s);
+  });
+}
+
+/* ---------- Formas de ruta (lazo procedimental) y curvas de nivel ---------- */
+function loop(seed, n) {
+  var r = rng(seed), a = [r() * 6, r() * 6, r() * 6, r() * 6], pts = [];
+  for (var i = 0; i <= n; i++) {
+    var t = i / n * Math.PI * 2;
+    var rad = 1 + 0.22 * Math.sin(2 * t + a[0]) + 0.13 * Math.sin(3 * t + a[1]) + 0.07 * Math.sin(5 * t + a[2]) + 0.035 * Math.sin(11 * t + a[3]);
+    pts.push([Math.cos(t) * rad * 1.25, Math.sin(t) * rad]);
+  }
+  // pequeños quiebros de carretera
+  return pts.map(function (p, i) { var j = (i % 7 === 3) ? 0.035 : 0; return [p[0] + j, p[1] - j]; });
+}
+function fit(pts, w, h, pad) {
+  var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  pts.forEach(function (p) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+  var s = Math.min((w - pad * 2) / (x1 - x0), (h - pad * 2) / (y1 - y0)), ox = (w - (x1 - x0) * s) / 2, oy = (h - (y1 - y0) * s) / 2;
+  return pts.map(function (p) { return [ox + (p[0] - x0) * s, oy + (p[1] - y0) * s]; });
+}
+function pathOf(pts, close) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('') + (close ? 'Z' : ''); }
+function topo(svg, w, h, seed, cx, cy, rings, step) {
+  var r = rng(seed), ph = [r() * 6, r() * 6];
+  for (var k = 1; k <= rings; k++) {
+    var pts = [], R = k * step;
+    for (var i = 0; i <= 64; i++) {
+      var t = i / 64 * Math.PI * 2, rr = R * (1 + 0.16 * Math.sin(2 * t + ph[0] + k * 0.3) + 0.08 * Math.sin(3 * t + ph[1] - k * 0.2));
+      pts.push([cx + Math.cos(t) * rr * 1.2, cy + Math.sin(t) * rr]);
+    }
+    el('path', { class: 'topo-line', d: pathOf(pts, true) }, svg);
+  }
+}
+function renderShape(svg) {
+  var vb = svg.getAttribute('viewBox').split(' ').map(Number), w = vb[2], h = vb[3], seed = +svg.getAttribute('data-shape');
+  var big = svg.hasAttribute('data-big');
+  svg.textContent = '';
+  if (big) topo(svg, w, h, seed + 3, w * 0.62, h * 0.38, 7, Math.max(w, h) / 9);
+  var pts = fit(loop(seed, 140), w, h, big ? w * 0.14 : 7), d = pathOf(pts, true);
+  el('path', { class: 'shape-halo', d: d }, svg);
+  el('path', { class: 'shape-core', d: d }, svg);
+  el('path', { class: 'shape-thread', d: d }, svg);
+  el('circle', { class: 'shape-start', cx: pts[0][0], cy: pts[0][1], r: big ? 4 : 2.6 }, svg);
+}
+document.querySelectorAll('svg[data-shape]').forEach(renderShape);
+(function () { var s = document.querySelector('[data-topo="side"]'); topo(s, 150, 120, 4, 112, 92, 8, 11); })();
+
+/* ---------- Hero: cielo, crestas grabadas y el horizonte de tu última salida ---------- */
+var hero = document.querySelector('.hero'), land = hero.querySelector('.land'), summitEl = document.getElementById('summit');
+function ridgeNoise(seed) {
+  var r = rng(seed), oct = [[0.9, r() * 9, 1], [2.3, r() * 9, 0.45], [5.1, r() * 9, 0.18], [11, r() * 9, 0.07]];
+  return function (u) { var v = 0; oct.forEach(function (o) { v += Math.sin(u * o[0] * Math.PI * 2 / 3 + o[1]) * o[2]; }); return v / 1.7; };
+}
+function buildHero() {
+  var W = hero.clientWidth, H = hero.clientHeight; if (!W || !H) return;
+  land.setAttribute('viewBox', '0 0 ' + W + ' ' + H); land.textContent = '';
+  var mobile = W < 700;
+  var hr = hero.getBoundingClientRect();
+  var copy = hero.querySelector('.hero-copy').getBoundingClientRect(), kpis = hero.querySelector('.kpis').getBoundingClientRect();
+  var copyBottom = copy.bottom - hr.top, copyRight = copy.right - hr.left, kTop = kpis.top - hr.top;
+
+  var defs = el('defs', {}, land), sky = el('linearGradient', { id: 'sky', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  [[0, 0], [0.24, 1], [0.46, 2], [0.62, 3], [0.8, 4]].forEach(function (s) { el('stop', { offset: s[0], style: 'stop-color:var(--sky-' + s[1] + ')' }, sky); });
+  var sun = el('radialGradient', { id: 'sun', cx: 0.5, cy: 0.5, r: 0.5 }, defs);
+  el('stop', { offset: 0, style: 'stop-color:var(--sun);stop-opacity:.55' }, sun);
+  el('stop', { offset: 1, style: 'stop-color:var(--sun);stop-opacity:0' }, sun);
+  var near = el('linearGradient', { id: 'nearfill', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, style: 'stop-color:var(--ridge-near)' }, near);
+  el('stop', { offset: 1, style: 'stop-color:var(--surface)' }, near);
+
+  var skyH = mobile ? kTop + 40 : H;
+  el('rect', { x: 0, y: 0, width: W, height: H, fill: 'url(#sky)' }, land);
+  var sunX = mobile ? W * 0.82 : W * 0.8, sunY = mobile ? kTop - 6 : H * 0.52;
+  el('ellipse', { cx: sunX, cy: sunY, rx: W * (mobile ? 0.7 : 0.34), ry: H * (mobile ? 0.32 : 0.46), fill: 'url(#sun)' }, land);
+
+  var step = 4, base = mobile ? kTop + 34 : kTop + 34;
+  // Envolvente: la cresta no sube hasta el texto.
+  var textFloor = copyBottom + 14;
+  function env(x) { return mobile ? 0 : smoothstep(copyRight - 60, copyRight + 90, x); }
+  if (mobile) textFloor += 34;               // deja sitio a la placa de la cima sobre la cresta
+  function capTop(x) { var hi = mobile ? textFloor : 108; return hi + (textFloor - hi) * (1 - env(x)); }
+
+  // Dos crestas lejanas procedimentales, grabadas con curvas de nivel
+  [[13, 'var(--ridge-far)', mobile ? 0.62 : 0.66, mobile ? 46 : 70, 0.75], [29, 'var(--ridge-mid)', mobile ? 0.4 : 0.42, mobile ? 30 : 44, 0.6]].forEach(function (cfg, li) {
+    var nz = ridgeNoise(cfg[0]), pts = [];
+    for (var x = 0; x <= W + step; x += step) {
+      var u = x / W * 3, amp = (base - capTop(x)) * cfg[2];
+      var y = base - cfg[3] * 0.25 - amp * (0.55 + 0.45 * nz(u));
+      y = Math.max(capTop(x) + (li ? 22 : 8), y);
+      pts.push([x, y]);
+    }
+    var d = pathOf(pts);
+    el('path', { d: d + 'L' + W + ' ' + H + 'L0 ' + H + 'Z', fill: cfg[1] }, land);
+    var g = el('g', { opacity: li ? 0.9 : 0.75 }, land);
+    for (var k = 1; k <= 7; k++) {
+      el('path', { d: pathOf(pts.map(function (p) { return [p[0], p[1] + k * (li ? 7 : 9) + Math.sin(p[0] / (40 + k * 9)) * k * 1.6]; })), fill: 'none', stroke: 'var(--ridge-line)', 'stroke-opacity': (0.13 - k * 0.013).toFixed(3), 'stroke-width': 1 }, g);
+    }
+    el('path', { d: d, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-opacity': li ? 0.22 : 0.14, 'stroke-width': 1 }, land);
+  });
+
+  // Cresta delantera: el perfil real de la última salida
+  var total = LAST[LAST.length - 1][0], emin = Infinity, emax = -Infinity;
+  LAST.forEach(function (p) { emin = Math.min(emin, p[1]); emax = Math.max(emax, p[1]); });
+  var fr = [], peak = null;
+  for (var x = -2; x <= W + step; x += step) {
+    var km = Math.max(0, Math.min(total, x / W * total)), i = Math.round(km / 0.2), s = 0, n = 0, win = mobile ? 7 : 3;
+    for (var k = -win; k <= win; k++) { var q = LAST[i + k]; if (q) { s += q[1]; n++; } }
+    var e = (s / n - emin) / (emax - emin), top = capTop(x), y = base - 6 - e * (base - 6 - top) * 0.96;
+    fr.push([x, y]); if (!peak || y < peak[1]) peak = [x, y];
+  }
+  var fd = pathOf(fr);
+  el('path', { d: fd + 'L' + W + ' ' + H + 'L-2 ' + H + 'Z', fill: 'url(#nearfill)' }, land);
+  var hatch = el('g', {}, land);
+  for (var k2 = 1; k2 <= 9; k2++) {
+    el('path', { d: pathOf(fr.map(function (p) { return [p[0], p[1] + k2 * 8]; })), fill: 'none', stroke: 'var(--ridge-line)', 'stroke-opacity': (0.12 - k2 * 0.011).toFixed(3), 'stroke-width': 1 }, hatch);
+  }
+  el('path', { class: 'draw', pathLength: 1, d: fd, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-opacity': 'calc(var(--glow) * .45)', 'stroke-width': 8, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, land);
+  el('path', { class: 'draw', pathLength: 1, d: fd, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, land);
+  el('path', { class: 'draw', pathLength: 1, d: fd, fill: 'none', stroke: '#fff', 'stroke-opacity': 'calc(var(--glow) * 1.2)', 'stroke-width': 0.8, 'stroke-linejoin': 'round' }, land);
+
+  // Vértice geodésico en la cima
+  var flip = peak[0] > W - 240;
+  summitEl.style.flexDirection = flip ? 'row-reverse' : 'row';
+  summitEl.style.left = (flip ? peak[0] + 7 - summitEl.offsetWidth : peak[0] - 7) + 'px';
+  summitEl.style.top = (peak[1] - 13 - summitEl.offsetHeight / 2) + 'px';
+}
+
+/* ---------- Chispas de las KPI (8 semanas) ---------- */
+var SPARK = {
+  dist: [148, 172, 160, 205, 188, 176, 191, 214],
+  elev: [2100, 2650, 2380, 3100, 2900, 2760, 2950, 3480],
+  time: [5.9, 6.6, 6.2, 7.7, 7.1, 6.8, 7.4, 8.1],
+  speed: [25.1, 26.0, 25.8, 26.6, 26.5, 25.9, 27.1, 26.5]
+};
+var SPARK_ACC = { dist: '--acc-dist', elev: '--acc-elev', time: '--acc-time', speed: '--acc-speed' };
+function renderSpark(svg) {
+  var key = svg.getAttribute('data-spark'), v = SPARK[key], W = svg.clientWidth || 200, H = svg.clientHeight || 34;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.textContent = '';
+  var mn = Math.min.apply(null, v), mx = Math.max.apply(null, v), pad = 6;
+  var pts = v.map(function (y, i) { return [i / (v.length - 1) * (W - 10) + 2, pad + (1 - (y - mn) / (mx - mn || 1)) * (H - pad * 2) * 0.85]; });
+  // curva suave (Catmull-Rom a Bézier)
+  var d = 'M' + pts[0][0] + ' ' + pts[0][1];
+  for (var i = 0; i < pts.length - 1; i++) {
+    var p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += 'C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(1) + ' ' + (p1[1] + (p2[1] - p0[1]) / 6).toFixed(1) + ' ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + ' ' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1) + ' ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+  }
+  var id = gid('sp'), lg = el('linearGradient', { id: id, x1: 0, x2: 0, y1: 0, y2: 1 }, el('defs', {}, svg));
+  el('stop', { offset: 0, style: 'stop-color:var(' + SPARK_ACC[key] + ');stop-opacity:.35' }, lg);
+  el('stop', { offset: 1, style: 'stop-color:var(' + SPARK_ACC[key] + ');stop-opacity:0' }, lg);
+  el('path', { d: d + 'L' + pts[pts.length - 1][0] + ' ' + H + 'L' + pts[0][0] + ' ' + H + 'Z', fill: 'url(#' + id + ')' }, svg);
+  el('path', { d: d, fill: 'none', stroke: 'var(' + SPARK_ACC[key] + ')', 'stroke-opacity': 'calc(var(--glow) * .45)', 'stroke-width': 5, 'stroke-linecap': 'round' }, svg);
+  el('path', { d: d, fill: 'none', stroke: 'var(' + SPARK_ACC[key] + ')', 'stroke-width': 1.8, 'stroke-linecap': 'round' }, svg);
+  var L = pts[pts.length - 1];
+  el('circle', { cx: L[0], cy: L[1], r: 3.2, fill: 'var(--surface)', stroke: 'var(' + SPARK_ACC[key] + ')', 'stroke-width': 2 }, svg);
+}
+
+/* ---------- Anillo del objetivo con curvas de cima ---------- */
+function renderRing() {
+  var svg = document.getElementById('ring'), c = 78, R = 58, pct = 0.27, expected = 0.20;
+  svg.textContent = '';
+  topo(svg, 156, 156, 21, c, c, 2, 9);       // curvas interiores: la cima
+  var g = el('g', {}, svg);                  // curvas exteriores
+  [69, 75].forEach(function (rr, k) {
+    var pts = []; for (var i = 0; i <= 72; i++) { var t = i / 72 * Math.PI * 2, w = rr * (1 + 0.025 * Math.sin(3 * t + k) + 0.015 * Math.sin(5 * t + 2 * k)); pts.push([c + Math.cos(t) * w, c + Math.sin(t) * w]); }
+    el('path', { class: 'topo', d: pathOf(pts, true) }, g);
+  });
+  el('circle', { class: 'track', cx: c, cy: c, r: R, fill: 'none', 'stroke-width': 10 }, svg);
+  var arc = el('circle', { class: 'arc draw', cx: c, cy: c, r: R, fill: 'none', 'stroke-width': 10, 'stroke-linecap': 'round', pathLength: 1, transform: 'rotate(-90 ' + c + ' ' + c + ')' }, svg);
+  arc.style.strokeDasharray = pct + ' 1';
+  arc.classList.remove('draw');
+  var a = expected * Math.PI * 2 - Math.PI / 2;
+  el('line', { class: 'notch', x1: c + Math.cos(a) * (R - 8), y1: c + Math.sin(a) * (R - 8), x2: c + Math.cos(a) * (R + 8), y2: c + Math.sin(a) * (R + 8) }, svg);
+  var t1 = el('text', { class: 'c1', x: c, y: c + 6, 'text-anchor': 'middle' }, svg); t1.textContent = '27 %';
+  var t2 = el('text', { class: 'c2', x: c, y: c + 26, 'text-anchor': 'middle' }, svg); t2.textContent = '214 de 800 km';
+}
+
+/* ---------- Progresión (ECharts) ---------- */
+var MONTHS = ['nov', 'dic', 'ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct'];
+var MKM = [212, 248, 395, 470, 612, 680, 742, 655, 701, 688, 590, 724];
+var MSPD = [24.1, 24.6, 25.0, 25.4, 25.9, 26.3, 26.8, 26.1, 26.6, 26.9, 26.4, 27.2];
+var MELE = [2950, 3600, 5800, 6900, 9200, 10400, 11800, 9900, 10900, 10600, 8700, 11600];
+function series(labels, km, ele, spd) {
+  return { labels: labels, dist: km, elev: ele, speed: spd, time: km.map(function (k, i) { return spd[i] ? +(k / spd[i]).toFixed(2) : 0; }) };
+}
+var DATA = {};
+DATA['12m'] = series(MONTHS, MKM, MELE, MSPD);
+DATA['6m'] = series(MONTHS.slice(6), MKM.slice(6), MELE.slice(6), MSPD.slice(6));
+(function () {
+  var r = rng(5), labels = [], km = [], ele = [], spd = [], d = new Date(2026, 7, 4);
+  for (var w = 0; w < 13; w++) {
+    labels.push(d.getDate() + ' ' + MONTHS[(d.getMonth() + 1) % 12]);
+    var k = Math.round(130 + w * 4 + r() * 70); km.push(k); ele.push(Math.round(k * (13 + r() * 5)));
+    spd.push(+(25.6 + r() * 1.8).toFixed(1)); d.setDate(d.getDate() + 7);
+  }
+  DATA['3m'] = series(labels, km, ele, spd);
+  var l2 = [], k2 = [], e2 = [], s2 = [], d2 = new Date(2026, 9, 7), ride = [72, 0, 0, 45, 0, 88, 0, 0, 61, 0, 0, 52, 0, 104, 0, 0, 40, 0, 76, 0, 0, 55, 0, 112, 0, 0, 48, 0, 87.6, 0];
+  for (var i = 0; i < 30; i++) {
+    l2.push(d2.getDate() + ' ' + MONTHS[(d2.getMonth() + 1) % 12]); k2.push(ride[i]); e2.push(Math.round(ride[i] * (12 + r() * 6)));
+    s2.push(ride[i] ? +(25.4 + r() * 2.4).toFixed(1) : null); d2.setDate(d2.getDate() + 1);
+  }
+  DATA['30d'] = series(l2, k2, e2, s2);
+})();
+var METRIC = {
+  dist: { name: 'Distancia', unit: 'km', acc: '--acc-dist', fmt: function (v) { return nf(v) + ' km'; }, ax: function (v) { return nf(v); } },
+  elev: { name: 'Desnivel', unit: 'm', acc: '--acc-elev', fmt: function (v) { return nf(v) + ' m'; }, ax: function (v) { return nf(v); } },
+  time: { name: 'Tiempo', unit: 'h', acc: '--acc-time', fmt: function (v) { return hm(v); }, ax: function (v) { return nf(v) + ' h'; } },
+  speed: { name: 'Velocidad media', unit: 'km/h', acc: '--acc-speed', fmt: function (v) { return nf(v, 1) + ' km/h'; }, ax: function (v) { return nf(v); } }
+};
+var state = { range: '12m', metric: 'dist' };
+var chartEl = document.getElementById('chart'), chart = echarts.init(chartEl, null, { renderer: 'canvas' });
+var firstDraw = true;
+function progOption() {
+  var D = DATA[state.range], M = METRIC[state.metric], vals = D[state.metric], acc = tok(M.acc);
+  var ink = tok('--ink'), ink2 = tok('--ink-2'), ink3 = tok('--ink-3'), line = tok('--line'), surf = tok('--surface'), surf2 = tok('--surface-2');
+  var glow = parseFloat(tok('--glow')) > 0, font = getComputedStyle(document.body).fontFamily, fig = "'Barlow Semi Condensed', 'Barlow', sans-serif";
+  var nums = vals.filter(function (v) { return v != null; }), mean = nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+  var li = vals.length - 1; while (vals[li] == null) li--;
+  var narrow = chartEl.clientWidth < 480;
+  var isSpeed = state.metric === 'speed', mn = isSpeed ? Math.floor(Math.min.apply(null, nums) - 1.5) : 0;
+  var anim = !reduced && firstDraw;
+  return {
+    animation: !reduced, animationDuration: anim ? 900 : 300, animationEasing: 'cubicOut', animationDurationUpdate: reduced ? 0 : 300,
+    textStyle: { fontFamily: font },
+    grid: { left: 8, right: narrow ? 48 : 38, top: 44, bottom: 4, containLabel: true },
+    tooltip: {
+      trigger: 'axis', backgroundColor: surf2, borderColor: tok('--line-strong'), borderWidth: 1, padding: [8, 12],
+      textStyle: { color: ink, fontFamily: font, fontSize: 13 }, extraCssText: 'border-radius:10px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5)',
+      axisPointer: { type: 'line', lineStyle: { color: tok('--line-strong'), width: 1 } },
+      formatter: function (p) { var v = p[0].value; return '<div style="color:' + ink2 + ';font-size:12px">' + p[0].axisValue + '</div><b style="font-size:14px">' + (v == null ? 'Sin salida' : M.fmt(v)) + '</b>'; }
+    },
+    xAxis: {
+      type: 'category', data: D.labels, boundaryGap: false,
+      axisLine: { lineStyle: { color: line } }, axisTick: { show: false },
+      axisLabel: { color: ink3, fontSize: 12, fontFamily: font, margin: 10, interval: state.range === '30d' ? (narrow ? 6 : 4) : state.range === '3m' ? (narrow ? 3 : 1) : (narrow && D.labels.length > 7 ? 1 : 0) }
+    },
+    yAxis: {
+      type: 'value', min: mn, splitNumber: 3,
+      axisLabel: { color: ink3, fontSize: 12, fontFamily: font, formatter: M.ax },
+      splitLine: { lineStyle: { color: line } }
+    },
+    series: [{
+      type: 'line', data: vals, smooth: 0.35, smoothMonotone: 'x', connectNulls: true,
+      showSymbol: false, symbol: 'circle', symbolSize: 8,
+      lineStyle: { width: 2.6, color: acc, shadowBlur: glow ? 14 : 0, shadowColor: hexA(acc, 0.85), cap: 'round' },
+      itemStyle: { color: acc, borderColor: surf, borderWidth: 2 },
+      areaStyle: { origin: 'start', color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(acc, glow ? 0.34 : 0.22) }, { offset: 1, color: hexA(acc, 0) }] } },
+      markLine: {
+        silent: true, symbol: 'none', animation: false,
+        data: [
+          { yAxis: +mean.toFixed(2), lineStyle: { type: [4, 4], color: ink3, width: 1 }, label: { show: true, position: 'insideStartTop', color: ink2, fontFamily: font, fontSize: 12, formatter: 'Tu media ' + M.fmt(mean) } },
+          [{ coord: [li, mn], lineStyle: { type: [2, 3], color: hexA(acc, 0.7), width: 1 }, label: { show: false } }, { coord: [li, vals[li]] }]
+        ]
+      },
+      markPoint: {
+        animation: !reduced, animationDelay: anim ? 900 : 0, animationDuration: 260,
+        data: [{
+          coord: [li, vals[li]], symbol: 'circle', symbolSize: 13,
+          itemStyle: { color: surf, borderColor: acc, borderWidth: 3, shadowBlur: glow ? 12 : 0, shadowColor: acc },
+          label: {
+            show: true, position: 'top', distance: 12, formatter: M.fmt(vals[li]),
+            backgroundColor: surf2, borderColor: acc, borderWidth: 1.5, borderRadius: 10, padding: [6, 10, 5],
+            color: ink, fontFamily: fig, fontSize: 17, fontWeight: 700, fontStyle: 'italic'
+          }
+        }]
+      }
+    }]
+  };
+}
+function drawChart() {
+  chart.setOption(progOption(), true);
+  firstDraw = false;
+  var D = DATA[state.range], M = METRIC[state.metric], vals = D[state.metric];
+  chartEl.setAttribute('aria-label', M.name + ' por periodo, ' + D.labels[0] + ' a ' + D.labels[D.labels.length - 1] + '. Último valor ' + M.fmt(vals[vals.length - 1] || 0) + '.');
+  var t = document.getElementById('chart-table');
+  t.innerHTML = '<caption>' + M.name + '</caption><tr><th>Periodo</th><th>' + M.name + '</th></tr>' + D.labels.map(function (l, i) { return '<tr><td>' + l + '</td><td>' + (vals[i] == null ? 'Sin salida' : M.fmt(vals[i])) + '</td></tr>'; }).join('');
+}
+document.querySelectorAll('[data-range]').forEach(function (b, i) {
+  b.addEventListener('click', function () {
+    state.range = b.dataset.range;
+    document.querySelectorAll('[data-range]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+    document.querySelector('.ranges .ind').style.transform = 'translateX(' + (i * 100) + '%)';
+    drawChart();
+  });
+});
+document.querySelectorAll('[data-metric]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    state.metric = b.dataset.metric;
+    document.querySelectorAll('[data-metric]').forEach(function (o) { o.setAttribute('aria-pressed', String(o === b)); });
+    var h = document.querySelector('.prog .card-h'); h.style.setProperty('--ic', 'var(' + METRIC[state.metric].acc + ')');
+    drawChart();
+  });
+});
+
+/* ---------- Mapa: CyclOSM, trazado luminoso en el mar frente a (41.0, 2.5) ---------- */
+var map;
+function track() {
+  var pts = loop(41, 260);
+  return pts.map(function (p, i) {
+    var wig = Math.sin(i * 0.9) * 0.0035 + ((i % 9) < 2 ? 0.004 : 0);
+    return [41.0 + p[1] * 0.075 + wig, 2.5 + p[0] * 0.095 - wig];
+  });
+}
+function initMap() {
+  if (!window.L) return;
+  map = L.map('map', { zoomControl: false, zoomSnap: 0.25, scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false,
+    zoomAnimation: !reduced, fadeAnimation: !reduced, markerZoomAnimation: !reduced, attributionControl: true });
+  map.attributionControl.setPrefix(false);
+  L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+    subdomains: 'abc', maxZoom: 18,
+    attribution: '<a href="https://www.cyclosm.org">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  var t = track();
+  L.polyline(t, { className: 'trk-halo', interactive: false, lineJoin: 'round' }).addTo(map);
+  L.polyline(t, { className: 'trk-core', interactive: false, lineJoin: 'round' }).addTo(map);
+  L.polyline(t, { className: 'trk-thread', interactive: false, lineJoin: 'round' }).addTo(map);
+  L.circleMarker(t[0], { radius: 5, weight: 2.5, color: tok('--trace'), fillColor: '#fff', fillOpacity: 1, interactive: false }).addTo(map);
+  var small = innerWidth < 900;
+  map.fitBounds(L.latLngBounds(t), { paddingTopLeft: [small ? 30 : 150, 18], paddingBottomRight: [small ? 30 : 46, 18] });
+  document.getElementById('zin').onclick = function () { map.zoomIn(); };
+  document.getElementById('zout').onclick = function () { map.zoomOut(); };
+  document.getElementById('fs').onclick = function () {
+    var w = document.getElementById('map-wrap');
+    if (document.fullscreenElement) document.exitFullscreen(); else if (w.requestFullscreen) w.requestFullscreen();
+  };
+  document.addEventListener('fullscreenchange', function () { setTimeout(function () { map.invalidateSize(); }, 60); });
+}
+
+/* ---------- Tema ---------- */
+function syncThemeButtons() {
+  var t = root.getAttribute('data-theme');
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.themeSet === t)); });
+}
+document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    root.setAttribute('data-theme', b.dataset.themeSet);
+    try { localStorage.setItem('fbt-theme', b.dataset.themeSet); } catch (e) {}
+    syncThemeButtons(); drawChart();
+  });
+});
+syncThemeButtons();
+
+/* ---------- Hoja «Más» y avisos ---------- */
+var sheet = document.getElementById('sheet');
+document.getElementById('more').addEventListener('click', function () { sheet.showModal(); });
+sheet.querySelector('[data-close]').addEventListener('click', function () { sheet.close(); });
+sheet.addEventListener('click', function (e) { if (e.target === sheet) sheet.close(); });
+var avisos = document.getElementById('avisos'), bell = document.getElementById('bell');
+avisos.addEventListener('beforetoggle', function (e) {
+  if (e.newState !== 'open') return;
+  var r = bell.getBoundingClientRect();
+  avisos.style.position = 'fixed'; avisos.style.top = (r.bottom + 8) + 'px';
+  avisos.style.left = Math.max(12, Math.min(innerWidth - 332, r.right - 320)) + 'px';
+});
+
+/* ---------- Arranque y redimensionado ---------- */
+function renderAll() {
+  buildHero();
+  document.querySelectorAll('.spark').forEach(renderSpark);
+  renderProfile(document.querySelector('[data-prof="last"]'), LAST);
+  renderProfile(document.querySelector('[data-prof="route"]'), ROUTE);
+}
+renderLegend(document.querySelector('[data-prof="last"] [data-legend]'), LAST);
+renderLegend(document.querySelector('[data-prof="route"] [data-legend]'), ROUTE);
+renderRing();
+var ready = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+ready.then(function () {
+  renderAll();
+  drawChart();
+  initMap();
+  requestAnimationFrame(function () {
+    document.body.classList.add('ready');
+    setTimeout(function () { summitEl.classList.add('on'); }, reduced ? 0 : 820);
+  });
+  var pending = 0;
+  new ResizeObserver(function () {
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(function () { renderAll(); chart.resize(); if (map) map.invalidateSize(); });
+  }).observe(document.querySelector('.grid'));
+});
+})();
+</script>
+</body>
+</html>

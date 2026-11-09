@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Subidas, Historial, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  /* ---- Fila de subida: la rampa, coloreada por su pendiente media ---- */
+  .row-lead--wedge { background: var(--surface-2); }
+  .row-lead--wedge svg { width: 42px; height: 42px; }
+  .wedge .w0 { fill: var(--g0); } .wedge .w1 { fill: var(--g1); } .wedge .w2 { fill: var(--g2); }
+  .wedge .w3 { fill: var(--g3); } .wedge .w4 { fill: var(--g4); } .wedge .w5 { fill: var(--g5); }
+  .wedge line { stroke: var(--line-strong); }
+  .solo-note { padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2); font-size: 15px; color: var(--ink-2); }
+
+  /* ---- Nombres largos: dos líneas en la lista, tres en la tarjeta; enteros en la hoja ---- */
+  #lista .row-title, #lista-una .row-title, .last-name {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis;
+  }
+  .last-name { -webkit-line-clamp: 3; }
+  #hoja-subida .sheet-h { align-items: flex-start; }      /* con un título de 4 líneas, la X sigue arriba */
+  #hoja-subida .sheet-title { padding-top: 9px; }
+  #hoja-subida .sheet-sub { margin-top: 4px; }
+
+  /* ---- «Tu última subida»: compacta y toda ella abre la hoja (.last--tap y .last-go, en el kit) ---- */
+  .last-line { margin-top: 10px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .nw { white-space: nowrap; }
+  .row-title, .last-name, #hs-t { unicode-bidi: plaintext; }   /* nombres en árabe o hebreo: sin reordenar el guion */
+
+  .results { display: flex; align-items: center; min-height: 32px; margin: -4px 0 -6px; font-size: var(--t-sm); color: var(--ink-2); }
+  .results:empty { display: none; }   /* la región aria-live sigue en el DOM */
+  .once-only { margin-top: 16px; }
+  .more-left { font-weight: 500; color: var(--ink-3); }
+
+  /* ---- Esqueleto con la forma real ---- */
+  .sk-rows { display: grid; gap: 18px; padding: 16px 14px; }
+  .sk-row { display: grid; grid-template-columns: 42px 1fr 52px; gap: 12px; align-items: center; }
+  .sk-stack { display: grid; gap: 8px; }
+
+  /* Apaisado y tableta: el nombre a la izquierda y la cifra a la derecha, como en Repetidas; la lista a dos columnas */
+  @media (min-width: 600px) {
+    .last { grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: end; }
+    .last .card-h { grid-column: 1 / -1; }
+    .last .last-fig { margin-top: 0; }
+    #lista:not([hidden]), #lista-una:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="brand" href="index.html" aria-label="FBikeTrain, galería"><span data-hito></span>FBikeTrain</a></div>
+  <span class="appbar-title" aria-hidden="true">Subidas</span>
+  <div class="appbar-actions">
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page page--dense">
+  <div class="page-head">
+    <h1 class="page-title">Historial</h1>
+  </div>
+
+  <nav class="seg seg--quiet" aria-label="Vistas del historial">
+    <a href="historial.html"><span>Salidas</span></a>
+    <a href="subidas.html" aria-current="page"><span>Subidas</span></a>
+    <a href="repetidas.html"><span>Repetidas</span></a>
+  </nav>
+  <!-- La entradilla va bajo el segmentado: así el segmentado no salta al cambiar de vista -->
+  <p class="page-lead page-lead--sub" id="lead">Los puertos que repites y cómo te van, pasada a pasada.</p>
+
+  <div id="vista" class="section"></div>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="historial" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: detalle de una subida ===== -->
+<dialog class="sheet" id="hoja-subida" aria-labelledby="hs-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hs-t" dir="auto">Subida</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub" id="hs-sub"></p>
+  </div>
+  <div class="sheet-body" data-m="elev">
+    <div class="sheet-cols">
+      <div class="sheet-col">
+        <p class="climb-h"><span>Pendiente de cada kilómetro, en&#8239;%</span><span id="hs-cima"></span></p>
+        <svg class="climb" id="hs-perfil" role="img" aria-label=""></svg>
+        <dl class="stat3" id="hs-stats"></dl>
+      </div>
+      <div class="sheet-col">
+        <section class="sheet-sec" aria-labelledby="hs-evo-t" id="hs-evo">
+          <div class="sheet-sec-h"><h3 id="hs-evo-t">Tus tiempos</h3><p>Desliza el dedo por la gráfica</p></div>
+          <div class="passes" id="hs-passes">
+            <div class="passes-read" aria-live="off"></div>
+            <svg role="img" aria-label=""></svg>
+            <p class="passes-key"><span><i class="k-best" aria-hidden="true"></i>Tu mejor</span><span><i class="k-mean" aria-hidden="true"></i><span data-mean>Tu media</span></span><span class="k-up">Arriba, más rápido</span></p>
+          </div>
+        </section>
+        <p class="solo-note" id="hs-solo" hidden>Solo la has subido una vez. Con la segunda pasada verás aquí cómo cambian tus tiempos.</p>
+      </div>
+    </div>
+
+    <section class="sheet-sec" aria-labelledby="hs-lista-t">
+      <div class="sheet-sec-h"><h3 id="hs-lista-t">Pasadas</h3><p>De la más reciente a la primera</p></div>
+      <ul class="list" id="hs-lista"></ul>
+      <button class="btn btn--ghost more-btn" type="button" id="hs-mas" aria-expanded="false" aria-controls="hs-lista" hidden></button>
+    </section>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script>
+(function () {
+'use strict';
+var FBT = window.FBT, fmt = FBT.fmt, dur = FBT.dur, icon = FBT.icon;
+var NB = ' ';                      // espacio fino antes de unidades y %
+var HOY = new Date(2026, 10, 6, 20, 0); // viernes 6 de noviembre de 2026 (datos de ejemplo)
+var q = new URLSearchParams(location.search), state = q.get('state') || q.get('estado') || '', caso = q.get('caso') || '';
+function D(y, m, d) { return new Date(y, m, d, 10, 30).getTime(); }
+function rnd(seed) { var s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function gcls(g) { return g < 1 ? 0 : g < 4 ? 1 : g < 7 ? 2 : g < 10 ? 3 : g < 16 ? 4 : 5; }
+function pl(n, one, many) { return fmt(n) + ' ' + (n === 1 ? one : many); }
+function $(id) { return document.getElementById(id); }
+
+/* ---------- Fechas en castellano ---------- */
+var DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+/* En la cabecera de la tarjeta, fecha corta («4 oct.»): «El 4 de octubre» partía el título en dos líneas a 360 px */
+function shortRel(t) { var d = daysAgo(t), x = new Date(t); return d < 7 ? cap(rel(t)) : x.getDate() + ' ' + MESES[x.getMonth()].slice(0, 3) + '.' + (x.getFullYear() !== HOY.getFullYear() ? ' ' + x.getFullYear() : ''); }
+function daysAgo(t) { var a = new Date(t), b = new Date(HOY); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0); return Math.round((b - a) / 864e5); }
+function rel(t) {
+  var d = daysAgo(t), x = new Date(t);
+  if (d === 0) return 'hoy';
+  if (d === 1) return 'ayer';
+  if (d < 7) return 'el ' + DIAS[x.getDay()];
+  return 'el ' + x.getDate() + ' de ' + MESES[x.getMonth()] + (x.getFullYear() !== HOY.getFullYear() ? ' de ' + x.getFullYear() : '');
+}
+function longDate(t) {
+  var x = new Date(t);
+  return cap(DIAS[x.getDay()]) + ' ' + x.getDate() + ' de ' + MESES[x.getMonth()] + (x.getFullYear() !== HOY.getFullYear() ? ' de ' + x.getFullYear() : '');
+}
+
+function dayDate(t) { var x = new Date(t); return x.getDate() + ' de ' + MESES[x.getMonth()] + ' de ' + x.getFullYear(); }
+
+/* ---------- Datos de ejemplo (ClimbGroup: lengthM, avgGradePct y cada pasada con timeS, gainM, vamMh) ---------- */
+var CLIMBS = [
+  { id: 'collsuspina', name: 'Collsuspina desde Centelles', km: 7.4, grade: 4.3, gain: 321, start: 585, n: 9, best: 1420, last: 1454, first: D(2024, 3, 14), lastT: D(2026, 10, 5), seed: 3 },
+  { id: 'collformic', name: 'Collformic desde el Brull', km: 7.6, grade: 5.4, gain: 410, start: 743, n: 14, best: 1600, first: D(2023, 4, 2), lastT: D(2026, 9, 25), seed: 7 },
+  { id: 'bracons', name: 'Coll de Bracons desde Torelló', km: 9.4, grade: 7.0, gain: 658, start: 475, n: 6, best: 2472, first: D(2024, 5, 8), lastT: D(2026, 9, 18), seed: 11 },
+  { id: 'far', name: 'Santuari del Far desde Sant Martí Sacalm', km: 6.6, grade: 6.8, gain: 449, start: 780, n: 4, best: 1805, lastIsBest: true, first: D(2025, 4, 20), lastT: D(2026, 9, 31), seed: 5 },
+  { id: 'marcal', name: 'Sant Marçal desde Sant Esteve de Palautordera por Santa Fe del Montseny', km: 20.4, grade: 4.3, gain: 877, start: 232, n: 3, best: 4520, first: D(2025, 6, 1), lastT: D(2026, 7, 15), seed: 13 },
+  { id: 'condreu', name: 'Coll de Condreu', km: 5.9, grade: 4.6, gain: 271, start: 780, n: 3, best: 1100, first: D(2025, 8, 3), lastT: D(2026, 8, 27), seed: 17 },
+  { id: 'puig', name: 'Puig-l’agulla', km: 4.2, grade: 7.8, gain: 328, start: 540, n: 2, best: 1180, first: D(2026, 4, 9), lastT: D(2026, 9, 4), seed: 19 },
+  /* Sin nombre propio: los datos no lo traen (petición de dato). Se nombra por la salida y el km. */
+  { id: 'km34', name: null, ride: 'Salida en bicicleta por la mañana', atKm: 34, km: 2.3, grade: 6.1, gain: 140, start: 610, n: 2, best: 542, first: D(2026, 5, 21), lastT: D(2026, 8, 13), seed: 23 }
+];
+var ONCE = [
+  { id: 'revell', name: 'Coll de Revell', km: 3.4, grade: 5.9, gain: 201, start: 520, n: 1, best: 895, first: D(2026, 8, 12), lastT: D(2026, 8, 12), seed: 31 },
+  { id: 'casserres', name: 'Sant Pere de Casserres', km: 2.8, grade: 6.4, gain: 179, start: 470, n: 1, best: 760, first: D(2026, 7, 2), lastT: D(2026, 7, 2), seed: 37 },
+  { id: 'turo', name: 'Turó de l’Home desde Sant Marçal', km: 6.2, grade: 6.2, gain: 384, start: 1105, n: 1, best: 2010, first: D(2026, 6, 19), lastT: D(2026, 6, 19), seed: 41 },
+  { id: 'viladrau', name: 'Coll de Te por Viladrau', km: 4.9, grade: 4.1, gain: 201, start: 820, n: 1, best: 1150, first: D(2026, 5, 7), lastT: D(2026, 5, 7), seed: 43 },
+  { id: 'tona', name: 'Castell de Tona', km: 1.2, grade: 8.9, gain: 107, start: 600, n: 1, best: 395, first: D(2026, 3, 26), lastT: D(2026, 3, 26), seed: 47 },
+  { id: 'lluca', name: 'Santuari de Lluçà', km: 3.9, grade: 3.6, gain: 140, start: 700, n: 1, best: 780, first: D(2025, 9, 11), lastT: D(2025, 9, 11), seed: 53 }
+];
+
+/* ---------- Casos de prueba (?caso=): una, sin-una, largos, muchas ---------- */
+if (caso === 'una') { CLIMBS = CLIMBS.slice(6, 7); ONCE = ONCE.slice(0, 1); }
+if (caso === 'sin-una') ONCE = [];
+if (caso === 'solo-una') CLIMBS = [];   /* no repites ninguna, pero hay subidas de una pasada */
+if (caso === 'rampa') CLIMBS.unshift({ id: 'rampa', name: 'مرتفع الأطلس الكبير — Tizi n’Tichka', km: 0.4, grade: 22.4, gain: 90, start: 512, n: 5, best: 61, first: D(2026, 2, 1), lastT: D(2026, 10, 5), seed: 29 });
+if (caso === 'largos') {
+  CLIMBS[0].name = 'Coll de la Creu de Perves des del Pont de Suert per la carretera vella N-260 (variant de la Pobla de Segur)';
+  CLIMBS[2].name = 'Port del Comte des de Sant Llorenç de Morunys per la carretera de la Coma i la Pedra fins a l’estació d’esquí';
+}
+if (caso === 'muchas') {
+  var BASE = ['Collformic', 'Collsuspina', 'Coll de Bracons', 'Coll de Condreu', 'Santuari del Far', 'Puig-l’agulla', 'Coll de Revell', 'Sant Marçal', 'Coll de Te', 'Turó de l’Home'];
+  var FROM = ['desde Vic', 'desde Centelles', 'desde Torelló', 'desde Seva', 'desde Tona', 'desde Manlleu', 'desde Sant Hipòlit', 'por la vertiente norte'];
+  var gen = function (i, n) {
+    var km = 1.5 + (i * 37 % 160) / 10, grade = 3 + (i * 13 % 70) / 10;
+    return { id: 'm' + n + i, name: BASE[i % 10] + ' ' + FROM[(i * 3) % 8] + (i >= 80 ? ', variante ' + Math.floor(i / 80) : ''), km: km, grade: grade,
+      gain: Math.round(km * grade * 10), start: 300 + i * 53 % 700, n: n || 2 + i * 7 % 25, best: Math.round(km * 1000 / (6.2 - grade * 0.35)),
+      first: D(2018 + i % 6, i % 12, 1 + i % 27), lastT: D(n === 1 ? 2019 + i % 7 : 2026, i % 10, 1 + i % 27), seed: 60 + i };
+  };
+  CLIMBS[1].n = 1284; CLIMBS[1].first = D(2014, 2, 3);
+  for (var gi = 0; gi < 232; gi++) CLIMBS.push(gen(gi, 0));
+  for (gi = 0; gi < 1800; gi++) ONCE.push(gen(gi, 1));
+}
+
+function nameOf(c) { return c.name || 'Subida del km ' + c.atKm + ' de «' + c.ride + '»'; }
+function kmGrades(c) {
+  var r = rnd(c.seed), n = Math.ceil(c.km - 0.05), g = [], tot = 0, i;
+  for (i = 0; i < n; i++) {
+    var f = i / Math.max(1, n - 1);
+    g.push(c.grade * (0.72 + 0.5 * r() + (f > 0.4 && f < 0.85 ? 0.28 : -0.08)));
+  }
+  for (i = 0; i < n; i++) tot += g[i] * 10 * Math.min(1, c.km - i);
+  return g.map(function (x) { return Math.round(x * (c.gain / tot) * 10) / 10; });
+}
+function mkPasses(c) {
+  var r = rnd(c.seed + 100), n = c.n, out = [], i;
+  for (i = 0; i < n; i++) {
+    var f = n === 1 ? 1 : i / (n - 1);
+    var t = c.first + (c.lastT - c.first) * (i === 0 || i === n - 1 ? f : Math.min(0.97, Math.max(0.03, f + (r() - 0.5) * 0.12)));
+    out.push({ t: t, s: c.best * (1.11 - 0.07 * f + r() * 0.07) });
+  }
+  out.sort(function (a, b) { return a.t - b.t; });
+  var bi = c.lastIsBest || n === 1 ? n - 1 : Math.min(n - 2, Math.max(0, Math.round((n - 1) * 0.62)));
+  out.forEach(function (p, j) { if (j !== bi && p.s <= c.best + 4) p.s = c.best + 6 + r() * 25; });
+  out[bi].s = c.best;
+  if (c.last) out[n - 1].s = c.last;
+  return out.map(function (p) { var s = Math.round(p.s); return { t: p.t, s: s, vam: Math.round(c.gain / s * 3600), kmh: c.km / s * 3600 }; });
+}
+CLIMBS.concat(ONCE).forEach(function (c) {
+  c.passes = mkPasses(c);
+  c.grades = kmGrades(c);
+  c.lastP = c.passes[c.passes.length - 1];
+  c.bestP = c.passes.reduce(function (a, b) { return b.s < a.s ? b : a; });
+  c.top = Math.round(c.start + c.gain);
+});
+
+/* ---------- Piezas ---------- */
+function wedge(c) {
+  var h = Math.min(28, 6 + c.grade * 2.6), k = gcls(c.grade);
+  return '<svg class="wedge" viewBox="0 0 42 42" aria-hidden="true"><polygon class="w' + k + '" points="7,33 35,33 35,' + (33 - h).toFixed(1) + '"/><line x1="7" x2="35" y1="33.5" y2="33.5"/></svg>';
+}
+function vamTxt(v) { return 'VAM <span class="nw">' + fmt(v) + NB + 'm/h</span>'; }
+/* En una rampa de menos de 1 km o de menos de 3 min la VAM no dice nada («5.311 m/h» en 61 s) */
+function vamOk(c) { return c.km >= 1 && c.best >= 180; }
+/* Menos de 2 min: «61 s»; «1:01» se confundía con 1 h 01 */
+function t(s) { return s < 120 ? s + NB + 's' : dur(s); }
+function gapTxt(s) { return s < 60 ? s + NB + 's' : dur(s); }
+function climbRow(c) {
+  var isNew = c.n > 1 && c.lastP === c.bestP;
+  return '<li><button class="row" type="button" data-climb="' + c.id + '" aria-haspopup="dialog" aria-controls="hoja-subida">' +
+    '<span class="row-lead row-lead--wedge">' + wedge(c) + '</span>' +
+    '<span class="row-main"><span class="row-title" dir="auto" title="' + esc(nameOf(c)) + '">' + esc(nameOf(c)) + '</span>' +
+      '<span class="row-meta">' + fmt(c.km, 1) + NB + 'km al ' + fmt(c.grade, 1) + NB + '%</span>' +
+      '<span class="row-meta">' + (c.n > 1 ? fmt(c.n) + ' pasadas' + (vamOk(c) ? ' · ' + vamTxt(c.bestP.vam) : '') : 'Una pasada, ' + rel(c.lastT)) + '</span>' +
+      (isNew ? '<span class="row-meta"><span class="chip chip--done">' + icon('trend') + 'Mejor tiempo en la última</span></span>' : '') +
+    '</span>' +
+    '<span class="row-trail"><span class="trail-stack"><span class="row-val">' + t(c.best) + '</span><span class="trail-cap">' + (c.n > 1 ? 'tu mejor' : 'tu tiempo') + '</span></span>' + icon('chev', 'chev') + '</span>' +
+  '</button></li>';
+}
+function rankOf(c, p) { return c.passes.filter(function (q) { return q.s < p.s; }).length + 1; }
+/* Compacta: sin el perfil (está en la hoja), para que la lista asome en el primer pantallazo */
+function lastCard(c) {
+  var p = c.lastP, rank = rankOf(c, p), gap = p.s - c.best;
+  var verdict = rank === 1
+    ? '<span class="delta delta--up">' + icon('up') + 'Tu mejor tiempo</span>'
+    : '<span><b>' + (rank === c.n ? 'La más lenta' : 'Tu ' + rank + '.ª mejor') + '</b> de ' + fmt(c.n) + '</span><span>a ' + gapTxt(gap) + ' de tu mejor, ' + t(c.best) + '</span>';
+  return '<article class="card last last--tap" data-m="elev" aria-labelledby="last-t">' +
+    '<div class="card-h"><span class="card-ic">' + icon('mountain') + '</span>' +
+      '<h2 class="card-title" id="last-t"><button class="last-go" type="button" data-climb="' + c.id + '" aria-haspopup="dialog" aria-controls="hoja-subida" aria-label="Tu última subida, ver tus ' + fmt(c.n) + ' pasadas">Tu última subida</button></h2>' +
+      '<span class="last-when">' + shortRel(p.t) + '</span>' + icon('chev', 'chev') + '</div>' +
+    '<div><p class="last-name" dir="auto" title="' + esc(nameOf(c)) + '">' + esc(nameOf(c)) + '</p>' +
+      '<p class="last-line">' + fmt(c.km, 1) + NB + 'km al ' + fmt(c.grade, 1) + NB + '%' + (vamOk(c) ? ', ' + vamTxt(p.vam) : '') + '</p></div>' +
+    '<div class="last-fig"><span class="last-time">' + t(p.s) + '</span><p class="last-rank">' + verdict + '</p></div>' +
+  '</article>';
+}
+function profileLabel(c) {
+  var mx = Math.max.apply(null, c.grades), k = c.grades.indexOf(mx) + 1;
+  return 'Perfil de ' + nameOf(c) + ': ' + fmt(c.km, 1) + ' km de ' + fmt(c.start) + ' a ' + fmt(c.top) + ' m. El kilómetro más duro es el ' + k + ', al ' + fmt(mx, 1) + ' %.';
+}
+
+/* ---------- Orden (se guarda en ?orden=) ---------- */
+var SORTS = {
+  veces: function (a, b) { return b.n - a.n || b.lastT - a.lastT; },
+  recientes: function (a, b) { return b.lastT - a.lastT; },
+  duras: function (a, b) { return b.grade - a.grade; },
+  largas: function (a, b) { return b.km - a.km; }
+};
+var sortBy = SORTS[q.get('orden')] ? q.get('orden') : 'veces';
+function setParam(k, v) { try { var u = new URL(location.href); if (v) u.searchParams.set(k, v); else u.searchParams.delete(k); history.replaceState(null, '', u); } catch (e) {} }
+
+/* ---------- Lista paginada: 20 y «Ver 20 más»; las de una sola pasada empiezan por 10 ---------- */
+var PAGE = 20, shown = PAGE, shownOnce = 10, onceOpen = false, query = '', rawQuery = '';
+function norm(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function match(c) { return !query || norm(nameOf(c)).indexOf(query) >= 0; }
+function moreBtn(b, left) {
+  if (!b) return;
+  b.hidden = left <= 0;
+  if (left > 0) b.innerHTML = icon('chevdown') + 'Ver ' + Math.min(PAGE, left) + ' más<span class="more-left">, quedan ' + fmt(left) + '</span>';
+}
+function drawLists() {
+  var rep = CLIMBS.filter(match).sort(SORTS[sortBy]), one = ONCE.filter(match).sort(SORTS.recientes);
+  var l = $('lista');
+  if (l) {
+    l.innerHTML = rep.slice(0, shown).map(climbRow).join('');
+    l.hidden = !rep.length;
+    moreBtn($('lista-mas'), rep.length - shown);
+  }
+  var vu = $('ver-una');
+  if (vu) {
+    vu.hidden = !one.length;
+    vu.setAttribute('aria-expanded', onceOpen);
+    vu.innerHTML = icon('chevdown') + (onceOpen ? (one.length === 1 ? 'Ocultar la que has subido una vez' : 'Ocultar las que has subido una vez')
+      : one.length === 1 ? 'Ver la que has subido una vez' : 'Ver las ' + fmt(one.length) + ' que has subido una vez');
+    var lu = $('lista-una');
+    lu.hidden = !onceOpen || !one.length;
+    lu.innerHTML = onceOpen ? one.slice(0, shownOnce).map(climbRow).join('') : '';
+    moreBtn($('una-mas'), onceOpen ? one.length - shownOnce : 0);
+  }
+  var res = $('resultado'), hits = rep.length + one.length;
+  if (res) res.textContent = !query ? '' : hits ? pl(hits, 'subida', 'subidas') + ' con «' + rawQuery + '»' : 'Ninguna subida con «' + rawQuery + '». Prueba con otro nombre.';
+}
+
+/* ---------- Vistas: datos, carga, vacío y error ---------- */
+var vista = $('vista'), lead = $('lead');
+
+function onceBlock() {
+  return '<button class="btn btn--ghost more-btn" type="button" id="ver-una" aria-expanded="false" aria-controls="lista-una"></button>' +
+    '<ul class="list list--inset" id="lista-una" hidden></ul>' +
+    '<button class="btn btn--ghost more-btn" type="button" id="una-mas" hidden></button>';
+}
+function renderData() {
+  if (!CLIMBS.length) return renderEmpty(ONCE.length > 0);
+  var latest = CLIMBS.slice().sort(SORTS.recientes)[0], total = CLIMBS.length + ONCE.length;
+  lead.innerHTML = '<b>' + pl(CLIMBS.length, 'subida', 'subidas') + '</b> que repites, de ' + fmt(total) + '.';
+  vista.innerHTML = lastCard(latest) +
+    '<section class="section" aria-labelledby="rep-t">' +
+      '<div class="section-h"><h2 class="section-title" id="rep-t">Las que repites</h2></div>' +
+      (total > PAGE
+        ? '<div class="search" role="search">' + icon('search') + '<label class="sr-only" for="q-sub">Buscar subida</label>' +
+          '<input class="input" id="q-sub" type="search" placeholder="Buscar subida o puerto…" autocomplete="off" enterkeyhint="search" spellcheck="false">' +
+          '<button class="icon-btn" type="button" id="q-clear" aria-label="Borrar la búsqueda" hidden>' + icon('x') + '</button></div>' +
+          '<p class="results" id="resultado" role="status"></p>'
+        : '') +
+      (CLIMBS.length >= 3
+        ? '<div class="chips-scroll" role="group" aria-label="Ordenar subidas" data-single>' +
+          [['veces', 'Más pasadas'], ['recientes', 'Recientes'], ['duras', 'Más duras'], ['largas', 'Más largas']].map(function (o) {
+            return '<button class="fchip" type="button" data-value="' + o[0] + '" aria-pressed="' + (o[0] === sortBy) + '"><span>' + icon('check', 'ic-check') + o[1] + '</span></button>';
+          }).join('') + '</div>'
+        : '') +
+      '<ul class="list list--inset" id="lista"></ul>' +
+      '<button class="btn btn--ghost more-btn" type="button" id="lista-mas" hidden></button>' +
+      (ONCE.length ? onceBlock() : '') +
+    '</section>';
+  drawLists();
+  FBT.chipsMore(vista);
+}
+function renderLoading() {
+  lead.textContent = 'Calculando tus subidas…';
+  vista.setAttribute('aria-busy', 'true');
+  vista.innerHTML = '<span class="sr-only">Cargando subidas</span>' +
+    '<div class="card sk-last" aria-hidden="true"><span class="sk sk-title"></span><span class="sk sk-title" style="width:72%"></span><span class="sk sk-fig" style="height:56px;width:52%"></span><span class="sk sk-line" style="width:64%"></span></div>' +
+    '<div class="list" aria-hidden="true"><div class="sk-rows">' +
+      [70, 84, 58, 76].map(function (w) { return '<div class="sk-row"><span class="sk sk-circle"></span><span class="sk-stack"><span class="sk sk-line" style="width:' + w + '%"></span><span class="sk sk-line" style="width:46%"></span></span><span class="sk sk-line"></span></div>'; }).join('') +
+    '</div></div>';
+}
+/* withOnce: no repites ninguna, pero sí hay subidas de una sola pasada; se dejan a mano debajo */
+function renderEmpty(withOnce) {
+  withOnce = withOnce === true;
+  lead.textContent = 'Los puertos que repites y cómo te van, pasada a pasada.';
+  vista.innerHTML = '<div class="card"><div class="state">' +
+    '<span class="state-ic">' + icon('mountain') + '</span>' +
+    '<h2 class="state-title">Aún no repites ninguna subida</h2>' +
+    '<p class="state-text">Cuando pases dos veces por el mismo puerto, aquí verás tus tiempos uno frente a otro.</p>' +
+    '<a class="btn btn--primary" href="importar.html">' + icon('upload') + 'Importar salidas nuevas</a>' +
+  '</div></div>' +
+  (withOnce ? '<section class="section once-only" aria-label="Subidas de una sola pasada">' + onceBlock() + '</section>' : '');
+  if (withOnce) drawLists();
+}
+function renderError() {
+  lead.textContent = 'Los puertos que repites y cómo te van, pasada a pasada.';
+  vista.innerHTML = '<div class="card"><div class="state state--error">' +
+    '<span class="state-ic">' + icon('alert') + '</span>' +
+    '<h2 class="state-title">No se han podido leer tus salidas</h2>' +
+    '<p class="state-text">El almacenamiento de este navegador no ha respondido. Vuelve a intentarlo; si sigue igual, restaura tu copia desde Ajustes.</p>' +
+    '<a class="btn btn--secondary" href="subidas.html">' + icon('refresh') + 'Reintentar</a>' +
+  '</div></div>';
+}
+({ empty: renderEmpty, vacio: renderEmpty, loading: renderLoading, carga: renderLoading, error: renderError }[state] || renderData)();
+
+/* ---------- Interacción ---------- */
+vista.addEventListener('chipchange', function (e) {
+  if (!e.detail.on || !SORTS[e.detail.value]) return;
+  sortBy = e.detail.value; shown = PAGE;
+  setParam('orden', sortBy === 'veces' ? '' : sortBy);
+  drawLists();
+});
+vista.addEventListener('input', function (e) {
+  if (e.target.id !== 'q-sub') return;
+  rawQuery = e.target.value.trim(); query = norm(rawQuery);
+  shown = PAGE; shownOnce = 10;
+  $('q-clear').hidden = !e.target.value;
+  drawLists();
+});
+vista.addEventListener('click', function (e) {
+  if (e.target.closest('#q-clear')) {
+    var inp = $('q-sub'); inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.focus();
+    return;
+  }
+  if (e.target.closest('#lista-mas')) { shown += PAGE; drawLists(); return; }
+  if (e.target.closest('#una-mas')) { shownOnce += PAGE; drawLists(); return; }
+  if (e.target.closest('#ver-una')) { onceOpen = !onceOpen; shownOnce = 10; drawLists(); return; }
+  var b = e.target.closest('[data-climb]');
+  if (b) openClimb(b.dataset.climb, b);
+});
+
+/* ---------- Hoja de detalle ---------- */
+var LIMIT = 5, sheetClimb = null;
+function passRow(c, p) {
+  var isBest = c.n > 1 && p === c.bestP;
+  return '<li><a class="row row--plain" href="salida.html">' +
+    '<span class="row-main"><span class="row-title">' + longDate(p.t) + '</span>' +
+      '<span class="row-meta">' + (vamOk(c) ? vamTxt(p.vam) + ', ' : '') + fmt(p.kmh, 1) + NB + 'km/h</span>' +
+      (isBest ? '<span class="row-meta"><span class="chip chip--done">' + icon('check') + 'Tu mejor</span></span>' : '') + '</span>' +
+    '<span class="row-trail"><span class="row-val">' + t(p.s) + '</span>' + icon('chev', 'chev') + '</span></a></li>';
+}
+function fillList(all) {
+  var c = sheetClimb, ps = c.passes.slice().reverse(), btn = $('hs-mas');
+  $('hs-lista').innerHTML = (all ? ps.slice(0, 200) : ps.slice(0, LIMIT)).map(function (p) { return passRow(c, p); }).join('');
+  btn.hidden = ps.length <= LIMIT;
+  btn.setAttribute('aria-expanded', !!all);
+  btn.innerHTML = icon('chevdown') + (all ? 'Ver solo las ' + LIMIT + ' últimas' : ps.length > 200 ? 'Ver las 200 últimas, de ' + fmt(ps.length) : 'Ver las ' + ps.length + ' pasadas');
+}
+function openClimb(id, trigger) {
+  var c = CLIMBS.concat(ONCE).filter(function (x) { return x.id === id; })[0];
+  if (!c) return;
+  sheetClimb = c;
+  $('hs-t').textContent = nameOf(c);
+  $('hs-sub').textContent = fmt(c.km, 1) + NB + 'km al ' + fmt(c.grade, 1) + NB + '%, ' + fmt(c.gain) + NB + 'm de desnivel.';
+  $('hs-cima').innerHTML = 'cima <span class="fig">' + fmt(c.top) + '</span>' + NB + 'm';
+  var perfil = $('hs-perfil');
+  perfil.setAttribute('aria-label', profileLabel(c));
+  $('hs-stats').innerHTML =
+    '<div><dt>Pasadas</dt><dd>' + fmt(c.n) + '</dd></div>' +
+    '<div><dt>' + (c.n > 1 ? 'Tu mejor' : 'Tu tiempo') + '</dt><dd class="fig-i">' + t(c.best) + '</dd></div>' +
+    '<div><dt>' + (c.n > 1 ? 'Mejor VAM' : 'VAM') + '</dt><dd>' + (vamOk(c) ? fmt(c.bestP.vam) + '<span class="u">m/h</span>' : '—') + '</dd></div>';
+  var many = c.n > 1;
+  $('hs-evo').hidden = !many;
+  $('hs-solo').hidden = many;
+  fillList(false);
+  FBT.sheet.open('hoja-subida', trigger);
+  FBT.climb(perfil, { grades: c.grades, km: c.km, start: c.start });
+  if (many) {
+    var wrap = $('hs-passes');
+    wrap._sel = undefined;
+    wrap.querySelector('svg').setAttribute('aria-label', 'Tus ' + fmt(c.n) + ' tiempos en ' + nameOf(c) + ', de ' + longDate(c.passes[0].t).toLowerCase() + ' a ' + longDate(c.lastP.t).toLowerCase() + '. Tu mejor: ' + dur(c.best) + ', el ' + longDate(c.bestP.t).toLowerCase() + '. La última: ' + dur(c.lastP.s) + '. Con las flechas recorres las pasadas; la lista de pasadas tiene todos los datos.');
+    FBT.passes(wrap, { items: c.passes.map(function (p) { return { t: p.t, s: p.s, when: dayDate(p.t), sub: vamOk(c) ? vamTxt(p.vam) : fmt(p.kmh, 1) + NB + 'km/h' }; }), dur: 'clock' });
+  }
+  document.querySelector('#hoja-subida .sheet-body').scrollTop = 0;
+}
+$('hs-mas').addEventListener('click', function () { fillList(this.getAttribute('aria-expanded') !== 'true'); });
+})();
+</script>
+</body>
+</html>

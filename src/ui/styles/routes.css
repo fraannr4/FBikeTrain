@@ -1,0 +1,195 @@
+/* =====================================================================
+   Tarjeta de ruta (RouteCard): forma luminosa sobre curvas de nivel y perfil por pendiente.
+   Sale de rutas.css del prototipo móvil (`.rcard`). Sin fotos y sin hex sueltos: todo son tokens.
+   La forma (.shape) y el perfil (.profile, .legend) tienen sus estilos en kit.css.
+   ===================================================================== */
+
+.rcard {
+  position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+}
+.rcard[data-best] { border-color: color-mix(in srgb, var(--action) 55%, var(--line)); }
+
+/* ---------- Franja de la forma ---------- */
+.rcard-map {
+  position: relative; flex: none; height: 132px; overflow: hidden; isolation: isolate;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+}
+/* Curvas de nivel grabadas a todo lo ancho (la forma trae las suyas en el centro) */
+.rcard-map::before, .rcard-band::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--ridge-line); opacity: 0.12;
+  -webkit-mask: var(--relieve) 30% 40% / 420px 262px no-repeat; mask: var(--relieve) 30% 40% / 420px 262px no-repeat;
+}
+:root[data-theme="light"] .rcard-map::before, :root[data-theme="light"] .rcard-band::before { background: var(--ridge-near); opacity: 0.1; }
+.rcard-map .shape { position: absolute; inset: 8px 0; width: 100%; height: calc(100% - 16px); }
+.rcard-rank {
+  position: absolute; top: 10px; left: 10px; display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px;
+  border-radius: 9px; background: var(--surface); border: 1px solid var(--line-strong);
+  font: 700 17px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.rcard-kind { position: absolute; right: 10px; bottom: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.rcard-kind .ic { color: var(--ink-2); }
+/* «Mapa»: secundaria, arriba a la derecha (la principal, exportar, va en el pie) */
+.rcard-mapbtn {
+  position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 6px;
+  min-width: 44px; height: 44px; padding: 0 14px 0 12px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink);
+  font: 600 var(--t-sm)/1 var(--font-ui);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
+}
+.rcard-mapbtn .ic { width: 18px; height: 18px; color: var(--link); }
+.rcard-mapbtn:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) { .rcard-mapbtn:hover { border-color: var(--link); } }
+
+/* ---------- Cuerpo ---------- */
+.rcard-body { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 0; padding: 14px 16px 16px; }
+.rcard-head { display: grid; gap: 4px; }
+.rcard-best { display: flex; align-items: center; gap: 6px; font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--good); }
+.rcard-best .ic { width: 16px; height: 16px; flex: none; }
+/* Nombre: dos líneas como mucho, para que las tarjetas del carrusel midan lo mismo.
+   El nombre completo sigue en el h3 (lector de pantalla) y en title. */
+.rcard-name {
+  font: 600 var(--t-xl)/1.15 var(--font-fig); letter-spacing: -0.005em; color: var(--ink);
+  text-wrap: balance; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; line-clamp: 2;
+}
+.rcard-chips { margin-top: -2px; }
+
+/* Tercios iguales mientras las cifras quepan; con cifras extremas o tarjetas estrechas, la última baja de línea */
+.rcard-figs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.rcard-figs > div { flex: 1 0 0; min-width: max-content; }
+.rcard-figs dt { font: 500 13px/1.2 var(--font-ui); color: var(--ink-3); }
+.rcard-figs dd {
+  display: flex; flex-wrap: nowrap; align-items: baseline; white-space: nowrap; margin: 4px 0 0;
+  font: 700 25px/1 var(--font-fig); letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+/* La unidad trae su espacio en el texto (ValueText): fuera el margen de base.css, salvo en el
+   `dd` flexible, donde el espacio inicial de un elemento flexible desaparece */
+.rcard .unit, .rcard-row-meta .unit, .rmap-sheet .unit { margin-left: 0; }
+.rcard-figs dd .unit:not(:last-child) { margin-right: 3px; }
+.rcard-figs dd .unit { margin-left: 3px; font: 600 14px/1 var(--font-fig); color: var(--ink-2); letter-spacing: 0; }
+
+/* Perfil, eje y leyenda, en ese orden (la leyenda viene dentro de la figura de ProfileSvg) */
+.rcard-prof { display: flex; flex-direction: column; min-width: 0; }
+.rcard-prof > .profile-fig { display: contents; }
+.rcard-prof-h { order: 0; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: var(--t-sm); color: var(--ink-2); }
+.rcard-prof-h .fig { font-size: 17px; color: var(--ink); }
+.rcard-prof-h > span:last-child { white-space: nowrap; }
+.rcard-prof .profile { order: 1; }
+.rcard-prof > .profile-axis { order: 2; margin-top: 4px; }
+.rcard-prof .legend { order: 3; margin-top: 8px; }
+
+/* «Por qué esta»: nota malva, tres líneas y «Leer más». No estira las otras tarjetas */
+.rcard-why {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--acc-elev) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--acc-elev) 32%, transparent);
+  font-size: 15px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty;
+}
+.rcard-why > .ic { width: 18px; height: 18px; margin-top: 2px; color: var(--acc-elev); }
+.rcard-why b { color: var(--ink); font-weight: 600; }
+.rcard-why-main { min-width: 0; }
+.rcard-why-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; text-overflow: ellipsis; line-clamp: 3; overflow-wrap: anywhere; }
+.rcard-why.is-open .rcard-why-t { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
+.rcard-more { min-height: 44px; margin: 2px 0 -10px -12px; padding: 0 12px; font-size: var(--t-sm); }
+
+.rcard-actions { display: grid; margin-top: auto; padding-top: 2px; }
+/* En el carrusel de Rutas, el dock repite el botón en el teléfono: la tarjeta no lo lleva */
+@media (max-width: 599px) and (min-height: 501px) { .rcard--docked .rcard-actions { display: none; } }
+
+/* ---------- Fila compacta (dentro de List) ---------- */
+.rcard-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+.rcard-row-meta > span { white-space: nowrap; }
+.rcard-row-meta .fig { font-weight: 600; color: var(--ink-2); }
+.rcard-row-meta .unit { font: inherit; color: var(--ink-3); }
+.rcard-row-meta .dif { font-size: var(--t-sm); }
+.row-lead--shape .shape { width: 36px; height: 36px; }
+
+/* ---------- Destacada (Inicio): franja de 176 px, forma a la derecha y velo con el texto ---------- */
+/* La franja crece si el nombre o el porqué no caben en 176 px: nada se monta encima */
+.rcard-band {
+  position: relative; flex: none; min-height: 176px; overflow: hidden; isolation: isolate;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+}
+.rcard-band-shape.shape { position: absolute; top: 12px; right: 4px; width: 46%; height: min(152px, calc(100% - 24px)); }
+.rcard-veil {
+  position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
+  width: min(66%, 360px); min-height: 176px; padding: 14px 16px;
+  background: linear-gradient(90deg, var(--surface-2) 70%, transparent);
+}
+.rcard-line .unit { font: 500 var(--t-sm)/1 var(--font-ui); color: var(--ink-2); }
+.rcard-veil .chip { align-self: flex-start; }
+.rcard-veil .rcard-name { font-size: var(--t-lg); }
+.rcard-line { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--t-sm); color: var(--ink-2); }
+.rcard-line > span { white-space: nowrap; }
+.rcard-line .fig { font-size: 17px; color: var(--ink); }
+.rcard-feature-why {
+  font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; line-clamp: 2; overflow-wrap: anywhere;
+}
+.rcard-gpx { position: absolute; top: 8px; right: 8px; z-index: 2; color: var(--ink); transition: transform var(--dur-press) var(--ease-out); }
+.rcard-gpx:active { transform: scale(0.94); }
+.rcard--feature .rcard-body { gap: 14px; }
+
+/* ---------- Esqueleto: misma forma, sin saltos al llegar los datos ---------- */
+.rcard--sk .rcard-map { display: grid; place-items: center; }
+.rcard--sk .sk-shape { width: 112px; height: 112px; border-radius: 50%; }
+.sk-figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sk-figs .sk { width: auto; height: 30px; }
+
+/* Móviles estrechos (360-380 px): el perfil entra en la primera pantalla */
+@media (max-width: 380px) {
+  .rcard-map { height: 104px; }
+  .rcard-figs dd { font-size: 22px; }
+  .rcard-body { padding-inline: 14px; }
+  .rcard-chips { gap: 6px; }
+  .rcard-chips .chip { padding: 0 8px; gap: 5px; }
+}
+
+/* Apaisado en teléfono: la tarjeta se tumba, forma a la izquierda y el resto a la derecha */
+@media (orientation: landscape) and (max-height: 500px) {
+  .rcard:not(.rcard--feature) { flex-direction: row; }
+  .rcard:not(.rcard--feature) .rcard-map { flex: 0 0 38%; height: auto; min-height: 228px; border-bottom: 0; border-right: 1px solid var(--line); }
+  .rcard-map .shape { inset: 50px 0 auto; height: 136px; }
+  .rcard[data-best] .rcard-map .shape { top: 86px; height: 100px; }
+  .rcard-kind { top: 192px; bottom: auto; }
+  .rcard:not(.rcard--feature) .rcard-body { padding-block: 10px; gap: 8px; }
+  .rcard:not(.rcard--feature) .rcard-name { -webkit-line-clamp: 1; line-clamp: 1; font-size: var(--t-lg); }
+  .rcard .legend { margin-top: 6px; }
+  .rcard-figs dd { font-size: 22px; }
+  .rcard--sk .sk-shape { width: 88px; height: 88px; }
+  /* «La que mejor encaja» pasa a la forma, bajo el número: deja la leyenda del perfil a la vista.
+     Si la columna es estrecha, salta de línea dentro de la pastilla en vez de salirse */
+  .rcard-best {
+    position: absolute; z-index: 1; top: 50px; left: 10px; max-width: calc(38% - 20px);
+    padding: 5px 10px 5px 8px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-strong);
+  }
+}
+
+/* Con un «Leer más» abierto, cada tarjeta del carrusel mide lo suyo: las demás no se estiran con hueco vacío */
+.carousel:has(.rcard-why.is-open) > li { align-items: flex-start; }
+
+/* ---------- Hoja del mapa (rutas.html, #hoja-mapa): trazado sobre CyclOSM y perfil debajo ---------- */
+dialog.sheet--route-map { max-height: calc(100dvh - var(--safe-t) - 12px); }
+.rmap-sheet { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; padding-top: 4px; }
+.rmap-sheet-map {
+  position: relative; overflow: hidden; isolation: isolate; height: clamp(240px, calc(100dvh - 380px), 560px);
+  margin: 0 -8px; border-radius: var(--r-lg); border: 1px solid var(--line);
+}
+.rmap-sheet .rcard-prof .profile { height: 64px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Mapa a la izquierda, perfil a la derecha */
+  .rmap-sheet { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; }
+  .rmap-sheet-map { height: calc(100dvh - 190px); margin: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rcard-mapbtn, .rcard-gpx { transition: none; }
+  .rcard-mapbtn:active, .rcard-gpx:active { transform: none; }
+}
+@media (forced-colors: active) {
+  .rcard { border: 1px solid CanvasText; }
+  .rcard-veil { background: Canvas; }
+}

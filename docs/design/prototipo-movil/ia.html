@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Rutas con IA, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<!-- Icono propio: sin él, el navegador pide /favicon.ico y Vite responde 404 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%230A1122%27/%3E%3Cpath d=%27M4 24l8-11 5 6 4-5 7 10z%27 fill=%27%232A64DA%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<link rel="stylesheet" href="rutas.css?v=585f6010">
+</head>
+<body data-page="ia">
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="icon-btn" id="ia-back" href="rutas.html" aria-label="Volver a Rutas"><i data-ic="back"></i></a></div>
+  <span class="appbar-title" aria-hidden="true">Rutas con IA</span>
+  <div class="appbar-actions">
+    <button class="icon-btn" type="button" data-sheet-open="hoja-ia" aria-label="Qué ve la IA"><i data-ic="shield"></i></button>
+    <button class="icon-btn" type="button" data-theme-flip aria-label="Cambiar de tema"></button>
+  </div>
+</header>
+
+<main id="main" class="page">
+  <div class="page-head">
+    <div class="q-swap">
+      <p class="page-kicker" id="q-kicker">Paso 1 de 4</p>
+      <h1 class="page-title" id="q-title">¿Cuánto tiempo tienes?</h1>
+    </div>
+    <div class="qprog" id="qprog" role="progressbar" aria-label="Progreso" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-valuetext="Paso 1 de 4"><i data-on></i><i></i><i></i><i></i></div>
+  </div>
+
+  <!-- Tus respuestas, encima de las propuestas (en apaisado, junto al título) -->
+  <div class="section" id="ia-receta" hidden>
+    <button class="receta" type="button" data-goto="resumen" aria-label="Tus respuestas: 3 h 30, un puerto, con ganas. Cambiar respuestas">
+      <span class="row-lead" data-m="elev"><i data-ic="sparkles"></i></span>
+      <span class="row-main">
+        <span class="receta-figs"><span><b id="ia-receta-t">3 h 30 min</b></span></span>
+        <span class="receta-meta" id="ia-receta-m">Un puerto, con ganas</span>
+      </span>
+      <span class="receta-go"><span class="receta-go-t">Cambiar</span><i data-ic="chev"></i></span>
+    </button>
+  </div>
+
+  <!-- ===== Pregunta 1: tiempo ===== -->
+  <section class="section" id="paso-1" aria-label="Respuestas">
+    <div class="opts" role="radiogroup" aria-labelledby="q-title" data-step="1" data-m="time">
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="1h30">
+        <span class="opt-lead"><i data-ic="timer"></i></span>
+        <span class="opt-main"><span class="opt-t">1&nbsp;h&nbsp;30&nbsp;min</span><span class="opt-s">Unos <b>40&nbsp;km</b> a tu ritmo</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="2h30">
+        <span class="opt-lead"><i data-ic="timer"></i></span>
+        <span class="opt-main"><span class="opt-t">2&nbsp;h&nbsp;30&nbsp;min</span><span class="opt-s">Unos <b>66&nbsp;km</b> a tu ritmo</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="3h30">
+        <span class="opt-lead"><i data-ic="timer"></i></span>
+        <span class="opt-main"><span class="opt-t">3&nbsp;h&nbsp;30&nbsp;min</span><span class="opt-s">Unos <b>93&nbsp;km</b>, algo más que tu salida media</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="4h">
+        <span class="opt-lead"><i data-ic="timer"></i></span>
+        <span class="opt-main"><span class="opt-t">Toda la mañana</span><span class="opt-s">Más de 4&nbsp;h: <b>105&nbsp;km</b> o más</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+    </div>
+    <div class="banner">
+      <i data-ic="shield"></i>
+      <p>La IA solo ve <b>cifras resumidas</b>: nunca tus tracks ni dónde está Casa.</p>
+      <button class="btn btn--ghost" type="button" data-sheet-open="hoja-ia">Qué ve exactamente</button>
+    </div>
+  </section>
+
+  <!-- ===== Pregunta 2: terreno (cada respuesta, con su perfil por pendiente) ===== -->
+  <section class="section" id="paso-2" aria-label="Respuestas" hidden>
+    <div class="opts" role="radiogroup" aria-labelledby="q-title" data-step="2" data-m="elev">
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="llano">
+        <span class="opt-lead"><svg class="terrain" viewBox="0 0 34 24" aria-hidden="true"><path class="t0" d="M2 17L10 16L18 17L25 15.5L32 16.5"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Llano para rodar</span><span class="opt-s">Menos de <b>8&nbsp;m</b> de desnivel por&nbsp;km</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="ondulado">
+        <span class="opt-lead"><svg class="terrain" viewBox="0 0 34 24" aria-hidden="true"><path class="t1" d="M2 18L8 13"/><path class="t0" d="M8 13L13 17"/><path class="t2" d="M13 17L20 10"/><path class="t0" d="M20 10L25 15"/><path class="t1" d="M25 15L32 11"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Ondulado</span><span class="opt-s">Repechos cortos, como tus <b>14&nbsp;m</b> por&nbsp;km de media</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="puerto">
+        <span class="opt-lead"><svg class="terrain" viewBox="0 0 34 24" aria-hidden="true"><path class="t1" d="M2 20L8 18"/><path class="t3" d="M8 18L20 4"/><path class="t0" d="M20 4L32 19"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Un puerto</span><span class="opt-s">Una subida larga y el resto, tranquilo</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="montana">
+        <span class="opt-lead"><svg class="terrain" viewBox="0 0 34 24" aria-hidden="true"><path class="t3" d="M2 20L7 9"/><path class="t0" d="M7 9L11 15"/><path class="t4" d="M11 15L17 3"/><path class="t0" d="M17 3L22 13"/><path class="t3" d="M22 13L27 6"/><path class="t0" d="M27 6L32 18"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Montaña</span><span class="opt-s">Varios puertos: más de <b>20&nbsp;m</b> por&nbsp;km</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== Pregunta 3: piernas ===== -->
+  <section class="section" id="paso-3" aria-label="Respuestas" hidden>
+    <div class="opts" role="radiogroup" aria-labelledby="q-title" data-step="3">
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="cansado" style="--acc: var(--easy-ink)">
+        <span class="opt-lead"><svg class="ic bars" aria-hidden="true"><use href="#i-bars1"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Cansado</span><span class="opt-s">Ritmo suave, por debajo de tu media</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="normal" style="--acc: var(--mid-ink)">
+        <span class="opt-lead"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Normal</span><span class="opt-s">Lo de siempre, a tu ritmo</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+      <button class="opt" type="button" role="radio" aria-checked="false" data-value="ganas" style="--acc: var(--hard-ink)">
+        <span class="opt-lead"><svg class="ic bars" aria-hidden="true"><use href="#i-bars3"/></svg></span>
+        <span class="opt-main"><span class="opt-t">Con ganas</span><span class="opt-s">Que sea un reto: un <b>5&nbsp;%</b> más lejos de lo normal</span></span>
+        <span class="opt-mark"><i data-ic="check"></i></span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ===== Resumen: lo que se pedirá y lo que verá la IA ===== -->
+  <section class="section" id="paso-resumen" aria-label="Resumen" hidden>
+    <ul class="list list--inset" aria-label="Tus respuestas">
+      <li><button class="row" type="button" data-goto="1" id="sum-1" data-m="time">
+        <span class="row-lead"><i data-ic="timer"></i></span>
+        <span class="row-main"><span class="row-meta">Tiempo</span><span class="row-title">3 h 30 min</span></span>
+        <span class="row-trail"><span class="sr-only">Cambiar</span><i data-ic="pencil" class="chev"></i></span>
+      </button></li>
+      <li><button class="row" type="button" data-goto="2" id="sum-2" data-m="elev">
+        <span class="row-lead"><i data-ic="mountain"></i></span>
+        <span class="row-main"><span class="row-meta">Terreno</span><span class="row-title">Un puerto</span></span>
+        <span class="row-trail"><span class="sr-only">Cambiar</span><i data-ic="pencil" class="chev"></i></span>
+      </button></li>
+      <li><button class="row" type="button" data-goto="3" id="sum-3" data-m="speed">
+        <span class="row-lead"><i data-ic="activity"></i></span>
+        <span class="row-main"><span class="row-meta">Piernas</span><span class="row-title">Con ganas</span></span>
+        <span class="row-trail"><span class="sr-only">Cambiar</span><i data-ic="pencil" class="chev"></i></span>
+      </button></li>
+    </ul>
+
+    <div class="card ask" data-m="elev">
+      <div class="card-h"><span class="card-ic"><i data-ic="sparkles"></i></span><h2 class="card-title">Lo que pedirás</h2></div>
+      <p class="ask-figs"><span><b id="ask-km">90 a 105</b>km</span><span><b id="ask-m">1350 a 1700</b>m</span></p>
+      <p class="muted">Tres rutas desde Casa, cada una con su forma, su perfil por pendiente y por qué encaja contigo.</p>
+    </div>
+
+    <div class="card" data-m="time">
+      <div class="card-h"><span class="card-ic"><i data-ic="shield"></i></span><h2 class="card-title">Lo que verá la IA</h2></div>
+      <ul class="sees sees--yes">
+        <li><i data-ic="check"></i><span>Tu salida media: <b>74&nbsp;km</b> y <b>1050&nbsp;m</b></span></li>
+        <li><i data-ic="check"></i><span>Tu velocidad media: <b>26,5&nbsp;km/h</b></span></li>
+        <li><i data-ic="check"></i><span>Tu VAM en subidas largas: <b>780&nbsp;m/h</b></span></li>
+        <li><i data-ic="check"></i><span>Tus tres respuestas</span></li>
+        <li><i data-ic="check"></i><span>Las cifras de las rutas candidatas: km, desnivel, subidas y %&nbsp;de carretera nueva, <b>sin coordenadas</b></span></li>
+      </ul>
+      <p class="card-foot">Nunca verá tus tracks GPS, dónde está Casa ni los nombres de tus salidas.</p>
+    </div>
+  </section>
+
+  <!-- ===== Propuestas ===== -->
+  <section class="section" id="paso-propuestas" aria-labelledby="q-title" hidden>
+    <div class="carousel-wrap" id="ia-carrusel" data-carousel>
+      <ul class="carousel" tabindex="0" aria-label="Propuestas de la IA"></ul>
+      <div class="pager">
+        <button class="icon-btn" type="button" data-prev aria-label="Propuesta anterior"><i data-ic="back"></i></button>
+        <div class="pager-mid"><span class="pager-count" aria-live="polite"></span><span class="pager-dots" aria-hidden="true"></span></div>
+        <button class="icon-btn" type="button" data-next aria-label="Propuesta siguiente"><i data-ic="chev"></i></button>
+      </div>
+    </div>
+    <ul class="list list--inset">
+      <li><button class="row" type="button" data-sheet-open="hoja-gpx" data-m="time">
+        <span class="row-lead"><i data-ic="download"></i></span>
+        <span class="row-main"><span class="row-title">Cómo pasar el GPX al iGPSPORT</span><span class="row-meta">BSC200S, en tres pasos con la app</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </button></li>
+    </ul>
+  </section>
+
+  <!-- ===== Pidiendo ===== -->
+  <section class="section" id="ia-loading" aria-label="Pidiendo rutas" hidden>
+    <div class="card gen-progress" aria-busy="true">
+      <ol class="gensteps" id="ia-steps">
+        <li data-s="done"><i data-ic="checkc"></i><span>Resumiendo tus cifras…</span></li>
+        <li data-s="now" aria-current="step"><i data-ic="loader" class="spin"></i><span>La IA elige 3 recorridos…</span></li>
+        <li data-s="todo"><i data-ic="clock"></i><span>OpenRouteService los traza desde Casa…</span></li>
+      </ol>
+      <p class="meta">Suele tardar unos 10 segundos.</p>
+      <button class="btn btn--secondary btn--block" type="button" id="ia-cancelar">Cancelar</button>
+    </div>
+    <ul class="carousel" aria-hidden="true">
+      <li><div class="rcard rcard--sk"><div class="rcard-map"><span class="sk sk-shape"></span></div><div class="rcard-body"><span class="sk sk-title"></span><span class="sk sk-line" style="width:62%"></span><div class="sk-figs"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><span class="sk sk-box" style="height:68px"></span></div></div></li>
+      <li><div class="rcard rcard--sk"><div class="rcard-map"><span class="sk sk-shape"></span></div><div class="rcard-body"><span class="sk sk-title"></span><span class="sk sk-line" style="width:62%"></span><div class="sk-figs"><span class="sk"></span><span class="sk"></span><span class="sk"></span></div><span class="sk sk-box" style="height:68px"></span></div></div></li>
+    </ul>
+  </section>
+
+  <!-- ===== Error ===== -->
+  <section class="section" id="ia-error" aria-label="Error" hidden>
+    <div class="card state state--error" role="alert">
+      <span class="state-ic"><i data-ic="alert"></i></span>
+      <p class="state-text">Tus respuestas están guardadas. Vuelve a intentarlo y, si sigue fallando, revisa tu clave en Ajustes.</p>
+      <a class="btn btn--secondary" href="ajustes.html#ia"><i data-ic="key"></i>Revisar la clave</a>
+    </div>
+  </section>
+
+  <!-- ===== Sin clave de IA ===== -->
+  <section class="section" id="ia-nokey" aria-label="Falta la clave de IA" hidden>
+    <div class="card state">
+      <span class="state-ic"><i data-ic="key"></i></span>
+      <p class="state-text">Las propuestas explicadas usan tu propia clave. Pégala en Ajustes; mientras, puedes generar rutas con tus cifras.</p>
+      <a class="btn btn--primary" href="ajustes.html#ia"><i data-ic="sliders"></i>Ir a Ajustes</a>
+      <a class="btn btn--ghost" href="rutas.html">Generar sin IA</a>
+    </div>
+  </section>
+
+  <!-- ===== Sin salidas ===== -->
+  <section class="section" id="ia-empty" aria-label="Sin salidas" hidden>
+    <div class="card state">
+      <span class="state-ic"><i data-ic="bike"></i></span>
+      <p class="state-text">La IA propone rutas a partir de tus cifras. Importa tu archivo de Strava y vuelve.</p>
+      <a class="btn btn--primary" href="importar.html"><i data-ic="upload"></i>Importar salidas</a>
+    </div>
+  </section>
+</main>
+
+<div class="dock" id="ia-dock" hidden>
+  <button class="btn btn--secondary" type="button" id="ia-prev" hidden><i data-ic="back"></i>Anterior</button>
+  <button class="btn btn--primary" type="button" id="ia-next" hidden>Siguiente</button>
+  <button class="btn btn--primary" type="button" id="ia-pedir" hidden><i data-ic="sparkles"></i>Pedir 3 rutas a la IA</button>
+  <button class="btn btn--primary" type="button" id="ia-retry" hidden><i data-ic="refresh"></i>Reintentar</button>
+  <button class="btn btn--primary" type="button" id="ia-export" hidden><i data-ic="download"></i>Exportar GPX<span class="dock-tag">1 de 3</span></button>
+</div>
+<nav class="tabbar" data-tabbar data-current="rutas" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: qué ve la IA ===== -->
+<dialog class="sheet" id="hoja-ia" aria-labelledby="hoja-ia-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-ia-t">Qué ve la IA</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Solo interviene en las rutas. Las traza OpenRouteService en tu teléfono.</p>
+  </div>
+  <div class="sheet-body">
+    <div class="sheet-group">
+      <p class="sheet-group-title">Ve estas cifras resumidas</p>
+      <ul class="sees sees--yes">
+        <li><i data-ic="check"></i><span>Tu salida media: <b>74&nbsp;km</b> y <b>1050&nbsp;m</b></span></li>
+        <li><i data-ic="check"></i><span>Tu velocidad media: <b>26,5&nbsp;km/h</b></span></li>
+        <li><i data-ic="check"></i><span>Tu VAM en subidas largas: <b>780&nbsp;m/h</b></span></li>
+        <li><i data-ic="check"></i><span>Tus respuestas a las tres preguntas</span></li>
+        <li><i data-ic="check"></i><span>Las cifras de las rutas candidatas: km, desnivel, subidas y %&nbsp;de carretera nueva, <b>sin coordenadas</b></span></li>
+      </ul>
+    </div>
+    <div class="sheet-group">
+      <p class="sheet-group-title">No ve nunca</p>
+      <ul class="sees sees--no">
+        <li><i data-ic="x"></i><span>Tus tracks GPS ni tus mapas</span></li>
+        <li><i data-ic="x"></i><span>Dónde está Casa</span></li>
+        <li><i data-ic="x"></i><span>Los nombres y las fechas de tus salidas</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Entendido</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: la ruta en el mapa (en la app, Leaflet con CyclOSM) ===== -->
+<dialog class="sheet sheet--map" id="hoja-mapa" aria-labelledby="hoja-mapa-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-mapa-t" dir="auto">Recorrido</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar el mapa"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub" id="hoja-mapa-sub"></p>
+  </div>
+  <div class="sheet-body sheet-body--map">
+    <div class="rmap"><svg class="shape map" id="rmap-svg" role="img"></svg><p class="map-attr">© OpenStreetMap, CyclOSM</p></div>
+    <div class="rmap-prof">
+      <p class="rcard-prof-h"><span>Perfil por pendiente</span><span>cima <span class="fig" id="rmap-top"></span>&nbsp;m</span></p>
+      <svg class="profile" id="rmap-prof" role="img"></svg>
+      <div class="profile-axis" id="rmap-axis" aria-hidden="true"></div>
+      <div class="legend" id="rmap-legend" aria-hidden="true"></div>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--primary btn--block" type="button" id="mapa-export"><i data-ic="download"></i>Exportar GPX</button>
+  </div>
+</dialog>
+
+<!-- ===== Hoja: pasar el GPX al iGPSPORT ===== -->
+<dialog class="sheet" id="hoja-gpx" aria-labelledby="hoja-gpx-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-gpx-t">Llévala al iGPSPORT</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar"><i data-ic="x"></i></button>
+    </div>
+    <p class="sheet-sub">Para el BSC200S. El archivo es <span data-gpx-file>montseny-por-collformic.gpx</span>.</p>
+  </div>
+  <div class="sheet-body">
+    <ol class="steps">
+      <li><p>Pulsa <b>Exportar GPX</b>. El archivo se guarda en Descargas.</p></li>
+      <li><p>Abre la app <b>iGPSPORT</b>, ve a <b>Rutas</b> e importa el archivo.</p></li>
+      <li><p>Sincroniza el BSC200S. En el ciclocomputador, abre <b>Rutas</b> y elige «<span data-gpx-name>Montseny por Collformic</span>».</p></li>
+    </ol>
+  </div>
+  <div class="sheet-foot">
+    <button class="btn btn--secondary btn--block" type="button" data-sheet-close>Entendido</button>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script src="rutas.js?v=123888e3"></script>
+</body>
+</html>

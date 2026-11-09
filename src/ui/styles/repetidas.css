@@ -1,0 +1,84 @@
+/* Pantalla Repetidas y su hoja. El kit (tarjeta .last, .passes, .stat3, .shape) vive en kit.css. */
+
+/* ---- Tu última repetida ---- */
+.repetidas .last-top { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; }
+.repetidas .shape-box { display: block; aspect-ratio: 1; border-radius: 14px; background: var(--surface-2); overflow: hidden; }
+.repetidas .last-meta { margin-top: 4px; font-size: var(--t-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ---- Tarjeta de grupo: toda ella es un botón ---- */
+.repetidas .groups { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rg {
+  display: grid; gap: 14px; width: 100%; padding: 14px 14px 12px; text-align: left; font: inherit; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
+}
+.rg:active { transform: scale(0.985); }
+.rg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) { .rg:hover { border-color: var(--line-strong); } }
+.rg-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.rg-main { display: grid; min-width: 0; }
+.rg-name { font: 600 19px/1.15 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.rg-top .chev { width: 18px; height: 18px; color: var(--ink-3); }
+.rg .chip { justify-self: start; margin-top: 6px; }
+.rg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--line); }
+.rg-stats > span { display: grid; align-content: start; gap: 4px; min-width: 0; padding-left: 12px; }
+.rg-stats > span:first-child { padding-left: 0; }
+.rg-stats > span + span { border-left: 1px solid var(--line); }
+.rg-k { font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-3); }
+.rg-v { font: 700 20px/1.05 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.rg-v .u, .sheet--repetida .row-val .u, .sheet--repetida .stat3 dd .u { font-size: 13px; margin: 0 3px 0 2px; }
+.rg-v .u:last-child, .sheet--repetida .row-val .u:last-child, .sheet--repetida .stat3 dd .u:last-child { margin-right: 0; }
+.rg-v.delta { display: flex; align-items: center; gap: 4px; font: 600 var(--t-sm)/1.25 var(--font-ui); white-space: normal; }
+.rg-v.delta .ic { flex: none; width: 16px; height: 16px; }
+.rg-v.delta--up { color: var(--good); }      /* .rg-v pone --ink después de .delta--up: se repite aquí */
+.rg-v.delta--down { color: var(--ink-2); }
+.rg-v.flat { font: 500 var(--t-sm)/1.25 var(--font-ui); color: var(--ink-2); }
+
+/* ---- Nombres largos: dos líneas en la tarjeta de grupo, tres en la última; enteros en la hoja ---- */
+.rg-name, .repetidas .last-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis;
+  unicode-bidi: plaintext;
+}
+.repetidas .last-name { -webkit-line-clamp: 3; }
+
+.repetidas .results { display: flex; align-items: center; min-height: 32px; margin: -4px 0 -6px; font-size: var(--t-sm); color: var(--ink-2); }
+.repetidas .results:empty { display: none; }   /* la región aria-live sigue en el DOM */
+.repetidas .more-left { font-weight: 500; color: var(--ink-3); }
+
+/* ---- Esqueletos con la forma real ---- */
+.repetidas .sk-group { display: grid; gap: 14px; }
+.repetidas .sk-group-top { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; }
+.repetidas .sk-groups { margin-top: 16px; }
+
+/* ---- Hoja: la forma con el tiempo a batir ---- */
+.sheet--repetida .sheet-h { align-items: flex-start; }   /* con un título de 4 líneas, la X sigue arriba */
+.sheet--repetida .sheet-title { padding-top: 9px; unicode-bidi: plaintext; }
+.sheet--repetida .sheet-sub { margin-top: 4px; }
+.rs-map { position: relative; height: 184px; border-radius: 18px; background: var(--surface-2); overflow: hidden; }
+.rs-map .shape { position: absolute; inset: 6px 0 6px 30%; width: 70%; height: calc(100% - 12px); }
+.rs-beat { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 4px; margin: 0; padding: 10px 14px 12px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--line-strong); }
+.rs-beat span { font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+.rs-beat b { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.rs-beat b .u { font-size: 17px; margin: 0 4px 0 2px; font-style: normal; }
+.rs-beat b .u:last-child { margin-right: 0; }
+.sheet--repetida .stat3 dd.flat { font: 500 var(--t-md)/1.2 var(--font-ui); color: var(--ink-2); }
+.sheet--repetida .stat3 dd.delta { display: flex; align-items: center; gap: 4px; }
+.sheet--repetida .stat3 dd.delta .ic { flex: none; width: 18px; height: 18px; }
+
+/* Apaisado y tableta: dos columnas de tarjetas; la última, con la cifra a la derecha */
+@media (min-width: 600px) {
+  .repetidas .groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .repetidas .last { grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: end; }
+  .repetidas .last .card-h { grid-column: 1 / -1; }
+  .repetidas .last .last-fig { margin-top: 0; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .sheet--repetida .sheet-cols .rs-map { height: 128px; }
+  .sheet--repetida .sheet-cols .rs-beat b { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .rg { transition: none; } .rg:active { transform: none; } }
+
+/* En dos columnas, todas las tarjetas de una fila miden lo mismo y las cifras quedan alineadas abajo */
+.repetidas .groups > li { display: grid; }
+.rg { grid-template-rows: 1fr auto; }

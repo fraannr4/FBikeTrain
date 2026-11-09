@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain, Inicio</title>
+<!--
+  Prototipo C «Datos primero». Datos sintéticos.
+  ECharts y Leaflet desde CDN solo en el prototipo; la app usará npm.
+  Fuentes Barlow autoalojadas (OFL) en ../../board/fonts.
+-->
+<script>
+  // Tema antes de pintar: oscuro por defecto; ?theme=light para capturas.
+  (function () {
+    var t = null;
+    try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme'); } catch (e) {}
+    if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  })();
+</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+@font-face{font-family:"Barlow";src:url(../../board/fonts/barlow-latin-400-normal.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Barlow";src:url(../../board/fonts/barlow-latin-500-normal.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"Barlow";src:url(../../board/fonts/barlow-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";src:url(../../board/fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2");font-weight:600;font-display:swap}
+@font-face{font-family:"Barlow Semi Condensed";src:url(../../board/fonts/barlow-semi-condensed-latin-700-normal.woff2) format("woff2");font-weight:700;font-display:swap}
+
+/* =========================================================
+   Tokens. Oscuro por defecto; claro con data-theme="light".
+   Los que lee ECharts van en hex o rgba con comas.
+   ========================================================= */
+:root{
+  color-scheme:dark;
+  --f-ui:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;
+
+  --bg:#0A1122; --side:#0C1427; --surface:#111A2E; --surface-2:#17223B; --surface-3:#1D2A47;
+  --glass:rgba(16,25,46,.72); --glass-strong:rgba(14,22,42,.86);
+  --line:rgba(148,176,230,.14); --line-strong:rgba(148,176,230,.28);
+  --hi:rgba(255,255,255,.06);
+  --ink:#EAF0FA; --ink-2:#A9B6CF; --ink-3:#8C9AB5;
+  --action:#2563EB; --action-hover:#1D4FD0; --on-action:#FFFFFF; --action-ink:#8DB6FF; --focus:#7FB2FF;
+
+  --m-dist:#3B8BFF; --m-elev:#9277F2; --m-time:#1AA597; --m-speed:#C9820B;
+  --good:#3DD68C; --diff-easy:#3DD68C; --diff-mid:#F2A44E; --diff-hard:#F0707F;
+
+  --s0:#5C6B8A; --s1:#F4D77E; --s2:#F2A44E; --s3:#EC7343; --s4:#E04A5E; --s5:#B0368C;
+
+  --sky-0:#050915; --sky-1:#0A1330; --sky-2:#18235A; --sky-3:#3A3272; --sky-4:#A0586A;
+  --ridge-far:#25336C; --ridge-mid:#18244F; --ridge-near:#0D1631; --ridge-line:#8DB6FF;
+
+  --r-xl:22px; --r-lg:16px; --r-md:12px; --r-sm:8px;
+  --shadow:0 1px 0 var(--hi) inset, 0 22px 44px -28px rgba(0,0,0,.8);
+  --shadow-glass:0 1px 0 rgba(255,255,255,.07) inset, 0 16px 32px -20px rgba(0,0,0,.7);
+  --glow:.55; --casing:0; --thread:.8;
+  --ease-out:cubic-bezier(.23,1,.32,1); --ease-drawer:cubic-bezier(.32,.72,0,1);
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --bg:#EEF2F8; --side:#F7F9FC; --surface:#FFFFFF; --surface-2:#F2F5FA; --surface-3:#E7ECF4;
+  --glass:rgba(255,255,255,.86); --glass-strong:rgba(255,255,255,.94);
+  --line:#D9E1EE; --line-strong:#C3CEE0; --hi:rgba(255,255,255,0);
+  --ink:#0E1730; --ink-2:#3E4C68; --ink-3:#56657F;
+  --action:#1F5FD6; --action-hover:#1A52BB; --action-ink:#1F5FD6; --focus:#1F5FD6;
+
+  --m-dist:#1F66E0; --m-elev:#6E4BD8; --m-time:#0B8C80; --m-speed:#B86E00;
+  --good:#15803D; --diff-easy:#15803D; --diff-mid:#8A4A00; --diff-hard:#B42335;
+
+  --s0:#A7B3C8; --s1:#D6A21F; --s2:#D9782A; --s3:#C2452B; --s4:#972530; --s5:#5A1634;
+
+  --sky-0:#C3D4F0; --sky-1:#D6E2F6; --sky-2:#EBEFF9; --sky-3:#F8E6DA; --sky-4:#F6CDB8;
+  --ridge-far:#BCCAE2; --ridge-mid:#9FB2D5; --ridge-near:#7E95C2; --ridge-line:#1F55C8;
+
+  --shadow:0 1px 2px rgba(14,23,48,.05), 0 12px 30px -18px rgba(14,23,48,.26);
+  --shadow-glass:0 1px 2px rgba(14,23,48,.06), 0 10px 24px -16px rgba(14,23,48,.3);
+  --glow:0; --casing:1; --thread:0;
+}
+
+/* ---------- Base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-ui);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,h4,p{margin:0}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+svg{flex:none}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums lining-nums}
+.sr{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.skip{position:absolute;left:12px;top:-60px;z-index:50;background:var(--action);color:var(--on-action);padding:10px 14px;border-radius:var(--r-md);font-weight:600}
+.skip:focus{top:12px}
+.ico{width:20px;height:20px}
+.ico-s{width:16px;height:16px}
+
+/* Pulsación y hover: solo puntero fino para el hover */
+.press{transition:transform 160ms var(--ease-out),background-color 160ms ease,border-color 160ms ease,color 160ms ease}
+.press:active{transform:scale(.97)}
+
+/* =========================================================
+   Estructura
+   ========================================================= */
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:18px 14px 16px;background:var(--side);border-right:1px solid var(--line);z-index:20}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px}
+.brand svg{width:30px;height:34px}
+.brand b{font:700 22px/1 var(--f-num);letter-spacing:-.01em}
+
+.nav ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.nav a,.nav button.more{display:flex;align-items:center;gap:12px;min-height:42px;padding:0 12px;border-radius:var(--r-md);color:var(--ink-2);font-weight:500;font-size:15px;position:relative;border:0;background:none;width:100%;cursor:pointer;text-align:left}
+.nav a[aria-current="page"]{color:var(--ink);background:color-mix(in srgb,var(--action) 16%,transparent)}
+.nav a[aria-current="page"] svg{color:var(--action-ink)}
+.nav a[aria-current="page"]::before{content:"";position:absolute;left:-14px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--action)}
+.nav .sub{padding-left:44px;font-size:14px;min-height:36px}
+.nav .sub svg{display:none}
+.nav .sep{height:1px;background:var(--line);margin:10px 8px}
+.nav .tag{margin-left:auto;font:600 12px/1 var(--f-ui);color:var(--ink-3);border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:3px 6px}
+.nav .lbl-m,.nav button.more{display:none}
+@media (hover:hover) and (pointer:fine){
+  .nav a:hover{background:var(--surface-2);color:var(--ink)}
+  .nav a[aria-current="page"]:hover{background:color-mix(in srgb,var(--action) 20%,transparent)}
+}
+
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px}
+.import{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);padding:14px;box-shadow:var(--shadow)}
+.import p{font-size:13.5px;color:var(--ink-2);line-height:1.4}
+.import p b{color:var(--ink);font-weight:600}
+.import .btn{margin-top:10px;width:100%}
+.ver{font-size:12px;color:var(--ink-3);padding:0 6px}
+
+.seg{display:inline-flex;gap:2px;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-md);padding:3px;position:relative}
+.seg button{border:0;background:none;color:var(--ink-2);font:500 13.5px/1 var(--f-ui);border-radius:9px;padding:0 12px;min-height:32px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--action);color:var(--on-action)}
+.seg button svg{width:15px;height:15px}
+.theme-seg{display:grid;grid-template-columns:1fr 1fr}
+.theme-seg button{justify-content:center}
+@media (hover:hover) and (pointer:fine){ .seg button[aria-pressed="false"]:hover{color:var(--ink);background:var(--surface-3)} }
+
+main{min-width:0;padding:16px 20px 28px}
+
+/* ---------- Botones ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:var(--r-md);font:600 14.5px/1 var(--f-ui);cursor:pointer;border:1px solid transparent;white-space:nowrap}
+.btn svg{width:17px;height:17px}
+.btn-pri{background:var(--action);color:var(--on-action)}
+.btn-sec{background:var(--surface-2);border-color:var(--line-strong);color:var(--ink)}
+.btn-ghost{background:none;color:var(--action-ink);padding:0 6px;min-height:32px;font-weight:600}
+@media (hover:hover) and (pointer:fine){
+  .btn-pri:hover{background:var(--action-hover)}
+  .btn-sec:hover{border-color:var(--ink-3)}
+  .btn-ghost:hover{text-decoration:underline;text-underline-offset:3px}
+}
+.icon-btn{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;background:var(--glass);border:1px solid var(--line);color:var(--ink);position:relative;cursor:pointer;backdrop-filter:blur(10px)}
+.icon-btn .ico{width:19px;height:19px}
+.icon-btn .dot{position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--m-speed);box-shadow:0 0 0 2px var(--surface)}
+@media (hover:hover) and (pointer:fine){ .icon-btn:hover{border-color:var(--line-strong);background:var(--glass-strong)} }
+
+/* =========================================================
+   Panel
+   ========================================================= */
+.dash{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;
+  grid-template-areas:
+   "hero hero hero hero hero hero hero hero hero hero hero hero"
+   "prog prog prog prog prog prog perf perf perf goal goal goal"
+   "last last last last last ia   ia   ia   ia   next next next"}
+.a-hero{grid-area:hero}.a-prog{grid-area:prog}.a-perf{grid-area:perf}.a-goal{grid-area:goal}
+.a-last{grid-area:last}.a-ia{grid-area:ia}.a-next{grid-area:next}.a-cta{grid-area:cta;display:none}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-xl);padding:18px 20px 20px;box-shadow:var(--shadow);min-width:0;display:flex;flex-direction:column}
+.card-h{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap;min-height:34px}
+.card-h h2{display:flex;align-items:center;gap:9px;font:600 17px/1.2 var(--f-ui);letter-spacing:-.005em}
+.card-h h2 svg{width:19px;height:19px;color:var(--ink-3)}
+.card-sub{font-size:13.5px;color:var(--ink-2);margin-top:2px;line-height:1.4}
+.card-sub b{color:var(--ink);font-weight:600}
+
+/* ---------- Hero ---------- */
+.hero{position:relative;border-radius:var(--r-xl);overflow:hidden;isolation:isolate;min-height:356px;display:flex;flex-direction:column;box-shadow:var(--shadow);border:1px solid var(--line)}
+.hero > svg.land{position:absolute;inset:0;width:100%;height:100%;z-index:-1;display:block}
+.hero-top{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"greet tools";align-items:start;gap:16px;padding:24px 24px 0 28px}
+.hero-top .greet{grid-area:greet}.hero-top .tools{grid-area:tools}
+.hero-brand{display:none;grid-area:brand}
+.greet .date{font-size:14px;color:var(--ink-2);font-weight:500}
+.greet h2{font:700 clamp(34px,4.4vw,52px)/1 var(--f-num);letter-spacing:-.02em;margin-top:4px}
+.greet p{margin-top:8px;color:var(--ink-2);font-size:16.5px;max-width:50ch;line-height:1.4}
+.greet p b{color:var(--ink);font-weight:600}
+.tools{display:flex;gap:8px;align-items:center}
+.search{display:flex;align-items:center;gap:8px;height:44px;width:260px;padding:0 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);color:var(--ink-3);backdrop-filter:blur(10px)}
+.search input{all:unset;flex:1;min-width:0;color:var(--ink);font:400 14.5px var(--f-ui)}
+.search input::placeholder{color:var(--ink-3)}
+.search:focus-within{border-color:var(--focus);outline:2px solid color-mix(in srgb,var(--focus) 35%,transparent);outline-offset:0}
+.search kbd{font:500 12px var(--f-ui);color:var(--ink-3);border:1px solid var(--line-strong);border-radius:6px;padding:1px 6px}
+.avatar{width:44px;height:44px;border-radius:999px;display:grid;place-items:center;background:var(--action);color:var(--on-action);font:700 18px var(--f-num);border:2px solid color-mix(in srgb,var(--on-action) 25%,transparent)}
+.search-btn{display:none}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:0 16px 16px;margin-top:auto}
+.kpi{--acc:var(--m-dist);position:relative;background:var(--glass);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 16px 8px;box-shadow:var(--shadow-glass);min-width:0;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
+.kpi-h{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--ink-2)}
+.kpi-h span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l-short{display:none}
+.chipico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--acc);background:color-mix(in srgb,var(--acc) 17%,transparent)}
+.chipico svg{width:16px;height:16px}
+.kpi-v{display:flex;align-items:baseline;gap:5px;margin-top:8px;white-space:nowrap}
+.kpi-v .delta{margin-left:8px;align-self:center}
+.kpi-v b{font:700 32px/1 var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi-v small{font:600 17px/1 var(--f-num);color:var(--ink-2)}
+.delta{display:inline-flex;align-items:center;gap:3px;font:600 13px/1.2 var(--f-ui);color:var(--good)}
+.delta.down{color:var(--ink-2)}
+.delta svg{width:13px;height:13px}
+.delta .vs{color:var(--ink-3);font-weight:400}
+.spark{display:block;width:100%;height:38px;margin-top:6px;overflow:visible}
+
+/* ---------- Progresión ---------- */
+.prog-ctrl{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-top:12px}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{--acc:var(--m-dist);display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:0 12px 0 10px;border-radius:999px;border:1px solid var(--line-strong);background:none;color:var(--ink-2);font:500 13.5px/1 var(--f-ui);cursor:pointer}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.pill[aria-pressed="true"]{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 15%,transparent)}
+@media (hover:hover) and (pointer:fine){ .pill[aria-pressed="false"]:hover{color:var(--ink);border-color:var(--ink-3)} }
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--ink-2);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .lc{width:16px;height:2.5px;border-radius:2px;background:var(--acc,var(--m-dist))}
+.legend .lp{width:16px;border-top:2px dashed var(--ink-3)}
+.chart{flex:1;min-height:196px;margin:6px -6px 0 -8px}
+.prog-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap}
+.prog-foot .note{font-size:12.5px;color:var(--ink-3)}
+.tbl-wrap{margin-top:8px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-md)}
+.tbl-wrap[hidden]{display:none}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;background:var(--surface-2);color:var(--ink-2);font-weight:600}
+td{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:14.5px}
+
+/* ---------- Rendimiento ---------- */
+.perf{display:flex;flex-direction:column;margin-top:8px;flex:1;justify-content:space-around}
+.pm{--acc:var(--ink-2);display:grid;grid-template-columns:minmax(0,1fr) minmax(84px,40%);gap:14px;align-items:center;padding:10px 0;min-width:0}
+.pm + .pm{border-top:1px solid var(--line)}
+.pm-l{display:flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);line-height:1.25;white-space:nowrap}
+.pm-l svg{width:16px;height:16px;color:var(--acc)}
+.pm-v{display:flex;align-items:baseline;gap:4px;margin-top:4px;white-space:nowrap}
+.pm-v b{font:700 24px/1 var(--f-num);font-variant-numeric:tabular-nums}
+.pm-v small{font:600 15px/1 var(--f-num);color:var(--ink-2)}
+.pm-v .delta{margin-left:6px;align-self:center}
+.range{position:relative;height:6px;border-radius:3px;background:var(--surface-3);margin:6px 0 0}
+.range .avg{position:absolute;top:-4px;width:2px;height:14px;border-radius:1px;background:var(--ink-3)}
+.range .cur{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 2px var(--surface),0 0 calc(var(--glow) * 16px) var(--acc)}
+.range .fill{position:absolute;top:0;bottom:0;border-radius:3px;background:color-mix(in srgb,var(--acc) 40%,transparent)}
+.range-l{display:flex;justify-content:space-between;font:500 12px/1 var(--f-num);color:var(--ink-3);margin-top:6px;font-variant-numeric:tabular-nums}
+.perf-foot{font-size:12.5px;color:var(--ink-3);display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap}
+.perf-foot .k{display:inline-flex;align-items:center;gap:5px}
+.perf-foot .k i{display:inline-block;width:2px;height:11px;background:var(--ink-3);border-radius:1px}
+.perf-foot .k u{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ink-2);text-decoration:none}
+
+/* ---------- Objetivo ---------- */
+.goal{display:flex;flex-direction:column;align-items:center;margin-top:6px;flex:1;justify-content:center}
+.goal svg.ring{width:172px;height:172px;display:block}
+.goal-txt{text-align:center;margin-top:8px}
+.goal-txt .ahead{display:inline-flex;align-items:center;gap:5px;color:var(--good);font-weight:600;font-size:14px}
+.goal-txt .ahead svg{width:14px;height:14px}
+.goal-txt p{font-size:13.5px;color:var(--ink-2);margin-top:2px}
+.goal-key{display:flex;gap:12px;justify-content:center;font-size:12px;color:var(--ink-3);margin-top:8px}
+.goal-key span{display:inline-flex;align-items:center;gap:5px}
+.goal-key i{width:3px;height:11px;border-radius:1px;background:var(--ink)}
+.ibtn{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;border:1px solid transparent;background:none;color:var(--ink-2);cursor:pointer}
+.ibtn svg{width:17px;height:17px}
+@media (hover:hover) and (pointer:fine){ .ibtn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)} }
+
+/* ---------- Próximas salidas ---------- */
+.next{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column}
+.next li + li{border-top:1px solid var(--line)}
+.next a{display:grid;grid-template-columns:40px 46px minmax(0,1fr);gap:12px;align-items:center;padding:11px 8px;margin:0 -8px;border-radius:var(--r-md)}
+@media (hover:hover) and (pointer:fine){ .next a:hover{background:var(--surface-2)} }
+.dt{display:flex;flex-direction:column;align-items:center;line-height:1}
+.dt span{font-size:12px;color:var(--ink-2);font-weight:500}
+.dt b{font:700 25px/1.05 var(--f-num);font-variant-numeric:tabular-nums;margin:2px 0}
+.mini{width:46px;height:46px;border-radius:12px;background-color:var(--surface-2);border:1px solid var(--line);background-image:radial-gradient(var(--line-strong) .8px,transparent .8px);background-size:8px 8px;display:block}
+.mini svg{width:100%;height:100%;display:block}
+.nx-t{font-weight:600;font-size:15px;line-height:1.25;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.nx-f{display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:3px}
+.nx-f .num{font-size:14px;font-weight:600;color:var(--ink)}
+.diff{display:inline-flex;align-items:center;gap:4px;font:600 12px/1 var(--f-ui);border-radius:var(--r-sm);padding:4px 7px 4px 5px;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.diff svg{width:13px;height:13px}
+.diff.easy{--c:var(--diff-easy)} .diff.mid{--c:var(--diff-mid)} .diff.hard{--c:var(--diff-hard)}
+
+/* ---------- Última salida ---------- */
+.last-h .meta{font-size:13.5px;color:var(--ink-2)}
+.map-wrap{position:relative;margin-top:12px;border-radius:var(--r-lg);overflow:hidden;border:1px solid var(--line);height:212px;background:var(--surface-2)}
+.a-last .map-wrap{flex:1 1 auto;min-height:212px}
+.map{position:absolute;inset:0;background:var(--surface-2)}
+:root:not([data-theme="light"]) .map .leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) brightness(.82) contrast(.92) saturate(.55)}
+.map .leaflet-container{background:var(--surface-2);font:inherit}
+.leaflet-container{background:var(--surface-2)!important;font-family:var(--f-ui)!important}
+.trk-halo{stroke:var(--m-dist);stroke-opacity:calc(var(--glow) * .5)}
+.trk-casing{stroke:#FFFFFF;stroke-opacity:var(--casing)}
+.trk-core{stroke:var(--m-dist)}
+.trk-thread{stroke:#FFFFFF;stroke-opacity:var(--thread)}
+:root:not([data-theme="light"]) .map .leaflet-overlay-pane svg{filter:drop-shadow(0 0 6px rgba(59,139,255,.55))}
+.mk{fill:var(--surface);stroke:var(--ink);stroke-width:2.5}
+.mk-end{fill:var(--ink);stroke:var(--surface);stroke-width:2.5}
+.plate{position:absolute;left:10px;top:10px;z-index:500;background:var(--glass-strong);border:1px solid var(--line);border-radius:var(--r-md);padding:10px 12px;display:grid;gap:5px;backdrop-filter:blur(10px);box-shadow:var(--shadow-glass)}
+.plate div{display:flex;align-items:center;gap:8px}
+.plate svg{width:15px;height:15px;color:var(--ink-3)}
+.plate b{font:600 16px/1.1 var(--f-num);font-variant-numeric:tabular-nums}
+.map-tools{position:absolute;right:10px;top:10px;z-index:500;display:flex;flex-direction:column;gap:6px}
+.map-tools button{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--glass-strong);border:1px solid var(--line);color:var(--ink);cursor:pointer;font:600 18px/1 var(--f-ui);backdrop-filter:blur(10px)}
+.map-tools button svg{width:16px;height:16px}
+.leaflet-control-attribution{background:var(--glass-strong)!important;color:var(--ink-3)!important;font-size:11px!important;border-radius:6px 0 0 0;padding:1px 6px!important}
+.leaflet-control-attribution a{color:var(--ink-2)!important}
+.badge{display:inline-flex;align-items:center;gap:5px;font:600 12.5px/1 var(--f-ui);border-radius:999px;padding:5px 10px 5px 8px;color:var(--diff-mid);background:color-mix(in srgb,var(--diff-mid) 13%,transparent);border:1px solid color-mix(in srgb,var(--diff-mid) 35%,transparent)}
+.badge svg{width:13px;height:13px}
+.prof-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:12px;flex-wrap:wrap}
+.prof-h span{font-size:13px;color:var(--ink-2)}
+svg.prof{display:block;width:100%;overflow:visible;margin-top:4px}
+svg.prof text{font:500 12px var(--f-num);fill:var(--ink-3);font-variant-numeric:tabular-nums}
+svg.prof text.pk{fill:var(--ink);font-weight:600;font-size:13px}
+.sl-leg{display:flex;flex-wrap:wrap;gap:3px 10px;font:500 12px/1 var(--f-num);color:var(--ink-2)}
+.sl-leg span{display:inline-flex;align-items:center;gap:4px}
+.sl-leg i{width:9px;height:9px;border-radius:2px}
+
+/* ---------- Rutas IA ---------- */
+.rt{display:grid;grid-template-columns:104px minmax(0,1fr);gap:14px;margin-top:12px;align-items:start}
+.rt-shape{width:104px;height:104px;border-radius:var(--r-lg);background-color:var(--surface-2);border:1px solid var(--line);background-image:radial-gradient(var(--line-strong) .8px,transparent .8px);background-size:10px 10px;position:relative;overflow:hidden}
+.rt-shape svg{position:absolute;inset:0;width:100%;height:100%}
+.rt h3{font:700 20px/1.15 var(--f-num);letter-spacing:-.005em;overflow-wrap:anywhere}
+.facts{display:flex;flex-wrap:wrap;gap:3px 12px;color:var(--ink-2);font-size:13px;margin:6px 0 8px}
+.facts span{display:inline-flex;gap:5px;align-items:center}
+.facts svg{width:14px;height:14px;color:var(--ink-3)}
+.facts b{font:600 15px/1 var(--f-num);color:var(--ink);font-variant-numeric:tabular-nums}
+.rt-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.rt-tags .new{font-size:12.5px;color:var(--ink-2)}
+.why{font-size:13.5px;color:var(--ink-2);margin-top:12px;line-height:1.45}
+.why b{color:var(--ink);font-weight:600}
+.rt-acts{display:flex;gap:8px;margin-top:auto;padding-top:14px;flex-wrap:wrap}
+.alts{list-style:none;margin:14px 0 0;padding:0;border-top:1px solid var(--line)}
+.alts a{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;margin:0 -6px;border-radius:10px;border-bottom:1px solid var(--line)}
+.alts li:last-child a{border-bottom:0}
+@media (hover:hover) and (pointer:fine){ .alts a:hover{background:var(--surface-2)} }
+.alts svg.alt-s{width:30px;height:30px;border-radius:8px;background:var(--surface-2);border:1px solid var(--line)}
+.alts .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alts .f{font-size:12.5px;color:var(--ink-2)}
+.alts .f b{font:600 13.5px var(--f-num);color:var(--ink)}
+.a-next .card-h{flex-wrap:nowrap}
+.a-next .card-h h2{white-space:nowrap}
+.rt-acts .btn{flex:1 1 auto}
+.count{font-size:12.5px;color:var(--ink-3)}
+
+/* ---------- CTA móvil (fuera de la rejilla en escritorio) ---------- */
+.dash > .a-cta{display:none}
+.cta{align-items:center;gap:14px;padding:16px 18px;border-radius:var(--r-xl);background:var(--action);color:var(--on-action);box-shadow:0 1px 0 rgba(255,255,255,.14) inset,0 18px 36px -22px var(--action)}
+.cta b{font:700 19px/1.1 var(--f-num);display:block}
+.cta span{font-size:14px}
+.cta .go{margin-left:auto;width:40px;height:40px;border-radius:999px;display:grid;place-items:center;background:rgba(255,255,255,.18)}
+
+/* ---------- Hoja «Más» ---------- */
+dialog.sheet{margin:auto 0 0;width:100%;max-width:100%;border:0;padding:0;background:transparent;color:var(--ink)}
+dialog.sheet::backdrop{background:rgba(3,6,14,.55)}
+.sheet-in{background:var(--surface);border-top:1px solid var(--line-strong);border-radius:22px 22px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -20px 40px -20px rgba(0,0,0,.6)}
+.sheet-in .grab{width:40px;height:5px;border-radius:3px;background:var(--line-strong);margin:0 auto 12px}
+.sheet-in h2{font:600 17px var(--f-ui);margin-bottom:6px}
+.sheet-in ul{list-style:none;padding:0;margin:0 0 14px}
+.sheet-in li a{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 6px;border-bottom:1px solid var(--line);font-weight:500}
+.sheet-in li a svg{width:20px;height:20px;color:var(--ink-2)}
+@media (prefers-reduced-motion:no-preference){
+  dialog.sheet[open] .sheet-in{animation:sheet 300ms var(--ease-drawer)}
+  @keyframes sheet{from{transform:translateY(100%)}}
+}
+@media (prefers-reduced-motion:reduce){
+  dialog.sheet[open] .sheet-in{animation:fade 200ms ease}
+}
+
+/* ---------- Movimiento de carga: un solo momento ---------- */
+@media (prefers-reduced-motion:no-preference){
+  .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 900ms var(--ease-out) 100ms forwards}
+  .after{opacity:0;animation:fade 260ms ease 980ms forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width:1320px){
+  .dash{grid-template-areas:
+   "hero hero hero hero hero hero hero hero hero hero hero hero"
+   "prog prog prog prog prog prog prog prog goal goal goal goal"
+   "last last last last last last last perf perf perf perf perf"
+   "ia   ia   ia   ia   ia   ia   ia   next next next next next"}
+}
+@media (max-width:1100px){
+  .app{grid-template-columns:76px minmax(0,1fr)}
+  .side{padding:16px 10px}
+  .brand b,.nav .lbl,.nav .tag,.side-foot .import,.ver{display:none}
+  .brand{justify-content:center;padding:2px 0 16px}
+  .nav a{justify-content:center;padding:0}
+  .nav .sub{display:none}
+  .nav a[aria-current="page"]::before{left:-10px}
+  .theme-seg{grid-template-columns:1fr}
+  .theme-seg span{display:none}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .search{width:200px}
+}
+@media (max-width:860px){
+  .dash{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"hero hero" "prog prog" "goal next" "perf perf" "last last" "ia ia" "cta cta"}
+}
+/* Móvil: barra inferior de pestañas, misma <nav> */
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+  .side{position:fixed;inset:auto 0 0 0;height:auto;padding:0;border:0;background:none;z-index:40}
+  .brand,.side-foot{display:none}
+  .nav{background:var(--glass-strong);border-top:1px solid var(--line);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .nav ul{flex-direction:row;justify-content:space-around}
+  .nav li{flex:1 1 0;min-width:0}
+  .nav .m-hide,.nav .sep{display:none}
+  .nav .sub{display:flex}
+  .nav a,.nav button.more,.nav .sub{flex-direction:column;gap:3px;min-height:56px;padding:6px 2px;justify-content:center;align-items:center;font-size:12px;font-weight:600;border-radius:12px;text-align:center}
+  .nav .sub svg{display:block}
+  .nav .lbl{display:none}
+  .nav .lbl-m{display:block}
+  .nav button.more{display:flex}
+  .nav a[aria-current="page"]{background:none;color:var(--action-ink)}
+  .nav a[aria-current="page"]::before{left:30%;right:30%;top:-6px;bottom:auto;width:auto;height:3px;border-radius:0 0 3px 3px}
+  .nav .tag{display:none}
+  main{padding:12px 12px 20px}
+  .hero{min-height:0}
+  .hero-top{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"brand tools" "greet greet";padding:12px 12px 0 16px;gap:14px 8px;align-items:center}
+  .hero-brand{display:flex;align-items:center;gap:8px}
+  .hero-brand svg{width:24px;height:28px}
+  .hero-brand b{font:700 19px/1 var(--f-num)}
+  .search,.avatar{display:none}
+  .search-btn{display:grid}
+  .greet .date{display:none}
+  .greet h2{font-size:34px;margin-top:0}
+  .greet p{font-size:15.5px;margin-top:6px}
+  .kpis{gap:8px;padding:96px 10px 10px}
+  .kpi{padding:11px 12px 6px}
+  .kpi-h{font-size:13.5px}
+  .kpi-v{flex-wrap:wrap;row-gap:4px}
+  .kpi-v b{font-size:26px}
+  .kpi-v small{font-size:15px}
+  .kpi-v .delta{margin-left:4px}
+  .card{padding:16px}
+  .pills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;gap:4px}
+  .pill{justify-content:center;padding:0 4px;font-size:13px;gap:5px}
+  .a-prog .card-h .seg{width:100%;display:grid;grid-template-columns:repeat(4,1fr)}
+  .a-prog .card-h .seg button{justify-content:center;padding:0 4px}
+  .chart{min-height:200px}
+  .l-long{display:none}.l-short{display:inline!important}
+  .map-wrap{height:220px}
+  .dash > .a-cta{display:flex}
+  .rt{grid-template-columns:96px minmax(0,1fr)}
+  .rt-shape{width:96px;height:96px}
+}
+@media (max-width:399px){
+  .dash{grid-template-columns:minmax(0,1fr);grid-template-areas:"hero" "prog" "goal" "next" "perf" "last" "ia" "cta"}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<!-- Iconos al estilo lucide (24x24, trazo 2). En la app: lucide-react por icono. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-house" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r=".6"/><circle cx="12" cy="12" r=".6"/><circle cx="19" cy="12" r=".6"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-bike" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-trend" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+    <symbol id="i-milestone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M12 3v3"/><path d="M4 6a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h13a2 2 0 0 0 1.152-.365l3.424-2.317a1 1 0 0 0 0-1.635l-3.424-2.318A2 2 0 0 0 17 6z"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/></symbol>
+    <symbol id="i-sig1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 20v-3"/><path d="M12 20v-3" opacity=".3"/><path d="M19 20v-3" opacity=".3"/><path d="M5 20v-5"/><path d="M12 20V10" opacity=".3"/><path d="M19 20V5" opacity=".3"/></symbol>
+    <symbol id="i-sig2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 20v-5"/><path d="M12 20V10"/><path d="M19 20V5" opacity=".3"/></symbol>
+    <symbol id="i-sig3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 20v-5"/><path d="M12 20V10"/><path d="M19 20V5"/></symbol>
+    <!-- Logotipo: hito kilométrico con la F -->
+    <symbol id="logo" viewBox="0 0 30 34">
+      <path d="M4 33V14C4 7.4 8.9 2 15 2s11 5.4 11 12v19z" fill="var(--ink)"/>
+      <path d="M4 13.2C4.4 7 9.2 2 15 2s10.6 5 11 11.2z" fill="var(--action)"/>
+      <path d="M11.2 29V17.6h8.4M11.2 22.8h6.6" fill="none" stroke="var(--bg)" stroke-width="2.6" stroke-linecap="square"/>
+      <rect x="1" y="31.4" width="28" height="2.6" rx="1.3" fill="var(--ink-3)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <!-- Menú lateral en escritorio; la misma <nav> es la barra inferior en móvil -->
+  <aside class="side">
+    <a class="brand" href="#" aria-label="FBikeTrain, inicio"><svg aria-hidden="true"><use href="#logo"/></svg><b>FBikeTrain</b></a>
+    <nav class="nav" aria-label="Menú principal">
+      <ul>
+        <li><a class="press" href="#" aria-current="page"><svg class="ico" aria-hidden="true"><use href="#i-house"/></svg><span class="lbl">Inicio</span><span class="lbl-m">Inicio</span></a></li>
+        <li><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg><span class="lbl">Historial</span><span class="lbl-m">Historial</span></a></li>
+        <li class="m-hide"><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-mountain"/></svg><span class="lbl">Subidas</span></a></li>
+        <li class="m-hide"><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg><span class="lbl">Calendario</span></a></li>
+        <li><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-route"/></svg><span class="lbl">Rutas</span><span class="lbl-m">Rutas</span></a></li>
+        <li><a class="press sub" href="#"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg><span class="lbl">Rutas con IA</span><span class="lbl-m">IA</span></a></li>
+        <li class="m-hide" aria-hidden="true"><div class="sep"></div></li>
+        <li class="m-hide"><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg><span class="lbl">Importar</span></a></li>
+        <li class="m-hide"><a class="press" href="#"><svg class="ico" aria-hidden="true"><use href="#i-settings"/></svg><span class="lbl">Ajustes</span></a></li>
+        <li><button class="more press" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet" id="moreBtn"><svg class="ico" aria-hidden="true"><use href="#i-more"/></svg><span>Más</span></button></li>
+      </ul>
+    </nav>
+    <div class="side-foot">
+      <div class="import">
+        <p>Última importación <b>hace 2 días</b>, 214 salidas.</p>
+        <a class="btn btn-sec press" href="#"><svg aria-hidden="true"><use href="#i-upload"/></svg>Importar</a>
+      </div>
+      <div class="seg theme-seg" role="group" aria-label="Tema">
+        <button class="press" type="button" data-t="dark" aria-pressed="true"><svg aria-hidden="true"><use href="#i-moon"/></svg><span>Oscuro</span></button>
+        <button class="press" type="button" data-t="light" aria-pressed="false"><svg aria-hidden="true"><use href="#i-sun"/></svg><span>Claro</span></button>
+      </div>
+      <p class="ver">FBikeTrain 0.5, datos locales</p>
+    </div>
+  </aside>
+
+  <main id="main">
+    <h1 class="sr">Inicio</h1>
+    <div class="dash">
+
+      <!-- ============ HERO ============ -->
+      <section class="hero a-hero" aria-labelledby="greet">
+        <svg class="land" id="land" aria-hidden="true"></svg>
+        <div class="hero-top">
+            <a class="hero-brand" href="#" aria-label="FBikeTrain, inicio"><svg aria-hidden="true"><use href="#logo"/></svg><b>FBikeTrain</b></a>
+            <div class="greet" id="greetBox">
+              <p class="date">Viernes, 6 de noviembre</p>
+              <h2 id="greet">Hola, Fran</h2>
+              <p id="phrase">Esta semana llevas <b>3 salidas</b> y vas un <b>20 % por encima</b> de tu media en distancia.</p>
+            </div>
+            <div class="tools">
+              <label class="search"><svg class="ico-s" aria-hidden="true"><use href="#i-search"/></svg><span class="sr">Buscar en tus salidas</span><input type="search" placeholder="Buscar en tus salidas"><kbd>/</kbd></label>
+              <button class="icon-btn search-btn press" type="button" aria-label="Buscar en tus salidas"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg></button>
+              <button class="icon-btn press" type="button" aria-label="Avisos, 1 sin leer"><svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg><i class="dot"></i></button>
+              <a class="avatar press" href="#" aria-label="Ajustes de Fran">F</a>
+            </div>
+        </div>
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <!-- ============ PROGRESIÓN ============ -->
+      <section class="card a-prog" aria-labelledby="prog-t">
+        <div class="card-h">
+          <h2 id="prog-t"><svg aria-hidden="true"><use href="#i-trend"/></svg>Tu progresión</h2>
+          <div class="seg" role="group" aria-label="Periodo" id="ranges">
+            <button class="press" type="button" data-r="12m" aria-pressed="true">12 meses</button>
+            <button class="press" type="button" data-r="6m" aria-pressed="false">6 meses</button>
+            <button class="press" type="button" data-r="3m" aria-pressed="false">3 meses</button>
+            <button class="press" type="button" data-r="30d" aria-pressed="false">30 días</button>
+          </div>
+        </div>
+        <p class="card-sub" id="prog-sum"></p>
+        <div class="prog-ctrl">
+          <div class="pills" role="group" aria-label="Métrica" id="metrics">
+            <button class="pill press" type="button" data-m="dist" aria-pressed="true" style="--acc:var(--m-dist)"><i></i>Distancia</button>
+            <button class="pill press" type="button" data-m="elev" aria-pressed="false" style="--acc:var(--m-elev)"><i></i>Desnivel</button>
+            <button class="pill press" type="button" data-m="time" aria-pressed="false" style="--acc:var(--m-time)"><i></i>Tiempo</button>
+            <button class="pill press" type="button" data-m="speed" aria-pressed="false" style="--acc:var(--m-speed)"><i></i>Velocidad</button>
+          </div>
+          <div class="legend" id="legend"><span><i class="lc"></i><b id="lg-cur" style="font-weight:500">Últimos 12 meses</b></span><span><i class="lp"></i><span id="lg-prev">12 meses anteriores</span></span></div>
+        </div>
+        <div class="chart" id="chart" role="img" aria-label="Gráfica de progresión"></div>
+        <div class="prog-foot">
+          <span class="note" id="prog-note">Meses completos. Noviembre va en tus cifras de la semana.</span>
+          <button class="btn btn-ghost press" type="button" id="tblBtn" aria-expanded="false" aria-controls="tbl"><svg aria-hidden="true"><use href="#i-table"/></svg>Ver como tabla</button>
+        </div>
+        <div class="tbl-wrap" id="tbl" hidden></div>
+      </section>
+
+      <!-- ============ RENDIMIENTO ============ -->
+      <section class="card a-perf" aria-labelledby="perf-t">
+        <div class="card-h"><h2 id="perf-t"><svg aria-hidden="true"><use href="#i-activity"/></svg>Tu rendimiento</h2></div>
+        <p class="card-sub">30 días frente a tus 12 meses.</p>
+        <div class="perf" id="perf"></div>
+        <div class="perf-foot"><span class="k"><u></u>30 días</span><span class="k"><i></i>tu media</span><span>Barra: tu mínimo y máximo mensual</span></div>
+      </section>
+
+      <!-- ============ OBJETIVO ============ -->
+      <section class="card a-goal" aria-labelledby="goal-t">
+        <div class="card-h">
+          <h2 id="goal-t"><svg aria-hidden="true"><use href="#i-target"/></svg>Tu objetivo</h2>
+          <button class="ibtn press" type="button" aria-label="Editar objetivo"><svg aria-hidden="true"><use href="#i-pencil"/></svg></button>
+        </div>
+        <p class="card-sub"><b>500 km</b> en noviembre</p>
+        <div class="goal">
+          <svg class="ring" id="ring" viewBox="0 0 156 156" role="img" aria-label="Llevas 142 de 500 kilómetros, un 28 %. Al ritmo esperado hoy irías por el 20 %."></svg>
+          <div class="goal-txt">
+            <span class="ahead"><svg aria-hidden="true"><use href="#i-up"/></svg>8 puntos por delante</span>
+            <p>Quedan 24 días: unos <b class="num" style="color:var(--ink)">105 km</b> por semana.</p>
+          </div>
+          <div class="goal-key"><span><i></i>Ritmo esperado hoy</span></div>
+        </div>
+      </section>
+
+      <!-- ============ ÚLTIMA SALIDA ============ -->
+      <section class="card a-last" aria-labelledby="last-t">
+        <div class="card-h last-h">
+          <h2 id="last-t"><svg aria-hidden="true"><use href="#i-pin"/></svg>Tu última salida</h2>
+          <span class="badge"><svg aria-hidden="true"><use href="#i-sig2"/></svg>Media para ti</span>
+        </div>
+        <p class="card-sub">Sábado 1 de noviembre, por la mañana</p>
+        <div class="map-wrap" id="mapWrap">
+          <div class="map" id="map" role="img" aria-label="Mapa del recorrido de la última salida, una vuelta de 87,6 km"></div>
+          <div class="plate" id="plate"></div>
+          <div class="map-tools">
+            <button class="press" type="button" id="zin" aria-label="Acercar">+</button>
+            <button class="press" type="button" id="zout" aria-label="Alejar">&minus;</button>
+            <button class="press" type="button" id="fs" aria-label="Ver el mapa a pantalla completa"><svg aria-hidden="true"><use href="#i-max"/></svg></button>
+          </div>
+        </div>
+        <div class="prof-h"><span>Perfil por pendiente</span><div class="sl-leg" aria-hidden="true"><span><i style="background:var(--s0)"></i>&lt;1</span><span><i style="background:var(--s1)"></i>1–4</span><span><i style="background:var(--s2)"></i>4–7</span><span><i style="background:var(--s3)"></i>7–10</span><span><i style="background:var(--s4)"></i>10–16</span><span><i style="background:var(--s5)"></i>16+ %</span></div></div>
+        <svg class="prof" id="prof1" role="img" aria-label="Perfil de altitud"></svg>
+      </section>
+
+      <!-- ============ RUTAS IA ============ -->
+      <section class="card a-ia" aria-labelledby="ia-t">
+        <div class="card-h">
+          <h2 id="ia-t"><svg aria-hidden="true"><use href="#i-chat"/></svg>Rutas recomendadas por IA</h2>
+          <a class="btn btn-ghost press" href="#">Ver las 5</a>
+        </div>
+        <div class="rt">
+          <div class="rt-shape"><svg id="rtShape" viewBox="0 0 104 104" aria-hidden="true"></svg></div>
+          <div style="min-width:0">
+            <h3>Circular de los tres puertos</h3>
+            <div class="facts" id="rtFacts"></div>
+            <div class="rt-tags"><span class="diff mid"><svg aria-hidden="true"><use href="#i-sig2"/></svg>Media para ti</span><span class="new">74 % carretera nueva</span></div>
+          </div>
+        </div>
+        <p class="why" id="rtWhy"></p>
+        <svg class="prof" id="prof2" role="img" aria-label="Perfil de la ruta coloreado por pendiente" style="margin-top:10px"></svg>
+        <ul class="alts" aria-label="Otras propuestas" id="alts"></ul>
+        <div class="rt-acts">
+          <button class="btn btn-pri press" type="button"><svg aria-hidden="true"><use href="#i-download"/></svg>Descargar GPX</button>
+          <a class="btn btn-sec press" href="#">Ver detalle</a>
+        </div>
+      </section>
+
+      <!-- ============ PRÓXIMAS SALIDAS ============ -->
+      <section class="card a-next" aria-labelledby="next-t">
+        <div class="card-h">
+          <h2 id="next-t"><svg aria-hidden="true"><use href="#i-calendar"/></svg>Próximas salidas</h2>
+          <a class="btn btn-ghost press" href="#">Calendario</a>
+        </div>
+        <ul class="next" id="next"></ul>
+      </section>
+
+      <!-- ============ CTA (móvil) ============ -->
+      <a class="cta a-cta press" href="#">
+        <div><b>¿Nueva ruta?</b><span>Pide una ruta para progresar</span></div>
+        <span class="go" aria-hidden="true"><svg class="ico"><use href="#i-chev"/></svg></span>
+      </a>
+    </div>
+  </main>
+</div>
+
+<!-- Hoja «Más» (móvil) -->
+<dialog class="sheet" id="sheet" aria-labelledby="sheet-t">
+  <div class="sheet-in">
+    <div class="grab" aria-hidden="true"></div>
+    <h2 id="sheet-t">Más</h2>
+    <ul>
+      <li><a href="#"><svg aria-hidden="true"><use href="#i-mountain"/></svg>Subidas</a></li>
+      <li><a href="#"><svg aria-hidden="true"><use href="#i-calendar"/></svg>Calendario</a></li>
+      <li><a href="#"><svg aria-hidden="true"><use href="#i-upload"/></svg>Importar</a></li>
+      <li><a href="#"><svg aria-hidden="true"><use href="#i-settings"/></svg>Ajustes</a></li>
+    </ul>
+    <div class="seg theme-seg" role="group" aria-label="Tema">
+      <button class="press" type="button" data-t="dark" aria-pressed="true"><svg aria-hidden="true"><use href="#i-moon"/></svg><span>Oscuro</span></button>
+      <button class="press" type="button" data-t="light" aria-pressed="false"><svg aria-hidden="true"><use href="#i-sun"/></svg><span>Claro</span></button>
+    </div>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.6.0/dist/echarts.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+'use strict';
+const root = document.documentElement;
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = s => document.querySelector(s);
+const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (parent) parent.appendChild(n); return n; };
+const css = n => getComputedStyle(root).getPropertyValue(n).trim();
+
+/* ---------- Formato es-ES (agrupa también 4 cifras, como «1.240 m») ---------- */
+const MINUS = '−';
+const fInt = n => (n < 0 ? MINUS : '') + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const fDec = (n, d = 1) => { const s = Math.abs(n).toFixed(d).split('.'); return (n < 0 ? MINUS : '') + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d ? ',' + s[1] : ''); };
+const fHM = h => { const t = Math.round(h * 60); return `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min`; };
+const fPct = p => (p > 0 ? '+' : p < 0 ? MINUS : '') + Math.abs(Math.round(p)) + ' %';
+
+/* ---------- PRNG determinista ---------- */
+const prng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+/* ---------- Curva suave (Catmull-Rom) ---------- */
+const smooth = pts => {
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    d += ` C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)},${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)},${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+};
+
+/* =========================================================
+   DATOS SINTÉTICOS
+   ========================================================= */
+// Perfil por tramos [km, pendiente %] → puntos cada ~200 m con un poco de ruido.
+const buildProfile = (segs, start, seed) => {
+  const r = prng(seed), pts = [[0, start, 0]]; let km = 0, e = start;
+  for (const [len, g] of segs) {
+    const n = Math.max(1, Math.round(len / 0.2));
+    for (let i = 0; i < n; i++) {
+      const gg = g + (r() - .5) * (Math.abs(g) > 1 ? 1.8 : .9), d = len / n;
+      e += gg * 10 * d; km += d; pts.push([km, e, gg]);
+    }
+  }
+  return pts;
+};
+const gain = pts => pts.reduce((a, p, i) => i && p[1] > pts[i - 1][1] ? a + p[1] - pts[i - 1][1] : a, 0);
+
+const LAST = buildProfile([[3,.4],[5,1.8],[6.4,4.6],[2.6,7.2],[1.2,9.4],[4,-6.5],[7,-1.2],[5,.6],[3.5,3.2],[4.5,5.8],[2,8.4],[.8,11.5],[3.2,-7.4],[6,-3.1],[8,-2.5],[4.4,2.4],[3,5.1],[2.5,-4.8],[6,-2.2],[9.5,-3.5]], 40, 11);
+const LAST_KM = 87.6, LAST_UP = gain(LAST), LAST_H = 3 + 24 / 60;
+const ROUTE = buildProfile([[4,.6],[6,2.2],[5.2,5.6],[2.4,6.8],[.6,10.8],[5,-5.5],[6,.8],[4.8,4.4],[3.6,6.2],[.4,12.5],[.3,17],[6,-6.2],[9,-.8],[3,2.8],[4.6,5.2],[1.8,7.6],[7,-4.4],[8,-1.6],[11,-.5],[5.3,-1.8]], 60, 23);
+const ROUTE_KM = ROUTE[ROUTE.length - 1][0], ROUTE_UP = gain(ROUTE);
+
+const WEEKS = { // 7 semanas completas + la actual (en curso)
+  dist:  [96, 118, 84, 132, 104, 126, 110, 142],
+  elev:  [1240, 1680, 980, 1920, 1410, 1760, 1530, 2180],
+  time:  [228, 276, 198, 312, 246, 290, 262, 326], // min
+  speed: [25.1, 25.7, 24.9, 26.0, 25.8, 26.4, 25.9, 25.4],
+};
+const ref4 = a => a.slice(3, 7).reduce((s, v) => s + v, 0) / 4; // media de las 4 semanas anteriores
+
+// 24 meses, de nov 2024 a oct 2026: los 12 primeros son el «periodo anterior».
+const M = {
+  dist:  [252,228,276,330,402,452,488,452,392,410,352,320, 296,262,318,372,446,508,552,498,436,468,402,388],
+  elev:  [3300,2900,3700,4500,5700,6900,7600,6800,5600,6100,5000,4600, 3900,3400,4300,5200,6600,7900,8800,7600,6400,7100,6000,5600],
+  speed: [24.1,23.9,24.3,24.8,25.2,25.6,25.9,25.7,25.4,25.3,24.9,24.6, 24.8,24.6,25.0,25.4,25.9,26.3,26.8,26.5,26.2,26.4,25.9,25.6],
+};
+M.time = M.dist.map((d, i) => d / M.speed[i]);
+const MSHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MLONG = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const midx = d => (d.getFullYear() - 2024) * 12 + d.getMonth() - 10;
+const day = (y, m, d) => new Date(y, m, d, 12);
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, 12);
+const dLabel = d => `${d.getDate()} ${MSHORT[d.getMonth()]}`;
+
+const weekRec = start => { // semana sintética a partir del mes
+  const r = prng(Math.round(start.getTime() / 864e5)), i = Math.max(0, Math.min(23, midx(start)));
+  const k = .7 + .6 * r(), dist = M.dist[i] / 4.35 * k;
+  const speed = M.speed[i] + (r() - .5) * 1.2;
+  return { dist, elev: M.elev[i] / 4.35 * k * (.85 + .3 * r()), speed, time: dist / speed };
+};
+const dayRec = d => {
+  const r = prng(Math.round(d.getTime() / 864e5) * 7), i = Math.max(0, Math.min(23, midx(d)));
+  const wk = d.getDay() === 0 || d.getDay() === 6, ride = r() < (wk ? .78 : .26);
+  if (!ride) return { dist: 0, elev: 0, time: 0, speed: null };
+  const dist = M.dist[i] / 12 * (.6 + .8 * r()), speed = M.speed[i] + (r() - .5) * 2;
+  return { dist, elev: M.elev[i] / 12 * (.5 + r()), speed, time: dist / speed };
+};
+
+const TODAY = day(2026, 10, 6);           // viernes 6 de noviembre de 2026
+const LAST_MONDAY = day(2026, 9, 26);     // última semana completa: 26 oct - 1 nov
+
+function series(metric, range) {
+  if (range === '12m') {
+    const labels = [], full = [];
+    for (let i = 12; i < 24; i++) { const m = (10 + i) % 12, y = 2024 + Math.floor((10 + i) / 12); labels.push(MSHORT[m]); full.push(`${MLONG[m]} de ${y}`); }
+    return { labels, full, cur: M[metric].slice(12), prev: M[metric].slice(0, 12), unitWord: 'mes' };
+  }
+  if (range === '6m' || range === '3m') {
+    const n = range === '6m' ? 26 : 13, labels = [], full = [], cur = [], prev = [];
+    for (let w = n - 1; w >= 0; w--) {
+      const s = addDays(LAST_MONDAY, -7 * w), p = addDays(s, -7 * n);
+      labels.push(dLabel(s)); full.push(`semana del ${dLabel(s)}`);
+      cur.push(weekRec(s)[metric]); prev.push(weekRec(p)[metric]);
+    }
+    return { labels, full, cur, prev, unitWord: 'semana' };
+  }
+  // 30 días: acumulado (la velocidad, media acumulada de las salidas)
+  const labels = [], full = [], cur = [], prev = [];
+  const acc = { c: 0, p: 0, cn: 0, pn: 0, cs: 0, ps: 0 };
+  for (let k = 29; k >= 0; k--) {
+    const d = addDays(TODAY, -1 - k), q = addDays(d, -30), a = dayRec(d), b = dayRec(q);
+    labels.push(dLabel(d)); full.push(`hasta el ${dLabel(d)}`);
+    if (metric === 'speed') {
+      if (a.speed) { acc.cs += a.speed; acc.cn++; } if (b.speed) { acc.ps += b.speed; acc.pn++; }
+      cur.push(acc.cn ? acc.cs / acc.cn : null); prev.push(acc.pn ? acc.ps / acc.pn : null);
+    } else { acc.c += a[metric]; acc.p += b[metric]; cur.push(acc.c); prev.push(acc.p); }
+  }
+  return { labels, full, cur, prev, unitWord: 'acumulado', cumulative: true };
+}
+
+const METRICS = {
+  dist:  { name: 'Distancia', unit: 'km', acc: '--m-dist', min0: true, v: n => fInt(n) + ' km', ax: n => fInt(n) },
+  elev:  { name: 'Desnivel', unit: 'm', acc: '--m-elev', min0: true, v: n => fInt(n) + ' m', ax: n => n >= 1000 ? fDec(n / 1000, n % 1000 ? 1 : 0) + ' mil' : fInt(n) },
+  time:  { name: 'Tiempo en movimiento', unit: 'h', acc: '--m-time', min0: true, v: n => fHM(n), ax: n => fInt(n) + ' h' },
+  speed: { name: 'Velocidad media', unit: 'km/h', acc: '--m-speed', min0: false, v: n => fDec(n) + ' km/h', ax: n => fDec(n, 0) },
+};
+const RANGES = { '12m': ['Últimos 12 meses', '12 meses anteriores', 'en 12 meses', 'los 12 anteriores'], '6m': ['Últimas 26 semanas', '26 semanas anteriores', 'en 6 meses', 'los 6 anteriores'], '3m': ['Últimas 13 semanas', '13 semanas anteriores', 'en 3 meses', 'los 3 anteriores'], '30d': ['Últimos 30 días', '30 días anteriores', 'en 30 días', 'los 30 anteriores'] };
+
+/* =========================================================
+   HERO: el horizonte es tu última salida
+   ========================================================= */
+function drawHero() {
+  const svg = $('#land'), box = svg.getBoundingClientRect(), W = Math.round(box.width), H = Math.round(box.height);
+  if (!W || !H) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = '';
+  const mobile = W < 600;
+  const defs = el('defs', {}, svg);
+  const sky = el('linearGradient', { id: 'sky', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  [[0, '--sky-0'], [.42, '--sky-1'], [.66, '--sky-2'], [.82, '--sky-3'], [1, '--sky-4']].forEach(([o, v]) => el('stop', { offset: o, style: `stop-color:var(${v})` }, sky));
+  const sun = el('radialGradient', { id: 'sun', cx: .78, cy: .62, r: .5, gradientTransform: 'translate(.78 .62) scale(1 .6) translate(-.78 -.62)' }, defs);
+  el('stop', { offset: 0, style: 'stop-color:var(--sky-4);stop-opacity:.85' }, sun);
+  el('stop', { offset: 1, style: 'stop-color:var(--sky-4);stop-opacity:0' }, sun);
+  const fade = el('linearGradient', { id: 'nearFade', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, style: 'stop-color:var(--ridge-near);stop-opacity:.55' }, fade);
+  el('stop', { offset: .4, style: 'stop-color:var(--ridge-near);stop-opacity:1' }, fade);
+  el('rect', { width: W, height: H, fill: 'url(#sky)' }, svg);
+  el('rect', { width: W, height: H, fill: 'url(#sun)' }, svg);
+
+  // Bandas verticales medidas en el DOM: saludo arriba, cresta real en medio, KPI abajo
+  const hb = svg.parentElement.getBoundingClientRect();
+  const greetBottom = $('#greetBox').getBoundingClientRect().bottom - hb.top;
+  const kpiTop = $('#kpis').firstElementChild ? $('#kpis').firstElementChild.getBoundingClientRect().top - hb.top : H - 132;
+  const horizonY = mobile ? greetBottom + 4 : greetBottom - 34;
+  // Crestas lejanas: más bajas a la izquierda para no cruzar el saludo
+  const ridge = (base, rise, amp, f, ph, fill) => {
+    const pts = [];
+    for (let x = -20; x <= W + 20; x += 20) pts.push([x, base - rise * Math.max(0, x / W) - amp * (.55 * Math.sin(x / f + ph) + .3 * Math.sin(x / (f * .37) + ph * 2) + .15 * Math.sin(x / (f * .13)))]);
+    el('path', { d: smooth(pts) + ` L${W + 20},${H} L-20,${H} Z`, fill }, svg);
+  };
+  const fb = mobile ? greetBottom + 40 : greetBottom + 34;
+  ridge(fb, mobile ? 30 : 70, mobile ? 14 : 20, 170, 1.3, 'var(--ridge-far)');
+  // bruma del horizonte entre capas
+  const haze = el('linearGradient', { id: 'haze', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  el('stop', { offset: 0, style: 'stop-color:var(--sky-3);stop-opacity:0' }, haze);
+  el('stop', { offset: .5, style: 'stop-color:var(--sky-3);stop-opacity:.35' }, haze);
+  el('stop', { offset: 1, style: 'stop-color:var(--sky-3);stop-opacity:0' }, haze);
+  el('rect', { x: 0, y: fb - 50, width: W, height: 90, fill: 'url(#haze)' }, svg);
+  ridge(fb + 22, mobile ? 20 : 46, mobile ? 12 : 16, 120, 3.2, 'var(--ridge-mid)');
+
+  // Cresta delantera = perfil de altitud real (suavizado ligero)
+  const e = LAST.map(p => p[1]), mn = Math.min(...e), mx = Math.max(...e);
+  const top = mobile ? greetBottom + 14 : horizonY + 2, bot = kpiTop + (mobile ? 22 : 30);
+  const sm = LAST.map((p, i) => { let s = 0, c = 0; for (let k = -3; k <= 3; k++) { const q = LAST[i + k]; if (q) { s += q[1]; c++; } } return [p[0] / LAST_KM * W, bot - (s / c - mn) / (mx - mn) * (bot - top)]; });
+  const thin = sm.filter((_, i) => i % 3 === 0 || i === sm.length - 1);
+  const d = smooth(thin);
+  el('path', { d: d + ` L${W},${H} L0,${H} Z`, fill: 'url(#nearFade)' }, svg);
+  el('path', { d, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-width': 7, 'stroke-linecap': 'round', style: 'stroke-opacity:calc(var(--glow) * .35)' }, svg);
+  const line = el('path', { d, fill: 'none', stroke: 'var(--ridge-line)', 'stroke-width': 1.75, 'stroke-linecap': 'round', class: 'draw', style: 'stroke-opacity:.95' }, svg);
+  line.style.setProperty('--len', Math.ceil(line.getTotalLength()));
+
+  // Marca del punto más alto: dato dentro de la ilustración
+  let pi = 0; e.forEach((v, i) => { if (v > e[pi]) pi = i; });
+  const px = LAST[pi][0] / LAST_KM * W, py = sm[pi][1];
+  const g = el('g', { class: 'after' }, svg);
+  el('circle', { cx: px, cy: py, r: 9, fill: 'var(--ridge-line)', style: 'fill-opacity:calc(var(--glow) * .45)' }, g);
+  el('circle', { cx: px, cy: py, r: 4, fill: 'var(--ridge-line)', stroke: 'var(--sky-1)', 'stroke-width': 2 }, g);
+  if (!mobile) {
+    el('line', { x1: px, x2: px, y1: py - 10, y2: py - 30, stroke: 'var(--ridge-line)', 'stroke-opacity': .6 }, g);
+    const t1 = el('text', { x: px + 8, y: py - 34, style: 'font:600 13px var(--f-num);fill:var(--ink)' }, g);
+    t1.textContent = `${fInt(mx)} m en el km ${fInt(LAST[pi][0])}`;
+    const t2 = el('text', { x: px + 8, y: py - 19, style: 'font:500 12px var(--f-ui);fill:var(--ink-2)' }, g);
+    t2.textContent = 'El horizonte es tu última salida';
+  }
+}
+
+/* =========================================================
+   KPI con chispa
+   ========================================================= */
+function drawKpis() {
+  const K = [
+    { k: 'dist', label: 'Distancia', ico: 'i-bike', acc: '--m-dist', v: fInt(WEEKS.dist[7]), u: 'km' },
+    { k: 'elev', label: 'Desnivel', ico: 'i-mountain', acc: '--m-elev', v: fInt(WEEKS.elev[7]), u: 'm' },
+    { k: 'time', label: 'Tiempo en movimiento', short: 'Tiempo', ico: 'i-timer', acc: '--m-time', v: `${Math.floor(WEEKS.time[7] / 60)} h ${WEEKS.time[7] % 60}`, u: 'min' },
+    { k: 'speed', label: 'Velocidad media', ico: 'i-gauge', acc: '--m-speed', v: fDec(WEEKS.speed[7]), u: 'km/h' },
+  ];
+  const box = $('#kpis'); box.innerHTML = '';
+  K.forEach((k, i) => {
+    const s = WEEKS[k.k], ref = ref4(s), pct = (s[7] - ref) / ref * 100, up = pct >= .5;
+    const a = document.createElement('article');
+    a.className = 'kpi'; a.style.setProperty('--acc', `var(${k.acc})`);
+    a.setAttribute('aria-label', `${k.label} esta semana: ${k.v} ${k.u}, ${fPct(pct)} frente a tu media de 4 semanas`);
+    a.innerHTML = `<div class="kpi-h" aria-hidden="true"><span class="chipico"><svg><use href="#${k.ico}"/></svg></span><span>${k.short ? `<span class="l-long">${k.label}</span><span class="l-short">${k.short}</span>` : k.label}</span></div>
+      <div class="kpi-v" aria-hidden="true"><b>${k.v}</b><small>${k.u}</small><span class="delta ${up ? '' : 'down'}"><svg><use href="#${up ? 'i-up' : 'i-down'}"/></svg>${fPct(pct).replace(/^[+−]/, '')}</span></div>`;
+    const svg = el('svg', { class: 'spark', viewBox: '0 0 200 38', preserveAspectRatio: 'none', 'aria-hidden': 'true' }, a);
+    const gid = 'kg' + i, gr = el('linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, el('defs', {}, svg));
+    el('stop', { offset: 0, style: `stop-color:var(${k.acc});stop-opacity:.34` }, gr);
+    el('stop', { offset: 1, style: `stop-color:var(${k.acc});stop-opacity:0` }, gr);
+    const mn = Math.min(...s, ref), mx = Math.max(...s, ref);
+    const Y = v => 33 - (v - mn) / (mx - mn || 1) * 26;
+    const pts = s.map((v, j) => [j / 7 * 192 + 2, Y(v)]), d = smooth(pts);
+    el('line', { x1: 2, x2: 198, y1: Y(ref), y2: Y(ref), stroke: 'var(--ink-3)', 'stroke-width': 1.2, 'stroke-dasharray': '3 3', 'vector-effect': 'non-scaling-stroke', 'stroke-opacity': .8 }, svg);
+    el('path', { d: d + ' L194,38 L2,38 Z', fill: `url(#${gid})` }, svg);
+    el('path', { d, fill: 'none', stroke: `var(${k.acc})`, 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, svg);
+    a.appendChild(svg);
+    // punto final en HTML para que no se deforme con preserveAspectRatio none
+    const dot = document.createElement('i');
+    dot.className = 'after';
+    dot.style.cssText = `position:absolute;right:calc(16px + 2.5px);bottom:${8 + (38 - pts[7][1]) * 1 - 4.5}px;width:9px;height:9px;border-radius:50%;background:var(--surface);border:2px solid var(${k.acc});box-shadow:0 0 calc(var(--glow) * 14px) var(${k.acc})`;
+    a.appendChild(dot);
+    box.appendChild(a);
+  });
+}
+
+/* =========================================================
+   PROGRESIÓN (ECharts)
+   ========================================================= */
+const state = { metric: 'dist', range: '12m' };
+let chart = null;
+const hexA = (hex, a) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
+
+function progOption(animate) {
+  const m = METRICS[state.metric], s = series(state.metric, state.range);
+  const acc = css(m.acc), ink = css('--ink'), ink2 = css('--ink-2'), ink3 = css('--ink-3'), line = css('--line'), lineS = css('--line-strong');
+  const surf = css('--surface'), surf2 = css('--surface-2'), glow = parseFloat(css('--glow')) || 0;
+  const font = getComputedStyle(document.body).fontFamily, fnum = css('--f-num');
+  const fontAll = font, fnumAll = fnum;
+  const last = s.cur.length - 1, w = $('#chart').clientWidth;
+  const narrow = w < 460;
+  const interval = state.range === '12m' ? (narrow ? 1 : 0) : state.range === '30d' ? (narrow ? 9 : 4) : state.range === '6m' ? (narrow ? 6 : 3) : (narrow ? 3 : 1);
+  const tip = params => {
+    // las familias llevan comillas dobles: en un atributo style="" hay que pasarlas a simples
+    const font = fontAll.replace(/"/g, "'"), fnum = fnumAll.replace(/"/g, "'");
+    const i = params[0].dataIndex, c = s.cur[i], p = s.prev[i];
+    const dp = c != null && p ? (c - p) / p * 100 : null;
+    return `<div style="font:600 13px ${font};color:${ink};margin-bottom:6px">${s.full[i].replace(/^./, x => x.toUpperCase())}</div>
+      <div style="display:flex;align-items:center;gap:8px;font:13px ${font};color:${ink2}"><i style="width:14px;height:3px;border-radius:2px;background:${acc}"></i>${m.name}<b style="margin-left:auto;padding-left:14px;font:700 15px ${fnum};color:${ink}">${c == null ? 'sin salidas' : m.v(c)}</b></div>
+      <div style="display:flex;align-items:center;gap:8px;font:13px ${font};color:${ink2};margin-top:3px"><i style="width:14px;border-top:2px dashed ${ink3}"></i>Periodo anterior<b style="margin-left:auto;padding-left:14px;font:600 14px ${fnum};color:${ink2}">${p == null ? 'sin salidas' : m.v(p)}</b></div>
+      ${dp == null ? '' : `<div style="margin-top:6px;font:600 12.5px ${font};color:${dp >= 0 ? css('--good') : ink2}">${fPct(dp)} frente al periodo anterior</div>`}`;
+  };
+  return {
+    animation: animate && !reduced, animationDuration: 900, animationEasing: 'cubicOut', animationDurationUpdate: reduced ? 0 : 350,
+    textStyle: { fontFamily: font, color: ink3 },
+    grid: { left: 6, right: 54, top: 36, bottom: 2, containLabel: true },
+    tooltip: {
+      trigger: 'axis', confine: true, transitionDuration: reduced ? 0 : .15, backgroundColor: surf2, borderColor: lineS, borderWidth: 1, padding: [10, 12],
+      extraCssText: `border-radius:12px;box-shadow:0 12px 28px -12px rgba(0,0,0,.5);min-width:220px`,
+      axisPointer: { type: 'line', lineStyle: { color: lineS, width: 1 } }, formatter: tip,
+    },
+    xAxis: { type: 'category', data: s.labels, boundaryGap: false, axisLine: { lineStyle: { color: lineS } }, axisTick: { show: false },
+      axisLabel: { color: ink3, fontSize: 12, interval, margin: 10, fontFamily: font } },
+    yAxis: { type: 'value', min: m.min0 ? 0 : v => Math.floor(v.min - .5), scale: !m.min0, splitNumber: 4,
+      axisLabel: { color: ink3, fontSize: 12, formatter: m.ax, fontFamily: fnum }, splitLine: { lineStyle: { color: line } } },
+    series: [
+      { name: 'Periodo anterior', type: 'line', data: s.prev, smooth: .3, smoothMonotone: 'x', symbol: 'none', connectNulls: true,
+        lineStyle: { color: ink3, width: 1.6, type: [5, 4] }, z: 2, emphasis: { disabled: true } },
+      { name: m.name, type: 'line', data: s.cur, smooth: .3, smoothMonotone: 'x', symbol: 'circle', symbolSize: 8, showSymbol: false, connectNulls: true,
+        lineStyle: { color: acc, width: 2.5, shadowBlur: 14 * glow, shadowColor: hexA(acc, .9 * glow) },
+        itemStyle: { color: acc, borderColor: surf, borderWidth: 2 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(acc, glow ? .3 : .18) }, { offset: 1, color: hexA(acc, 0) }] } },
+        emphasis: { focus: 'none', scale: 1.2 }, z: 3,
+        markPoint: {
+          symbol: 'circle', symbolSize: 12, animation: !reduced, animationDelay: reduced ? 0 : 900, animationDuration: 260,
+          itemStyle: { color: surf, borderColor: acc, borderWidth: 3, shadowBlur: 14 * glow, shadowColor: acc },
+          label: { show: true, position: 'top', distance: 10, formatter: () => m.v(s.cur[last]), backgroundColor: surf2, borderColor: acc, borderWidth: 1,
+            borderRadius: 8, padding: [6, 9, 5], color: ink, fontFamily: fnum, fontWeight: 700, fontSize: 15 },
+          data: [{ coord: [last, s.cur[last]] }],
+        },
+      },
+    ],
+  };
+}
+
+function progText() {
+  const m = METRICS[state.metric], s = series(state.metric, state.range), R = RANGES[state.range];
+  const sum = a => a.reduce((x, y) => x + (y || 0), 0);
+  const isAvg = state.metric === 'speed';
+  const c = s.cumulative ? s.cur[s.cur.length - 1] : isAvg ? sum(s.cur) / s.cur.length : sum(s.cur);
+  const p = s.cumulative ? s.prev[s.prev.length - 1] : isAvg ? sum(s.prev) / s.prev.length : sum(s.prev);
+  const dp = (c - p) / p * 100;
+  const what = isAvg ? `Media de <b>${m.v(c)}</b> ${R[2]}` : `<b>${m.v(c)}</b> ${R[2]}`;
+  const vs = isAvg ? `, ${fDec(Math.abs(c - p))} km/h ${c >= p ? 'más' : 'menos'} que en ${R[3]}.` : `, un ${Math.abs(Math.round(dp))} % ${dp >= 0 ? 'más' : 'menos'} que en ${R[3]}.`;
+  $('#prog-sum').innerHTML = what + vs;
+  $('#lg-cur').textContent = R[0];
+  $('#lg-prev').textContent = R[1];
+  $('#legend').style.setProperty('--acc', `var(${m.acc})`);
+  $('#prog-note').textContent = state.range === '12m' ? 'Meses completos. Noviembre va en tus cifras de la semana.'
+    : state.range === '30d' ? (isAvg ? 'Media acumulada de tus salidas, día a día.' : 'Acumulado día a día.') : 'Semanas completas, de lunes a domingo.';
+  $('#chart').setAttribute('aria-label', `${m.name}, ${R[0].toLowerCase()} frente a ${R[1]}. Último valor ${m.v(s.cur[s.cur.length - 1])}.`);
+  // tabla
+  let h = `<table><caption class="sr">${m.name} por ${s.unitWord}</caption><thead><tr><th scope="col">Periodo</th><th scope="col">Actual</th><th scope="col">Anterior</th></tr></thead><tbody>`;
+  s.labels.forEach((l, i) => { h += `<tr><td>${s.full[i]}</td><td>${s.cur[i] == null ? 'sin salidas' : m.v(s.cur[i])}</td><td>${s.prev[i] == null ? 'sin salidas' : m.v(s.prev[i])}</td></tr>`; });
+  $('#tbl').innerHTML = h + '</tbody></table>';
+}
+
+function renderProg(animate) {
+  progText();
+  if (!window.echarts) { $('#chart').textContent = 'No se pudo cargar la gráfica.'; return; }
+  if (!chart) chart = echarts.init($('#chart'), null, { renderer: 'svg' });
+  chart.setOption(progOption(animate), true);
+}
+
+/* =========================================================
+   RENDIMIENTO: valor de 30 días dentro de tu rango de 12 meses
+   ========================================================= */
+function drawPerf() {
+  const P = [
+    { l: 'Velocidad media', ico: 'i-gauge', acc: '--m-speed', v: 25.9, u: 'km/h', min: 24.6, max: 26.8, avg: 25.5, f: n => fDec(n) },
+    { l: 'Desnivel por salida', ico: 'i-mountain', acc: '--m-elev', v: 642, u: 'm', min: 380, max: 820, avg: 590, f: fInt },
+    { l: 'Cadencia media', ico: 'i-rotate', acc: '--ink-2', v: 84, u: 'rpm', min: 79, max: 88, avg: 83, f: fInt },
+    { l: 'Salida más larga', ico: 'i-milestone', acc: '--m-dist', v: 112.4, u: 'km', min: 64, max: 138, avg: 92, f: n => fDec(n) },
+  ];
+  $('#perf').innerHTML = P.map(p => {
+    const pos = v => ((v - p.min) / (p.max - p.min) * 100).toFixed(1) + '%';
+    const dp = (p.v - p.avg) / p.avg * 100, up = dp >= .5;
+    return `<div class="pm" style="--acc:var(${p.acc})">
+      <div style="min-width:0">
+        <div class="pm-l"><svg aria-hidden="true"><use href="#${p.ico}"/></svg>${p.l}</div>
+        <div class="pm-v"><b>${p.f(p.v)}</b><small>${p.u}</small><span class="delta ${up ? '' : 'down'}"><svg aria-hidden="true"><use href="#${up ? 'i-up' : 'i-down'}"/></svg>${fPct(dp).replace(/^[+−]/, '')}<span class="sr"> frente a tu media de ${p.f(p.avg)} ${p.u}</span></span></div>
+      </div>
+      <div>
+        <div class="range" role="img" aria-label="Rango de 12 meses de ${p.f(p.min)} a ${p.f(p.max)} ${p.u}; media ${p.f(p.avg)}; últimos 30 días ${p.f(p.v)}">
+          <span class="fill" style="left:${pos(Math.min(p.avg, p.v))};width:calc(${pos(Math.max(p.avg, p.v))} - ${pos(Math.min(p.avg, p.v))})"></span>
+          <span class="avg" style="left:${pos(p.avg)}"></span><span class="cur" style="left:${pos(p.v)}"></span></div>
+        <div class="range-l" aria-hidden="true"><span>${p.f(p.min)}</span><span>${p.f(p.max)}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   OBJETIVO: anillo con muesca del ritmo esperado
+   ========================================================= */
+function drawRing() {
+  const svg = $('#ring'); svg.innerHTML = '';
+  const c = 78, r = 64, C = 2 * Math.PI * r, pct = 142 / 500, exp = 6 / 30;
+  el('circle', { cx: c, cy: c, r, fill: 'none', stroke: 'var(--surface-3)', 'stroke-width': 12 }, svg);
+  el('circle', { cx: c, cy: c, r, fill: 'none', stroke: 'var(--good)', 'stroke-width': 16, 'stroke-dasharray': `${C * pct} ${C}`, transform: `rotate(-90 ${c} ${c})`, style: 'stroke-opacity:calc(var(--glow) * .3);filter:blur(5px)' }, svg);
+  const arc = el('circle', { cx: c, cy: c, r, fill: 'none', stroke: 'var(--good)', 'stroke-width': 12, 'stroke-linecap': 'round', 'stroke-dasharray': `${C * pct} ${C}`, transform: `rotate(-90 ${c} ${c})` }, svg);
+  // muesca del ritmo esperado
+  const a = exp * 2 * Math.PI - Math.PI / 2;
+  el('line', { x1: c + Math.cos(a) * (r - 10), y1: c + Math.sin(a) * (r - 10), x2: c + Math.cos(a) * (r + 10), y2: c + Math.sin(a) * (r + 10), stroke: 'var(--ink)', 'stroke-width': 3, 'stroke-linecap': 'round' }, svg);
+  const t1 = el('text', { x: c, y: c + 4, 'text-anchor': 'middle', style: 'font:700 36px var(--f-num);fill:var(--ink);font-variant-numeric:tabular-nums' }, svg); t1.textContent = Math.round(pct * 100) + ' %';
+  const t2 = el('text', { x: c, y: c + 26, 'text-anchor': 'middle', style: 'font:600 14px var(--f-num);fill:var(--ink-2);font-variant-numeric:tabular-nums' }, svg); t2.textContent = '142 de 500 km';
+  void arc;
+}
+
+/* =========================================================
+   Formas de ruta y perfiles por pendiente
+   ========================================================= */
+const loop = (n, seed, sx = 1.15, sy = .85) => {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * Math.PI * 2;
+    const k = 1 + .2 * Math.sin(a * 3 + seed) + .1 * Math.sin(a * 7 + seed * 2) + .045 * Math.sin(a * 17 + seed);
+    pts.push([Math.cos(a) * k * sx, Math.sin(a) * k * sy]);
+  }
+  return pts;
+};
+function drawShape(svg, seed, size, pad, opts = {}) {
+  svg.innerHTML = '';
+  const p = loop(120, seed, opts.sx, opts.sy);
+  const xs = p.map(q => q[0]), ys = p.map(q => q[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const s = (size - pad * 2) / Math.max(x1 - x0, y1 - y0);
+  const ox = (size - (x1 - x0) * s) / 2, oy = (size - (y1 - y0) * s) / 2;
+  const P = p.map(([x, y]) => [ox + (x - x0) * s, oy + (y - y0) * s]);
+  const d = 'M' + P.map(q => q.map(v => v.toFixed(1)).join(',')).join(' L') + ' Z';
+  const w = opts.w || 2.5;
+  el('path', { d, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': w * 3, 'stroke-linejoin': 'round', style: 'stroke-opacity:calc(var(--glow) * .4)' }, svg);
+  el('path', { d, fill: 'none', stroke: 'var(--surface)', 'stroke-width': w + 3, 'stroke-linejoin': 'round', style: 'stroke-opacity:var(--casing)' }, svg);
+  el('path', { d, fill: 'none', stroke: 'var(--m-dist)', 'stroke-width': w, 'stroke-linejoin': 'round' }, svg);
+  el('path', { d, fill: 'none', stroke: '#fff', 'stroke-width': .8, 'stroke-linejoin': 'round', style: 'stroke-opacity:calc(var(--thread) * .8)' }, svg);
+  if (opts.start !== false) el('circle', { cx: P[0][0], cy: P[0][1], r: w + 1.8, fill: 'var(--surface)', stroke: 'var(--ink)', 'stroke-width': 2 }, svg);
+}
+
+const gradeCls = g => g < 1 ? 's0' : g < 4 ? 's1' : g < 7 ? 's2' : g < 10 ? 's3' : g < 16 ? 's4' : 's5';
+let uid = 0;
+function drawProfile(svg, pts, total, opts) {
+  const W = Math.round(svg.getBoundingClientRect().width); if (!W) return;
+  const h = opts.h, H = h + (opts.axis ? 18 : 0);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H); svg.innerHTML = '';
+  const e = pts.map(p => p[1]), mn = Math.min(...e), mx = Math.max(...e);
+  const top = opts.peak ? 18 : 4;
+  const X = km => km / total * W, Y = v => h - 2 - (v - mn) / (mx - mn) * (h - top - 2);
+  const id = 'pg' + (++uid);
+  const gr = el('linearGradient', { id, gradientUnits: 'userSpaceOnUse', x1: 0, y1: 0, x2: W, y2: 0 }, el('defs', {}, svg));
+  let run = null;
+  const flush = (to) => { el('stop', { offset: (run.x0 / W).toFixed(4), style: `stop-color:var(--${run.c})` }, gr); el('stop', { offset: (to / W).toFixed(4), style: `stop-color:var(--${run.c})` }, gr); };
+  for (let i = 1; i < pts.length; i++) {
+    const c = gradeCls(pts[i][2]), x = X(pts[i - 1][0]);
+    if (!run) run = { c, x0: x }; else if (run.c !== c) { flush(x); run = { c, x0: x }; }
+  }
+  flush(W);
+  const line = pts.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(' L');
+  el('path', { d: `M0,${h} L${line} L${W},${h} Z`, fill: `url(#${id})` }, svg);
+  el('path', { d: 'M' + line, fill: 'none', stroke: 'var(--ink)', 'stroke-opacity': .5, 'stroke-width': 1, 'stroke-linejoin': 'round' }, svg);
+  el('line', { x1: 0, x2: W, y1: h + .5, y2: h + .5, stroke: 'var(--line-strong)' }, svg);
+  if (opts.axis) {
+    const step = W < 380 ? 40 : 20;
+    for (let k = 0; k <= total - step * .5; k += step) {
+      const t = el('text', { x: X(k), y: h + 15, 'text-anchor': k === 0 ? 'start' : 'middle' }, svg); t.textContent = k;
+    }
+    const t = el('text', { x: W, y: h + 15, 'text-anchor': 'end' }, svg); t.textContent = fDec(total) + ' km';
+  }
+  if (opts.peak) {
+    let pi = 0; e.forEach((v, i) => { if (v > e[pi]) pi = i; });
+    const px = X(pts[pi][0]), py = Y(e[pi]);
+    el('circle', { cx: px, cy: py, r: 3, fill: 'var(--ink)' }, svg);
+    const t = el('text', { x: Math.min(Math.max(px, 40), W - 40), y: py - 7, 'text-anchor': 'middle', class: 'pk' }, svg); t.textContent = fInt(mx) + ' m';
+  }
+  // descripción accesible con el reparto por pendiente
+  const share = {}; for (let i = 1; i < pts.length; i++) { const c = gradeCls(pts[i][2]); share[c] = (share[c] || 0) + pts[i][0] - pts[i - 1][0]; }
+  const names = { s0: 'menos del 1 % o bajada', s1: '1 a 4 %', s2: '4 a 7 %', s3: '7 a 10 %', s4: '10 a 16 %', s5: '16 % o más' };
+  svg.setAttribute('aria-label', `${opts.label}: ${fDec(total)} km, de ${fInt(mn)} a ${fInt(mx)} m. ` + Object.keys(names).filter(k => share[k]).map(k => `${fDec(share[k])} km al ${names[k]}`).join('; '));
+}
+
+/* =========================================================
+   ÚLTIMA SALIDA: mapa CyclOSM (recorrido sintético en el mar)
+   ========================================================= */
+let map = null;
+function drawMap() {
+  $('#plate').innerHTML = `
+    <div><svg aria-hidden="true"><use href="#i-bike"/></svg><b>${fDec(LAST_KM)} km</b></div>
+    <div><svg aria-hidden="true"><use href="#i-mountain"/></svg><b>${fInt(LAST_UP)} m</b></div>
+    <div><svg aria-hidden="true"><use href="#i-timer"/></svg><b>${fHM(LAST_H).replace(' min', '')}</b></div>
+    <div><svg aria-hidden="true"><use href="#i-gauge"/></svg><b>${fDec(LAST_KM / LAST_H)} km/h</b></div>`;
+  if (!window.L) return;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  map = L.map('map', { zoomControl: false, scrollWheelZoom: false, dragging: !coarse, tap: false, attributionControl: true,
+    zoomAnimation: !reduced, fadeAnimation: !reduced, markerZoomAnimation: !reduced, zoomSnap: .25 });
+  L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { subdomains: 'abc', maxZoom: 18,
+    attribution: '<a href="https://www.cyclosm.org">CyclOSM</a>, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  map.attributionControl.setPrefix(false);
+  // vuelta sintética de 87,6 km frente a la costa (41,0 N, 2,5 E): ningún track real
+  const raw = loop(240, 1.7, 1.2, .82);
+  let per = 0; for (let i = 1; i < raw.length; i++) per += Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1]);
+  const k = LAST_KM / per;
+  const ll = raw.map(([x, y]) => [41.0 - y * k / 111.2, 2.5 + x * k / (111.2 * Math.cos(41 * Math.PI / 180))]);
+  const o = { interactive: false, lineJoin: 'round', lineCap: 'round' };
+  L.polyline(ll, { ...o, weight: 12, className: 'trk-halo' }).addTo(map);
+  L.polyline(ll, { ...o, weight: 7, className: 'trk-casing' }).addTo(map);
+  L.polyline(ll, { ...o, weight: 3.5, className: 'trk-core' }).addTo(map);
+  L.polyline(ll, { ...o, weight: 1, className: 'trk-thread' }).addTo(map);
+  L.circleMarker(ll[0], { radius: 6, className: 'mk', interactive: false }).addTo(map);
+  map.fitBounds(L.latLngBounds(ll), { paddingTopLeft: [150, 18], paddingBottomRight: [56, 18] });
+  $('#zin').onclick = () => map.zoomIn(); $('#zout').onclick = () => map.zoomOut();
+  $('#fs').onclick = () => { const w = $('#mapWrap'); (document.fullscreenElement ? document.exitFullscreen() : w.requestFullscreen?.())?.then?.(() => setTimeout(() => map.invalidateSize(), 60)); };
+}
+
+/* =========================================================
+   RUTAS IA y PRÓXIMAS SALIDAS
+   ========================================================= */
+function drawRoutes() {
+  drawShape($('#rtShape'), 4.2, 104, 14);
+  const h = ROUTE_KM / 24.6;
+  $('#rtFacts').innerHTML = `<span><svg aria-hidden="true"><use href="#i-bike"/></svg><b>${fInt(ROUTE_KM)} km</b></span><span><svg aria-hidden="true"><use href="#i-mountain"/></svg><b>${fInt(ROUTE_UP)} m</b></span><span><svg aria-hidden="true"><use href="#i-timer"/></svg><b>${fHM(h).replace(' min', '')}</b></span>`;
+  const ALTS = [
+    { t: 'Costa y Garraf', km: 72, up: 840, diff: ['easy', 'Suave', 'i-sig1'], seed: 3.3 },
+    { t: 'Montseny por Collformic', km: 118, up: 2210, diff: ['hard', 'Dura', 'i-sig3'], seed: 6.1 },
+  ];
+  $('#alts').innerHTML = ALTS.map((a, i) => `<li><a href="#" class="press" aria-label="${a.t}, ${a.km} km, ${fInt(a.up)} m, ${a.diff[1]} para ti">
+    <svg class="alt-s" id="alt${i}" viewBox="0 0 30 30" aria-hidden="true"></svg>
+    <span style="min-width:0" aria-hidden="true"><span class="t" style="display:block">${a.t}</span><span class="f"><b>${a.km}</b> km&nbsp;&nbsp;<b>${fInt(a.up)}</b> m</span></span>
+    <span class="diff ${a.diff[0]}" aria-hidden="true"><svg><use href="#${a.diff[2]}"/></svg>${a.diff[1]}</span></a></li>`).join('');
+  ALTS.forEach((a, i) => drawShape(document.getElementById('alt' + i), a.seed, 30, 5, { w: 1.4, start: false }));
+  $('#rtWhy').innerHTML =`Tres subidas del <b>5 al 7 %</b>, las que mejor llevas, y <b>${fInt(ROUTE_KM - 86)} km más</b> que tu salida media.`;
+}
+function drawNext() {
+  const N = [
+    { d: 'sáb', n: 8, m: 'nov', t: 'Fondo por el Montseny', km: 96, up: 1420, diff: ['mid', 'Media', 'i-sig2'], seed: 2.4 },
+    { d: 'dom', n: 9, m: 'nov', t: 'Recuperación por la costa', km: 48, up: 260, diff: ['easy', 'Suave', 'i-sig1'], seed: 5.1 },
+    { d: 'mié', n: 12, m: 'nov', t: 'Series en el Coll de la Creu', km: 62, up: 1180, diff: ['hard', 'Dura', 'i-sig3'], seed: .8 },
+  ];
+  $('#next').innerHTML = N.map((x, i) => `<li><a href="#" class="press" aria-label="${x.d} ${x.n} de noviembre, ${x.t}, ${x.km} km, ${fInt(x.up)} m, ${x.diff[1]}">
+    <span class="dt" aria-hidden="true"><span>${x.d}</span><b>${x.n}</b><span>${x.m}</span></span>
+    <span class="mini" aria-hidden="true"><svg id="nx${i}" viewBox="0 0 46 46"></svg></span>
+    <span style="min-width:0" aria-hidden="true"><span class="nx-t" style="display:block">${x.t}</span>
+      <span class="nx-f"><span><span class="num">${x.km}</span> km</span><span><span class="num">${fInt(x.up)}</span> m</span><span class="diff ${x.diff[0]}"><svg><use href="#${x.diff[2]}"/></svg>${x.diff[1]}</span></span></span></a></li>`).join('');
+  N.forEach((x, i) => drawShape(document.getElementById('nx' + i), x.seed, 46, 7, { w: 1.8, start: false }));
+}
+
+/* =========================================================
+   Interacción
+   ========================================================= */
+function setTheme(t) {
+  if (t === 'light') root.setAttribute('data-theme', 'light'); else root.removeAttribute('data-theme');
+  try { localStorage.setItem('fbt-theme', t); } catch (e) {}
+  document.querySelectorAll('.theme-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === t)));
+  renderProg(false);
+}
+document.querySelectorAll('.theme-seg button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.t)));
+document.querySelectorAll('.theme-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === (root.getAttribute('data-theme') === 'light' ? 'light' : 'dark'))));
+
+$('#ranges').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.range = b.dataset.r; $('#ranges').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderProg(false); });
+$('#metrics').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.metric = b.dataset.m; $('#metrics').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderProg(false); });
+$('#tblBtn').addEventListener('click', e => { const t = $('#tbl'), open = t.hidden; t.hidden = !open; e.currentTarget.setAttribute('aria-expanded', String(open)); });
+const sheet = $('#sheet'), moreBtn = $('#moreBtn');
+moreBtn.addEventListener('click', () => { sheet.showModal(); moreBtn.setAttribute('aria-expanded', 'true'); });
+sheet.addEventListener('close', () => moreBtn.setAttribute('aria-expanded', 'false'));
+sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });
+document.addEventListener('keydown', e => { if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { const i = document.querySelector('.search input'); if (i && i.offsetParent) { e.preventDefault(); i.focus(); } } });
+
+/* =========================================================
+   Pintado y redimensionado
+   ========================================================= */
+function drawSized() {
+  drawHero();
+  drawProfile($('#prof1'), LAST, LAST_KM, { h: 64, axis: true, peak: true, label: 'Perfil de la última salida' });
+  drawProfile($('#prof2'), ROUTE, ROUTE_KM, { h: 52, axis: true, peak: true, label: 'Perfil de la ruta propuesta' });
+}
+drawKpis(); drawPerf(); drawRing(); drawRoutes(); drawNext(); drawSized(); drawMap(); renderProg(true);
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => chart && chart.resize());
+let raf = 0, lastW = innerWidth;
+new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+  chart && chart.resize(); map && map.invalidateSize();
+  if (innerWidth !== lastW) { lastW = innerWidth; drawSized(); renderProg(false); }
+}); }).observe(document.querySelector('.dash'));
+})();
+</script>
+</body>
+</html>

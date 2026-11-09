@@ -1,0 +1,311 @@
+/* =====================================================================
+   FBikeTrain móvil: piezas propias de Rutas (rutas.html) y Rutas con IA (ia.html).
+   Se carga después de movil.css. Sin hex sueltos: todo sale de los tokens.
+   ===================================================================== */
+
+/* ---------- Receta: lo que has pedido, en una fila que abre el generador ---------- */
+.receta {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; min-height: 72px; padding: 12px 10px 12px 14px; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-card);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
+}
+.receta:active { transform: scale(0.985); }
+.receta-figs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: var(--t-sm); color: var(--ink-2); }
+.receta-figs b { margin-right: 3px; font: 700 21px/1.1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.receta-figs > span { white-space: nowrap; }
+.receta-figs .bars { display: inline-block; width: 13px; height: 13px; margin-right: 5px; vertical-align: -1px; }
+.receta-meta { display: block; margin-top: 3px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
+.receta-go { display: inline-flex; align-items: center; gap: 2px; padding-left: 4px; color: var(--link); font: 600 var(--t-sm)/1 var(--font-ui); }
+.receta-go .ic { width: 18px; height: 18px; }
+@media (hover: hover) and (pointer: fine) { .receta:hover { border-color: var(--line-strong); } }
+
+/* ---------- Tarjeta de ruta: forma luminosa + perfil por pendiente ---------- */
+.rcard {
+  position: relative; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+}
+.rcard[data-best] { border-color: color-mix(in srgb, var(--action) 55%, var(--line)); }
+.rcard-map { position: relative; flex: none; height: 132px; background: var(--surface-2); border-bottom: 1px solid var(--line); isolation: isolate; overflow: hidden; }
+/* Curvas de nivel grabadas a todo lo ancho (la forma trae las suyas en el centro) */
+.rcard-map::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--ridge-line); opacity: 0.12;
+  -webkit-mask: var(--relieve) 30% 40% / 420px 262px no-repeat; mask: var(--relieve) 30% 40% / 420px 262px no-repeat;
+}
+:root[data-theme="light"] .rcard-map::before { background: var(--ridge-near); opacity: 0.1; }
+.rcard-map .shape { position: absolute; inset: 8px 0; width: 100%; height: calc(100% - 16px); }
+.rcard-rank {
+  position: absolute; top: 10px; left: 10px; display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 9px;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  font: 700 17px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.rcard-head { display: grid; gap: 4px; }
+.rcard-best { display: flex; align-items: center; gap: 6px; font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--good); }
+.rcard-best .ic { width: 16px; height: 16px; }
+.rcard-kind { position: absolute; right: 10px; bottom: 10px; height: 28px; background: var(--surface); border: 1px solid var(--line); }
+.rcard-map { cursor: pointer; }
+/* Ver en el mapa: secundaria, arriba a la derecha (la principal, exportar, va en el pie) */
+.rcard-mapbtn {
+  position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 6px;
+  min-width: 44px; height: 44px; padding: 0 14px 0 12px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink);
+  font: 600 var(--t-sm)/1 var(--font-ui);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.rcard-mapbtn .ic { width: 18px; height: 18px; color: var(--link); }
+.rcard-mapbtn:active { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) { .rcard-mapbtn:hover { border-color: var(--link); } }
+
+/* ---------- Hoja del mapa: trazado sobre CyclOSM y perfil debajo ---------- */
+dialog.sheet--map { max-height: calc(100dvh - var(--safe-t) - 12px); }
+.sheet-body--map { display: grid; gap: 14px; align-content: start; padding-top: 4px; }
+.rmap { position: relative; overflow: hidden; height: clamp(240px, calc(100dvh - 380px), 560px); margin: 0 -8px; border-radius: var(--r-lg); background: var(--map-under); border: 1px solid var(--line); }
+.rmap .map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map .contour { fill: none; stroke: var(--contour); stroke-width: 1.2; }
+.map .road { fill: none; stroke: color-mix(in srgb, var(--ink-3) 22%, transparent); stroke-width: 1.4; stroke-linecap: round; }
+.map .road--main { stroke: color-mix(in srgb, var(--ink-3) 34%, transparent); stroke-width: 3; }
+.map .halo { stroke-width: 9; }
+.map .core { stroke-width: 3; }
+.map .climb { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.map .start { stroke-width: 2.5; }
+.map .dot { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.5; }
+.map .town { font: 600 13px var(--font-ui); fill: var(--ink-2); paint-order: stroke; stroke: var(--map-under); stroke-width: 4px; stroke-linejoin: round; }
+.map .town--home { fill: var(--ink); }
+.rmap .map-attr {
+  position: absolute; left: 10px; bottom: 10px; padding: 4px 8px; border-radius: var(--r-pill);
+  background: var(--glass-strong); font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2);
+}
+.rmap-prof .profile { height: 64px; }
+.rmap-prof .legend { margin-top: 8px; }
+
+.rcard-body { display: flex; flex-direction: column; gap: 12px; flex: 1; padding: 14px 16px 16px; }
+/* Nombre: dos líneas como mucho, para que todas las tarjetas del carrusel midan lo mismo.
+   El nombre completo sigue en el h3 (lector de pantalla), en title y en las hojas de mapa y GPX. */
+.rcard-name {
+  font: 600 var(--t-xl)/1.15 var(--font-fig); letter-spacing: -0.005em; color: var(--ink); text-wrap: balance; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; text-overflow: ellipsis;
+}
+.rcard-chips { margin-top: -2px; }
+.rcard-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rcard-figs > div { min-width: 0; }
+.rcard-figs dt { font: 500 13px/1.2 var(--font-ui); color: var(--ink-3); }
+.rcard-figs dd { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: baseline; column-gap: 3px; margin: 4px 0 0; font: 700 25px/1 var(--font-fig); letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rcard-figs dd .u { font-size: 14px; margin: 0; }
+.rcard-why {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--acc-elev) 11%, var(--surface)); border: 1px solid color-mix(in srgb, var(--acc-elev) 32%, transparent);
+  font-size: 15px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty;
+}
+.rcard-why > .ic { margin-top: 2px; color: var(--acc-elev); }
+.rcard-why b { color: var(--ink); font-weight: 600; }
+/* «Por qué esta»: tres líneas y «Leer más». La explicación completa no empuja el perfil ni estira las otras tarjetas */
+.rcard-why-main { min-width: 0; }
+.rcard-why-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; text-overflow: ellipsis; }
+.rcard-why.is-open .rcard-why-t { display: block; -webkit-line-clamp: unset; line-clamp: none; overflow: visible; }
+.rcard-more { min-height: 44px; margin: 2px 0 -10px -12px; padding: 0 12px; font-size: var(--t-sm); }
+.rcard-prof { min-width: 0; }
+.rcard-actions { margin-top: auto; }
+.rcard-prof-h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: var(--t-sm); color: var(--ink-2); }
+.rcard-prof-h .fig { font-size: 17px; color: var(--ink); }
+.rcard .profile { height: 60px; }
+.rcard .legend { margin-top: 8px; }
+.rcard-actions { display: none; margin-top: 2px; }
+/* En ancho (o apaisado) cada tarjeta lleva su botón: el dock se oculta */
+@media (min-width: 600px), (max-height: 500px) { .rcard-actions { display: grid; } }
+
+/* Esqueleto de la tarjeta: misma forma, sin saltos al llegar los datos */
+.rcard--sk .rcard-map { display: grid; place-items: center; }
+.rcard--sk .sk-shape { width: 112px; height: 112px; border-radius: 50%; }
+.sk-figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.sk-figs .sk { height: 30px; }
+.sk-prof { height: 60px; border-radius: 10px; }
+
+/* ---------- Generando: pasos con progreso ---------- */
+.gen-progress { display: grid; gap: 14px; }
+.gen-progress-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.gen-progress-v { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.gen-progress-v .u { font-style: normal; }
+.genbar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.genbar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 520ms var(--ease-out); }
+.gensteps { display: grid; }
+.gensteps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 40px; font-size: 15px; color: var(--ink-3); }
+.gensteps li .ic { width: 20px; height: 20px; }
+.gensteps li span { text-wrap: pretty; }
+.gensteps li[data-s="done"] { color: var(--ink-2); }
+.gensteps li[data-s="done"] .ic { color: var(--good); }
+.gensteps li[aria-current="step"] { color: var(--ink); font-weight: 600; }
+.gensteps li[aria-current="step"] .ic { color: var(--link); }
+
+/* ---------- Generador (en la hoja, o en la página si aún no hay rutas) ---------- */
+.gen { display: grid; gap: 22px; }
+.gen-group { display: grid; gap: 8px; min-width: 0; }
+.gen-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gen-label { font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+.gen-hint { font-size: var(--t-sm); color: var(--ink-2); }
+.gen-hint b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.gen .list { margin: 0; }
+.gen-inline { padding: 18px 16px; }
+/* Dentro de la tarjeta del generador, la fila del interruptor va plana: sin tarjeta dentro de otra */
+.gen-inline .list--inset { background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+.gen-inline .list--inset .row { padding-inline: 0; }
+
+/* Cuota agotada: el botón de generar lo dice y no se puede pulsar (legible, no apagado) */
+.btn--quota[disabled] { opacity: 1; background: var(--warning-bg); color: var(--ink); border-color: color-mix(in srgb, var(--warning) 35%, transparent); white-space: normal; text-align: center; }
+.btn--quota[disabled] .ic { color: var(--warning); }
+
+/* Antetítulo con estado (cuota, error): icono y color, en una línea */
+.page-kicker--warn, .page-kicker--error { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); }
+.page-kicker--warn .ic, .page-kicker--error .ic { width: 16px; height: 16px; flex: none; }
+.page-kicker--warn .ic { color: var(--warning); }
+.page-kicker--error .ic { color: var(--critical); }
+
+/* ---------- Ayuda: pasos numerados (aquí sí son una secuencia) ---------- */
+.steps { display: grid; gap: 10px; counter-reset: paso; }
+.steps > li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; font-size: 15px; color: var(--ink-2); }
+.steps > li::before {
+  counter-increment: paso; content: counter(paso);
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--line-strong);
+  font: italic 700 17px/1 var(--font-fig); color: var(--ink);
+}
+.steps > li > p { padding-top: 5px; }
+.steps b { color: var(--ink); font-weight: 600; }
+
+/* =====================================================================
+   IA: una pregunta por pantalla
+   ===================================================================== */
+.q-swap { display: grid; }
+.page-title:focus { outline: none; }
+.page-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+.qprog { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
+.qprog i { position: relative; height: 6px; border-radius: var(--r-pill); background: var(--line-strong); overflow: hidden; }
+.qprog i::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(0); transition: transform var(--dur-ui) var(--ease-out); }
+.qprog i[data-on]::after { transform: scaleX(1); }
+
+/* Respuesta: tarjeta grande con radio. Toda la fila es el objetivo táctil */
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) 26px; align-items: center; gap: 14px;
+  width: 100%; min-height: 78px; padding: 12px 14px; text-align: left;
+  background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-lg);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.opt:active { transform: scale(0.98); }
+.opt-lead { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--acc, var(--link)); background: color-mix(in srgb, var(--acc, var(--action)) 15%, transparent); }
+.opt-lead .ic { width: 22px; height: 22px; }
+.opt-lead .bars { width: 20px; height: 20px; }
+.opt-lead svg.terrain { width: 34px; height: 24px; overflow: visible; }
+.opt-main { min-width: 0; }
+.opt-t { display: block; font: 600 var(--t-lg)/1.25 var(--font-ui); color: var(--ink); }
+.opt-s { display: block; margin-top: 2px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); text-wrap: pretty; }
+.opt-s b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.opt-mark { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line-strong); color: var(--on-action); transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+.opt-mark .ic { width: 16px; height: 16px; stroke-width: 3; opacity: 0; transform: scale(0.6); transition: opacity 160ms ease, transform 160ms var(--ease-out); }
+.opt[aria-checked="true"] { border-color: var(--action); background: color-mix(in srgb, var(--action) 11%, var(--surface)); }
+.opt[aria-checked="true"] .opt-mark { background: var(--action); border-color: var(--action); }
+.opt[aria-checked="true"] .opt-mark .ic { opacity: 1; transform: none; }
+@media (hover: hover) and (pointer: fine) { .opt:hover { border-color: color-mix(in srgb, var(--action) 60%, var(--line-strong)); } }
+
+/* Perfil de terreno en miniatura, coloreado por pendiente (la misma escala que los perfiles) */
+.terrain .t0 { stroke: var(--g0); } .terrain .t1 { stroke: var(--g1); } .terrain .t2 { stroke: var(--g2); }
+.terrain .t3 { stroke: var(--g3); } .terrain .t4 { stroke: var(--g4); }
+.terrain path { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Resumen: lo que se enviará */
+.ask { display: grid; gap: 10px; }
+.ask-figs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.ask-figs b { font: italic 700 30px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; margin-right: 3px; }
+.ask-figs span { color: var(--ink-2); font-size: var(--t-sm); }
+.sees { display: grid; gap: 8px; font-size: 15px; color: var(--ink-2); }
+.sees li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; }
+.sees li .ic { margin-top: 2px; width: 18px; height: 18px; }
+.sees--yes .ic { color: var(--good); }
+.sees--no .ic { color: var(--ink-3); }
+.sees b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Título de los resultados solo para el lector de pantalla (el paginador ya dice «1 de 5»):
+   en pantallas bajas o estrechas, ese hueco es para el perfil */
+@media (max-width: 380px), (orientation: landscape) and (max-height: 500px) {
+  #r-resultados > .section-h { position: absolute; width: 1px; height: 1px; min-height: 0; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+
+/* Móviles estrechos (360-380 px): la receta cabe en tres líneas, las dos etiquetas de la
+   tarjeta en una y el perfil por pendiente entra en la primera pantalla, sobre el dock */
+@media (max-width: 380px) {
+  .rcard-map { height: 104px; }
+  .rcard-figs dd { font-size: 22px; }
+  .receta { position: relative; gap: 10px; }
+  .receta-go-t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .rcard-body { padding-inline: 14px; }
+  .rcard-chips { gap: 6px; }
+  .rcard-chips .chip { padding: 0 8px; gap: 5px; }
+}
+
+/* ---------- Apaisado en teléfono (390 px de alto): la primera pantalla enseña rutas ----------
+   Cabecera de una línea (sin antetítulo, título de 26 px), receta en una fila y,
+   en las preguntas de la IA, respuestas en dos columnas y sin barra inferior. */
+@media (orientation: landscape) and (max-height: 500px) {
+  body[data-page="rutas"] .page, body[data-page="ia"] .page { gap: 14px; }
+  body[data-page="rutas"] .page-kicker:not(.page-kicker--warn):not(.page-kicker--error), body[data-page="ia"] .page-kicker { display: none; }
+  body[data-page="rutas"] .page-title, body[data-page="ia"] .page-title { font-size: 26px; }
+  body[data-page="rutas"] .page > .page-head, body[data-page="ia"] .page > .page-head { padding-top: 0; padding-bottom: 0; }
+  body[data-page="rutas"] .page-lead { margin-top: 4px; max-width: none; }
+  /* IA: título y barra de progreso en la misma fila */
+  body[data-page="ia"] .page-head { display: flex; align-items: center; gap: 20px; }
+  body[data-page="ia"] .q-swap { flex: 1 1 auto; min-width: 0; }
+  body[data-page="ia"] .qprog { flex: 0 0 min(240px, 34%); margin-top: 0; }
+  /* Receta en una fila */
+  .receta { grid-template-columns: minmax(0, 1fr) auto; min-height: 52px; padding: 4px 6px 4px 14px; }
+  .receta > .row-lead { display: none; }
+  .receta > .row-main { display: flex; align-items: baseline; gap: 16px; min-width: 0; }
+  .receta-figs { flex: none; flex-wrap: nowrap; }
+  .receta-meta { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Rutas: título y receta en la misma fila */
+  body[data-page="rutas"] .page { grid-template-columns: auto minmax(0, 1fr); column-gap: 24px; }
+  body[data-page="rutas"] .page > * { grid-column: 1 / -1; }
+  body[data-page="rutas"] .page > .page-head:has(~ #r-receta:not([hidden])) { grid-column: 1; grid-row: 1; align-self: center; }
+  body[data-page="rutas"] .page > #r-receta { grid-column: 2; grid-row: 1; }
+  /* IA, en las propuestas: lo mismo con tus respuestas */
+  body[data-page="ia"] .page:has(> #ia-receta:not([hidden])) { grid-template-columns: auto minmax(0, 1fr); column-gap: 24px; }
+  body[data-page="ia"] .page:has(> #ia-receta:not([hidden])) > * { grid-column: 1 / -1; }
+  body[data-page="ia"] .page:has(> #ia-receta:not([hidden])) > .page-head { grid-column: 1; grid-row: 1; align-self: center; }
+  body[data-page="ia"] .page:has(> #ia-receta:not([hidden])) > #ia-receta { grid-column: 2; grid-row: 1; }
+  /* IA: respuestas en dos columnas y sin barra inferior durante las preguntas */
+  .opts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .opt { min-height: 64px; padding-block: 8px; }
+  body[data-page="ia"][data-flow] { --nav-space: 0px; }
+  body[data-page="ia"][data-flow] .tabbar { display: none; }
+  /* Tarjeta de ruta tumbada: forma a la izquierda; nombre, cifras y perfil a la derecha,
+     dentro de los 390 px de alto sin desplazar */
+  .carousel > li { flex-basis: min(calc(100% - 26px), 560px); }
+  .rcard { flex-direction: row; }
+  .rcard-map { flex: 0 0 38%; height: auto; min-height: 228px; border-bottom: 0; border-right: 1px solid var(--line); }
+  /* La columna de la forma es más alta que lo que se ve: todo va arriba, en los primeros 220 px */
+  .rcard-map .shape { inset: 50px 0 auto; height: 136px; }
+  .rcard[data-best] .rcard-map .shape { top: 86px; height: 100px; }
+  .rcard-kind { top: 192px; bottom: auto; }
+  .rcard-body { padding-block: 10px; gap: 8px; }
+  .rcard-name { -webkit-line-clamp: 1; line-clamp: 1; font-size: var(--t-lg); }
+  .rcard .profile { height: 48px; }
+  .rcard .legend { margin-top: 6px; }
+  .rcard--sk .sk-shape { width: 88px; height: 88px; }
+  /* «La que mejor encaja» pasa a la forma, bajo el número: deja la leyenda del perfil a la vista */
+  .rcard-best {
+    position: absolute; z-index: 1; top: 50px; left: 10px; max-width: calc(38% - 20px); white-space: nowrap;
+    padding: 5px 10px 5px 8px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--line-strong);
+  }
+  /* Mapa: trazado a la izquierda, perfil a la derecha */
+  .sheet-body--map { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: center; }
+  .rmap { height: calc(100dvh - 190px); margin: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receta:active, .opt:active, .rcard-mapbtn:active { transform: none; }
+  .opt-mark .ic { transform: none; }
+}
+@media (forced-colors: active) {
+  .rcard, .receta, .opt { border: 1px solid CanvasText; }
+  .opt[aria-checked="true"] { outline: 3px solid Highlight; }
+}

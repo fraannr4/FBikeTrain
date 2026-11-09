@@ -1,0 +1,117 @@
+/* Rutas con IA (ia.html): una pregunta por pantalla con su progreso, respuestas en tarjetas grandes,
+   el resumen con lo que pedirás y lo que verá la IA. La tarjeta de ruta vive en routes.css, la receta
+   y la espera en rutas.css y el kit en kit.css. Sin hex sueltos: todo son tokens. */
+
+/* Progreso: un segmento por paso, se rellena de izquierda a derecha */
+.qprog { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: -12px; }
+.qprog i { position: relative; height: 6px; border-radius: var(--r-pill); background: var(--line-strong); overflow: hidden; }
+.qprog i::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--action);
+  transform-origin: left; transform: scaleX(0); transition: transform var(--dur-ui) var(--ease-out);
+}
+.qprog i[data-on]::after { transform: scaleX(1); }
+.page--ia .page-title:focus { outline: none; }
+.page--ia .page-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+
+/* Cada pregunta entra desde la derecha; el título se cambia sin moverse. Mientras entra, lo que
+   asoma por la derecha no abre scroll horizontal. */
+.page--ia { overflow-x: clip; }
+.q-panel { animation: q-in 260ms var(--ease-out) both; }
+@keyframes q-in { from { opacity: 0; transform: translateX(24px); } }
+
+/* Respuesta: tarjeta grande con radio. Toda la fila es el objetivo táctil */
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) 26px; align-items: center; gap: 14px;
+  width: 100%; min-height: 78px; padding: 12px 14px; text-align: left; color: inherit; font: inherit;
+  background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: var(--r-lg);
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.opt:active:not(:disabled) { transform: scale(0.98); }
+.opt:disabled { opacity: 0.55; }
+.opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.opt-lead {
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px;
+  color: var(--acc, var(--link)); background: color-mix(in srgb, var(--acc, var(--action)) 15%, transparent);
+}
+.opt-lead .ic { width: 22px; height: 22px; }
+.opt-lead svg.terrain { width: 34px; height: 24px; overflow: visible; }
+.opt-main { min-width: 0; }
+.opt-t { display: block; font: 600 var(--t-lg)/1.25 var(--font-ui); color: var(--ink); }
+.opt-s { display: block; margin-top: 2px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); text-wrap: pretty; }
+.opt-s b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.opt-mark {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid var(--line-strong); color: var(--on-action);
+  transition: background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.opt-mark .ic { width: 16px; height: 16px; stroke-width: 3; opacity: 0; transform: scale(0.6); transition: opacity 160ms ease, transform 160ms var(--ease-out); }
+.opt[aria-checked="true"] { border-color: var(--action); background: color-mix(in srgb, var(--action) 11%, var(--surface)); }
+.opt[aria-checked="true"] .opt-mark { background: var(--action); border-color: var(--action); }
+.opt[aria-checked="true"] .opt-mark .ic { opacity: 1; transform: none; }
+@media (hover: hover) and (pointer: fine) {
+  .opt:hover:not(:disabled) { border-color: color-mix(in srgb, var(--action) 60%, var(--line-strong)); }
+}
+
+/* Perfil de terreno en miniatura, coloreado por pendiente (la misma escala que los perfiles) */
+.terrain path { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.terrain .t0 { stroke: var(--g0); }
+.terrain .t1 { stroke: var(--g1); }
+.terrain .t2 { stroke: var(--g2); }
+.terrain .t3 { stroke: var(--g3); }
+
+/* Resumen: lo que se pedirá y lo que verá la IA */
+.ia-summary { display: grid; gap: 16px; }
+.ask { display: grid; gap: 10px; }
+.ask-figs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.ask-figs b { margin-right: 3px; font: italic 700 30px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ask-figs span { color: var(--ink-2); font-size: var(--t-sm); }
+.sees { display: grid; gap: 8px; font-size: 15px; color: var(--ink-2); }
+.sees li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; }
+.sees li .ic { margin-top: 2px; width: 18px; height: 18px; }
+.sees--yes .ic { color: var(--good); }
+.sees--no .ic { color: var(--ink-3); }
+.sees b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ia-initial { display: grid; gap: 16px; }
+
+/* Notas de la propuesta: cuánto cambia frente a tu referencia y si manda el tiempo */
+.rcard-notes { display: grid; gap: 4px; font-size: var(--t-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.rcard-notes li { display: flex; align-items: center; gap: 6px; }
+.rcard-notes .ic { flex: none; width: 16px; height: 16px; color: var(--link); }
+
+/* Escritorio: las preguntas, en una columna cómoda */
+@media (min-width: 900px) {
+  .page--ia > .q-panel, .page--ia > .ia-summary, .page--ia > .qprog { max-width: 640px; }
+}
+
+/* Apaisado en teléfono (390 px de alto): cabecera de una línea, respuestas en dos columnas y,
+   durante las preguntas, sin barra inferior */
+@media (orientation: landscape) and (max-height: 500px) {
+  .page--ia { gap: 14px; }
+  .page--ia .page-kicker { display: none; }
+  .page--ia .page-title { font-size: 26px; }
+  .page--ia > .page-head { padding-top: 0; padding-bottom: 0; }
+  .page--ia .qprog { margin-top: -6px; }
+  .page--ia .opts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page--ia .opt { min-height: 64px; padding-block: 8px; }
+}
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 899px) {
+  body[data-ia-flow] { --nav-space: 0px; }
+  body[data-ia-flow] .tabbar { display: none; }
+}
+
+/* Móviles estrechos: «Anterior» se queda en la flecha (44 px o más) y el botón principal conserva su margen */
+@media (max-width: 379px) {
+  .dock .btn.dock-prev { flex: 0 0 var(--dock-h); min-width: 44px; padding: 0; }
+  .dock-prev .dock-prev-t { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .q-panel { animation: none; }
+  .opt:active:not(:disabled) { transform: none; }
+  .opt-mark .ic { transform: none; }
+}
+@media (forced-colors: active) {
+  .opt { border: 1px solid CanvasText; }
+  .opt[aria-checked="true"] { outline: 3px solid Highlight; }
+}

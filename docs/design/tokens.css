@@ -1,0 +1,271 @@
+/* =====================================================================
+   FBikeTrain: tokens de diseño
+   Listo para copiar a src/ui/styles/tokens.css.
+
+   Reglas de uso
+   - Oscuro por defecto: ':root' y ':root[data-theme="dark"]' comparten bloque.
+     El claro va en ':root[data-theme="light"]'. Un script previo al pintado
+     pone data-theme en <html> (ver design-system.md, «Tema»).
+   - Los tokens que lee ECharts (los marcados con [chart]) van SIEMPRE en hex
+     o en rgba() con comas: zrender no entiende var(), oklch ni color-mix.
+   - Los componentes no llevan hex sueltos: todo color sale de aquí.
+   ===================================================================== */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ---- Superficies (de atrás hacia delante) ---- */
+  --bg: #0A1122;              /* fondo de la página */
+  --side: #0C1427;            /* menú lateral */
+  --surface: #111A2E;         /* tarjeta opaca [chart] */
+  --surface-2: #17223B;       /* relleno de controles, filas en hover [chart] */
+  --surface-3: #1E2B49;       /* pulsado, tooltip elevado */
+  --glass: rgba(16, 25, 46, 0.72);        /* KPI sobre el paisaje */
+  --glass-strong: rgba(12, 19, 36, 0.86); /* barra inferior, placas del mapa */
+  --scrim: rgba(4, 8, 18, 0.6);           /* fondo de hoja y diálogo */
+
+  /* ---- Bordes ---- */
+  --line: rgba(148, 176, 230, 0.14);        /* [chart] rejilla y separadores */
+  --line-strong: rgba(148, 176, 230, 0.26); /* bordes de vidrio y controles */
+
+  /* ---- Tinta (contraste sobre --surface) ---- */
+  --ink: #EAF0FA;     /* 15,2:1 */
+  --ink-2: #A9B6CF;   /*  8,5:1 */
+  --ink-3: #8C9AB5;   /*  6,1:1, mínimo para texto de 12 px */
+
+  /* ---- Acción y estado ---- */
+  --action: #2A64DA;        /* blanco encima: 5,2:1 */
+  --action-hover: #3570E6;
+  --on-action: #FFFFFF;
+  --focus: #7FB2FF;         /* anillo de foco y enlaces en oscuro */
+  --link: #7FB2FF;
+  --good: #3DD68C;          /* sube, objetivo, éxito */
+  --good-bg: rgba(61, 214, 140, 0.13);
+  --warning: #F2B24C;
+  --warning-bg: rgba(201, 130, 11, 0.16);
+  --critical: #FF8590;      /* solo errores reales, nunca una métrica que baja */
+  --critical-bg: rgba(224, 74, 94, 0.15);
+  --badge: #D3343B;         /* contador de avisos, con texto blanco 5,0:1 */
+
+  /* ---- Un acento por métrica [chart] ---- */
+  --acc-dist: #3B8BFF;   /* hora azul */
+  --acc-elev: #9277F2;   /* malva del anochecer */
+  --acc-time: #1AA597;   /* verde azulado */
+  --acc-speed: #C9820B;  /* farola de sodio */
+  --trace: #4C9BFF;      /* trazado del mapa y formas de ruta */
+
+  /* ---- Pendiente: escala ordinal del libro de ruta [chart] ---- */
+  --g0: #5C6B8A;  /* menos del 1 % y bajadas */
+  --g1: #F4D77E;  /* 1 a 4 % */
+  --g2: #F2A44E;  /* 4 a 7 % */
+  --g3: #EC7343;  /* 7 a 10 % */
+  --g4: #E04A5E;  /* 10 a 16 % */
+  --g5: #B0368C;  /* 16 % o más */
+
+  /* ---- Dificultad (texto sobre su fondo, AA) ---- */
+  --easy-ink: #5BE09A;  --easy-bg: rgba(61, 214, 140, 0.13);
+  --mid-ink: #F2B24C;   --mid-bg: rgba(201, 130, 11, 0.18);
+  --hard-ink: #FF8590;  --hard-bg: rgba(224, 74, 94, 0.17);
+
+  /* ---- Paisaje del hero: noche con luna sobre un horizonte malva ----
+     Perspectiva atmosférica: cuanto más lejos la cresta, más clara y más
+     cerca del color del horizonte; cuanto más cerca, más oscura. */
+  --sky-0: #050912;         /* cénit */
+  --sky-1: #0A1430;
+  --sky-2: #17235A;
+  --sky-3: #3A3274;
+  --sky-4: #9A5672;         /* horizonte */
+  --haze: #E98A74;          /* resplandor del horizonte tras las crestas */
+  --orb: #F3EEE6;           /* luna */
+  --orb-glow: #C9D6FF;      /* halo de la luna */
+  --stars: 1;               /* estrellas: 1 en oscuro, 0 en claro */
+  --star: #DCE6FF;
+  --ridge-1: #7A6299;       /* la más lejana, casi horizonte */
+  --ridge-2: #50427F;
+  --ridge-3: #30306A;
+  --ridge-4: #1C2152;
+  --ridge-far: #50427F;     /* alias de --ridge-2 (fondo móvil, assets) */
+  --ridge-mid: #1C2152;     /* alias de --ridge-4 */
+  --ridge-near: #0D1534;    /* la cresta de tu última salida */
+  --ridge-line: #8DBBFF;    /* la línea de luz */
+  --mist: #B97A93;          /* bruma en el pie de cada cresta */
+  --road: #22305F;          /* la carretera de la cresta cercana */
+  --road-edge: rgba(141, 187, 255, 0.55);
+  --road-dash: #F2C46B;     /* raya central: luz de farola */
+  --hero-scrim: rgba(5, 9, 18, 0.66); /* velo tras el saludo, para el contraste */
+  --contour: rgba(141, 187, 255, 0.10); /* curvas de nivel grabadas */
+
+  /* ---- Hito kilométrico (logotipo y bloque de fecha) ---- */
+  --hito: #EAF0FA;
+  --hito-stroke: transparent;
+  --hito-band: #2A64DA;
+  --hito-ink: #0A1122;
+
+  /* ---- Luz y sombra ---- */
+  --glow: 0.55;  /* multiplica el halo del dato; 0 en claro */
+  --thread: 1;   /* hilo blanco del trazado; 0 en claro */
+  --shadow-card: 0 24px 48px -28px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-float: 0 18px 40px -18px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-sheet: 0 -20px 50px -20px rgba(0, 0, 0, 0.6);
+
+  /* ---- Mapa CyclOSM en oscuro: filtro solo sobre .leaflet-tile-pane y,
+     encima de las teselas (debajo del trazado), un panel de tinte azul
+     marino con mix-blend-mode: multiply. ---- */
+  --map-filter: invert(1) hue-rotate(200deg) brightness(0.7) contrast(1.1) saturate(0.25);
+  --map-tint: #A9BEF2;      /* multiplica: azul noche sin apagar las etiquetas */
+  --map-under: #0E1830;     /* fondo bajo las teselas mientras cargan */
+
+  /* ---- Pistas de las gráficas: 3:1 sobre --surface (WCAG 1.4.11) ---- */
+  --track: #5B6B8C;         /* 3,2:1 */
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #EEF2F8;
+  --side: #F7F9FC;
+  --surface: #FFFFFF;
+  --surface-2: #F2F5FA;
+  --surface-3: #E7EDF6;
+  --glass: rgba(255, 255, 255, 0.86);
+  --glass-strong: rgba(255, 255, 255, 0.94);
+  --scrim: rgba(14, 23, 48, 0.36);
+
+  --line: #D9E1EE;
+  --line-strong: #C3CEE0;
+
+  --ink: #0E1730;    /* 17,4:1 sobre blanco */
+  --ink-2: #3E4C68;  /*  8,9:1 */
+  --ink-3: #56657F;  /*  5,9:1 */
+
+  --action: #1F5FD6;
+  --action-hover: #1A52BC;
+  --on-action: #FFFFFF;
+  --focus: #1F5FD6;
+  --link: #1F5FD6;
+  --good: #15803D;   /* 5,0:1 */
+  --good-bg: rgba(21, 128, 61, 0.11);
+  --warning: #8A4A00;
+  --warning-bg: rgba(184, 110, 0, 0.13);
+  --critical: #B4232F;
+  --critical-bg: rgba(194, 40, 60, 0.09);
+  --badge: #C62A33;
+
+  --acc-dist: #1F66E0;
+  --acc-elev: #6E4BD8;
+  --acc-time: #0B8C80;
+  --acc-speed: #B86E00;
+  --trace: #1F66E0;
+
+  --g0: #A7B3C8;
+  --g1: #D6A21F;
+  --g2: #D9782A;
+  --g3: #C2452B;
+  --g4: #972530;
+  --g5: #5A1634;
+
+  --easy-ink: #136B33;  --easy-bg: rgba(21, 128, 61, 0.11);
+  --mid-ink: #8A4A00;   --mid-bg: rgba(184, 110, 0, 0.13);
+  --hard-ink: #A11D2E;  --hard-bg: rgba(194, 40, 60, 0.10);
+
+  /* Amanecer saturado: azul arriba, melocotón y oro en el horizonte */
+  --sky-0: #7EA6EA;
+  --sky-1: #A9C3F0;
+  --sky-2: #F1C9B4;
+  --sky-3: #F7AE83;
+  --sky-4: #FFCB6E;
+  --haze: #FFB24F;
+  --orb: #FFF6DC;           /* sol */
+  --orb-glow: #FFC861;
+  --stars: 0;
+  --star: #FFFFFF;
+  --ridge-1: #EDB59C;
+  --ridge-2: #C893A6;
+  --ridge-3: #8C7CB4;
+  --ridge-4: #5D65A6;
+  --ridge-far: #C893A6;
+  --ridge-mid: #5D65A6;
+  --ridge-near: #36468C;
+  --ridge-line: #FFF2D6;
+  --mist: #FFD9BC;
+  --road: #E9DCCB;
+  --road-edge: rgba(20, 30, 80, 0.55);
+  --road-dash: #FFFFFF;
+  --hero-scrim: rgba(255, 246, 236, 0.62);
+  --contour: rgba(31, 85, 200, 0.11);
+
+  --hito: #FFFFFF;
+  --hito-stroke: #0E1730;
+  --hito-band: #1F5FD6;
+  --hito-ink: #0E1730;
+
+  --glow: 0;
+  --thread: 0;
+  --shadow-card: 0 1px 2px rgba(14, 23, 48, 0.06), 0 12px 32px -18px rgba(14, 23, 48, 0.22);
+  --shadow-float: 0 1px 2px rgba(14, 23, 48, 0.08), 0 16px 36px -18px rgba(14, 23, 48, 0.32);
+  --shadow-sheet: 0 -16px 40px -20px rgba(14, 23, 48, 0.35);
+
+  --map-filter: none;
+  --map-tint: #FFFFFF;      /* multiplicar por blanco no cambia nada */
+  --map-under: #EEF1F4;
+
+  --track: #8290A8;         /* 3,2:1 sobre blanco */
+}
+
+/* ---- Tokens que no cambian con el tema ---- */
+:root {
+  /* Tipografía: @fontsource/barlow (400, 500, 600) y
+     @fontsource/barlow-semi-condensed (600, 700, 700 italic) */
+  --font-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-fig: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+
+  --fs-min: 12px;      /* nunca menos */
+  --fs-sm: 13.5px;     /* metadatos, ayudas */
+  --fs-base: 15px;     /* texto */
+  --fs-title: 17px;    /* título de tarjeta, 600 */
+  --fs-lead: 17px;     /* frase del hero */
+  --fs-route: 19px;    /* nombre de ruta, cifra 600 */
+  --fs-stat: 26px;     /* cifra de lista (Rendimiento) */
+  --fs-kpi: 32px;      /* cifra KPI (26 px en móvil) */
+  --fs-kpi-unit: 17px;
+  --fs-page: clamp(30px, 4vw, 40px);  /* título de página secundaria */
+  --fs-hello: clamp(34px, 5vw, 56px); /* saludo */
+
+  /* Espaciado (base 4) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --gap: 12px;   /* hueco entre tarjetas */
+  --pad: 20px;   /* relleno de tarjeta (16 px en móvil) */
+
+  /* Radios por jerarquía */
+  --r-xl: 22px;    /* hero y tarjetas */
+  --r-lg: 16px;    /* KPI, miniaturas, mapa */
+  --r-md: 12px;    /* controles y botones */
+  --r-sm: 8px;     /* chips */
+  --r-pill: 999px; /* pastillas, conmutadores */
+
+  /* Medidas de la app */
+  --side-w: 232px;
+  --side-w-rail: 84px;
+  --tabbar-h: 64px;
+  --target: 44px;      /* objetivo táctil mínimo */
+  --target-tab: 48px;
+
+  /* Movimiento */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-press: 160ms;   /* scale(.97) al pulsar */
+  --dur-fast: 200ms;    /* color, opacidad, hover */
+  --dur-ui: 240ms;      /* indicador de segmentado */
+  --dur-sheet: 320ms;   /* hoja inferior */
+  --dur-draw: 900ms;    /* el único momento orquestado: horizonte y progresión */
+  --dur-bubble: 260ms;  /* burbuja tras el trazo */
+}

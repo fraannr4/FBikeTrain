@@ -1,0 +1,51 @@
+/* Pantalla Subidas y su hoja. El kit (filas, tarjeta .last, .climb, .passes, .stat3) vive en kit.css. */
+
+/* Fila de subida: la rampa, coloreada por su pendiente media */
+.row-lead--wedge { background: var(--surface-2); }
+.row-lead--wedge svg { width: 42px; height: 42px; }
+.wedge .w0 { fill: var(--g0); } .wedge .w1 { fill: var(--g1); } .wedge .w2 { fill: var(--g2); }
+.wedge .w3 { fill: var(--g3); } .wedge .w4 { fill: var(--g4); } .wedge .w5 { fill: var(--g5); }
+.wedge line { stroke: var(--line-strong); }
+
+.solo-note { padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2); font-size: 15px; color: var(--ink-2); }
+
+/* Nombres largos: tres líneas en la lista y en la tarjeta (a 360 px, «Subida del km N de…» se come
+   dos), enteros en la hoja */
+.subidas-list .row-title, .subidas .last-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; text-overflow: ellipsis;
+}
+.subidas-list .row-title, .subidas .last-name, .sheet--subida .sheet-title { unicode-bidi: plaintext; }
+.sheet--subida .sheet-h { align-items: flex-start; }   /* con un título de 4 líneas, la X sigue arriba */
+.sheet--subida .sheet-title { padding-top: 9px; }
+/* Con las pasadas desplazadas, un título larguísimo se queda en tres líneas; arriba del todo se lee entero */
+.sheet--subida[data-scrolled] .sheet-title {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.sheet--subida .sheet-sub { margin-top: 4px; }
+.sheet--subida .passes-left { margin-top: 10px; font-size: var(--t-sm); color: var(--ink-2); text-wrap: pretty; }
+.sheet--subida .profile--empty { height: 112px; padding: 0 16px; text-align: center; }
+/* La pista de «Tus tiempos» según el puntero: el dedo en el móvil; el ratón y las flechas con puntero fino */
+.sheet--subida .hint-fine { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .sheet--subida .hint-touch { display: none; }
+  .sheet--subida .hint-fine { display: inline; }
+}
+
+/* «Tu última subida»: compacta y toda ella abre la hoja */
+.subidas .last-line { margin-top: 10px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.nw { white-space: nowrap; }
+
+.subidas .results { display: flex; align-items: center; min-height: 32px; margin: -4px 0 -6px; font-size: var(--t-sm); color: var(--ink-2); }
+/* Vacía, la región viva no ocupa sitio ni deja hueco en la rejilla, pero sigue en el árbol de accesibilidad */
+.subidas .results:empty { position: absolute; width: 1px; height: 1px; min-height: 0; margin: 0; overflow: hidden; clip-path: inset(50%); }
+.subidas .once-only { margin-top: 16px; }
+.subidas .more-left { font-weight: 500; color: var(--ink-3); }
+.subidas .list > .sk-rows, .subidas .list > [aria-busy] { padding: 16px 14px; }
+
+/* Apaisado y tableta: el nombre a la izquierda y la cifra a la derecha; la lista a dos columnas */
+@media (min-width: 600px) {
+  .subidas .last { grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: end; }
+  .subidas .last .card-h { grid-column: 1 / -1; }
+  .subidas .last .last-fig { margin-top: 0; }
+  .subidas-list:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

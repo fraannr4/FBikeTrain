@@ -1,0 +1,154 @@
+/* Plan, vista Objetivos (docs/design/prototipo-movil/objetivos.html y la sección OBJETIVOS de plan.css).
+   Sin hex sueltos: todo sale de los tokens. Todo va bajo .page--goals (la hoja del formulario es un
+   <dialog> dentro de la página) para no pisar a otras pantallas. El kit (tarjetas, filas, anillo,
+   medidor, hojas, campos) vive en kit.css. */
+
+/* ---------- Acción principal: en línea en el teléfono; desde 600 px, en la barra ---------- */
+.appbar .goals-add-bar { display: none; }
+.page--goals .goal-add { margin-top: -4px; }
+@media (min-width: 600px) {
+  .appbar .goals-add-bar { display: inline-flex; min-height: 44px; padding: 0 16px; margin-right: 4px; }
+  .page--goals .goal-add { display: none; }
+}
+
+.page--goals .card-h > .icon-btn,
+.page--goals .section-h > .icon-btn { margin-right: -10px; }
+.page--goals .nw { white-space: nowrap; }
+
+/* ---------- Volumen ---------- */
+.page--goals .notch-key { display: inline-block; width: 3px; height: 14px; margin-right: 8px; border-radius: 2px; background: var(--ink); vertical-align: -2px; }
+.page--goals .vol-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -6px 0 12px; font-size: var(--t-sm); color: var(--ink-2); }
+.page--goals .vol-sub > .chip { flex: none; }
+.page--goals .vol-body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.page--goals .vol-lines { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.page--goals .vol-lines li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; font-size: var(--t-sm); line-height: 1.3; color: var(--ink-2); text-wrap: pretty; }
+.page--goals .vol-lines .ic { width: 18px; height: 18px; color: var(--ink-3); }
+.page--goals .vol-lines b { font-weight: 600; color: var(--ink); }
+.page--goals .vol-lines .is-good,
+.page--goals .vol-lines .is-good .ic,
+.page--goals .vol-lines .is-good b { color: var(--good); }
+.page--goals .vol-more { display: grid; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+
+/* Barras con cifra: el resto de metas del volumen y las mejores salidas del evento */
+.page--goals .bar-row { display: grid; gap: 8px; }
+.page--goals .bar-l { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: var(--t-sm); color: var(--ink-2); }
+.page--goals .bar-l > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.page--goals .bar-l .ic { width: 16px; height: 16px; align-self: center; color: var(--acc); }
+.page--goals .bar-l b { font: 700 19px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.page--goals .bar-l .pct { margin-left: 8px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.page--goals .bar-row .meter,
+.page--goals .ev-meter { height: 8px; }
+.page--goals .ev-meter { max-width: 360px; }
+
+/* ---------- Evento: fila compacta que se despliega ---------- */
+.page--goals .ev { padding: 0; overflow: hidden; }
+.page--goals .ev-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 24px; gap: 14px; align-items: center;
+  width: 100%; min-height: 44px; padding: 14px 14px 14px 16px; text-align: left; color: var(--ink);
+  transition: background-color var(--dur-fast) ease;
+}
+.page--goals .ev-row:active { background: var(--surface-2); }
+@media (hover: hover) and (pointer: fine) { .page--goals .ev-row:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); } }
+.page--goals .ev-row .hito-date {
+  grid-template-rows: 17px 1fr; width: 44px; height: 54px; padding-bottom: 0;
+  border-radius: 22px 22px 8px 8px; box-shadow: none;
+}
+.page--goals .ev-row .hito-date-d { padding-top: 3px; font: 600 12px/14px var(--font-ui); }
+.page--goals .ev-row .hito-date-n { font-size: 21px; }
+.page--goals .ev-row .hito-date-n--3 { font-size: 17px; letter-spacing: -0.02em; }
+.page--goals .ev-row .hito-date-n .ic { display: block; width: 20px; height: 20px; }
+.page--goals .ev-main { display: grid; gap: 6px; min-width: 0; }
+.page--goals .ev-name {
+  font: 600 var(--t-lg)/1.2 var(--font-fig); color: var(--ink); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Desplegado, el nombre completo (hasta 80 caracteres): no se lee en ningún otro sitio */
+.page--goals .ev-row[aria-expanded="true"] .ev-name { display: block; overflow: visible; }
+.page--goals .ev-meta,
+.page--goals .ev-prep-l { font-size: var(--t-sm); line-height: 1.3; color: var(--ink-2); }
+.page--goals .ev-prep-l b { color: var(--ink); font-weight: 600; }
+.page--goals .ev-chev { width: 22px; height: 22px; color: var(--ink-3); transition: transform var(--dur-fast) var(--ease-out); }
+.page--goals .ev-row[aria-expanded="true"] .ev-chev { transform: rotate(180deg); }
+/* Desplegado, la barra de la fila se repite abajo con más detalle */
+.page--goals .ev-row[aria-expanded="true"] .ev-meter,
+.page--goals .ev-row[aria-expanded="true"] .ev-prep-l { display: none; }
+.page--goals .ev-more { display: grid; gap: 16px; padding: 4px var(--pad) var(--pad); }
+.page--goals .ev-more[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .page--goals .ev-more:not([hidden]) { animation: goals-ev-in 200ms var(--ease-out) both; }
+  @keyframes goals-ev-in { from { opacity: 0; transform: translateY(-4px); } }
+}
+.page--goals .prep { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.page--goals .prep-h { font: 600 var(--t-sm)/1.3 var(--font-ui); color: var(--ink-2); }
+.page--goals .prep-none,
+.page--goals .ev-note { font-size: 15px; color: var(--ink-2); }
+.page--goals .link-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 48px; margin: -4px -8px -8px; padding: 0 8px; border-radius: var(--r-md);
+  font: 600 var(--t-sm)/1.3 var(--font-ui); color: var(--link);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.page--goals .link-row .ic { width: 18px; height: 18px; }
+.page--goals .link-row:active { transform: scale(0.985); }
+@media (hover: hover) and (pointer: fine) { .page--goals .link-row:hover { background: color-mix(in srgb, var(--action) 10%, transparent); } }
+
+/* ---------- Anteriores ---------- */
+.page--goals .prev .row-val { font-size: 17px; }
+.page--goals .prev .row[data-ok] { --acc: var(--good); }
+.page--goals .prev .row-val.is-good,
+.page--goals .prev .row-val.is-good .u { color: var(--good); }
+.page--goals .prev-seg { margin-bottom: 14px; }
+
+/* ---------- Hoja del objetivo ---------- */
+.page--goals .goal-form { display: grid; gap: 18px; }
+.page--goals .sheet-body .goal-form .field + .field { margin-top: 0; }
+.page--goals .goal-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.page--goals .goal-pair .input { font-variant-numeric: tabular-nums; }
+.page--goals .goal-set { margin: 0; padding: 0; border: 0; min-width: 0; }
+.page--goals .goal-set > legend { padding: 0; margin-bottom: 6px; }
+.page--goals .goal-num-error,
+.page--goals .goal-help { margin-top: -10px; }
+.page--goals .goal-form input[type="date"].input,
+.page--goals .goal-form input[type="month"].input { color-scheme: dark; }
+:root[data-theme="light"] .page--goals .goal-form input[type="date"].input,
+:root[data-theme="light"] .page--goals .goal-form input[type="month"].input { color-scheme: light; }
+.page--goals .fill-btn {
+  display: inline-flex; align-items: center; gap: 8px; justify-self: start; min-height: 44px; margin: -8px 0 -6px -10px; padding: 0 10px;
+  border-radius: var(--r-md); color: var(--link); font: 600 var(--t-sm)/1.3 var(--font-ui); text-align: left;
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.page--goals .fill-btn .ic { flex: none; width: 16px; height: 16px; }
+.page--goals .fill-btn:active { transform: scale(0.97); }
+.page--goals .form-err,
+.page--goals .form-warn {
+  display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-md);
+  font-size: var(--t-sm); line-height: 1.4;
+}
+.page--goals .form-err { background: var(--critical-bg); color: var(--critical); }
+.page--goals .form-warn { background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); color: var(--ink); }
+.page--goals .form-err .ic,
+.page--goals .form-warn .ic { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.page--goals .form-warn .ic { color: var(--warning); }
+
+/* ---------- Carga ---------- */
+.page--goals .goals-sk { display: grid; gap: 14px; }
+.page--goals .goals-sk-body { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.page--goals .goals-sk-lines { display: grid; gap: 12px; }
+.page--goals .sk-ring { width: clamp(128px, 36vw, 156px); aspect-ratio: 1; border-radius: 50%; }
+.page--goals .goals-sk-ev { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; }
+.page--goals .goals-sk-hito { height: 54px; border-radius: 22px 22px 8px 8px; }
+
+/* ---------- Tableta y escritorio: las dos tarjetas de volumen, lado a lado ---------- */
+@media (min-width: 600px) {
+  .page--goals .vol-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .page--goals .sk-ring { width: 132px; }
+}
+@media (min-width: 600px) and (max-width: 760px) {
+  .page--goals .vol-body { grid-template-columns: 1fr; justify-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page--goals .fill-btn:active,
+  .page--goals .link-row:active { transform: none; }
+  .page--goals .ev-chev { transition: none; }
+}

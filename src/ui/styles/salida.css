@@ -1,0 +1,159 @@
+/* Pantalla Salida (salida.html del prototipo). El kit vive en kit.css; el mapa (RideMap), en map.css. */
+html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
+
+/* ---- Mapa a todo el ancho, bajo la barra transparente ---- */
+.ride-top { display: grid; gap: 14px; min-width: 0; }
+.ride-hero {
+  position: relative; overflow: hidden; isolation: isolate; background: var(--map-under);
+  margin: calc(-1 * (var(--appbar-h) + var(--safe-t))) calc(-1 * (var(--gutter) + var(--safe-r))) 0 calc(-1 * (var(--gutter) + var(--safe-l)));
+  height: calc(clamp(200px, 58vw, 300px) + var(--appbar-h) + var(--safe-t));
+}
+.ride-hero-map { position: absolute; inset: 0; z-index: 0; }
+.ride-hero::after {   /* el mapa se funde con la página: el título queda pegado a su recorrido */
+  content: ""; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+}
+.map-max { position: absolute; z-index: 2; right: calc(var(--gutter) - 4px + var(--safe-r)); bottom: 14px; }
+.map-attr {
+  position: absolute; z-index: 2; left: calc(var(--gutter) + var(--safe-l)); bottom: 20px;
+  padding: 4px 8px; border-radius: var(--r-pill); background: var(--glass-strong);
+  font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2);
+}
+/* Sobre el mapa, la flecha de volver va en vidrio para leerse sobre cualquier tesela */
+.ride-screen--map .appbar:not([data-scrolled]) .appbar-lead .icon-btn {
+  background: var(--glass-strong); color: var(--ink); border: 1px solid var(--line-strong);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3); backdrop-filter: blur(12px) saturate(1.3);
+  box-shadow: var(--shadow-float);
+}
+@media (min-width: 600px) {
+  .ride-hero { margin-left: 0; margin-right: 0; border-radius: 0 0 var(--r-xl) var(--r-xl); }
+  .ride-hero::after { display: none; }
+  /* El botón de volver queda dentro del mapa redondeado, no en su esquina */
+  .ride-screen--map .appbar { padding-left: calc(var(--gutter) + 8px + var(--safe-l)); }
+}
+/* Apaisado en teléfono: mapa a la izquierda, de arriba abajo; título y cifras a la derecha */
+@media (orientation: landscape) and (max-height: 500px) {
+  .ride-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 12px; }
+  .ride-hero { grid-row: span 2; height: calc(100dvh - var(--nav-space)); }
+  .ride-head, .ride-top > .ride-figs-wrap, .ride-top > .sk-figs { grid-column: 2; }
+  .ride-head { padding-top: 4px; }
+  .ride .page-title { font-size: clamp(24px, 3.4vw, 30px); }
+  .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+}
+
+/* ---- Cabecera de la salida ---- */
+.ride-head { display: grid; gap: 8px; min-width: 0; }
+.ride .page-title { animation: none; overflow-wrap: anywhere; }   /* bajo el mapa el título no se encoge */
+.ride .page-title.is-long { font-size: clamp(24px, 7vw, 34px); }
+.title-btn { display: block; width: 100%; min-height: 44px; padding: 0; margin: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: start; cursor: pointer; }
+.title-btn[aria-expanded="false"] .title-txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-clamp: 3; overflow: hidden; text-overflow: ellipsis; }
+.title-btn:focus-visible { outline-offset: 4px; border-radius: 6px; }
+.ride-when { font-size: var(--t-md); color: var(--ink-2); }
+.ride-chips { margin-top: 4px; }
+.ride--plain .ride-top { padding-top: 8px; }
+
+/* ---- Las cuatro cifras ---- */
+.salida-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; margin: 0; padding: 12px 0; border-block: 1px solid var(--line); }
+.salida-figs > div { min-width: 0; }
+.salida-figs dt { display: flex; align-items: center; gap: 4px; font: 500 13px/1.2 var(--font-ui); color: var(--ink-2); white-space: nowrap; }
+.salida-figs dt .ic { width: 15px; height: 15px; color: var(--acc); }
+.salida-figs dd {
+  margin: 6px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 2px;
+  font: 700 clamp(21px, 6.2vw, 26px)/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.salida-figs dd.fig-i { font-style: italic; }
+.salida-figs dd .u { font-size: 13px; font-style: normal; white-space: pre; }
+/* En los teléfonos más estrechos, «14 h 25» y «27,7 km/h» se leían como una sola cifra */
+/* y la unidad no baja bajo la cifra («27,7» y debajo «km/h»): una línea, un punto más pequeña */
+@media (max-width: 379px) {
+  .salida-figs { column-gap: 14px; }
+  .salida-figs dd { flex-wrap: nowrap; white-space: nowrap; font-size: clamp(19px, 5.8vw, 22px); }
+}
+@media (min-width: 600px) { .salida-figs dd { font-size: 28px; } }
+
+/* ---- Perfil táctil ---- */
+.scrub-read { display: flex; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; gap: 2px 12px; min-width: 0; font-size: var(--t-sm); color: var(--ink-2); }
+.scrub-read > span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.scrub-read b { font: 700 20px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.scrub-read .sw { align-self: center; width: 10px; height: 10px; border-radius: 3px; }
+.scrub-read .sw-0 { background: var(--g0); } .scrub-read .sw-1 { background: var(--g1); } .scrub-read .sw-2 { background: var(--g2); }
+.scrub-read .sw-3 { background: var(--g3); } .scrub-read .sw-4 { background: var(--g4); } .scrub-read .sw-5 { background: var(--g5); }
+.scrub { position: relative; isolation: isolate; height: 150px; margin-top: 24px; border-radius: 6px; -webkit-user-select: none; user-select: none; }
+.scrub .profile { height: 100%; }
+@media (max-height: 800px) { .scrub { height: 124px; } }   /* 360x780: mapa y perfil en la misma pantalla */
+.scrub-hit { position: absolute; inset: -28px 0 0; z-index: 3; touch-action: pan-y; cursor: crosshair; border-radius: 6px; }
+.scrub-hit:focus-visible { outline: 2px solid var(--focus); outline-offset: 6px; }
+/* La línea de cota va detrás del perfil; su etiqueta, delante, con un velo para leerse sobre el relleno */
+.scrub-grid > span { position: absolute; left: 0; right: 0; height: 0; }
+.scrub-grid > span::before { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--line-strong); z-index: -1; }
+.scrub-grid b {
+  position: absolute; left: 0; bottom: 3px; z-index: 1; padding: 1px 4px; border-radius: 4px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  font: 500 var(--t-xs)/1 var(--font-ui); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.scrub-band { position: absolute; top: 0; bottom: 0; z-index: -1; border-radius: 4px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+/* Chincheta de subida; si dos se tocan, se funden en una píldora «2·3» (igual que en el mapa) */
+.scrub-pin {
+  position: absolute; z-index: 1; min-width: 24px; height: 24px; margin-top: -32px; padding: 0 5px; transform: translateX(-50%);
+  display: grid; place-items: center; border-radius: 12px; white-space: nowrap;
+  background: var(--surface); border: 2.5px solid var(--pin); font: 700 13px/1 var(--font-fig); color: var(--ink);
+}
+.scrub-line, .scrub-dot { position: absolute; left: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) ease; }
+.scrub-line { top: -4px; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); }
+.scrub-dot { top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px var(--bg); }
+.scrub.is-on .scrub-line, .scrub.is-on .scrub-dot { opacity: 1; }
+.scrub-axis { position: relative; display: block; height: 16px; }
+.scrub-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.scrub-axis span:first-child { left: 0; transform: none; }
+.scrub-axis span.is-end { left: auto; right: 0; transform: none; }
+.scrub-hint { display: flex; gap: 6px; align-items: flex-start; font-size: var(--t-sm); color: var(--ink-3); }
+.scrub-hint .ic { width: 16px; height: 16px; margin-top: 2px; flex: none; }
+
+/* ---- Subidas de esta salida ---- */
+.climbs .row { align-items: center; }
+.climb-n {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: color-mix(in srgb, var(--pin) 24%, var(--surface)); color: var(--ink);
+  font: 700 20px/1 var(--font-fig); box-shadow: inset 0 -3px 0 var(--pin);
+}
+.row-figs { display: grid; justify-items: end; gap: 5px; }
+.row-figs .row-sub { font: 500 var(--t-sm)/1 var(--font-ui); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.climb-best { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--ink-2); }
+.climb-best .ic { width: 14px; height: 14px; flex: none; color: var(--ink-3); }
+.climb-best.is-best { color: var(--good); font-weight: 600; }
+.climb-best.is-best .ic { color: var(--good); }
+:root[data-theme="light"] .climb-best.is-best { color: color-mix(in srgb, var(--good) 86%, var(--ink)); }
+
+/* ---- Frente a tu media: tus salidas en una tira de puntos ---- */
+.cmp { padding: 4px 16px; }
+.cmp-row { padding: 14px 0 12px; }
+.cmp-legend + .cmp-row, .cmp-row + .cmp-row { border-top: 1px solid var(--line); }
+.cmp-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cmp-l { display: flex; align-items: center; gap: 8px; font: 600 var(--t-md)/1.2 var(--font-ui); color: var(--ink); }
+.cmp-l .ic { width: 18px; height: 18px; color: var(--acc); }
+.cmp-strip { position: relative; height: 34px; margin: 10px 7px 6px; }
+.cmp-strip > i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: color-mix(in srgb, var(--track) 80%, transparent); }
+.cmp-strip > b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); }
+/* «Esta salida», siempre el mismo azul que en la leyenda (no el color de cada métrica) */
+.cmp-strip > em { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--acc-dist); box-shadow: 0 0 0 2.5px var(--surface); }
+.cmp-foot { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.cmp-foot b { color: var(--ink); font-weight: 600; }
+.cmp-legend { padding: 12px 0; }
+.cmp-legend i { margin-right: 6px; }
+.cmp-legend .k-dot { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--track) 80%, transparent); }
+.cmp-legend .k-mean { width: 2px; height: 12px; border-radius: 1px; background: var(--ink); vertical-align: -2px; }
+.cmp-legend .k-me { width: 11px; height: 11px; border-radius: 50%; background: var(--acc-dist); }
+
+/* ---- Rutas parecidas ---- */
+.similar .row-lead { width: 48px; height: 48px; border-radius: 13px; }
+.similar.list--inset > li + li::before { margin-left: 74px; }
+.row-meta .share { color: var(--ink-2); font-weight: 500; }
+
+/* ---- Hoja del mapa ---- */
+.sheet--map .sheet-body { padding: 0 0 calc(12px + var(--safe-b)); }
+.ride-map--big { height: min(66dvh, 560px); }
+
+/* ---- Carga ---- */
+.ride-hero .sk-map { display: block; height: 100%; border-radius: 0; }
+.sk-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.sk-figs .sk { width: auto; height: 46px; }

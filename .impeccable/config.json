@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "C:/Users/FRAN~1.ROM/AppData/Local/Temp/claude/02a7f28a55613e15/ef216923-9a7c-4fa4-85a1-51d8d5a72bcd/scratchpad/propuesta-ciclismo.html"
+        ],
+        "createdAt": "2026-11-06T11:24:39.384Z",
+        "reason": "Claude: detector pairs dark-theme tokens with light-theme backgrounds (e.g. #e4eae7 on #ffffff, #000 on #1a211f); real pairs checked by hand"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "C:/Users/FRAN~1.ROM/AppData/Local/Temp/claude/02a7f28a55613e15/ef216923-9a7c-4fa4-85a1-51d8d5a72bcd/scratchpad/propuesta-ciclismo.html"
+        ],
+        "createdAt": "2026-11-06T11:30:09.393Z",
+        "reason": "Claude: top stripe on finding cards encodes severity (red blocker vs amber warning); intentional state encoding"
+      }
+    ]
+  }
+}

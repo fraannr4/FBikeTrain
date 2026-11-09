@@ -1,0 +1,361 @@
+/* =====================================================================
+   FBikeTrain: pestaña Plan (calendario.html y objetivos.html).
+   Se carga después de movil.css. Sin hex sueltos: todo sale de tokens.
+   Piezas candidatas a subir al kit (las usarían también Inicio e
+   Historial): .seg-nav, .hito-date, .hito-big, .ring y .unit-wrap.
+   ===================================================================== */
+
+/* ---------- Vistas de estado: ?state=empty|loading|error ---------- */
+html[data-view="data"]    [data-v]:not([data-v~="data"]),
+html[data-view="empty"]   [data-v]:not([data-v~="empty"]),
+html[data-view="loading"] [data-v]:not([data-v~="loading"]),
+html[data-view="error"]   [data-v]:not([data-v~="error"]) { display: none !important; }
+
+/* ---------- Segmentado de navegación entre páginas hermanas ----------
+   Mismo aspecto que .seg--quiet, pero con enlaces: cada vista es un
+   destino con su URL (Calendario / Objetivos; Salidas / Subidas / Repetidas). */
+.seg-nav {
+  position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  margin-top: 14px; min-height: 46px; border-radius: 14px;
+  background: var(--surface-2); border: 1px solid var(--line); isolation: isolate;
+}
+.seg-nav a {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-width: 0; min-height: 44px; padding: 0 8px; border-radius: 11px;
+  font: 600 15px/1.1 var(--font-ui); color: var(--ink-2);
+  transition: transform var(--dur-press) var(--ease-out), color var(--dur-fast) ease;
+}
+.seg-nav a .ic { width: 18px; height: 18px; }
+.seg-nav a:active { transform: scale(0.97); }
+.seg-nav a[aria-current="page"] { color: var(--ink); }
+.seg-nav a[aria-current="page"]::before {
+  content: ""; position: absolute; z-index: -1; inset: 3px; border-radius: 11px;
+  background: var(--surface); border: 1px solid var(--line-strong); box-shadow: var(--shadow-card);
+}
+.seg-nav a[aria-current="page"] .ic { color: var(--link); }
+@media (hover: hover) and (pointer: fine) { .seg-nav a:not([aria-current]):hover { color: var(--ink); } }
+
+/* ---------- Hito kilométrico pequeño: bloque de fecha de una fila ---------- */
+.hito-date {
+  display: grid; grid-template-rows: 17px 1fr; justify-items: stretch; flex: none;
+  width: 44px; height: 54px; overflow: hidden; text-align: center;
+  border-radius: 22px 22px 8px 8px; background: var(--surface-2); border: 1px solid var(--line-strong);
+}
+.hito-date .wd { padding-top: 3px; background: var(--hito-band); color: var(--on-action); font: 600 12px/14px var(--font-ui); }
+.hito-date .d { align-self: center; font: italic 700 21px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.hito-date .d--3 { font-size: 17px; letter-spacing: -0.02em; }   /* cuenta atrás de 3 cifras: «211» cabe con margen */
+.row--hito { padding-top: 8px; padding-bottom: 8px; }
+.list--inset.list--hito > li + li::before { margin-left: 70px; }
+
+/* ---------- Hito grande: la cuenta atrás del evento ---------- */
+.hito-big {
+  display: grid; grid-template-rows: 34px 1fr auto; justify-items: stretch; flex: none;
+  width: 88px; height: 112px; overflow: hidden; text-align: center;
+  border-radius: 44px 44px 12px 12px; background: var(--hito); color: var(--hito-ink);
+  border: 1.5px solid var(--hito-stroke); box-shadow: var(--shadow-card);
+}
+.hito-big .band { padding-top: 15px; background: var(--hito-band); color: var(--on-action); font: 600 12px/1 var(--font-ui); }
+.hito-big .n { align-self: end; font: italic 700 46px/0.95 var(--font-fig); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.hito-big .dd { padding: 2px 0 11px; font: 600 14px/1 var(--font-ui); }
+
+/* =====================================================================
+   CALENDARIO
+   ===================================================================== */
+.cal { padding: 4px 4px 0; }
+.cal-h { display: flex; align-items: center; gap: 2px; min-height: 48px; padding: 0 4px 0 6px; }
+.month-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-right: auto; padding: 0 10px;
+  border-radius: var(--r-md); font: 600 var(--t-lg)/1.2 var(--font-fig); color: var(--ink);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.month-btn .ic { width: 18px; height: 18px; color: var(--link); }
+.month-btn:active { transform: scale(0.97); }
+@media (hover: hover) and (pointer: fine) { .month-btn:hover { background: var(--surface-2); } }
+.icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+
+/* Tira de semanas: una semana por página, se desliza con el dedo */
+.wk-scroller {
+  display: flex; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.wk-scroller::-webkit-scrollbar { display: none; }
+.wk { flex: 0 0 100%; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); scroll-snap-align: start; scroll-snap-stop: always; }
+.day {
+  position: relative; display: grid; justify-items: center; align-content: center; gap: 3px;
+  min-width: 44px; min-height: 72px; padding: 6px 0 8px; border-radius: 16px; color: var(--ink);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease, color var(--dur-fast) ease;
+}
+.day:active { transform: scale(0.95); }
+.day-w { font: 600 var(--t-xs)/1 var(--font-ui); color: var(--ink-3); }
+.day-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font: 700 19px/1 var(--font-fig); font-variant-numeric: tabular-nums; }
+.day[aria-current="date"] .day-n { box-shadow: inset 0 0 0 2px var(--link); color: var(--link); }
+.day[aria-pressed="true"] { background: var(--action); color: var(--on-action); box-shadow: 0 10px 22px -14px color-mix(in srgb, var(--action) 90%, transparent); }
+.day[aria-pressed="true"] .day-w { color: var(--on-action); }
+.day[aria-pressed="true"] .day-n { color: var(--on-action); box-shadow: none; }
+.day[aria-pressed="true"][aria-current="date"] .day-n { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--on-action) 70%, transparent); }
+.day.is-out .day-n { color: var(--ink-3); }
+.day[aria-pressed="true"].is-out .day-n { color: var(--on-action); }
+@media (hover: hover) and (pointer: fine) { .day:not([aria-pressed="true"]):hover { background: var(--surface-2); } }
+
+/* Marcas de estado: la forma, no solo el color, dice el estado */
+.mk { display: block; width: 8px; height: 8px; border-radius: 50%; }
+.mk--none { visibility: hidden; }
+.mk--done { background: var(--good); }
+.mk--pending { box-shadow: inset 0 0 0 2px var(--ink-2); }
+.mk--missed { width: 10px; height: 3px; margin: 2.5px 0; border-radius: 2px; background: var(--ink-3); }
+.day[aria-pressed="true"] .mk--done { background: var(--on-action); }
+.day[aria-pressed="true"] .mk--pending { box-shadow: inset 0 0 0 2px var(--on-action); }
+.day[aria-pressed="true"] .mk--missed { background: color-mix(in srgb, var(--on-action) 80%, transparent); }
+.mk-pair { display: flex; align-items: center; gap: 3px; }
+/* Más de dos entrenos: dos marcas y «+N» (el aria-label del día los nombra todos) */
+.mk-more { font: 600 12px/8px var(--font-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.day[aria-pressed="true"] .mk-more { color: var(--on-action); }
+
+.cal-foot { display: flex; align-items: center; gap: 10px; margin: 6px -4px 0; padding: 12px 16px 14px; border-top: 1px solid var(--line); font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); }
+.cal-foot b { color: var(--ink); font-weight: 600; }
+.nw { white-space: nowrap; }
+.cal-foot .meter { flex: 0 0 64px; height: 8px; }
+/* Leyenda de las marcas de la tira, siempre a la vista (antes solo estaba en la hoja del mes) */
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: -4px 0 0; padding: 0 12px 12px; font-size: var(--t-xs); line-height: 1.3; color: var(--ink-2); }
+.cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Panel del día elegido */
+.day-panel { display: grid; gap: 12px; }
+.day-panel.is-swapping { opacity: 0.35; }
+.day-panel { transition: opacity 180ms ease; }
+.day-title { font: 600 var(--t-xl)/1.2 var(--font-fig); color: var(--ink); }
+.wo { display: grid; gap: 10px; }
+.wo-h { display: flex; align-items: center; gap: 8px; margin: -6px -8px -4px 0; min-height: 44px; }
+.wo-h .chip { margin-right: auto; }
+.wo-title { font: 600 var(--t-xl)/1.15 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; }
+.figs { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--t-sm); color: var(--ink-2); }
+.figs > span { display: inline-flex; align-items: baseline; gap: 4px; }
+.figs .ic { width: 16px; height: 16px; align-self: center; color: var(--acc); }
+.figs b { font: 700 20px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.wo-notes { font-size: 15px; color: var(--ink-2); text-wrap: pretty; }
+.wo-match {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start;
+  padding: 12px 12px 4px 14px; border-radius: var(--r-md); background: var(--good-bg);
+  font-size: var(--t-sm); color: var(--ink-2);
+}
+.wo-match > .ic { width: 18px; height: 18px; margin-top: 1px; color: var(--good); }
+.wo-match b { color: var(--ink); font-weight: 600; }
+.wo-match .btn { grid-column: 2; justify-self: start; min-height: 44px; margin-left: -12px; }
+.wo-help { display: flex; gap: 8px; align-items: flex-start; font-size: var(--t-sm); color: var(--ink-3); }
+.wo-help .ic { width: 16px; height: 16px; margin-top: 2px; }
+.chip--pending { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); color: var(--ink-2); }
+.chip--missed { background: var(--surface-2); color: var(--ink-2); }
+.chip .mk:not(.mk--missed) { width: 8px; height: 8px; }  /* la raya de «Sin hacer» se mantiene: la forma es el código */
+
+.rest .row-meta { color: var(--ink-2); }
+/* Acción en línea al pie del panel: sustituye a la flotante, que tapaba «Marcar como hecho» */
+.day-add { margin-top: 2px; }
+
+/* Próximos: nombres largos en dos líneas como mucho; el completo está en la tarjeta del día */
+.list--hito .row-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; }
+.list--hito .row-meta .nw { white-space: nowrap; }
+.rest-next b { color: var(--ink); font-weight: 600; }
+
+/* Hoja del mes */
+.mo-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 -8px 4px; }
+.mo-label { font: 600 var(--t-lg)/1.2 var(--font-fig); color: var(--ink); text-align: center; }
+.mo-sum { margin-bottom: 12px; font-size: var(--t-sm); color: var(--ink-2); text-align: center; }
+.mo-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; margin: 0 -6px; }
+.mo-grid .dow { padding: 4px 0 6px; text-align: center; font: 600 var(--t-xs)/1 var(--font-ui); color: var(--ink-3); }
+.mo-grid .day { min-height: 54px; padding: 4px 0 6px; gap: 2px; border-radius: 14px; }
+.mo-grid .day-n { width: 32px; height: 32px; font-size: 17px; }
+.mo-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: var(--t-sm); color: var(--ink-2); }
+.mo-legend span { display: inline-flex; align-items: center; gap: 7px; }
+/* Apaisado en teléfono: con 390 px de alto solo se veían 2 semanas. Título, mes, resumen y
+   leyenda a la izquierda; la rejilla entera a la derecha, sin desplazar dentro de la hoja. */
+@media (orientation: landscape) and (max-height: 500px) {
+  dialog.sheet:has(.mo-grid) { max-width: min(780px, calc(100% - 24px)); }
+  dialog.sheet:has(.mo-grid) .sheet-grab { position: absolute; z-index: 1; top: 0; left: 0; width: 264px; padding-top: 10px; }
+  dialog.sheet:has(.mo-grid) .sheet-handle { display: none; }
+  .sheet-body:has(> .mo-grid) {
+    display: grid; grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    column-gap: 24px; align-content: start; padding: 10px 16px 12px 20px;
+  }
+  .sheet-body:has(> .mo-grid) > .mo-nav { grid-column: 1; grid-row: 1; margin: 58px -8px 2px; }
+  .sheet-body:has(> .mo-grid) > .mo-sum { grid-column: 1; grid-row: 2; margin: 0; text-align: left; }
+  .sheet-body:has(> .mo-grid) > .mo-legend { grid-column: 1; grid-row: 3; align-self: start; justify-content: flex-start; gap: 6px 14px; margin-top: 12px; }
+  .sheet-body:has(> .mo-grid) > .mo-grid { grid-column: 2; grid-row: 1 / span 3; margin: 0; }
+  .mo-grid .dow { padding: 2px 0 4px; }
+  .mo-grid .day { min-height: 44px; padding: 2px 0; gap: 1px; }
+  .mo-grid .day-n { width: 28px; height: 28px; font-size: 16px; }
+}
+
+/* =====================================================================
+   OBJETIVOS
+   ===================================================================== */
+/* Evento compacto: una fila (cuenta atrás, nombre, preparación) que se despliega.
+   Va debajo del volumen: la semana es lo que se mira casi a diario. */
+.ev { padding: 0; overflow: hidden; }
+.ev-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 24px; gap: 14px; align-items: center;
+  width: 100%; min-height: 44px; padding: 14px 14px 14px 16px; text-align: left; color: var(--ink);
+  transition: background-color var(--dur-fast) ease;
+}
+.ev-row:active { background: var(--surface-2); }
+@media (hover: hover) and (pointer: fine) { .ev-row:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); } }
+.ev-main { display: grid; gap: 6px; min-width: 0; }
+.ev-name { font: 600 var(--t-lg)/1.2 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+/* Desplegado, el nombre completo (hasta 80 caracteres): no se lee en ningún otro sitio */
+.ev-row[aria-expanded="true"] .ev-name { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.ev-meta { font-size: var(--t-sm); line-height: 1.3; color: var(--ink-2); }
+.ev-prep-l { font-size: var(--t-sm); line-height: 1.3; color: var(--ink-2); }
+.ev-prep-l b { color: var(--ink); font-weight: 600; }
+.ev-chev { width: 22px; height: 22px; color: var(--ink-3); transition: transform var(--dur-fast) var(--ease-out); }
+.ev-row[aria-expanded="true"] .ev-chev { transform: rotate(180deg); }
+.hito-date .d:has(.ic) { display: grid; place-items: center; }
+.hito-date .d .ic { width: 20px; height: 20px; color: var(--ink); }
+.ev-more { display: grid; gap: 16px; padding: 4px var(--pad) var(--pad); }
+.ev-more[hidden] { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .ev-more:not([hidden]) { animation: ev-in 200ms var(--ease-out) both; }
+  @keyframes ev-in { from { opacity: 0; transform: translateY(-4px); } }
+}
+.ev-more .prep { padding-top: 14px; }
+/* Desplegado, la barra de la fila se repite abajo con más detalle: se quita de la fila */
+.ev-row[aria-expanded="true"] .ev-main > .meter, .ev-row[aria-expanded="true"] .ev-prep-l { display: none; }
+.ev-more .figs { margin-top: -8px; }
+.ev-top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.ev-title { font: 600 var(--t-xl)/1.12 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
+.ev-date { margin: 4px 0 10px; font-size: 15px; color: var(--ink-2); }
+.prep { display: grid; gap: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.prep-h { font: 600 var(--t-sm)/1.3 var(--font-ui); color: var(--ink-2); }
+.bar-row { display: grid; gap: 8px; }
+.bar-l { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: var(--t-sm); color: var(--ink-2); }
+.bar-l > span:first-child { display: inline-flex; align-items: center; gap: 7px; }
+.bar-l .ic { width: 16px; height: 16px; align-self: center; color: var(--acc); }
+.bar-l b { font: 700 19px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.bar-l .pct { margin-left: 8px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.meter--slim { height: 8px; }
+.link-row {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 48px; margin: -4px -8px -8px; padding: 0 8px; border-radius: var(--r-md);
+  font: 600 var(--t-sm)/1.3 var(--font-ui); color: var(--link);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.link-row .ic { width: 18px; height: 18px; }
+.link-row:active { transform: scale(0.985); }
+@media (hover: hover) and (pointer: fine) { .link-row:hover { background: color-mix(in srgb, var(--action) 10%, transparent); } }
+
+/* Entradilla con «Conseguido» delante: si no caben juntos, el chip queda en su propia línea */
+.vol-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -6px 0 12px; font-size: var(--t-sm); color: var(--ink-2); }
+.vol-sub > .chip { flex: none; }
+.card-h .card-title { min-width: 0; }
+.vol-body { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.vol-lines { display: grid; gap: 10px; }
+.vol-lines li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; font-size: var(--t-sm); line-height: 1.3; color: var(--ink-2); text-wrap: pretty; }
+.vol-lines .ic { width: 18px; height: 18px; color: var(--ink-3); }
+.vol-lines b { font-weight: 600; color: var(--ink); }
+.vol-lines .is-good, .vol-lines .is-good .ic { color: var(--good); }
+.vol-lines .is-good b { color: var(--good); }
+.vol-more { display: grid; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.vol-more:empty { display: none; }
+.notch-key { display: inline-block; width: 3px; height: 14px; margin-right: 8px; border-radius: 2px; background: var(--ink); vertical-align: -2px; }
+
+.card-h > .icon-btn, .section-h > .icon-btn { margin-right: -10px; }
+
+/* Anillo de objetivo: carril 3:1, curvas de nivel, arco del acento y muesca del ritmo */
+.ring-wrap { position: relative; width: clamp(128px, 36vw, 156px); aspect-ratio: 1; }
+.ring { width: 100%; height: 100%; overflow: visible; }
+.ring .topo { fill: none; stroke: var(--contour); stroke-width: 1; }
+.ring .track { fill: none; stroke: var(--track); stroke-width: 10; opacity: 0.55; }
+.ring .arc { fill: none; stroke: var(--acc, var(--good)); stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 calc(var(--glow) * 8px) color-mix(in srgb, var(--acc, var(--good)) 70%, transparent)); }
+.ring .notch { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+/* Pasado el 100 %: la primera vuelta se atenúa y la segunda, lo que sobra, va encima */
+.ring .arc--lap { opacity: 0.5; filter: none; }
+.ring-c { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; pointer-events: none; }
+.ring-v { display: flex; align-items: baseline; font: italic 700 clamp(34px, 9.6vw, 40px)/1 var(--font-fig); letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ring-v .u { font-size: 17px; font-style: normal; margin: 0 0 0 1px; }
+.ring-s { margin-top: 4px; font: 500 var(--t-xs)/1.25 var(--font-ui); color: var(--ink-2); max-width: 11ch; }
+.ring-s b { font-weight: 600; color: var(--ink); }
+
+.prev .row-val { font-size: 17px; }
+.prev-seg { margin-bottom: 14px; }
+/* «Nuevo objetivo» en línea, como «Planificar» en Calendario; desde 600 px va en la barra */
+.goal-add { margin-top: -4px; }
+
+/* ---------- Formulario de las hojas ---------- */
+.form { display: grid; gap: 18px; }
+.field-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.unit-wrap { position: relative; }
+.unit-wrap .input { padding-right: 46px; font-variant-numeric: tabular-nums; }
+.unit-wrap .sfx { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font: 600 var(--t-sm)/1 var(--font-ui); color: var(--ink-3); pointer-events: none; }
+textarea.input { min-height: 88px; padding: 12px 14px; resize: vertical; line-height: 1.4; }
+input[type="date"].input { color-scheme: dark; }
+:root[data-theme="light"] input[type="date"].input { color-scheme: light; }
+.fill-btn {
+  display: inline-flex; align-items: center; gap: 8px; justify-self: start; min-height: 44px; margin: -8px 0 -6px -10px; padding: 0 10px;
+  border-radius: var(--r-md); color: var(--link); font: 600 var(--t-sm)/1.3 var(--font-ui); text-align: left;
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.fill-btn .ic { width: 16px; height: 16px; }
+.fill-btn:active { transform: scale(0.97); }
+.form .list { margin: 0 -8px; }
+.form-err { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-md); background: var(--critical-bg); color: var(--critical); font-size: var(--t-sm); }
+.form-err .ic { width: 16px; height: 16px; margin-top: 2px; }
+.form-err p { color: var(--ink); }
+.field-pair + .field-error { margin-top: -10px; }
+/* Tiempo: horas y minutos en dos casillas numéricas bajo una sola etiqueta */
+.field-set { min-width: 0; margin: 0; padding: 0; border: 0; }
+.field-set > legend { padding: 0; margin-bottom: 6px; }
+/* Aviso al crear un objetivo que sustituye a otro */
+.form-warn { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-md); background: var(--warning-bg); border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent); color: var(--ink); font-size: var(--t-sm); line-height: 1.4; }
+.form-warn .ic { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--warning); }
+.form-warn b { font-weight: 600; }
+
+/* ---------- Esqueletos de esta pestaña ---------- */
+.sk-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding: 8px 6px 12px; }
+.sk-day { height: 64px; border-radius: 16px; }
+.sk-ring { width: clamp(128px, 36vw, 156px); aspect-ratio: 1; border-radius: 50%; }
+.sk-hito { width: 88px; height: 112px; border-radius: 44px 44px 12px 12px; }
+
+/* ---------- Tableta y apaisado: dos columnas donde caben ---------- */
+/* La acción principal va en línea en el teléfono (sin flotante: tapaba filas y botones);
+   desde 600 px sube además a la barra. */
+.appbar-add { display: none; }
+@media (min-width: 600px) {
+  .appbar-add { display: inline-flex; min-height: 44px; padding: 0 16px; margin-right: 4px; }
+  .goal-add { display: none; }
+  .wk .day { justify-self: center; width: min(100%, 72px); }
+  .vol-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .cal-cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .ring-wrap { width: 132px; }
+  .sk-ring { width: 132px; }
+}
+/* Apaisado en teléfono: título y segmentado en una sola línea; el calendario
+   pone la semana a la izquierda y el día elegido a la derecha. */
+@media (max-height: 500px) and (max-width: 899px) {
+  .page:has(> .page-head > .seg-nav) { gap: 16px; }
+  .page-head:has(> .seg-nav) { display: flex; align-items: center; gap: 16px; padding-bottom: 6px; }
+  .page-head:has(> .seg-nav) .page-title { flex: none; font-size: var(--t-xl); }
+  .seg-nav { flex: 1; max-width: 440px; margin-top: 0; min-height: 44px; }
+}
+@media (max-height: 500px) and (min-width: 600px) {
+  .page--cal { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  .page--cal > * { grid-column: 1 / -1; }
+  .page--cal > .wk-sec { grid-column: 1; grid-row: 2; }
+  .page--cal > .cal-cols { display: contents; }
+  .page--cal .day-sec { grid-column: 2; grid-row: 2 / span 2; }
+  .page--cal .prox-sec { grid-column: 1; grid-row: 3; }
+}
+@media (min-width: 600px) and (max-width: 760px) {
+  .vol-body { grid-template-columns: 1fr; justify-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day:active, .seg-nav a:active, .month-btn:active, .fill-btn:active, .link-row:active { transform: none; }
+  .ev-chev { transition: none; }
+  .wk-scroller { scroll-behavior: auto; }
+}
+@media (forced-colors: active) {
+  .day[aria-pressed="true"] { outline: 2px solid Highlight; }
+  .mk--done { background: CanvasText; }
+  .ring .arc { stroke: Highlight; }
+  .seg-nav a[aria-current="page"]::before { border: 2px solid Highlight; }
+}
+.prev .row-val.is-good { color: var(--good); }
+.prev .row-val.is-good .u { color: var(--good); }

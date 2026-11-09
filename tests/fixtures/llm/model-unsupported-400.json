@@ -1,0 +1,1 @@
+{ "error": { "message": "This model does not support response format `json_schema`. See supported models at https://console.groq.com/docs/structured-outputs#supported-models", "type": "invalid_request_error" } }

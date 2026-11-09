@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0A1122">
+<title>Salida, FBikeTrain</title>
+<script>
+/* Tema antes del pintado: ?theme= manda; si no, la elección guardada; si no, oscuro. */
+(function () { var t = 'dark'; try { t = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme') || 'dark'; } catch (e) {} document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; })();
+</script>
+<link rel="stylesheet" href="movil.css?v=ec461d68">
+<style>
+  html { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
+  /* ---- Mapa a todo el ancho, bajo la barra transparente ---- */
+  .ride-top { display: grid; gap: 14px; min-width: 0; }
+  .ride-map {
+    position: relative; overflow: hidden; background: var(--map-under);
+    margin: calc(-1 * (var(--appbar-h) + var(--safe-t))) calc(-1 * (var(--gutter) + var(--safe-r))) 0 calc(-1 * (var(--gutter) + var(--safe-l)));
+    height: calc(clamp(200px, 58vw, 300px) + var(--appbar-h) + var(--safe-t));
+  }
+  .ride-map::after {   /* el mapa se funde con la página: el título queda pegado a su recorrido */
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--bg));
+  }
+  .map { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .map .contour { fill: none; stroke: var(--contour); stroke-width: 1.2; }
+  .map .road { fill: none; stroke: color-mix(in srgb, var(--ink-3) 22%, transparent); stroke-width: 1.4; stroke-linecap: round; }
+  .map .road--main { stroke: color-mix(in srgb, var(--ink-3) 34%, transparent); stroke-width: 3; }
+  .map .town { font: 600 13px var(--font-ui); fill: var(--ink-2); paint-order: stroke; stroke: var(--map-under); stroke-width: 4px; stroke-linejoin: round; }
+  .map .halo { stroke-width: 9; }
+  .map .core { stroke-width: 3; }
+  .map .start { stroke-width: 2.5; }
+  .map .climb { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+  .map .pin circle { fill: var(--surface); stroke-width: 2.5; }
+  .map .pin rect { fill: var(--surface); stroke-width: 2.5; }
+  .map .pin text { font: 700 12px var(--font-fig); fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+  .map .cur { fill: var(--ink); stroke: var(--trace); stroke-width: 3; opacity: 0; transition: opacity var(--dur-fast) ease; }
+  .map .cur.on { opacity: 1; }
+  .map-max { position: absolute; right: calc(var(--gutter) - 4px + var(--safe-r)); bottom: 14px; z-index: 2; }
+  .map-attr {
+    position: absolute; left: calc(var(--gutter) + var(--safe-l)); bottom: 20px; z-index: 2;
+    padding: 4px 8px; border-radius: var(--r-pill); background: var(--glass-strong);
+    font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2);
+  }
+  @media (min-width: 600px) {
+    .ride-map { margin-left: 0; margin-right: 0; border-radius: 0 0 var(--r-xl) var(--r-xl); }
+    .ride-map::after { display: none; }
+    /* El botón de volver queda dentro del mapa redondeado, no en su esquina */
+    .appbar { padding-left: calc(var(--gutter) + 8px + var(--safe-l)); }
+  }
+  /* Apaisado en teléfono: mapa a la izquierda, de arriba abajo; título y cifras a la derecha */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .ride-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 12px; }
+    .ride-map { grid-row: span 2; height: calc(100dvh - var(--nav-space)); }
+    .ride-head, .ride-top > .ride-figs { grid-column: 2; }
+    .ride-head { padding-top: 4px; }
+    .ride .page-title { font-size: clamp(24px, 3.4vw, 30px); }
+    .sk-map { height: calc(100dvh - var(--nav-space)); }
+  }
+
+  /* ---- Cabecera de la salida ---- */
+  .ride-head { display: grid; gap: 8px; min-width: 0; }
+  .ride .page-title { animation: none; overflow-wrap: anywhere; }   /* aquí el título está bajo el mapa: no se encoge */
+  /* Nombre de Strava largo: letra menor y como mucho 3 líneas; un toque lo despliega */
+  .ride .page-title.is-long { font-size: clamp(24px, 7vw, 34px); }
+  .title-btn { display: block; width: 100%; min-height: 44px; padding: 0; margin: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: start; cursor: pointer; }
+  .title-btn[aria-expanded="false"] .title-txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; line-clamp: 3; overflow: hidden; text-overflow: ellipsis; }
+  .title-btn:focus-visible { outline-offset: 4px; border-radius: 6px; }
+  .ride-when { font-size: var(--t-md); color: var(--ink-2); }
+  .ride-chips { margin-top: 4px; }
+
+  /* ---- Las cuatro cifras ---- */
+  .ride-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; padding: 12px 0; border-block: 1px solid var(--line); }
+  .ride-figs > div { min-width: 0; }
+  .ride-figs dt { display: flex; align-items: center; gap: 4px; font: 500 13px/1.2 var(--font-ui); color: var(--ink-2); white-space: nowrap; }
+  .ride-figs dt .ic { width: 15px; height: 15px; color: var(--acc); }
+  .ride-figs dd { margin: 6px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 2px; font: 700 clamp(21px, 6.2vw, 26px)/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .ride-figs dd.fig-i { font-style: italic; }
+  .ride-figs dd .u { font-size: 13px; margin: 0 2px 0 1px; }
+
+  /* ---- Perfil táctil ---- */
+  .scrub-read { display: flex; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; gap: 2px 12px; min-width: 0; font-size: var(--t-sm); color: var(--ink-2); }
+  .scrub-read > span { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+  .scrub-read b { font: 700 20px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .scrub-read .sw { align-self: center; width: 10px; height: 10px; border-radius: 3px; }
+  .scrub {
+    position: relative; isolation: isolate; height: 150px; margin-top: 24px;
+    touch-action: pan-y; cursor: crosshair; border-radius: 6px; -webkit-user-select: none; user-select: none;
+  }
+  .scrub .profile { height: 100%; }
+  @media (max-height: 800px) { .scrub { height: 124px; } }   /* 360x780: mapa y perfil en la misma pantalla */
+  /* La línea de cota va detrás del perfil; su etiqueta, delante, con un velo para leerse sobre el relleno */
+  .scrub-grid > span { position: absolute; left: 0; right: 0; height: 0; }
+  .scrub-grid > span::before { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--line-strong); z-index: -1; }
+  .scrub-grid b {
+    position: absolute; left: 0; bottom: 3px; z-index: 1; padding: 1px 4px; border-radius: 4px;
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    font: 500 var(--t-xs)/1 var(--font-ui); color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .scrub-band { position: absolute; top: 0; bottom: 0; z-index: -1; border-radius: 4px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  /* Chincheta de subida; si dos se tocan, se fusionan en una píldora «2·3» (igual que en el mapa) */
+  .scrub-pin {
+    position: absolute; z-index: 1; min-width: 24px; height: 24px; margin-top: -32px; padding: 0 5px; transform: translateX(-50%);
+    display: grid; place-items: center; border-radius: 12px; white-space: nowrap;
+    background: var(--surface); border: 2.5px solid var(--pin); font: 700 13px/1 var(--font-fig); color: var(--ink);
+  }
+  .scrub-line, .scrub-dot { position: absolute; left: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity var(--dur-fast) ease; }
+  .scrub-line { top: -4px; bottom: 0; width: 2px; margin-left: -1px; background: var(--ink); }
+  .scrub-dot { top: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px var(--bg); }
+  .scrub.is-on .scrub-line, .scrub.is-on .scrub-dot { opacity: 1; }
+  .scrub:focus-visible { outline-offset: 6px; }
+  #eje { position: relative; display: block; height: 16px; }
+  #eje span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  #eje span:first-child { transform: none; }
+  #eje span.is-end { transform: translateX(-100%); }
+  .scrub-hint { display: flex; gap: 6px; align-items: flex-start; font-size: var(--t-sm); color: var(--ink-3); }
+  .scrub-hint .ic { width: 16px; height: 16px; margin-top: 2px; flex: none; }
+
+  /* ---- Frente a tu media: tus salidas en una tira de puntos ---- */
+  .cmp { padding: 4px 16px; }
+  .cmp-row { padding: 14px 0 12px; }
+  .cmp-row + .cmp-row { border-top: 1px solid var(--line); }
+  .cmp-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .cmp-l { display: flex; align-items: center; gap: 8px; font: 600 var(--t-md)/1.2 var(--font-ui); color: var(--ink); }
+  .cmp-l .ic { width: 18px; height: 18px; color: var(--acc); }
+  .cmp-strip { position: relative; height: 34px; margin: 10px 7px 6px; }
+  .cmp-strip > i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: color-mix(in srgb, var(--track) 80%, transparent); }
+  .cmp-strip > b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); }
+  /* «Esta salida», siempre el mismo azul que en la leyenda (no el color de cada métrica) */
+  .cmp-strip > em { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--acc-dist); box-shadow: 0 0 0 2.5px var(--surface); }
+  .cmp-foot { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+  .cmp-foot b { color: var(--ink); font-weight: 600; }
+  .cmp-legend { padding: 12px 0 2px; font-size: var(--t-xs); }
+  .cmp-legend .k-dot { width: 8px; height: 8px; border-radius: 50%; background: color-mix(in srgb, var(--track) 80%, transparent); }
+  .cmp-legend .k-mean { width: 2px; height: 12px; border-radius: 1px; background: var(--ink); vertical-align: -2px; }
+  .cmp-legend .k-me { width: 11px; height: 11px; border-radius: 50%; background: var(--acc-dist); }
+
+  /* ---- Subidas de esta salida ---- */
+  .climbs .row { align-items: center; }
+  .climb-n {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: color-mix(in srgb, var(--pin) 24%, var(--surface)); color: var(--ink);
+    font: 700 20px/1 var(--font-fig); box-shadow: inset 0 -3px 0 var(--pin);
+  }
+  .row-figs { display: grid; justify-items: end; gap: 5px; }
+  .row-figs .row-sub { font: 500 var(--t-sm)/1 var(--font-ui); color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .climb-best { display: flex; align-items: center; gap: 4px; margin-top: 3px; color: var(--ink-2); }
+  .climb-best .ic { width: 14px; height: 14px; flex: none; color: var(--ink-3); }
+  .climb-best .nw { white-space: nowrap; }
+  .climb-best.is-best { color: var(--good); font-weight: 600; }
+  .climb-best.is-best .ic { color: var(--good); }
+  :root[data-theme="light"] .climb-best.is-best { color: color-mix(in srgb, var(--good) 86%, var(--ink)); }
+
+  /* ---- Rutas parecidas ---- */
+  .similar .row-lead { width: 48px; height: 48px; border-radius: 13px; }
+  .similar.list--inset > li + li::before { margin-left: 74px; }
+  .row-meta .share { color: var(--ink-2); font-weight: 500; }
+
+  /* ---- Hoja del mapa ---- */
+  .sheet-body--map { padding: 0 0 calc(12px + var(--safe-b)); }
+  .ride-map--big { margin: 0; height: min(66dvh, 560px); }
+  .ride-map--big::after { display: none; }
+  .ride-map--big .map-attr { bottom: 12px; left: 12px; }
+
+  /* ---- Estados ---- */
+  .sk-map { height: calc(clamp(200px, 58vw, 300px) + var(--appbar-h) + var(--safe-t)); border-radius: 0; }
+  .sk-figs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .sk-figs .sk { height: 46px; }
+  .ride--plain .page-head { padding-top: 8px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="appbar">
+  <div class="appbar-lead"><a class="icon-btn icon-btn--glass" id="volver" href="historial.html" data-back aria-label="Volver al historial"><i data-ic="back"></i></a></div>
+  <span class="appbar-title" aria-hidden="true" id="appbar-t" dir="auto">Collsuspina y Moià</span>
+  <div class="appbar-actions"></div>
+</header>
+
+<main id="main" class="page ride">
+  <div class="ride-top" id="top">
+    <div class="ride-map" id="mapa">
+      <svg class="shape map" id="map-svg" role="img" aria-label="Mapa: sale de Vic hacia el sur, sube a Collsuspina, pasa por Moià y vuelve a Vic por la misma carretera. Las tres subidas van numeradas."></svg>
+      <p class="map-attr">© OpenStreetMap, CyclOSM</p>
+      <button class="icon-btn icon-btn--glass map-max" type="button" data-sheet-open="hoja-mapa" aria-label="Ver el mapa a pantalla completa"><i data-ic="max"></i></button>
+    </div>
+    <div class="ride-head">
+      <h1 class="page-title" id="titulo" dir="auto">Collsuspina y Moià</h1>
+      <p class="ride-when" id="cuando">Ayer, jueves 5 de noviembre, a las 9:12</p>
+      <div class="cluster ride-chips" id="chips">
+        <span class="chip chip--mid"><svg class="ic bars" aria-hidden="true"><use href="#i-bars2"/></svg>Media para ti</span>
+        <span class="chip chip--done" id="chip-mejor"><i data-ic="trend"></i>Tu 2.º mejor tiempo en esta ruta</span>
+      </div>
+    </div>
+    <dl class="ride-figs" id="cifras"></dl>
+  </div>
+
+  <section class="section" id="sec-perfil" aria-labelledby="s-perfil">
+    <div class="section-h"><h2 class="section-title" id="s-perfil">Perfil</h2><p class="scrub-read" id="lectura" aria-hidden="true"></p></div>
+    <div class="scrub" id="scrub" tabindex="0" role="slider" aria-label="Punto del perfil" aria-valuemin="0" aria-valuemax="87.6" aria-valuenow="25.8">
+      <div class="scrub-grid" id="rejilla" aria-hidden="true"></div>
+      <svg class="profile" id="perfil" aria-hidden="true"></svg>
+      <span class="scrub-line" aria-hidden="true"></span>
+      <span class="scrub-dot" aria-hidden="true"></span>
+    </div>
+    <div class="profile-axis" id="eje" aria-hidden="true"><span>0</span><span>20</span><span>40</span><span>60</span><span>87,6 km</span></div>
+    <div class="legend" id="lg-perfil" aria-hidden="true"></div>
+    <p class="scrub-hint"><i data-ic="info"></i><span>Desliza el dedo por el perfil: el punto te sigue también en el mapa.</span></p>
+  </section>
+
+  <section class="section" id="sec-subidas" aria-labelledby="s-subidas">
+    <div class="section-h"><h2 class="section-title" id="s-subidas">Subidas</h2><a class="card-link" href="subidas.html">Todas<i data-ic="chev"></i></a></div>
+    <p class="section-sub">Las mismas cifras que en el perfil y en el mapa.</p>
+    <ul class="list list--inset climbs" id="subidas"></ul>
+  </section>
+
+  <section class="section" id="sec-media" aria-labelledby="s-media">
+    <div class="section-h"><h2 class="section-title" id="s-media">Frente a tu media</h2></div>
+    <div class="card cmp" id="cmp"></div>
+  </section>
+
+  <section class="section" id="sec-parecidas" aria-labelledby="s-parecidas">
+    <div class="section-h"><h2 class="section-title" id="s-parecidas">Rutas parecidas</h2></div>
+    <ul class="list list--inset">
+      <li><a class="row" href="repetidas.html" data-m="time">
+        <span class="row-lead"><i data-ic="repeat"></i></span>
+        <span class="row-main"><span class="row-title">La misma ruta, 7 veces</span><span class="row-meta">Esta vez 3&#8239;h&nbsp;12, tu 2.º mejor tiempo: a 6&nbsp;min de tu mejor, 3&#8239;h&nbsp;06</span></span>
+        <span class="row-trail"><i data-ic="chev" class="chev"></i></span>
+      </a></li>
+    </ul>
+    <ul class="list list--inset similar" id="parecidas"></ul>
+    <a class="btn btn--secondary btn--block" href="rutas.html?km=88&amp;m=1540"><i data-ic="route"></i>Crear una ruta parecida</a>
+  </section>
+</main>
+
+<nav class="tabbar" data-tabbar data-current="historial" data-badge="plan:1"></nav>
+
+<!-- ===== Hoja: mapa grande ===== -->
+<dialog class="sheet" id="hoja-mapa" aria-labelledby="hoja-mapa-t">
+  <div class="sheet-grab">
+    <span class="sheet-handle" aria-hidden="true"></span>
+    <div class="sheet-h">
+      <h2 class="sheet-title" id="hoja-mapa-t">Recorrido</h2>
+      <button class="icon-btn" type="button" data-sheet-close aria-label="Cerrar el mapa"><i data-ic="x"></i></button>
+    </div>
+  </div>
+  <div class="sheet-body sheet-body--map">
+    <div class="ride-map ride-map--big">
+      <svg class="shape map" id="map-big" role="img" aria-label="Mapa ampliado del recorrido con las tres subidas numeradas."></svg>
+      <p class="map-attr">© OpenStreetMap, CyclOSM</p>
+    </div>
+  </div>
+</dialog>
+
+<script src="movil.js?v=588a4775"></script>
+<script src="salida.js?v=85119671"></script>
+</body>
+</html>

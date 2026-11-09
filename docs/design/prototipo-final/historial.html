@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain Historial</title>
+<script>
+  (function () {
+    var t = new URLSearchParams(location.search).get('theme');
+    if (!t) { try { t = localStorage.getItem('fbt-theme'); } catch (e) {} }
+    document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+  })();
+</script>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-page="historial">
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<div class="app">
+  <aside class="side"></aside>
+  <main class="main" id="contenido">
+    <div class="wrap">
+      <header class="page-h">
+        <div>
+          <h1>Historial</h1>
+          <p>Todas tus salidas, mes a mes, comparadas con tu propia media.</p>
+        </div>
+        <div class="acts"><span class="chip info">Avance de F2</span></div>
+      </header>
+
+      <div class="toolbar hist-tools" role="search" id="tools">
+        <button type="button" class="tb-btn press" id="q-open" aria-label="Buscar salidas" aria-expanded="false" aria-controls="q-box"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></button>
+        <label class="search search-in" id="q-box">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#i-search"/></svg>
+          <span class="sr-only">Buscar salidas</span>
+          <input type="search" id="q" placeholder="Buscar por nombre o puerto" autocomplete="off">
+          <kbd aria-hidden="true">/</kbd>
+        </label>
+        <button type="button" class="tb-btn press" id="q-close" aria-label="Cerrar la búsqueda"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+        <div class="ranges" data-seg id="per" role="group" aria-label="Periodo">
+          <span class="ind" aria-hidden="true"></span>
+          <button type="button" aria-pressed="true" data-v="3m">3 meses</button>
+          <button type="button" aria-pressed="false" data-v="12m">12 meses</button>
+          <button type="button" aria-pressed="false" data-v="todo">Todo</button>
+        </div>
+        <div class="input grow sort">
+          <svg class="ic ic-sm" aria-hidden="true" style="color:var(--ink-3)"><use href="#i-sort"/></svg>
+          <label for="ord" class="sr-only">Ordenar por</label>
+          <select id="ord"><option value="fecha">Más recientes</option><option value="km">Más largas</option><option value="m">Más desnivel</option><option value="v">Más rápidas</option></select>
+        </div>
+      </div>
+
+      <h2 class="sec-t" id="h-mes">Noviembre hasta hoy, frente a tu media a día 6</h2>
+      <section class="month-sum" aria-labelledby="h-mes">
+        <div class="ms" style="--acc:var(--acc-dist)"><span class="l"><i></i>Distancia</span><span class="fig fig-i">148 <small style="font-size:16px;font-style:normal">km</small></span><span class="delta up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>12 %<span class="vs">vs tu media</span></span></div>
+        <div class="ms" style="--acc:var(--acc-elev)"><span class="l"><i></i>Desnivel</span><span class="fig">2.002 <small style="font-size:16px">m</small></span><span class="delta up"><svg class="ic" aria-hidden="true"><use href="#i-up"/></svg>11 %<span class="vs">vs tu media</span></span></div>
+        <div class="ms" style="--acc:var(--acc-time)"><span class="l"><i></i><span class="d-only">En movimiento</span><span class="m-only">Tiempo</span></span><span class="fig">5 h 28 <small style="font-size:16px">min</small></span><span class="delta down"><svg class="ic" aria-hidden="true"><use href="#i-down"/></svg>7 %<span class="vs">vs tu media</span></span></div>
+        <div class="ms" style="--acc:var(--acc-speed)"><span class="l"><i></i>Salidas</span><span class="fig">3</span><span class="muted"><span class="d-only">De </span>3,2 de media<span class="d-only"> a día 6</span></span></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-list">
+        <div class="card-h"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg><h2 id="h-list">Salidas</h2><span class="end muted" id="count" aria-live="polite"></span></div>
+        <div class="hist-wrap">
+          <table class="hist">
+            <caption class="sr-only">Salidas agrupadas por mes, con distancia, desnivel, tiempo, velocidad media, cadencia y dificultad para ti</caption>
+            <thead><tr><th scope="col">Fecha</th><th scope="col">Salida</th><th scope="col">Distancia</th><th scope="col">Desnivel</th><th scope="col">Tiempo</th><th scope="col">Vel. media</th><th scope="col">Cadencia</th><th scope="col" style="text-align:left">Para ti</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <ul class="hist-cards" id="cards"></ul>
+        <div class="empty" id="none" hidden>
+          <span class="em-ic"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></span>
+          <p><b>Ninguna salida coincide con la búsqueda.</b> Prueba con el nombre de un puerto o borra el texto.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="shell.js"></script>
+<script>
+(function () {
+  var F = window.FBT, nf = F.nf;
+
+  /* Móvil: la lupa abre el buscador en la misma fila; la X (o Esc) lo cierra */
+  var tools = document.getElementById('tools'), qOpen = document.getElementById('q-open'), qClose = document.getElementById('q-close'), qIn = document.getElementById('q');
+  function setQ(on) {
+    tools.classList.toggle('q-on', on); qOpen.setAttribute('aria-expanded', String(on));
+    if (on) qIn.focus(); else qOpen.focus();
+  }
+  qOpen.addEventListener('click', function () { setQ(true); });
+  qClose.addEventListener('click', function () { setQ(false); });
+  qIn.addEventListener('keydown', function (e) { if (e.key === 'Escape' && tools.classList.contains('q-on')) setQ(false); });
+  /* Salidas sintéticas: [día, mes, nombre, zona, km, m, minutos, cadencia o null, dificultad 1-3, forma] */
+  var R = [
+    [5, 10, 'Montseny por Seva', 'Montseny', 87.6, 1542, 192, 86, 3, 'montseny'],
+    [3, 10, 'Rodaje por el Vallès', 'Llano', 41.2, 210, 88, null, 1, 'valles'],
+    [1, 10, 'Sant Llorenç por Talamanca', 'Sant Llorenç', 19.4, 250, 48, 84, 1, 'llorenc'],
+    [31, 9, 'Collformic y Santa Fe', 'Montseny', 104.8, 2210, 262, 85, 3, 'collformic'],
+    [29, 9, 'Vuelta corta a Matadepera', 'Sant Llorenç', 52.3, 640, 121, null, 2, 'matadepera'],
+    [26, 9, 'Costa del Garraf', 'Garraf', 78.1, 640, 165, 88, 1, 'garraf'],
+    [22, 9, 'Coll d\'Estenalles', 'Sant Llorenç', 71.9, 1310, 184, null, 2, 'estenalles'],
+    [18, 9, 'La más larga del año', 'Osona', 112.4, 1540, 268, 87, 2, 'larga'],
+    [15, 9, 'Rodaje de recuperación', 'Llano', 44.6, 380, 98, null, 1, 'recuperacion'],
+    [11, 9, 'Sant Miquel del Fai', 'Moianès', 89.3, 1780, 224, 84, 3, 'santmiquel']
+  ];
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var WD = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  var DIF = [null, ['easy', 'Suave', 1], ['mid', 'Media', 2], ['hard', 'Dura', 3]];
+  var rows = R.map(function (r) {
+    var d = new Date(2026, r[1], r[0]);
+    return { d: d, name: r[2], zone: r[3], km: r[4], m: r[5], min: r[6], cad: r[7], dif: r[8], seed: r[9], v: r[4] / (r[6] / 60) };
+  });
+  function chip(x) { var c = DIF[x]; return '<span class="chip ' + c[0] + '"><svg class="bars" aria-hidden="true"><use href="#i-bars' + c[2] + '"/></svg>' + c[1] + '</span>'; }
+  function hm(min) { return Math.floor(min / 60) + ' h ' + String(min % 60).padStart(2, '0'); }
+  function date(d) { return WD[d.getDay()] + ' ' + d.getDate(); }
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var tbody = document.getElementById('rows'), cards = document.getElementById('cards');
+  function render() {
+    var q = document.getElementById('q').value.trim().toLowerCase(), ord = document.getElementById('ord').value;
+    var list = rows.filter(function (r) { return !q || (r.name + ' ' + r.zone).toLowerCase().indexOf(q) >= 0; });
+    var key = { fecha: function (r) { return -r.d; }, km: function (r) { return -r.km; }, m: function (r) { return -r.m; }, v: function (r) { return -r.v; } }[ord];
+    list.sort(function (a, b) { return key(a) - key(b); });
+    var html = '', ch = '', mon = -1;
+    list.forEach(function (r) {
+      if (ord === 'fecha' && r.d.getMonth() !== mon) {
+        mon = r.d.getMonth();
+        var inM = list.filter(function (x) { return x.d.getMonth() === mon; }), km = inM.reduce(function (s, x) { return s + x.km; }, 0);
+        var label = MESES[mon].charAt(0).toUpperCase() + MESES[mon].slice(1) + ' de 2026';
+        html += '<tr class="group"><td colspan="8">' + label + '<span>' + inM.length + ' salidas, ' + nf(km) + ' km</span></td></tr>';
+        ch += '<li class="muted" style="padding:12px 0 4px;font-weight:600">' + label + '</li>';
+      }
+      var cad = r.cad ? r.cad + ' rpm' : '<span class="muted" title="Sin sensor de cadencia">sin dato</span>';
+      html += '<tr><td>' + date(r.d) + '</td><td><span class="rt"><svg class="mini" data-shape="' + r.seed + '" viewBox="0 0 40 40" aria-hidden="true"></svg><span><b>' + esc(r.name) + '</b><small>' + esc(r.zone) + '</small></span></span></td>' +
+        '<td>' + nf(r.km, 1) + ' km</td><td>' + nf(r.m) + ' m</td><td>' + hm(r.min) + '</td><td>' + nf(r.v, 1) + ' km/h</td><td>' + cad + '</td><td style="text-align:left">' + chip(r.dif) + '</td></tr>';
+      ch += '<li><a class="hist-card press" href="#"><svg class="mini" data-shape="' + r.seed + '" viewBox="0 0 48 48" aria-hidden="true" style="width:48px;height:48px"></svg><span style="min-width:0"><span class="muted" style="display:block">' + date(r.d) + ' de ' + MESES[r.d.getMonth()] + '</span><b style="display:block;font-weight:600">' + esc(r.name) + '</b><span class="meta"><span>' + nf(r.km, 1) + ' km</span><span>' + nf(r.m) + ' m</span><span>' + hm(r.min) + '</span></span><span style="display:block;margin-top:6px">' + chip(r.dif) + '</span></span><svg class="ic" aria-hidden="true" style="color:var(--ink-3);justify-self:end"><use href="#i-chev"/></svg></a></li>';
+    });
+    tbody.innerHTML = html; cards.innerHTML = ch;
+    document.querySelectorAll('#rows svg[data-shape], #cards svg[data-shape]').forEach(F.renderShape);
+    document.getElementById('count').textContent = list.length + (list.length === 1 ? ' salida' : ' salidas');
+    document.getElementById('none').hidden = list.length > 0;
+    document.querySelector('.hist-wrap').hidden = !list.length;
+  }
+  document.getElementById('q').addEventListener('input', render);
+  document.getElementById('ord').addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>

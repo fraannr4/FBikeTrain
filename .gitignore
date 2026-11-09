@@ -1,0 +1,15 @@
+node_modules
+dist
+*.zip
+*.fit
+!tests/fixtures/*.fit
+*.local
+test-results
+playwright-report
+blob-report
+*.stackdump
+.playwright-mcp
+tsconfig.tsbuildinfo
+.impeccable/hook.cache.json
+# Capturas del prototipo móvil: miles de PNG generados (≈940 MB); se regeneran con shots.mjs
+docs/design/prototipo-movil/capturas/

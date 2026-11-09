@@ -1,0 +1,27 @@
+/* =====================================================================
+   Armazón: AppShell y barra de pestañas (TabBar).
+   La barra inferior, su carril de escritorio (desde 900 px), la barra
+   superior y la página están en kit.css (secciones 1 a 3 y 15), como en
+   el prototipo. Aquí solo va lo propio del armazón de React.
+   ===================================================================== */
+
+.app { min-height: 100vh; min-height: 100dvh; }
+
+.main { min-width: 0; }
+.main:focus { outline: none; }
+.main:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+/* Marca en la barra superior: el hito y el nombre */
+.brand-name { font: 700 18px / 1 var(--font-fig); letter-spacing: -0.01em; }
+
+/* Pantallas que aún no tienen su versión móvil (Inicio, Importar y Ajustes):
+   relleno de página y separación entre bloques hasta que su cadena las rehaga. */
+.legacy {
+  display: block;
+  padding: calc(16px + var(--safe-t)) calc(var(--gutter) + var(--safe-r)) calc(var(--nav-space) + 32px)
+    calc(var(--gutter) + var(--safe-l));
+}
+.legacy > * + * { margin-top: var(--s-4); }
+@media (min-width: 900px) {
+  .legacy { padding-bottom: 64px; }
+}

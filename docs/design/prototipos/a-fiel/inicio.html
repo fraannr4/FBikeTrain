@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>FBikeTrain, Inicio</title>
+<!-- Prototipo A «Fiel a la inspiración». Datos sintéticos. ECharts y Leaflet por CDN solo en el prototipo: la app usará npm. -->
+<script>
+  // Tema antes de pintar: ?theme= manda (capturas), después localStorage; oscuro por defecto.
+  (function () {
+    var t = 'dark';
+    try { t = localStorage.getItem('fbt-theme') || t; } catch (e) {}
+    var q = new URLSearchParams(location.search).get('theme');
+    if (q === 'light' || q === 'dark') t = q;
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous">
+<style>
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap; src: url(fonts/barlow-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url(fonts/barlow-latin-500-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url(fonts/barlow-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-weight: 600; font-display: swap; src: url(fonts/barlow-semi-condensed-latin-600-normal.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Semi Condensed"; font-weight: 700; font-display: swap; src: url(fonts/barlow-semi-condensed-latin-700-normal.woff2) format("woff2"); }
+
+/* ---------- Tokens: oscuro por defecto ---------- */
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0A1122;
+  --side: #0C1428;
+  --surface: #111A2E;
+  --surface-2: #17223B;
+  --surface-3: #1F2C4A;
+  --glass: rgba(14, 22, 42, .64);
+  --glass-line: rgba(170, 196, 245, .20);
+  --line: rgba(148, 176, 230, .14);
+  --line-strong: rgba(148, 176, 230, .26);
+  --ink: #EAF0FA;
+  --ink-2: #A9B6CF;
+  --ink-3: #8C9AB5;
+  --action: #2A64E0;
+  --action-hover: #3570E8;
+  --on-action: #FFFFFF;
+  --focus: #7FB2FF;
+  --good: #3DD68C;
+  --good-ink: #3DD68C;
+  --c-dist: #3B8BFF;
+  --c-elev: #9277F2;
+  --c-time: #1AA597;
+  --c-speed: #C9820B;
+  --route: #4FB4FF;
+  --route-core: #8FD3FF;
+  --s0: #5C6B8A; --s1: #F4D77E; --s2: #F2A44E; --s3: #EC7343; --s4: #E04A5E; --s5: #B0368C;
+  --d-easy-bg: rgba(61, 214, 140, .14);  --d-easy-ink: #7BE3AE;
+  --d-mid-bg: rgba(201, 130, 11, .20);   --d-mid-ink: #F2C46B;
+  --d-hard-bg: rgba(224, 74, 94, .18);   --d-hard-ink: #FF9AA6;
+  --sky-0: #050A18; --sky-1: #0A1430; --sky-2: #16245A; --sky-3: #3B3470; --sky-4: #A0586A;
+  --haze: #7F5FA8;
+  --ridge-far: #2A3874; --ridge-mid: #1A2656; --ridge-near: #0E1734; --ridge-base: #0B1328;
+  --ridge-line: #7FB2FF;
+  --contour: rgba(127, 178, 255, .10);
+  --glow: .55;
+  --thread: .75;
+  --shadow-card: 0 24px 48px -28px rgba(0, 0, 0, .75), inset 0 1px 0 rgba(255, 255, 255, .055);
+  --shadow-glass: 0 18px 40px -22px rgba(0, 0, 0, .85), inset 0 1px 0 rgba(255, 255, 255, .10);
+  --shadow-action: 0 10px 22px -12px rgba(0, 0, 0, .7);
+  --map-filter: invert(1) grayscale(1) sepia(1) hue-rotate(185deg) saturate(2.2) brightness(.74) contrast(1.08);
+  --map-bg: #0D1830;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #EEF2F8;
+  --side: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F4F7FB;
+  --surface-3: #E7EDF6;
+  --glass: rgba(255, 255, 255, .86);
+  --glass-line: rgba(255, 255, 255, .95);
+  --line: #D9E1EE;
+  --line-strong: #C3CEE0;
+  --ink: #0E1730;
+  --ink-2: #3E4C68;
+  --ink-3: #56657F;
+  --action: #1F5FD6;
+  --action-hover: #1A52BC;
+  --on-action: #FFFFFF;
+  --focus: #1F5FD6;
+  --good: #1DB76A;
+  --good-ink: #15803D;
+  --c-dist: #1F66E0;
+  --c-elev: #6E4BD8;
+  --c-time: #0B8C80;
+  --c-speed: #B86E00;
+  --route: #1F66E0;
+  --route-core: #1F66E0;
+  --s0: #A7B3C8; --s1: #D6A21F; --s2: #D9782A; --s3: #C2452B; --s4: #972530; --s5: #5A1634;
+  --d-easy-bg: rgba(21, 128, 61, .10);  --d-easy-ink: #116A31;
+  --d-mid-bg: rgba(184, 110, 0, .12);   --d-mid-ink: #8A4A00;
+  --d-hard-bg: rgba(194, 69, 43, .10);  --d-hard-ink: #A3222E;
+  --sky-0: #C9D9F2; --sky-1: #DCE6F7; --sky-2: #EEF1FA; --sky-3: #F8E6DA; --sky-4: #F6D2BF;
+  --haze: #F6C9B0;
+  --ridge-far: #C3D0E8; --ridge-mid: #ABBCDD; --ridge-near: #93A8D2; --ridge-base: #C9D5EC;
+  --ridge-line: #1F55C8;
+  --contour: rgba(31, 85, 200, .10);
+  --glow: 0;
+  --thread: 0;
+  --shadow-card: 0 1px 2px rgba(14, 23, 48, .06), 0 12px 32px -18px rgba(14, 23, 48, .22);
+  --shadow-glass: 0 1px 2px rgba(14, 23, 48, .08), 0 14px 30px -18px rgba(14, 23, 48, .30);
+  --shadow-action: 0 8px 18px -10px rgba(14, 23, 48, .35);
+  --map-filter: none;
+  --map-bg: #E6EEF7;
+}
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 400 15px/1.5 "Barlow", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+h1, h2, h3, p, ul, ol, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-family: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.ic { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ic-sm { width: 16px; height: 16px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 10px; }
+.press { transition: transform 160ms cubic-bezier(.23, 1, .32, 1), background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
+.press:active { transform: scale(.97); }
+
+/* ---------- Estructura ---------- */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100vh; background: linear-gradient(90deg, var(--side) 0 235px, var(--line) 235px 236px, transparent 236px); }
+.side {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 20px;
+  padding: 22px 14px 18px; background: var(--side); border-right: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 6px; }
+.brand-name { font: 700 22px/1 "Barlow Semi Condensed", sans-serif; letter-spacing: -.01em; }
+.logo { width: 28px; height: 35px; flex: none; }
+
+.nav-list { display: grid; gap: 4px; }
+.nav-link {
+  display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px;
+  border-radius: 12px; color: var(--ink-2); font-weight: 500;
+}
+.nav-link[aria-current="page"] { background: var(--action); color: var(--on-action); box-shadow: var(--shadow-action); }
+.nav-sep { height: 1px; background: var(--line); margin: 8px 10px; }
+.nav-more, .nav-short { display: none; }
+.nav-badge {
+  margin-left: auto; font: 600 12px/1 "Barlow", sans-serif; padding: 4px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--c-elev) 22%, transparent); color: var(--ink);
+}
+.nav-link[aria-current="page"] .nav-badge { background: rgba(255, 255, 255, .2); }
+
+.side-foot { margin-top: auto; display: grid; gap: 14px; }
+.import-card {
+  position: relative; overflow: hidden; padding: 16px; border-radius: 16px;
+  background: var(--surface-2); border: 1px solid var(--line);
+}
+.import-card p { font-size: 14px; color: var(--ink-2); }
+.import-card strong { display: block; font-weight: 600; color: var(--ink); font-size: 15px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px;
+  border-radius: 12px; font-weight: 600; font-size: 15px; white-space: nowrap;
+}
+.btn-primary { background: var(--action); color: var(--on-action); box-shadow: var(--shadow-action); }
+.btn-ghost { border: 1px solid var(--line-strong); color: var(--ink); background: transparent; }
+.import-card .btn { margin-top: 12px; width: 100%; }
+
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 9px; color: var(--ink-2); font-weight: 500; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--action); color: var(--on-action); }
+.version { font-size: 12px; color: var(--ink-3); padding-left: 10px; }
+
+.main { min-width: 0; padding: 20px 24px 40px; max-width: 1440px; width: 100%; }
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative; overflow: hidden; border-radius: 22px; isolation: isolate;
+  border: 1px solid var(--line); box-shadow: var(--shadow-card); background: var(--sky-1);
+}
+.land { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.land svg { display: block; width: 100%; height: 100%; }
+.hero-in { display: flex; flex-direction: column; min-height: 404px; padding: 34px 32px 20px; }
+.hero-head { position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 10px; }
+.hero-brand { display: none; }
+.search {
+  display: flex; align-items: center; gap: 10px; height: 44px; width: 280px; padding: 0 16px;
+  border-radius: 999px; background: var(--glass); border: 1px solid var(--glass-line);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); color: var(--ink-2);
+}
+.search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; }
+.search input::placeholder { color: var(--ink-2); }
+.search input:focus { outline: none; }
+.search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.round {
+  position: relative; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--glass-line); color: var(--ink);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.round .dot {
+  position: absolute; top: 6px; right: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--action); color: var(--on-action); font: 600 12px/18px "Barlow", sans-serif; text-align: center;
+  box-shadow: 0 0 0 2px var(--sky-1);
+}
+.avatar { width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; background: var(--action); color: var(--on-action); font: 700 19px/1 "Barlow Semi Condensed", sans-serif; box-shadow: 0 0 0 2px var(--glass-line); }
+.search-btn { display: none; }
+
+.hello { font: 700 clamp(34px, 5vw, 58px)/1 "Barlow Semi Condensed", sans-serif; letter-spacing: -.02em; color: var(--ink); }
+.lede { margin-top: 12px; font-size: 18px; line-height: 1.4; color: var(--ink-2); max-width: 34ch; }
+.lede b { color: var(--ink); font-weight: 600; }
+
+.kpis { margin-top: auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-top: 84px; }
+.kpi {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 16px 16px 0; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2); backdrop-filter: blur(12px) saturate(1.2);
+}
+.lab-short { display: none; }
+.kpi-top { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-size: 14px; font-weight: 500; }
+.kpi-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--acc) 18%, transparent); color: var(--acc); }
+.kpi-val { margin-top: 10px; font: 700 32px/1 "Barlow Semi Condensed", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.kpi-val small { font-size: 17px; font-weight: 600; color: var(--ink-2); margin-left: 3px; letter-spacing: 0; }
+.delta { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: 13.5px; font-weight: 600; color: var(--good-ink); }
+.delta.down { color: var(--ink-2); }
+.delta .ic { width: 15px; height: 15px; stroke-width: 2.4; }
+.delta span.vs { font-weight: 500; color: var(--ink-2); }
+.spark { height: 46px; margin: 8px -16px 0; }
+.spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+/* ---------- Rejilla de tarjetas ---------- */
+.grid {
+  display: grid; gap: 12px; margin-top: 12px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "prog prog prog prog prog prog prog prog goal goal goal goal"
+    "last last last last last last last perf perf perf perf perf"
+    "routes routes routes routes routes routes routes routes next next next next";
+}
+.a-prog { grid-area: prog; } .a-goal { grid-area: goal; } .a-next { grid-area: next; }
+.a-last { grid-area: last; } .a-perf { grid-area: perf; } .a-routes { grid-area: routes; } .grid > .a-cta { grid-area: cta; display: none; }
+
+.card {
+  min-width: 0; position: relative; padding: 20px; border-radius: 22px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow-card);
+}
+.card-head { display: flex; align-items: center; gap: 10px; min-height: 36px; flex-wrap: wrap; }
+.card-title { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; line-height: 1.2; }
+.card-title .ic { color: var(--action-hover); }
+:root[data-theme="light"] .card-title .ic { color: var(--action); }
+.card-head .spacer { flex: 1; }
+.card-head .link { margin-left: auto; }
+.link { display: inline-flex; align-items: center; gap: 2px; min-height: 36px; padding: 0 6px 0 10px; border-radius: 10px; color: var(--focus); font-weight: 600; font-size: 14px; }
+:root[data-theme="light"] .link { color: var(--action); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip-soft { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.diff-easy { background: var(--d-easy-bg); color: var(--d-easy-ink); }
+.diff-mid { background: var(--d-mid-bg); color: var(--d-mid-ink); }
+.diff-hard { background: var(--d-hard-bg); color: var(--d-hard-ink); }
+.bars { width: 14px; height: 12px; }
+.bars rect { fill: currentColor; }
+.bars rect.off { opacity: .3; }
+
+/* Progresión */
+.prog-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink-2); font-weight: 500; font-size: 14px; background: transparent;
+}
+.pill .sw { width: 9px; height: 9px; border-radius: 999px; background: var(--acc); }
+.pill[aria-pressed="true"] { color: var(--ink); border-color: color-mix(in srgb, var(--acc) 70%, transparent); background: color-mix(in srgb, var(--acc) 16%, transparent); }
+.range { background: var(--surface-2); }
+.range button { min-height: 32px; font-size: 13.5px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend svg { width: 22px; height: 8px; }
+.chart { height: 262px; margin: 4px -6px 0; }
+details.table { margin-top: 6px; font-size: 14px; color: var(--ink-2); }
+details.table summary { cursor: pointer; display: inline-flex; min-height: 32px; align-items: center; border-radius: 8px; padding: 0 4px; }
+.table-wrap { overflow-x: auto; margin-top: 6px; }
+details.table table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+details.table th, details.table td { padding: 4px 12px 4px 0; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+
+/* Objetivo */
+.goal { display: flex; flex-direction: column; }
+.goal .ring-wrap { margin-top: auto; }
+.ring-wrap { position: relative; width: 196px; height: 196px; margin: 14px auto 0; }
+.ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.ring-track { stroke: var(--surface-3); }
+.ring-halo { stroke: var(--good); opacity: calc(var(--glow) * .5); filter: blur(5px); }
+.ring-arc { stroke: var(--good); }
+.ring-notch { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.ring-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ring-pct { font: 700 44px/1 "Barlow Semi Condensed", sans-serif; font-variant-numeric: tabular-nums; }
+.ring-pct small { font-size: 22px; color: var(--ink-2); }
+.ring-sub { margin-top: 4px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.goal-name { margin-top: 16px; text-align: center; font-weight: 600; font-size: 16px; }
+.goal-meta { margin: 18px auto auto; padding-top: 0; display: grid; gap: 6px; font-size: 14px; color: var(--ink-2); }
+.goal-meta p { display: flex; align-items: center; gap: 8px; }
+.notch-key { width: 16px; height: 16px; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.goal-meta .ahead { color: var(--good-ink); font-weight: 600; }
+.icon-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--ink-2); }
+
+/* Próximas salidas */
+.next { container-type: inline-size; }
+.nx-list { margin-top: 10px; display: grid; }
+.nx {
+  display: grid; grid-template-columns: 46px 64px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 12px 8px; margin: 0 -8px; border-radius: 14px;
+}
+.nx + .nx { border-top: 1px solid var(--line); border-top-left-radius: 0; border-top-right-radius: 0; }
+.nx-date { text-align: center; line-height: 1.05; }
+.nx-date .dw { font-size: 13px; color: var(--ink-2); }
+.nx-date .dn { display: block; font: 700 28px/1 "Barlow Semi Condensed", sans-serif; font-variant-numeric: tabular-nums; margin: 2px 0; }
+.nx-date .dm { font-size: 13px; color: var(--ink-2); }
+.nx-thumb { width: 64px; height: 64px; border-radius: 16px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--ink-3); }
+.nx-thumb svg { width: 100%; height: 100%; }
+.nx-thumb .ic { width: 24px; height: 24px; }
+.nx-title { font-weight: 600; font-size: 15.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.meta { display: flex; align-items: center; gap: 12px; margin-top: 3px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.meta span { display: inline-flex; align-items: center; gap: 5px; }
+.meta .ic { width: 15px; height: 15px; color: var(--ink-3); }
+.nx .chip { margin-top: 7px; }
+.nx-go { color: var(--ink-3); }
+@container (max-width: 330px) { .nx { grid-template-columns: 46px minmax(0, 1fr) auto; } .nx-thumb { display: none; } }
+
+/* Última salida */
+.last-body { margin-top: 12px; position: relative; }
+.map-box { position: relative; height: 296px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--map-bg); isolation: isolate; }
+#map { position: absolute; inset: 0; background: var(--map-bg); }
+.leaflet-container { font-family: "Barlow", system-ui, sans-serif; }
+.leaflet-tile-pane { filter: var(--map-filter); }
+.rt-halo { stroke: var(--route); stroke-opacity: calc(.12 + var(--glow) * .45); stroke-width: 13px; }
+.rt-case { stroke: #FFFFFF; stroke-opacity: calc(1 - var(--glow) * 1.8); stroke-width: 7px; }
+.rt-core { stroke: var(--route); stroke-width: 3.5px; }
+.rt-thread { stroke: #FFFFFF; stroke-opacity: var(--thread); stroke-width: 1.2px; }
+.leaflet-overlay-pane svg { filter: drop-shadow(0 0 calc(var(--glow) * 10px) color-mix(in srgb, var(--route) 70%, transparent)); }
+.rt-start { fill: var(--good); stroke: #FFFFFF; stroke-width: 2.5px; }
+.leaflet-control-attribution { font-size: 12px !important; background: color-mix(in srgb, var(--surface) 82%, transparent) !important; color: var(--ink-2) !important; border-top-left-radius: 8px; }
+.leaflet-control-attribution a { color: var(--ink) !important; }
+.leaflet-bar { border: 1px solid var(--glass-line) !important; border-radius: 12px !important; overflow: hidden; box-shadow: var(--shadow-glass) !important; }
+.leaflet-bar a { width: 36px !important; height: 36px !important; line-height: 34px !important; background: var(--glass) !important; color: var(--ink) !important; border-bottom-color: var(--line) !important; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font: 500 20px/34px "Barlow", sans-serif !important; }
+.map-full { position: absolute; top: 12px; right: 12px; z-index: 500; width: 40px; height: 40px; border-radius: 12px; }
+.plate {
+  position: absolute; z-index: 600; top: 12px; left: 12px; width: 212px; padding: 14px 16px; border-radius: 16px;
+  background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.plate-name { font-weight: 600; font-size: 16px; line-height: 1.25; }
+.plate-when { font-size: 13px; color: var(--ink-2); }
+.plate-stats { display: grid; gap: 7px; margin-top: 12px; }
+.plate-stats li { display: flex; align-items: center; gap: 10px; font: 600 19px/1 "Barlow Semi Condensed", sans-serif; font-variant-numeric: tabular-nums; }
+.plate-stats li small { font-family: "Barlow", sans-serif; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.plate-stats .ic { width: 18px; height: 18px; color: var(--ink-2); }
+.plate .chip { margin-top: 12px; }
+.profile { margin-top: 10px; height: 92px; position: relative; }
+.profile svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.axis-t { font: 500 12px "Barlow", sans-serif; fill: var(--ink-3); }
+.axis-v { font: 600 12.5px "Barlow", sans-serif; fill: var(--ink-2); }
+
+/* Rendimiento */
+.a-perf { display: flex; flex-direction: column; }
+.perf-grid { flex: 1; margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 1fr; }
+.perf-cell { display: flex; flex-direction: column; justify-content: center; }
+.perf-cell { padding: 14px 4px 14px 0; border-top: 1px solid var(--line); }
+.perf-cell:nth-child(odd) { padding-right: 16px; }
+.perf-cell:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--line); }
+.perf-cell:nth-child(-n+2) { border-top: 0; }
+.perf-lab { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); }
+.perf-lab .ic { color: var(--acc); width: 18px; height: 18px; }
+.perf-val { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; }
+.perf-val .num { font-size: 27px; font-weight: 700; line-height: 1; }
+.perf-val .num small { font-size: 15px; font-weight: 600; color: var(--ink-2); margin-left: 2px; }
+.perf-val .delta { margin: 0; font-size: 13px; }
+.perf-note { font-size: 13px; color: var(--ink-3); margin-top: 4px; }
+
+/* Rutas recomendadas */
+.route { margin-top: 12px; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; }
+.route-map { position: relative; height: 212px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); }
+.route-map svg { display: block; width: 100%; height: 100%; }
+.route-map .chip { position: absolute; top: 12px; left: 12px; background: var(--glass); border: 1px solid var(--glass-line); color: var(--ink); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.route-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font: 700 23px/1.15 "Barlow Semi Condensed", sans-serif; }
+.route .meta { margin-top: 8px; font-size: 14.5px; gap: 6px 14px; }
+.route-why { margin-top: 10px; color: var(--ink-2); font-size: 15px; max-width: 58ch; }
+.route-why b { color: var(--ink); font-weight: 600; }
+.route-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.slope { margin-top: 16px; }
+.slope-fig { height: 78px; }
+.slope-fig svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.slope-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.slope-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.slope-legend i { width: 14px; height: 8px; border-radius: 3px; background: var(--c); display: inline-block; }
+
+/* CTA móvil */
+.cta {
+  display: flex; align-items: center; gap: 14px; padding: 18px 18px; border-radius: 22px;
+  background: var(--action); color: var(--on-action); box-shadow: var(--shadow-action);
+}
+.cta .ic-box { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: rgba(255, 255, 255, .16); }
+.cta b { display: block; font-size: 17px; }
+.cta-txt small { display: block; font-size: 14px; opacity: .92; }
+.cta .go { margin-left: auto; }
+
+/* Hoja «Más» */
+dialog.sheet {
+  position: fixed; inset: auto 0 0 0; margin: 0; width: 100%; max-width: 100%; max-height: 80vh; border: 0; padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0; background: var(--surface); color: var(--ink); border-top: 1px solid var(--line-strong);
+  transform: translateY(0); transition: transform 360ms cubic-bezier(.32, .72, 0, 1), display 360ms allow-discrete, overlay 360ms allow-discrete;
+}
+dialog.sheet:not([open]) { transform: translateY(100%); }
+@starting-style { dialog.sheet[open] { transform: translateY(100%); } }
+dialog.sheet::backdrop { background: rgba(4, 8, 20, .55); }
+.grab { width: 40px; height: 5px; border-radius: 999px; background: var(--line-strong); margin: 0 auto 12px; }
+.sheet h2 { font-size: 17px; font-weight: 600; margin: 0 4px 8px; }
+.sheet-list a { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 8px; border-radius: 12px; color: var(--ink); font-weight: 500; }
+.sheet .seg { margin-top: 12px; }
+
+/* ---------- Hover y foco (solo puntero fino) ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .nav-link:not([aria-current="page"]):hover { background: var(--surface-2); color: var(--ink); }
+  .btn-primary:hover, .cta:hover { background: var(--action-hover); }
+  .btn-ghost:hover { background: var(--surface-2); border-color: var(--focus); }
+  .seg button:not([aria-pressed="true"]):hover { color: var(--ink); background: var(--surface-3); }
+  .pill:not([aria-pressed="true"]):hover { color: var(--ink); border-color: var(--line-strong); background: var(--surface-2); }
+  .link:hover { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+  .round:hover, .icon-btn:hover { background: var(--surface-3); color: var(--ink); }
+  .nx:hover { background: var(--surface-2); }
+  .nx:hover .nx-go { color: var(--ink); }
+  .sheet-list a:hover { background: var(--surface-2); }
+  details.table summary:hover { color: var(--ink); }
+}
+
+/* ---------- Tableta y móvil: barra inferior ---------- */
+@media (max-width: 1079px) {
+  .app { grid-template-columns: minmax(0, 1fr); background: none; }
+  .side {
+    position: fixed; z-index: 1000; inset: auto 0 0 0; height: auto; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    flex-direction: row; gap: 0; border-right: 0; border-top: 1px solid var(--glass-line);
+    background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
+  }
+  .side > .brand, .side-foot, .nav-sep { display: none; }
+  .side nav { width: 100%; }
+  .nav-list { grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; }
+  .nav-list > li:not(.tab) { display: none; }
+  .nav-list > li.nav-more { display: block; }
+  .nav-link { flex-direction: column; justify-content: center; gap: 3px; min-height: 52px; padding: 4px 2px; font-size: 12.5px; font-weight: 600; border-radius: 12px; width: 100%; }
+  .nav-link .nav-long, .nav-link .nav-badge { display: none; }
+  .nav-link .nav-short { display: inline; }
+  .nav-link[aria-current="page"] { background: transparent; color: var(--focus); box-shadow: none; }
+  :root[data-theme="light"] .nav-link[aria-current="page"] { color: var(--action); }
+  .nav-link[aria-current="page"] .ic { filter: drop-shadow(0 0 calc(var(--glow) * 10px) var(--action)); }
+  .main { padding: 12px 16px calc(96px + env(safe-area-inset-bottom)); }
+  .hero-head { position: static; justify-content: flex-end; }
+  .hero-brand { display: flex; align-items: center; gap: 8px; margin-right: auto; padding: 0; }
+  .greet { margin-top: 22px; }
+  .lab-long { display: none; } .lab-short { display: inline; }
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "prog prog" "goal next" "last last" "perf perf" "routes routes" "cta cta";
+  }
+  .grid > .a-cta { display: flex; }
+}
+@media (max-width: 720px) {
+  .hero-in { min-height: 0; padding: 14px 16px 16px; }
+  .hero-brand .brand-name { font-size: 20px; }
+  .hero-brand .logo { width: 24px; height: 30px; }
+  .search { display: none; }
+  .search-btn { display: grid; }
+  .hero-head .avatar { display: none; }
+  .hello { font-size: 38px; }
+  .lede { font-size: 16px; margin-top: 8px; max-width: 30ch; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-top: 92px; }
+  .kpi { padding: 14px 14px 0; }
+  .kpi-top { font-size: 13.5px; gap: 8px; }
+  .kpi-ic { width: 30px; height: 30px; border-radius: 9px; }
+  .kpi-ic .ic { width: 18px; height: 18px; }
+  .kpi-val { font-size: 26px; margin-top: 10px; }
+  .kpi-val small { font-size: 15px; }
+  .delta span.vs { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .spark { height: 38px; margin: 6px -14px 0; }
+  .card { padding: 16px; border-radius: 20px; }
+  .prog-tools { gap: 10px; }
+  .pills { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; width: 100%; }
+  .pill { justify-content: center; padding: 0 4px; font-size: 13.5px; gap: 5px; }
+  .pill .sw { width: 7px; height: 7px; }
+  .legend { gap: 6px 12px; font-size: 12.5px; }
+  .range { width: 100%; }
+  .chart { height: 220px; }
+  .map-box { height: 220px; }
+  .plate { position: static; width: auto; margin-top: 10px; padding: 0; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .plate-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  .plate-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .plate .chip { margin-top: 0; }
+  .route { grid-template-columns: 96px minmax(0, 1fr); gap: 14px; }
+  .route-map { height: 96px; }
+  .route-map .chip { display: none; }
+  .route-title { font-size: 20px; }
+  .route-why, .route-actions, .route-meta { grid-column: 1 / -1; }
+  .route .route-meta { margin-top: 0; }
+  .route-head { align-self: center; }
+  .route-info { display: contents; }
+  .route-head { grid-column: 2; }
+  .slope { grid-column: 1 / -1; margin-top: 4px; }
+  .route-actions .btn { flex: 1; }
+  .perf-val .num { font-size: 24px; }
+}
+@media (max-width: 399px) {
+  .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "prog" "goal" "next" "last" "perf" "routes" "cta"; }
+}
+@media (min-width: 721px) { .plate-head { display: block; } }
+
+/* ---------- Movimiento: un solo momento al cargar ---------- */
+.draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 900ms cubic-bezier(.23, 1, .32, 1) 120ms forwards; }
+.after-draw { opacity: 0; animation: fade 260ms ease-out 980ms forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fade { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+  .after-draw { animation: fade 200ms ease-out forwards; }
+  .press, .press:active { transition: none; transform: none; }
+  dialog.sheet { transition: opacity 200ms ease; transform: none; }
+  dialog.sheet:not([open]) { opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Iconos lucide en línea (en la app: lucide-react por icono) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></symbol>
+  <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><path d="M10 2h4"/><path d="m12 14 3-3"/><circle cx="12" cy="14" r="8"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></symbol>
+  <symbol id="i-ruler" viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-climb" viewBox="0 0 24 24"><path d="M3 20h18"/><path d="m3 20 6-9 4 4 8-10"/><path d="M17 5h4v4"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side" aria-label="Navegación">
+    <a class="brand" href="#inicio" aria-label="FBikeTrain, inicio">
+      <svg class="logo" viewBox="0 0 32 40" aria-hidden="true"><defs><clipPath id="hito"><path d="M3 15a13 13 0 0 1 26 0v22a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/></clipPath></defs><g clip-path="url(#hito)"><rect width="32" height="40" fill="#F3F6FC"/><rect width="32" height="15" fill="var(--action)"/></g><text x="16" y="34.5" text-anchor="middle" font-family="Barlow Semi Condensed" font-weight="700" font-size="18" fill="#0E1730">F</text></svg>
+      <span class="brand-name">FBikeTrain</span>
+    </a>
+    <nav aria-label="Menú principal">
+      <ul class="nav-list">
+        <li class="tab"><a class="nav-link press" href="#inicio" aria-current="page"><svg class="ic"><use href="#i-house"/></svg><span class="nav-long">Inicio</span><span class="nav-short">Inicio</span></a></li>
+        <li class="tab"><a class="nav-link press" href="#historial"><svg class="ic"><use href="#i-chart"/></svg><span class="nav-long">Historial</span><span class="nav-short">Historial</span></a></li>
+        <li><a class="nav-link press" href="#subidas"><svg class="ic"><use href="#i-climb"/></svg><span class="nav-long">Subidas</span></a></li>
+        <li><a class="nav-link press" href="#calendario"><svg class="ic"><use href="#i-calendar"/></svg><span class="nav-long">Calendario</span></a></li>
+        <li class="tab"><a class="nav-link press" href="#rutas"><svg class="ic"><use href="#i-route"/></svg><span class="nav-long">Rutas</span><span class="nav-short">Rutas</span></a></li>
+        <li class="tab"><a class="nav-link press" href="#rutas-ia"><svg class="ic"><use href="#i-sparkles"/></svg><span class="nav-long">Rutas con IA</span><span class="nav-short">IA</span></a></li>
+        <li aria-hidden="true"><div class="nav-sep"></div></li>
+        <li><a class="nav-link press" href="#importar"><svg class="ic"><use href="#i-upload"/></svg><span class="nav-long">Importar</span></a></li>
+        <li><a class="nav-link press" href="#ajustes"><svg class="ic"><use href="#i-settings"/></svg><span class="nav-long">Ajustes</span></a></li>
+        <li class="nav-more"><button class="nav-link press" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="more" id="more-btn"><svg class="ic"><use href="#i-more"/></svg><span class="nav-short">Más</span></button></li>
+      </ul>
+    </nav>
+    <div class="side-foot">
+      <div class="import-card">
+        <p><strong>Última importación</strong>hace 3 días, 8 salidas nuevas</p>
+        <a class="btn btn-primary press" href="#importar"><svg class="ic ic-sm"><use href="#i-upload"/></svg>Importar</a>
+      </div>
+      <div class="seg theme-seg" role="group" aria-label="Tema">
+        <button type="button" class="press" data-theme-set="dark" aria-pressed="true"><svg class="ic ic-sm"><use href="#i-moon"/></svg>Oscuro</button>
+        <button type="button" class="press" data-theme-set="light" aria-pressed="false"><svg class="ic ic-sm"><use href="#i-sun"/></svg>Claro</button>
+      </div>
+      <p class="version">FBikeTrain 0.5.0</p>
+    </div>
+  </aside>
+
+  <main class="main" id="inicio">
+    <h1 class="sr-only">Inicio</h1>
+
+    <section class="hero" aria-labelledby="hello">
+      <div class="land" id="land" aria-hidden="true"></div>
+      <div class="hero-in">
+        <div class="hero-head">
+          <a class="hero-brand brand" href="#inicio" aria-label="FBikeTrain, inicio">
+            <svg class="logo" viewBox="0 0 32 40" aria-hidden="true"><g clip-path="url(#hito)"><rect width="32" height="40" fill="#F3F6FC"/><rect width="32" height="15" fill="var(--action)"/></g><text x="16" y="34.5" text-anchor="middle" font-family="Barlow Semi Condensed" font-weight="700" font-size="18" fill="#0E1730">F</text></svg>
+            <span class="brand-name">FBikeTrain</span>
+          </a>
+          <label class="search"><svg class="ic"><use href="#i-search"/></svg><span class="sr-only">Buscar salidas y rutas</span><input type="search" placeholder="Buscar salidas y rutas" autocomplete="off"></label>
+          <button class="round search-btn press" type="button" aria-label="Buscar salidas y rutas"><svg class="ic"><use href="#i-search"/></svg></button>
+          <button class="round press" type="button" aria-label="Avisos, 2 nuevos"><svg class="ic"><use href="#i-bell"/></svg><span class="dot" aria-hidden="true">2</span></button>
+          <a class="avatar press" href="#ajustes" aria-label="Ajustes de Fran">F</a>
+        </div>
+        <div class="greet">
+          <p class="hello" id="hello">Hola, Fran</p>
+          <p class="lede">Esta semana llevas <b>3 salidas</b> y vas por encima de tu media en distancia y desnivel.</p>
+        </div>
+        <h2 class="sr-only">Tu semana frente a tu media de 8 semanas</h2>
+        <ul class="kpis" id="kpis"></ul>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Tu progresión -->
+      <section class="card a-prog" aria-labelledby="t-prog">
+        <div class="card-head">
+          <h2 class="card-title" id="t-prog"><svg class="ic"><use href="#i-trend"/></svg>Tu progresión</h2>
+          <span class="spacer"></span>
+          <div class="seg range" role="group" aria-label="Periodo" id="range">
+            <button type="button" class="press" data-range="12m" aria-pressed="true">12 meses</button>
+            <button type="button" class="press" data-range="6m" aria-pressed="false">6 meses</button>
+            <button type="button" class="press" data-range="3m" aria-pressed="false">3 meses</button>
+            <button type="button" class="press" data-range="30d" aria-pressed="false">30 días</button>
+          </div>
+        </div>
+        <div class="prog-tools">
+          <div class="pills" role="group" aria-label="Métrica" id="metrics"></div>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="chart" id="chart" role="img"></div>
+        <details class="table"><summary>Ver como tabla</summary><div class="table-wrap" id="table"></div></details>
+      </section>
+
+      <!-- Tu objetivo -->
+      <section class="card a-goal goal" aria-labelledby="t-goal">
+        <div class="card-head">
+          <h2 class="card-title" id="t-goal"><svg class="ic"><use href="#i-flag"/></svg>Tu objetivo</h2>
+          <span class="spacer"></span>
+          <button class="icon-btn press" type="button" aria-label="Editar objetivo"><svg class="ic ic-sm"><use href="#i-pencil"/></svg></button>
+        </div>
+        <div class="ring-wrap" role="img" aria-label="Objetivo de noviembre: 214 de 600 km, 36 %. A estas alturas tocaba el 20 %.">
+          <svg viewBox="0 0 196 196" id="ring" aria-hidden="true"></svg>
+          <div class="ring-center" aria-hidden="true">
+            <p class="ring-pct">36<small> %</small></p>
+            <p class="ring-sub">214 / 600 km</p>
+          </div>
+        </div>
+        <p class="goal-name">600 km en noviembre</p>
+        <div class="goal-meta">
+          <p class="ahead"><svg class="ic ic-sm"><use href="#i-trend"/></svg>Vas 16 puntos por delante del ritmo</p>
+          <p><svg class="notch-key" viewBox="0 0 16 16" aria-hidden="true"><line x1="8" y1="2" x2="8" y2="14"/></svg>La marca es el ritmo de hoy: 20 %</p>
+          <p><svg class="ic ic-sm"><use href="#i-calendar"/></svg>Quedan 24 días</p>
+        </div>
+      </section>
+
+      <!-- Próximas salidas -->
+      <section class="card a-next next" aria-labelledby="t-next">
+        <div class="card-head">
+          <h2 class="card-title" id="t-next"><svg class="ic"><use href="#i-calendar"/></svg>Próximas salidas</h2>
+          <span class="spacer"></span>
+          <a class="link" href="#calendario">Calendario<svg class="ic ic-sm"><use href="#i-chev"/></svg></a>
+        </div>
+        <ul class="nx-list" id="next"></ul>
+      </section>
+
+      <!-- Tu última salida -->
+      <section class="card a-last" aria-labelledby="t-last">
+        <div class="card-head">
+          <h2 class="card-title" id="t-last"><svg class="ic"><use href="#i-pin"/></svg>Tu última salida</h2>
+          <span class="spacer"></span>
+          <a class="link" href="#historial/ultima">Ver detalle<svg class="ic ic-sm"><use href="#i-chev"/></svg></a>
+        </div>
+        <div class="last-body">
+          <div class="map-box">
+            <div id="map" role="img" aria-label="Mapa del recorrido de la vuelta de costa, 87,6 km en circuito"></div>
+            <button class="round map-full press" type="button" aria-label="Ver el mapa a pantalla completa"><svg class="ic ic-sm"><use href="#i-max"/></svg></button>
+          </div>
+            <div class="plate">
+              <div class="plate-head">
+                <div><p class="plate-name">Vuelta de costa</p><p class="plate-when">jueves 5 de noviembre</p></div>
+                <span class="chip diff-mid"><svg class="bars" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="7" width="3.5" height="5" rx="1"/><rect x="5.25" y="3.5" width="3.5" height="8.5" rx="1"/><rect class="off" x="10.5" y="0" width="3.5" height="12" rx="1"/></svg>Media para ti</span>
+              </div>
+              <ul class="plate-stats">
+                <li><svg class="ic"><use href="#i-bike"/></svg>87,6 <small>km</small></li>
+                <li><svg class="ic"><use href="#i-mountain"/></svg>1.240 <small>m</small></li>
+                <li><svg class="ic"><use href="#i-timer"/></svg>3 h 18 <small>min</small></li>
+                <li><svg class="ic"><use href="#i-gauge"/></svg>26,5 <small>km/h</small></li>
+              </ul>
+            </div>
+          <figure class="profile" id="profile" role="img"></figure>
+        </div>
+      </section>
+
+      <!-- Tu rendimiento -->
+      <section class="card a-perf" aria-labelledby="t-perf">
+        <div class="card-head">
+          <h2 class="card-title" id="t-perf"><svg class="ic"><use href="#i-zap"/></svg>Tu rendimiento</h2>
+          <span class="spacer"></span>
+          <span class="chip chip-soft">Últimos 30 días</span>
+        </div>
+        <div class="perf-grid" id="perf"></div>
+      </section>
+
+      <!-- Rutas recomendadas por IA -->
+      <section class="card a-routes" aria-labelledby="t-routes">
+        <div class="card-head">
+          <h2 class="card-title" id="t-routes"><svg class="ic"><use href="#i-sparkles"/></svg>Rutas recomendadas por IA</h2>
+          <span class="spacer"></span>
+          <a class="link" href="#rutas-ia">Ver las 5<svg class="ic ic-sm"><use href="#i-chev"/></svg></a>
+        </div>
+        <article class="route" aria-labelledby="r1-title">
+          <div class="route-map" id="r1-shape"><span class="chip">La mejor de 5</span></div>
+          <div class="route-info">
+            <div class="route-head">
+              <h3 class="route-title" id="r1-title">Puerto y vuelta por el interior <span class="chip diff-hard"><svg class="bars" viewBox="0 0 14 12" aria-hidden="true"><rect x="0" y="7" width="3.5" height="5" rx="1"/><rect x="5.25" y="3.5" width="3.5" height="8.5" rx="1"/><rect x="10.5" y="0" width="3.5" height="12" rx="1"/></svg>Dura</span></h3>
+            </div>
+            <p class="meta route-meta"><span><svg class="ic"><use href="#i-bike"/></svg>96 km</span><span><svg class="ic"><use href="#i-mountain"/></svg>1.820 m</span><span><svg class="ic"><use href="#i-clock"/></svg>3 h 40 min</span><span><svg class="ic"><use href="#i-route"/></svg>74 % carretera nueva</span></p>
+            <p class="route-why">Sube un <b>47 % más</b> que tu salida media y su puerto, de <b>6,8 km al 7 %</b>, es 2 puntos más duro que el de tu mejor subida.</p>
+            <div class="slope">
+              <div class="slope-fig" id="r1-slope" role="img" aria-label="Perfil por pendiente: 96 km, dos subidas; la principal entre los kilómetros 38 y 45, con tramos del 7 al 10 % y uno de más del 10 %."></div>
+              <p class="slope-legend" id="slope-legend"></p>
+            </div>
+            <div class="route-actions">
+              <a class="btn btn-primary press" href="#rutas-ia/1">Ver ruta</a>
+              <a class="btn btn-ghost press" href="#gpx"><svg class="ic ic-sm"><use href="#i-download"/></svg>Descargar GPX</a>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <a class="a-cta cta press" href="#rutas-ia">
+        <span class="ic-box"><svg class="ic"><use href="#i-sparkles"/></svg></span>
+        <span class="cta-txt"><b>¿Nueva ruta?</b><small>Pide una ruta para progresar</small></span>
+        <svg class="ic go"><use href="#i-chev"/></svg>
+      </a>
+    </div>
+  </main>
+</div>
+
+<dialog class="sheet" id="more" aria-labelledby="more-t">
+  <div class="grab" aria-hidden="true"></div>
+  <h2 id="more-t">Más</h2>
+  <ul class="sheet-list">
+    <li><a href="#subidas"><svg class="ic"><use href="#i-climb"/></svg>Subidas</a></li>
+    <li><a href="#calendario"><svg class="ic"><use href="#i-calendar"/></svg>Calendario</a></li>
+    <li><a href="#importar"><svg class="ic"><use href="#i-upload"/></svg>Importar</a></li>
+    <li><a href="#ajustes"><svg class="ic"><use href="#i-settings"/></svg>Ajustes</a></li>
+  </ul>
+  <div class="seg theme-seg" role="group" aria-label="Tema">
+    <button type="button" class="press" data-theme-set="dark" aria-pressed="true"><svg class="ic ic-sm"><use href="#i-moon"/></svg>Oscuro</button>
+    <button type="button" class="press" data-theme-set="light" aria-pressed="false"><svg class="ic ic-sm"><use href="#i-sun"/></svg>Claro</button>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js" integrity="sha384-pPi0zxBAoDu6+JXW/C68UZLvBUUtU+7zonhif43rqj7pxsGyqyqzcian2Rj37Rss" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
+<script>
+(function () {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const $ = (s, r = document) => r.querySelector(s);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tok = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const theme = () => document.documentElement.getAttribute('data-theme');
+
+/* ---------- Formato es-ES (agrupa también los miles de 4 cifras) ---------- */
+const fInt = n => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const fDec = (n, d = 1) => n.toFixed(d).replace('.', ',');
+const fH = h => { let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return H + ' h ' + String(M).padStart(2, '0') + ' min'; };
+const MINUS = '−';
+
+/* ---------- Azar con semilla ---------- */
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------- Datos sintéticos ---------- */
+const MONTHS = ['Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov'];
+const MONTHLY = {
+  dist: [298, 342, 410, 486, 562, 640, 712, 538, 604, 566, 482, 214],
+  elev: [3180, 3920, 4710, 5880, 7140, 8320, 9460, 6420, 7610, 6980, 5790, 2340],
+  time: [11.9, 13.5, 16.0, 18.7, 21.2, 23.6, 26.0, 20.0, 22.2, 21.1, 18.2, 8.1],
+  speed: [25.0, 25.3, 25.6, 26.0, 26.5, 27.1, 27.4, 26.9, 27.2, 26.8, 26.5, 26.3],
+};
+const WEEKS = ['10 ago', '17 ago', '24 ago', '31 ago', '7 sep', '14 sep', '21 sep', '28 sep', '5 oct', '12 oct', '19 oct', '26 oct', '2 nov'];
+const WEEKLY = {
+  dist: [142, 168, 121, 188, 176, 155, 132, 190, 164, 148, 171, 159, 186],
+  elev: [1680, 2050, 1390, 2410, 2160, 1880, 1520, 2390, 2040, 1720, 2010, 1930, 2340],
+  time: [5.4, 6.4, 4.6, 7.1, 6.6, 5.9, 5.0, 7.2, 6.2, 5.6, 6.5, 6.0, 7.08],
+  speed: [26.3, 26.2, 26.3, 26.5, 26.7, 26.3, 26.4, 26.4, 26.5, 26.4, 26.3, 26.5, 26.3],
+};
+// 30 días: una barra por día con salida (8 oct a 6 nov)
+const DAYS = []; const DAILY = { dist: [], elev: [], time: [], speed: [] };
+(function () {
+  const rides = { 2: 62, 4: 48, 7: 94, 10: 55, 12: 71, 14: 102, 17: 58, 20: 66, 21: 88, 24: 52, 26: 61, 28: 46, 29: 87.6 };
+  const mNames = ['oct', 'nov'];
+  for (let i = 0; i < 30; i++) {
+    const day = i < 24 ? 8 + i : i - 23; const m = i < 24 ? 0 : 1;
+    DAYS.push(day + ' ' + mNames[m]);
+    const km = rides[i] || 0;
+    DAILY.dist.push(km);
+    DAILY.elev.push(km ? Math.round(km * (9 + (i % 5) * 1.6)) : 0);
+    DAILY.time.push(km ? km / (25.6 + (i % 3) * .5) : 0);
+    DAILY.speed.push(km ? 25.6 + (i % 3) * .5 : 0);
+  }
+})();
+
+const METRICS = {
+  dist: { label: 'Distancia', unit: 'km', acc: '--c-dist', icon: 'i-bike', fmt: v => fInt(v), full: v => fInt(v) + ' km' },
+  elev: { label: 'Desnivel', unit: 'm', acc: '--c-elev', icon: 'i-mountain', fmt: v => fInt(v), full: v => fInt(v) + ' m' },
+  time: { label: 'Tiempo', unit: 'h', acc: '--c-time', icon: 'i-timer', fmt: v => fDec(v, 0), full: v => fH(v) },
+  speed: { label: 'Velocidad', unit: 'km/h', acc: '--c-speed', icon: 'i-gauge', fmt: v => fDec(v, 1), full: v => fDec(v, 1) + ' km/h' },
+};
+
+/* ---------- Perfil de altitud sintético ---------- */
+function elevation(seed, km, base, climbs) {
+  const R = rng(seed); const ph = [R() * 6.28, R() * 6.28, R() * 6.28];
+  const ease = t => t * t * (3 - 2 * t);
+  const pts = []; const n = Math.round(km * 10);
+  for (let i = 0; i <= n; i++) {
+    const d = i / 10;
+    let e = base + 26 * Math.sin(d * .31 + ph[0]) + 13 * Math.sin(d * .83 + ph[1]) + 5 * Math.sin(d * 2.1 + ph[2]);
+    for (const c of climbs) {
+      const x = (d - c.at) / c.len; const dn = c.down || .75;
+      if (x > -1 && x <= 0) e += c.gain * ease(1 + x);            // subida de len km
+      else if (x > 0 && x < dn) e += c.gain * (1 - ease(x / dn));  // bajada
+    }
+    pts.push([d, Math.max(4, e)]);
+  }
+  return pts;
+}
+const LAST = elevation(3, 87.6, 40, [{ at: 24, len: 8, gain: 260 }, { at: 52, len: 10, gain: 540 }, { at: 72, len: 5, gain: 150 }]);
+const R1 = elevation(7, 96, 80, [{ at: 18, len: 6, gain: 210 }, { at: 45, len: 6.8, gain: 480, down: .9 }, { at: 71, len: 7, gain: 330 }]);
+
+function smooth(arr, k) { return arr.map((p, i) => { let s = 0, c = 0; for (let j = Math.max(0, i - k); j <= Math.min(arr.length - 1, i + k); j++) { s += arr[j][1]; c++; } return [p[0], s / c]; }); }
+
+/* ---------- Forma de ruta en circuito ---------- */
+function loop(seed, n = 240, opts = {}) {
+  const R = rng(seed); const ph = Array.from({ length: 8 }, () => R() * 6.283);
+  const a = opts.a || [.17, .10, .05, .025];
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n * Math.PI * 2;
+    const r = 1 + a[0] * Math.sin(2 * t + ph[0]) + a[1] * Math.sin(3 * t + ph[1]) + a[2] * Math.sin(5 * t + ph[2]) + a[3] * Math.sin(9 * t + ph[3]) + .012 * Math.sin(27 * t + ph[4]);
+    pts.push([Math.cos(t) * r * (opts.sx || 1), Math.sin(t) * r * (opts.sy || 1)]);
+  }
+  return pts;
+}
+function fitPath(pts, w, h, pad) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const s = Math.min((w - 2 * pad) / (x1 - x0), (h - 2 * pad) / (y1 - y0));
+  const ox = (w - (x1 - x0) * s) / 2, oy = (h - (y1 - y0) * s) / 2;
+  const P = pts.map(([x, y]) => [ox + (x - x0) * s, oy + (y1 - y) * s]);
+  return { d: 'M' + P.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L'), P };
+}
+function contours(seed, w, h) {
+  let g = '';
+  const R = rng(seed);
+  const cx = w * (.3 + R() * .4), cy = h * (.3 + R() * .4);
+  for (let k = 1; k <= 9; k++) {
+    const pts = loop(seed + k * 3, 120, { a: [.12, .08, .04, .02] });
+    const s = k * Math.max(w, h) * .085;
+    const d = 'M' + pts.map(([x, y]) => (cx + x * s * 1.25).toFixed(1) + ' ' + (cy + y * s * .85).toFixed(1)).join('L') + 'Z';
+    g += `<path d="${d}" fill="none" stroke="var(--contour)" stroke-width="1"/>`;
+  }
+  return g;
+}
+function routeSVG(seed, w, h, pad, small) {
+  const { d, P } = fitPath(loop(seed, 240, { sx: 1.3 }), w, h, pad);
+  const s = P[0];
+  return `<svg viewBox="0 0 ${w} ${h}" aria-hidden="true">${contours(seed + 40, w, h)}
+    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="${small ? 6 : 10}" stroke-linejoin="round" style="opacity:calc(.10 + var(--glow) * .5)"/>
+    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="${small ? 2 : 3}" stroke-linejoin="round"/>
+    <path d="${d}" fill="none" stroke="#fff" stroke-width="${small ? .6 : 1}" stroke-linejoin="round" style="opacity:var(--thread)"/>
+    <circle cx="${s[0]}" cy="${s[1]}" r="${small ? 3 : 5}" fill="var(--good)" stroke="#fff" stroke-width="${small ? 1.2 : 2}"/></svg>`;
+}
+
+/* ---------- Paisaje del hero: el horizonte es tu última salida ---------- */
+function midpoint(seed, n, rough) {
+  const R = rng(seed); const N = 1 << n; const v = new Array(N + 1).fill(0);
+  v[0] = R(); v[N] = R(); let step = N, amp = 1;
+  while (step > 1) { const h = step >> 1; for (let i = h; i < N; i += step) v[i] = (v[i - h] + v[i + h]) / 2 + (R() - .5) * amp; amp *= rough; step = h; }
+  const mn = Math.min(...v), mx = Math.max(...v); return v.map(x => (x - mn) / (mx - mn));
+}
+const T0 = performance.now(); let landKey = '';
+function drawLand() {
+  const host = $('#land'); const hero = host.parentElement;
+  const W = Math.round(hero.clientWidth), H = Math.round(hero.clientHeight);
+  if (!W || !H) return;
+  const key = W + 'x' + H + theme(); if (key === landKey) return; landKey = key;
+  // un redibujado durante la entrada continúa la animación (retraso negativo) en vez de reiniciarla
+  const el = performance.now() - T0; const animate = !REDUCED && el < 1150;
+  const kp = $('#kpis'), gr = $('.greet');
+  const hb = hero.getBoundingClientRect();
+  const kTop = kp.getBoundingClientRect().top - hb.top + 14;          // sin el relleno superior de la rejilla
+  const kpTop = kTop + (parseFloat(getComputedStyle(kp).paddingTop) || 0) - 14;
+  const gB = gr.getBoundingClientRect().bottom - hb.top;
+  const gR = gr.querySelector('.lede').getBoundingClientRect().right - hb.left;
+  const mobile = W < 600;
+  const sm = x => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x); };
+  // la franja libre entre el saludo y las KPI; a la derecha el cielo queda libre más arriba
+  const bandTop = l => mobile ? gB + 10 : (l < (gR + 40) / W ? gB + 18 : H * .16);
+  const env = x => mobile ? .55 + .45 * sm((x - .1) / .8) : .25 + .75 * sm((x - gR / W + .05) / .4);
+
+  function ridge(vals, base, amp, envK) {
+    const n = vals.length - 1; const pts = [];
+    for (let i = 0; i <= n; i++) { const l = i / n; const x = l * W; const top = bandTop(l); const a = Math.min(amp * env(l) * envK, base - top); pts.push([x, base - vals[i] * Math.max(0, a)]); }
+    return pts;
+  }
+  const P = pts => 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+  const area = pts => P(pts) + `L${W} ${H}L0 ${H}Z`;
+  const farV = midpoint(11, 7, .58), midV = midpoint(23, 7, .52);
+  const baseFar = kpTop + 24, baseMid = kpTop + 30, baseNear = kpTop - 2;
+  const far = ridge(farV, baseFar, baseFar - H * .12, 1);
+  const mid = ridge(midV.map(v => v * .85), baseMid, baseMid - H * .2, .85);
+  // cresta delantera: perfil real de la última salida, suavizado y escalado a la franja
+  const prof = smooth(LAST, 12); const eMax = Math.max(...prof.map(p => p[1])), eMin = Math.min(...prof.map(p => p[1])); const realMax = Math.max(...LAST.map(p => p[1]));
+  const NN = 160; const nearV = [];
+  for (let i = 0; i <= NN; i++) { const p = prof[Math.round(i / NN * (prof.length - 1))]; nearV.push((p[1] - eMin) / (eMax - eMin)); }
+  const nearEnv = x => mobile ? 1 : .5 + .5 * sm((x - .15) / .55);
+  const near = nearV.map((v, i) => { const l = i / NN; const amp = Math.min((baseNear - (mobile ? gB + 26 : H * .34)) * nearEnv(l), baseNear - bandTop(l) - 6); return [l * W, baseNear - (.12 + v * .88) * amp]; });
+  let peak = near[0]; let pk = 0; near.forEach((p, i) => { if (p[1] < peak[1]) { peak = p; pk = i; } });
+  let len = 0; for (let i = 1; i < near.length; i++) len += Math.hypot(near[i][0] - near[i - 1][0], near[i][1] - near[i - 1][1]);
+  const horizon = Math.min(.98, kpTop / H);
+  const showPeak = !mobile && peak[0] > gR + 60 && peak[0] < W - 120;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">
+        <stop offset="0" style="stop-color:var(--sky-0)"/><stop offset="${(horizon * .45).toFixed(3)}" style="stop-color:var(--sky-1)"/>
+        <stop offset="${(horizon * .64).toFixed(3)}" style="stop-color:var(--sky-2)"/><stop offset="${(horizon * .8).toFixed(3)}" style="stop-color:var(--sky-3)"/>
+        <stop offset="${(horizon * .94).toFixed(3)}" style="stop-color:var(--sky-4)"/><stop offset="1" style="stop-color:var(--sky-4)"/>
+      </linearGradient>
+      <radialGradient id="haze" cx="${W * .7}" cy="${kpTop - 30}" r="${Math.max(W * .48, 280)}" gradientUnits="userSpaceOnUse">
+        <stop offset="0" style="stop-color:var(--haze);stop-opacity:.55"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:0"/>
+      </radialGradient>
+      <linearGradient id="gFar" x1="0" y1="${H * .15}" x2="0" y2="${baseFar}" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--ridge-far)"/><stop offset="1" style="stop-color:var(--ridge-mid)"/></linearGradient>
+      <linearGradient id="gMid" x1="0" y1="${H * .25}" x2="0" y2="${baseMid}" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--ridge-mid)"/><stop offset="1" style="stop-color:var(--ridge-near)"/></linearGradient>
+      <linearGradient id="gNear" x1="0" y1="${H * .3}" x2="0" y2="${H}" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--ridge-near)"/><stop offset="1" style="stop-color:var(--ridge-base)"/></linearGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#sky)"/>
+    <rect width="${W}" height="${H}" fill="url(#haze)"/>
+    <path d="${area(far)}" fill="url(#gFar)"/>
+    <path d="${P(far)}" fill="none" stroke="var(--ridge-line)" stroke-width="1" opacity=".22"/>
+    <path d="${area(mid)}" fill="url(#gMid)"/>
+    <path d="${P(mid)}" fill="none" stroke="var(--ridge-line)" stroke-width="1" opacity=".32"/>
+    <path d="${area(near)}" fill="url(#gNear)"/>
+    <path d="${P(near)}" fill="none" stroke="var(--ridge-line)" stroke-width="9" stroke-linejoin="round" style="opacity:calc(var(--glow) * .45)"/>
+    <path d="${P(near)}" class="${animate ? 'draw' : ''}" style="--len:${Math.ceil(len)};animation-delay:${(120 - el).toFixed(0)}ms" fill="none" stroke="var(--ridge-line)" stroke-width="2.2" stroke-linejoin="round"/>
+    ${showPeak ? `<g class="${animate ? 'after-draw' : ''}" style="animation-delay:${(980 - el).toFixed(0)}ms">
+      <circle cx="${peak[0]}" cy="${peak[1]}" r="4.5" fill="var(--sky-1)" stroke="var(--ridge-line)" stroke-width="2"/>
+      <line x1="${peak[0]}" y1="${peak[1] - 8}" x2="${peak[0]}" y2="${peak[1] - 24}" stroke="var(--ridge-line)" stroke-width="1" opacity=".6"/>
+      <text x="${peak[0]}" y="${peak[1] - 31}" text-anchor="middle" style="font:600 13px Barlow, sans-serif;fill:var(--ink)">${fInt(realMax)} m</text>
+      <text x="${peak[0]}" y="${peak[1] - 47}" text-anchor="middle" style="font:500 12px Barlow, sans-serif;fill:var(--ink-2)">tu última salida</text>
+    </g>` : ''}
+  </svg>`;
+}
+
+/* ---------- KPI con chispa ---------- */
+const KPIS = [
+  { k: 'dist', label: 'Distancia', value: '186', unit: 'km', delta: 12, aria: 'Distancia esta semana: 186 km, 12 % por encima de tu media' },
+  { k: 'elev', label: 'Desnivel', value: '2.340', unit: 'm', delta: 18, aria: 'Desnivel esta semana: 2.340 m, 18 % por encima de tu media' },
+  { k: 'time', label: 'Tiempo en movimiento', short: 'Tiempo', value: '7 h 05', unit: 'min', delta: 9, aria: 'Tiempo en movimiento esta semana: 7 h 05 min, 9 % por encima de tu media' },
+  { k: 'speed', label: 'Velocidad media', short: 'Velocidad', value: '26,3', unit: 'km/h', delta: -2, aria: 'Velocidad media esta semana: 26,3 km/h, 2 % por debajo de tu media' },
+];
+function renderKpis() {
+  const ul = $('#kpis');
+  ul.innerHTML = KPIS.map(K => {
+    const m = METRICS[K.k]; const up = K.delta >= 0;
+    return `<li class="kpi" style="--acc:var(${m.acc})" aria-label="${K.aria}">
+      <div class="kpi-top" aria-hidden="true"><span class="kpi-ic"><svg class="ic"><use href="#${m.icon}"/></svg></span><span class="lab-long">${K.label}</span><span class="lab-short">${K.short || K.label}</span></div>
+      <p class="kpi-val" aria-hidden="true">${K.value}<small>${K.unit}</small></p>
+      <p class="delta ${up ? '' : 'down'}" aria-hidden="true"><svg class="ic"><use href="#i-${up ? 'up' : 'down'}"/></svg>${up ? '+' : MINUS}${Math.abs(K.delta)} %<span class="vs">&nbsp;vs tu media</span></p>
+      <div class="spark" data-k="${K.k}" aria-hidden="true"></div>
+    </li>`;
+  }).join('');
+  drawSparks();
+}
+function drawSparks() {
+  document.querySelectorAll('.spark').forEach((el, idx) => {
+    const k = el.dataset.k; const vals = WEEKLY[k].slice(-8);
+    const W = el.clientWidth, H = el.clientHeight; if (!W) return;
+    const lo = Math.min(...vals), mx = Math.max(...vals), mn = lo - (mx - lo) * .45;
+    const pts = vals.map((v, i) => [10 + i / (vals.length - 1) * (W - 26), 8 + (1 - (v - mn) / (mx - mn)) * (H - 14)]);
+    // curva suave (Catmull-Rom a Bézier)
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      d += `C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6},${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6},${p2[0]} ${p2[1]}`;
+    }
+    const last = pts[pts.length - 1]; const id = 'sg' + idx;
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--acc);stop-opacity:.35"/><stop offset="1" style="stop-color:var(--acc);stop-opacity:0"/></linearGradient></defs>
+      <path d="${d}L${last[0]} ${H}L${pts[0][0]} ${H}Z" fill="url(#${id})"/>
+      <path d="${d}" fill="none" stroke="var(--acc)" stroke-width="7" stroke-linecap="round" style="opacity:calc(var(--glow) * .45)"/>
+      <path d="${d}" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--acc)" stroke="var(--surface)" stroke-width="2"/></svg>`;
+  });
+}
+
+/* ---------- Tu progresión (ECharts) ---------- */
+let metric = 'dist', range = '12m', chart = null, firstDraw = true;
+function series() {
+  if (range === '12m') return { labels: MONTHS, vals: MONTHLY[metric], partial: true, unitLab: 'por mes' };
+  if (range === '6m') return { labels: MONTHS.slice(-6), vals: MONTHLY[metric].slice(-6), partial: true, unitLab: 'por mes' };
+  if (range === '3m') return { labels: WEEKS, vals: WEEKLY[metric], partial: true, unitLab: 'por semana' };
+  return { labels: DAYS, vals: DAILY[metric], partial: false, bars: true, unitLab: 'por día' };
+}
+function renderPills() {
+  $('#metrics').innerHTML = Object.entries(METRICS).map(([k, m]) =>
+    `<button type="button" class="pill press" style="--acc:var(${m.acc})" data-metric="${k}" aria-pressed="${k === metric}"><span class="sw" aria-hidden="true"></span>${m.label}</button>`).join('');
+}
+function renderLegend(s) {
+  const m = METRICS[metric];
+  $('#legend').innerHTML = `
+    <span><svg viewBox="0 0 22 8" aria-hidden="true"><path d="M1 4h20" stroke="var(${m.acc})" stroke-width="2.5" stroke-linecap="round"/></svg>${m.label} ${s.unitLab}</span>
+    ${s.partial ? `<span><svg viewBox="0 0 22 8" aria-hidden="true"><path d="M1 4h20" stroke="var(${m.acc})" stroke-width="2.5" stroke-dasharray="4 3"/></svg>${range === '3m' ? 'Semana' : 'Mes'} en curso</span>` : ''}
+    <span><svg viewBox="0 0 22 8" aria-hidden="true"><path d="M1 4h20" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="2 3"/></svg>Tu media</span>`;
+}
+function renderTable(s) {
+  const m = METRICS[metric];
+  $('#table').innerHTML = `<table><thead><tr><th scope="col">Periodo</th><th scope="col">${m.label}</th></tr></thead><tbody>${s.labels.map((l, i) => `<tr><td>${l}${s.partial && i === s.labels.length - 1 ? ' (en curso)' : ''}</td><td>${s.vals[i] ? m.full(s.vals[i]) : '—'}</td></tr>`).join('')}</tbody></table>`;
+}
+function hexA(hex, a) { return hex + Math.round(a * 255).toString(16).padStart(2, '0'); }
+function buildOption() {
+  const s = series(); const m = METRICS[metric];
+  const acc = tok(m.acc), ink = tok('--ink'), ink2 = tok('--ink-2'), ink3 = tok('--ink-3'), line = tok('--line'), surf2 = tok('--surface-2');
+  const glow = parseFloat(tok('--glow')) || 0;
+  const n = s.vals.length;
+  const done = s.partial ? s.vals.slice(0, n - 1) : s.vals.filter(v => v > 0);
+  const mean = done.reduce((a, b) => a + b, 0) / done.length;
+  const narrow = $('#chart').clientWidth < 480;
+  const font = getComputedStyle(document.body).fontFamily;
+  const anim = !REDUCED && firstDraw;
+  const lastIdx = s.bars ? s.vals.map((v, i) => v ? i : -1).filter(i => i >= 0).pop() : n - 1;
+  const yMin = metric === 'speed' ? Math.floor(Math.min(...s.vals.filter(v => v)) - 1.5) : 0;
+  const main = s.partial ? s.vals.map((v, i) => i < n - 1 ? v : '-') : s.vals;
+  const tail = s.partial ? s.vals.map((v, i) => i >= n - 2 ? v : '-') : null;
+  const bubble = {
+    symbol: 'circle', symbolSize: 13, animation: anim, animationDelay: anim ? 900 : 0, animationDuration: 260,
+    itemStyle: { color: surf2, borderColor: acc, borderWidth: 3, shadowBlur: 14 * glow, shadowColor: acc },
+    label: {
+      show: true, position: 'top', distance: 12, backgroundColor: surf2, borderColor: acc, borderWidth: 1, borderRadius: 10, padding: [6, 10],
+      shadowBlur: 18 * glow, shadowColor: hexA(acc, .6), fontFamily: font,
+      formatter: () => `{v|${m.fmt(s.vals[lastIdx])}} {u|${m.unit}}${s.partial ? '\n{s|en curso}' : ''}`,
+      rich: { v: { fontSize: 18, fontWeight: 700, color: ink, fontFamily: 'Barlow Semi Condensed' }, u: { fontSize: 13, color: ink2, fontFamily: font }, s: { fontSize: 12, color: ink2, fontFamily: font, align: 'center', padding: [2, 0, 0, 0] } },
+    },
+    data: [{ coord: [lastIdx, s.vals[lastIdx]] }],
+  };
+  const meanLine = { silent: true, symbol: 'none', animation: false, lineStyle: { color: ink3, type: [2, 4], width: 1.5 },
+    label: { show: true, position: 'insideStartTop', color: ink2, fontFamily: font, fontSize: 12, formatter: 'Tu media ' + m.full(mean) }, data: [{ yAxis: mean }] };
+  const area = { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(acc, .34) }, { offset: 1, color: hexA(acc, 0) }] } };
+  const base = {
+    type: 'line', smooth: .35, smoothMonotone: 'x', showSymbol: false, symbol: 'circle', symbolSize: 8,
+    lineStyle: { width: 3, color: acc, shadowBlur: 16 * glow, shadowColor: hexA(acc, .8) },
+    itemStyle: { color: acc, borderColor: surf2, borderWidth: 2 }, areaStyle: area,
+    emphasis: { focus: 'none', scale: 1.4 },
+    animation: anim, animationDuration: 900, animationEasing: 'cubicOut',
+  };
+  const S = [];
+  if (s.bars) {
+    S.push({ type: 'bar', data: s.vals.map(v => v || null), barWidth: '46%', barMaxWidth: 10, itemStyle: { color: acc, borderRadius: [4, 4, 0, 0] },
+      animation: anim, animationDuration: 600, markLine: meanLine, markPoint: bubble });
+  } else {
+    S.push(Object.assign({}, base, { name: m.label, data: main, markLine: meanLine }));
+    S.push(Object.assign({}, base, { name: 'en curso', data: tail, lineStyle: Object.assign({}, base.lineStyle, { type: [6, 5] }),
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(acc, .16) }, { offset: 1, color: hexA(acc, 0) }] } },
+      animationDelay: anim ? 700 : 0, animationDuration: anim ? 300 : 0, markPoint: bubble }));
+  }
+  return {
+    animation: anim,
+    grid: { left: 6, right: narrow ? 30 : 46, top: 44, bottom: 4, containLabel: true },
+    tooltip: {
+      trigger: 'axis', backgroundColor: surf2, borderColor: tok('--line-strong'), borderWidth: 1, padding: [8, 12],
+      textStyle: { color: ink, fontFamily: font, fontSize: 14 },
+      axisPointer: { type: s.bars ? 'shadow' : 'line', lineStyle: { color: ink3, width: 1 }, shadowStyle: { color: hexA(tok('--focus'), .08) } },
+      formatter: ps => { const i = ps[0].dataIndex; const v = s.vals[i]; return `<div style="font-size:13px;color:${ink2}">${s.labels[i]}${s.partial && i === n - 1 ? ', en curso' : ''}</div><b>${v ? m.full(v) : 'Sin salidas'}</b>`; },
+    },
+    xAxis: { type: 'category', data: s.labels, boundaryGap: !!s.bars, axisLine: { lineStyle: { color: line } }, axisTick: { show: false },
+      axisLabel: { color: ink3, fontFamily: font, fontSize: 12, margin: 12, interval: s.bars ? (narrow ? 6 : 3) : (narrow && n > 7 ? 1 : 0) } },
+    yAxis: { type: 'value', min: yMin, splitNumber: 4, axisLabel: { color: ink3, fontFamily: font, fontSize: 12, formatter: v => metric === 'time' ? v + ' h' : fInt(v) },
+      splitLine: { lineStyle: { color: line } } },
+    series: S,
+  };
+}
+function drawChart() {
+  const el = $('#chart'); if (!window.echarts) { el.textContent = 'No se pudo cargar la gráfica.'; return; }
+  const s = series(); const m = METRICS[metric];
+  el.setAttribute('aria-label', `${m.label} ${s.unitLab}: ${s.labels.map((l, i) => l + ' ' + (s.vals[i] ? m.full(s.vals[i]) : 'sin salidas')).join(', ')}.`);
+  if (!chart) chart = echarts.init(el, null, { renderer: 'svg' });
+  chart.setOption(buildOption(), true);
+  firstDraw = false;
+  renderLegend(s); renderTable(s);
+}
+
+/* ---------- Anillo del objetivo ---------- */
+function drawRing() {
+  const r = 80, c = 2 * Math.PI * r, pct = .36, exp = .20;
+  const a = exp * 2 * Math.PI; const x1 = 98 + Math.cos(a) * (r - 13), y1 = 98 + Math.sin(a) * (r - 13), x2 = 98 + Math.cos(a) * (r + 13), y2 = 98 + Math.sin(a) * (r + 13);
+  $('#ring').innerHTML = `
+    <circle class="ring-track" cx="98" cy="98" r="${r}" fill="none" stroke-width="16"/>
+    <circle class="ring-halo" cx="98" cy="98" r="${r}" fill="none" stroke-width="22" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}"/>
+    <circle class="ring-arc" cx="98" cy="98" r="${r}" fill="none" stroke-width="16" stroke-linecap="round" stroke-dasharray="${c * pct} ${c}"/>
+    <line class="ring-notch" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+}
+
+/* ---------- Próximas salidas ---------- */
+const NEXT = [
+  { dw: 'Sáb', dn: 8, dm: 'nov', title: 'Rodaje largo de costa', km: 92, m: 980, diff: 'mid', dl: 'Media', seed: 21 },
+  { dw: 'Dom', dn: 9, dm: 'nov', title: 'Repetidas en el puerto', km: 54, m: 1120, diff: 'hard', dl: 'Dura', seed: 33 },
+  { dw: 'Mar', dn: 11, dm: 'nov', title: 'Vuelta suave de recuperación', km: 38, m: 240, diff: 'easy', dl: 'Suave', seed: 0 },
+];
+const BARS = n => `<svg class="bars" viewBox="0 0 14 12" aria-hidden="true"><rect ${n < 1 ? 'class="off"' : ''} x="0" y="7" width="3.5" height="5" rx="1"/><rect ${n < 2 ? 'class="off"' : ''} x="5.25" y="3.5" width="3.5" height="8.5" rx="1"/><rect ${n < 3 ? 'class="off"' : ''} x="10.5" y="0" width="3.5" height="12" rx="1"/></svg>`;
+function renderNext() {
+  $('#next').innerHTML = NEXT.map(x => `<li><a class="nx press" href="#calendario/${x.dn}">
+    <span class="nx-date num"><span class="dw">${x.dw}</span><span class="dn">${x.dn}</span><span class="dm">${x.dm}</span></span>
+    <span class="nx-thumb">${x.seed ? routeSVG(x.seed, 64, 64, 9, true) : '<svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>'}</span>
+    <span style="min-width:0"><span class="nx-title">${x.title}</span>
+      <span class="meta"><span><svg class="ic"><use href="#i-bike"/></svg>${x.km} km</span><span><svg class="ic"><use href="#i-mountain"/></svg>${fInt(x.m)} m</span></span>
+      <span class="chip diff-${x.diff}">${BARS(x.diff === 'easy' ? 1 : x.diff === 'mid' ? 2 : 3)}${x.dl}</span></span>
+    <svg class="ic nx-go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>`).join('');
+}
+
+/* ---------- Perfil de la última salida ---------- */
+function drawProfile() {
+  const el = $('#profile'); const W = el.clientWidth, H = el.clientHeight; if (!W) return;
+  const pts = LAST; const km = pts[pts.length - 1][0];
+  const mx = Math.max(...pts.map(p => p[1])), mn = Math.min(...pts.map(p => p[1]));
+  const top = 16, bot = 20;
+  const xy = pts.map(([d, e]) => [d / km * W, top + (1 - (e - mn) / (mx - mn)) * (H - top - bot)]);
+  const d = 'M' + xy.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('L');
+  let pk = xy[0]; let pd = 0; xy.forEach((p, i) => { if (p[1] < pk[1]) { pk = p; pd = pts[i][0]; } });
+  const ticks = [0, 20, 40, 60, 80];
+  el.setAttribute('aria-label', `Perfil de altitud de 87,6 km: de ${fInt(mn)} a ${fInt(mx)} m, con la subida mayor hasta el kilómetro ${Math.round(pd)}.`);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs><linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--route);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--route);stop-opacity:0"/></linearGradient></defs>
+    <line x1="0" x2="${W}" y1="${H - bot}" y2="${H - bot}" stroke="var(--line)"/>
+    <path d="${d}L${W} ${H - bot}L0 ${H - bot}Z" fill="url(#pg)"/>
+    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="7" style="opacity:calc(var(--glow) * .4)" stroke-linejoin="round"/>
+    <path d="${d}" fill="none" stroke="var(--route)" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${pk[0]}" cy="${pk[1]}" r="3.5" fill="var(--surface)" stroke="var(--route)" stroke-width="2"/>
+    <text class="axis-v" x="${pk[0] + 8}" y="${pk[1] + 2}">${fInt(mx)} m</text>
+    ${ticks.map(t => `<text class="axis-t" x="${t / km * W + (t === 0 ? 0 : 0)}" y="${H - 3}" text-anchor="${t === 0 ? 'start' : 'middle'}">${t} km</text>`).join('')}
+  </svg>`;
+}
+
+/* ---------- Rendimiento ---------- */
+const PERF = [
+  { l: 'Velocidad media', ic: 'i-gauge', acc: '--c-speed', v: '26,8', u: 'km/h', d: '+0,9 km/h' },
+  { l: 'Velocidad máxima', ic: 'i-zap', acc: '--c-speed', v: '63,4', u: 'km/h', note: 'bajando en tu salida del 3 nov' },
+  { l: 'Desnivel por salida', ic: 'i-mountain', acc: '--c-elev', v: '612', u: 'm', d: '+8 %' },
+  { l: 'VAM media en subidas', ic: 'i-climb', acc: '--c-elev', v: '712', u: 'm/h', d: '+34 m/h' },
+  { l: 'Cadencia media', ic: 'i-rotate', acc: '--c-time', v: '86', u: 'rpm', note: 'de 5 salidas con sensor' },
+  { l: 'Salida más larga', ic: 'i-ruler', acc: '--c-dist', v: '112,4', u: 'km', note: 'el 21 de octubre' },
+];
+function renderPerf() {
+  $('#perf').innerHTML = PERF.map(p => `<div class="perf-cell" style="--acc:var(${p.acc})">
+    <p class="perf-lab"><svg class="ic"><use href="#${p.ic}"/></svg>${p.l}</p>
+    <div class="perf-val"><span class="num">${p.v}<small>${p.u}</small></span>${p.d ? `<span class="delta"><svg class="ic"><use href="#i-up"/></svg>${p.d}<span class="sr-only"> frente a tu media</span></span>` : ''}</div>
+    ${p.note ? `<p class="perf-note">${p.note}</p>` : ''}</div>`).join('');
+}
+
+/* ---------- Ruta recomendada: forma y perfil por pendiente ---------- */
+const CLASSES = [['< 1 %', '--s0'], ['1–4 %', '--s1'], ['4–7 %', '--s2'], ['7–10 %', '--s3'], ['10–16 %', '--s4'], ['≥ 16 %', '--s5']];
+const cls = g => g < 1 ? 0 : g < 4 ? 1 : g < 7 ? 2 : g < 10 ? 3 : g < 16 ? 4 : 5;
+function drawRoute() {
+  const box = $('#r1-shape'); const w = box.clientWidth, h = box.clientHeight;
+  const chip = box.querySelector('.chip'); box.innerHTML = routeSVG(5, w, h, w < 120 ? 10 : 26, w < 120); if (chip) box.appendChild(chip);
+  const el = $('#r1-slope'); const W = el.clientWidth, H = el.clientHeight; if (!W) return;
+  const pts = smooth(R1, 3); const km = pts[pts.length - 1][0];
+  const mx = Math.max(...pts.map(p => p[1])), mn = Math.min(...pts.map(p => p[1]));
+  const X = d => d / km * W, Y = e => 6 + (1 - (e - mn) / (mx - mn)) * (H - 22);
+  const stops = []; let prev = -1;
+  for (let i = 0; i < pts.length - 5; i += 5) {
+    const g = (pts[i + 5][1] - pts[i][1]) / 5;   // 0,5 km: m por cada 100 m = %
+    const c = cls(g);
+    const o0 = (X(pts[i][0]) / W).toFixed(4);
+    if (c !== prev) { if (prev >= 0) stops.push(`<stop offset="${o0}" style="stop-color:var(${CLASSES[prev][1]})"/>`); stops.push(`<stop offset="${o0}" style="stop-color:var(${CLASSES[c][1]})"/>`); prev = c; }
+  }
+  stops.push(`<stop offset="1" style="stop-color:var(${CLASSES[prev][1]})"/>`);
+  const d = 'M' + pts.map(p => X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('L');
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><defs><linearGradient id="slopeG" x1="0" x2="${W}" y1="0" y2="0" gradientUnits="userSpaceOnUse">${stops.join('')}</linearGradient></defs>
+    <path d="${d}L${W} ${H - 16}L0 ${H - 16}Z" fill="url(#slopeG)"/>
+    <path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1" opacity=".55"/>
+    <line x1="0" x2="${W}" y1="${H - 16}" y2="${H - 16}" stroke="var(--line)"/>
+    ${[0, 24, 48, 72, 96].map(t => `<text class="axis-t" x="${X(t)}" y="${H - 2}" text-anchor="${t === 0 ? 'start' : t === 96 ? 'end' : 'middle'}">${t} km</text>`).join('')}
+  </svg>`;
+  $('#slope-legend').innerHTML = CLASSES.map(([l, v]) => `<span><i style="--c:var(${v})" aria-hidden="true"></i>${l}</span>`).join('');
+}
+
+/* ---------- Mapa de la última salida (CyclOSM) ---------- */
+let map = null;
+function drawMap() {
+  if (!window.L) { $('#map').textContent = 'No se pudo cargar el mapa.'; return; }
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  map = L.map('map', { zoomControl: false, scrollWheelZoom: false, dragging: !coarse, tap: false, attributionControl: true,
+    zoomSnap: .25, zoomAnimation: !REDUCED, fadeAnimation: !REDUCED, markerZoomAnimation: !REDUCED });
+  L.control.zoom({ position: 'bottomright', zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }).addTo(map);
+  map.attributionControl.setPrefix(false);
+  L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { maxZoom: 18, subdomains: 'abc',
+    attribution: '<a href="https://www.cyclosm.org">CyclOSM</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+  // Recorrido sintético en el mar frente a (41,0, 2,5): ningún track real
+  const ll = loop(9, 260, { a: [.2, .1, .06, .03] }).map(([x, y]) => [41.0 + y * .085, 2.5 + x * .15]);
+  const o = { interactive: false, lineJoin: 'round', lineCap: 'round' };
+  L.polyline(ll, Object.assign({ className: 'rt-halo', weight: 13 }, o)).addTo(map);
+  L.polyline(ll, Object.assign({ className: 'rt-case', weight: 7 }, o)).addTo(map);
+  L.polyline(ll, Object.assign({ className: 'rt-core', weight: 3.5 }, o)).addTo(map);
+  L.polyline(ll, Object.assign({ className: 'rt-thread', weight: 1.2 }, o)).addTo(map);
+  L.circleMarker(ll[0], { radius: 6, className: 'rt-start', interactive: false }).addTo(map);
+  fitMap(ll);
+  window.addEventListener('resize', () => fitMap(ll));
+}
+function fitMap(ll) {
+  if (!map) return; map.invalidateSize();
+  const wide = $('.map-box').clientWidth > 560 && getComputedStyle($('.plate')).position === 'absolute';
+  map.fitBounds(L.latLngBounds(ll), { paddingTopLeft: [wide ? 250 : 24, 24], paddingBottomRight: [wide ? 60 : 24, 24], animate: false });
+}
+
+/* ---------- Tema ---------- */
+function syncThemeButtons() { document.querySelectorAll('[data-theme-set]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.themeSet === theme()))); }
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('fbt-theme', t); } catch (e) {}
+  syncThemeButtons();
+  if (chart) chart.setOption(buildOption(), true);
+}
+
+/* ---------- Arranque ---------- */
+function layoutPass() { drawLand(); drawSparks(); drawProfile(); drawRoute(); if (chart) { chart.resize(); chart.setOption(buildOption(), true); } }
+function init() {
+  syncThemeButtons(); renderKpis(); renderPills(); renderNext(); renderPerf(); drawRing(); drawProfile(); drawRoute(); drawLand(); drawChart(); drawMap();
+  document.addEventListener('click', e => {
+    const tb = e.target.closest('[data-theme-set]'); if (tb) setTheme(tb.dataset.themeSet);
+    const mb = e.target.closest('[data-metric]'); if (mb) { metric = mb.dataset.metric; renderPills(); drawChart(); }
+    const rb = e.target.closest('[data-range]'); if (rb) { range = rb.dataset.range; document.querySelectorAll('[data-range]').forEach(b => b.setAttribute('aria-pressed', String(b === rb))); drawChart(); }
+  });
+  const sheet = $('#more'), mbtn = $('#more-btn');
+  mbtn.addEventListener('click', () => { sheet.showModal(); mbtn.setAttribute('aria-expanded', 'true'); });
+  sheet.addEventListener('close', () => mbtn.setAttribute('aria-expanded', 'false'));
+  sheet.addEventListener('click', e => { if (e.target === sheet) sheet.close(); });
+  let t; const ro = new ResizeObserver(() => { clearTimeout(t); t = setTimeout(layoutPass, 60); });
+  ro.observe($('.hero')); ro.observe($('#chart'));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawLand(); if (chart) chart.resize(); });
+}
+init();
+})();
+</script>
+</body>
+</html>
