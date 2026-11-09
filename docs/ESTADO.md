@@ -4,7 +4,13 @@
 
 ## Resumen
 
-La app está terminada en código y verificada. Falta publicarla: git sin inicializar, repositorio en GitHub sin crear y GitHub Pages sin activar. Ningún commit hecho todavía. Cada commit necesita el OK explícito del usuario.
+La app está terminada, verificada y publicada (2026-11-09).
+
+- Repositorio público: https://github.com/fraannr4/FBikeTrain (rama `main`, autor de los commits `fraannr4@users.noreply.github.com`).
+- App en GitHub Pages: https://fraannr4.github.io/FBikeTrain/
+- Cada push a `main` ejecuta los tests, genera el build y despliega (`.github/workflows/deploy.yml`).
+- Cada commit sigue necesitando el OK explícito del usuario.
+- 2026-11-09: el primer despliegue falló en CI por un test del calendario. Un foco diferido al título del día robaba el foco del formulario mientras se escribía. Corregido en `src/ui/pages/Calendario.tsx`.
 
 ## Verificación final (2026-11-07)
 
@@ -62,7 +68,7 @@ La app está terminada en código y verificada. Falta publicarla: git sin inicia
 
 ## Pendiente
 
-### 1. Publicar (necesita al usuario)
+### 1. Publicar: HECHO el 2026-11-09 (se conserva para referencia)
 
 1. El usuario ejecuta `! gh auth login`.
 2. Hecho el 2026-11-09: `git init -b main` y `.gitignore` ampliado.
