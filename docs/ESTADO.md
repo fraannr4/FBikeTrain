@@ -1,32 +1,57 @@
 # Estado del proyecto FBikeTrain
 
-Última actualización: 2026-11-09. Próxima sesión: viernes 2026-11-13.
+Última actualización: 2026-11-10 (sesión nocturna del 2026-11-09, con commits y push autorizados por el usuario).
 
 ## Resumen
 
-La app está terminada, verificada y publicada (2026-11-09).
+La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega solo cuando el CI está en verde.
 
-La versión publicada corresponde a F1–F5. **En desarrollo local:** acceso obligatorio y perfiles (correo/contraseña, Google, recuperación, edición de nombre/privacidad y cierre de sesión), con cachés independientes por cuenta. La sincronización y la comparativa social siguen pendientes. No se ha publicado este lote.
+- Repositorio público: https://github.com/fraannr4/FBikeTrain (rama `main`).
+- App: https://fraannr4.github.io/FBikeTrain/
+- Cada push a `main` ejecuta:
+  - `vitest`;
+  - `test:db`;
+  - el build, con la comprobación de que el bundle no lleva secretos;
+  - el despliegue (`.github/workflows/deploy.yml`).
+- Supabase: proyecto `btmsakyhkxrndvscmxqs`. Guía en `docs/supabase-configuracion.md`.
 
-Verificación del lote de cuentas, 2026-11-09: tipos y build correctos, SQL/RLS en PostgreSQL embebido PASS y Playwright completo **66/66 PASS**. Vitest completo: 944/949 bajo carga; los tres ficheros con los cinco fallos pasan aislados (36/36). Detalles y límites en `docs/verificaciones.md`. Pendientes las pruebas contra los servicios reales.
+### Publicado (commits recientes)
 
-- Repositorio público: https://github.com/fraannr4/FBikeTrain (rama `main`, autor de los commits `fraannr4@users.noreply.github.com`).
-- App en GitHub Pages: https://fraannr4.github.io/FBikeTrain/
-- Cada push a `main` ejecuta los tests, genera el build y despliega (`.github/workflows/deploy.yml`).
-- Cada commit sigue necesitando el OK explícito del usuario.
-- 2026-11-09: el primer despliegue falló en CI por un test del calendario. Un foco diferido al título del día robaba el foco del formulario mientras se escribía. Corregido en `src/ui/pages/Calendario.tsx`.
+| Commit | Qué |
+|---|---|
+| `8e1fc3f` | Los saltos del GPS ya no suman metros a la distancia |
+| `59374c8` | Robustez del acceso, límite de 10 MB en el bucket de tracks y tiempos de test |
+| `7efa992` | La caché de salidas se invalida al cambiar de cuenta |
+| `b36ce54` | Una hoja que se cierra ya no roba el foco a la que se abre (CI del calendario) |
+| `6fdc2e8` | Escena de bienvenida «Cumbre» tras un inicio de sesión real |
+| `386a5fd` | IA y mapas desde el servidor (`ai-routes`, `ors-proxy`) y Empalmar rutas (`/rutas/empalmar`) |
+| `f794820` | Fuentes de referencia de rutas (`route-sources`): OSM activo y Wikiloc apagado por defecto (rama de Codex) |
 
-## Verificación final (2026-11-07)
+### Verificación actual (2026-11-10, sobre `f794820`)
 
 | Comprobación | Resultado |
 |---|---|
-| `npx vitest run` | 76 ficheros, 932 tests en verde |
+| `npx vitest run` | 95 ficheros, 1.171 tests en verde |
 | `npx tsc --noEmit` | sin errores |
-| `npm run build` | correcto (aviso de chunk > 500 kB, ver limitaciones) |
-| `npx playwright test` | 47 en verde (móvil 390x844, break-ui, 5.000 salidas < 3 s, privacidad IA, GPX) |
-| ZIP real de Strava a 390 px | 7 salidas importadas, 1 descartada por corta, 39 no ciclistas; 0 errores de consola, 0 desbordamientos, ningún NaN |
-| Revisión final de código | sin críticos; el único medio (cancelar IA no abortaba peticiones) está corregido |
-| Barrido de secretos y datos reales | limpio; solo fixtures sintéticos en `tests/fixtures` |
+| `npm run test:db` | 5 suites SQL en verde: perfiles, cuota de IA, cuota de ORS, caché y cuota de fuentes |
+| e2e | bienvenida, acceso, empalmar y break-ui de empalmar en verde (12/12 en empalmar) |
+| CI | runs 42669547748 (`386a5fd`) y 42671066509 (`f794820`) en verde y desplegados |
+| Producción | el login real funciona: una cuenta confirmada inició sesión el 2026-11-09 |
+
+### Estado en Supabase (remoto)
+
+- Aplicadas y registradas en `schema_migrations`:
+  - `202611090001_profiles_friendships.sql` (perfiles, amistades y bucket privado de tracks);
+  - `202611090002_shared_ai_quota.sql`.
+- Auth configurado por la API de gestión:
+  - Site URL de Pages y redirects de Pages y `localhost:5173`;
+  - SMTP de Brevo (`smtp-relay.brevo.com:587`), con 30 correos por hora.
+- **Sin aplicar:**
+  - `202611100001_shared_ors_quota.sql`;
+  - `202611100002_route_sources_cache.sql`;
+  - `202611100003_route_sources_quota.sql`.
+- **Funciones sin desplegar:** `ai-routes`, `ors-proxy` y `route-sources`.
+- Las variables del repositorio `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED` siguen apagadas. Mientras tanto, la app pide claves personales en Ajustes.
 
 ## Qué está hecho
 
@@ -70,144 +95,80 @@ Verificación del lote de cuentas, 2026-11-09: tipos y build correctos, SQL/RLS 
 
 `/`, `/historial`, `/historial/:id`, `/historial/subidas`, `/historial/repetidas`, `/rutas`, `/rutas/ia`, `/plan`, `/plan/objetivos`, `/mas`, `/importar`, `/ajustes`.
 
+
+### Añadido el 2026-11-09 y 2026-11-10
+
+- **Cuentas.**
+  - Acceso obligatorio con correo y contraseña, recuperación y confirmación por correo. Google está preparado en el código, pero falta configurarlo en Supabase.
+  - Perfil editable.
+  - Una base IndexedDB por cuenta (`ciclismo-user-<uuid>`), sin mezclar datos entre cuentas.
+- **Bienvenida «Cumbre».**
+  - Escena de 1,8 s con el trazo de la marca y la silueta ciclista.
+  - Solo tras un inicio de sesión real, nunca al recargar.
+  - Se puede saltar y respeta el movimiento reducido.
+  - `CyclingLoader` queda para las esperas reales.
+- **IA y ORS desde el servidor.**
+  - Selector entre el modo compartido (con cuenta y la variable activada) y la clave personal.
+  - Si el servicio compartido falla, se vuelve a la clave personal.
+  - Con cuota agotada (429), se muestra el límite y no se reintenta.
+- **Empalmar rutas** (`/rutas/empalmar`).
+  - Une dos rutas guardadas con conectores de ORS `cycling-road`.
+  - Descarta autopista y autovía, saltos de más de 50 m y combinaciones demasiado largas para un track.
+  - Si hay dos caminos parecidos, los propone y la IA recomienda uno usando solo cifras.
+  - Exporta el GPX.
+  - «Guardar en la biblioteca» en Rutas y en Rutas con IA.
+- **Fuentes de referencia** (`route-sources`).
+  - OSM (Overpass) es el respaldo activo.
+  - Wikiloc está apagado hasta `WIKILOC_AUTOMATION_AUTHORIZED=true`.
+  - Caché de 7 días y cuota por cuenta de 30 al día y 3 por minuto.
+  - Detalle en `docs/fuentes-rutas.md`.
+
+### Rutas de la app añadidas
+
+`/rutas/empalmar`.
+
 ## Pendiente
 
-### Nueva petición: acceso, animación e IA (2026-11-09)
+### Lote en curso: IA con referencias y entrenos (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
 
-Logo: **B Trazado aprobada para toda la web**, respetando la estética general además del login. SVG nativo integrado en cabeceras, Inicio, navegación lateral, acceso y favicon; colores de los tokens actuales y variantes claro/oscuro. Tipos/build y 37 pruebas aprobadas; sin publicación. Brief y vista global: `docs/design/2026-11-09-logo-propuestas.md` y `docs/design/2026-11-09-logo-trazado-aplicaciones.png`.
+- Task 1: Rutas con IA apoyadas en rutas conocidas cercanas y descarte de autopista o autovía en las rutas generadas.
+- Task 2: «Proponer semana con IA» en Calendario.
 
-**Aprobado: B Cartografía**, columna central de `docs/design/2026-11-09-opciones-login.png`, con animación sutil sin sobrecarga. Ciclista subiendo después del login y en pantallas de carga; IA compartida con coste cero y búsquedas limitadas. Nueva petición: consultar Wikiloc o fuentes equivalentes, considerar puntos de salida/paso y **empalmar rutas/tramos** con conexiones reales calculadas por el motor cartográfico. Wikiloc declara que no tiene API pública: integración automática no confirmada; estudiar acceso autorizado, GPX del usuario y fuentes alternativas verificadas. Brief: `docs/design/2026-11-09-acceso-ciclista-ia.md`. Plan: `docs/superpowers/plans/2026-11-09-login-cartografia-carga-rutas-ia.md`. Todo este nuevo alcance está documentado, no implementado; no cierra los pendientes de cuentas y sincronización.
+El estado de cada tarea se anota abajo cuando termina el lote.
 
-### 0. Cierre del 2026-11-09: lo que queda abierto
+### Necesita al usuario
 
-**Cambios sin commit.** Hay tres ficheros modificados que aún no están en GitHub:
-- `src/import/summary.ts`: arreglo de los saltos del GPS. Un tramo calculado con haversine que supera la velocidad de pico cuenta a la mediana de su ventana de 5 tramos, no con la distancia del salto. La distancia que graba el dispositivo (FIT) no se toca.
-- `tests/summary.test.ts`: prueba nueva, «a GPS jump out and back does not add its metres to the distance».
-- `docs/ESTADO.md`: este documento, con la sección del login.
-- `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`: plan de cuentas, sin seguimiento en git.
-- `AGENTS.md`: guía para Codex y otros agentes, sin seguimiento en git.
+1. **Claves del servidor.** Crear la clave de Groq (plan gratuito, sin tarjeta) y la de OpenRouteService, y guardarlas en `.local-secrets/credenciales.md` como `GROQ_API_KEY=` y `ORS_API_KEY=`. Con ellas, Claude hace lo siguiente:
+   - aplica las migraciones 202611100001-0003;
+   - despliega `ai-routes`, `ors-proxy` y `route-sources`;
+   - guarda los secretos (`SHARED_AI_ENABLED`, `GROQ_FREE_TIER_CONFIRMED`, `SHARED_ORS_ENABLED` y `APP_ALLOWED_ORIGINS`);
+   - activa las variables `VITE_*` y vuelve a desplegar.
+2. **Wikiloc.** Confirmar si se acepta el riesgo de sus condiciones de uso antes de activar el rastreo. Sin esa confirmación, solo se usa OSM.
+3. **Google OAuth.** Configurar el proveedor en Supabase con el cliente de Google Cloud `fbiketrain-514211`.
+4. **Paleta de colores.** Elegir entre las propuestas de `docs/design/2026-11-10-paleta/`, que salen de otro chat y aún no están en git. No se aplica nada sin esa elección.
+5. **Seguridad.** Al terminar, revocar el token de gestión de Supabase y la clave SMTP de Brevo: se pegaron en el chat. Guardar los nuevos solo en `.local-secrets/`.
+6. **En el móvil.** Probar:
+   - la bienvenida tras el login;
+   - una ruta sin claves, cuando el servidor esté activo;
+   - un empalme exportado al BSC200S con la app de iGPSPORT.
+7. **Garmin e iGPSPORT.** La importación de varios FIT sueltos ya funciona en Importar. La investigación recomienda un conector de intervals.icu (clave personal, `GET /api/v1/activity/{id}/file`) para no depender del límite de exportación de Strava. Antes de planificarlo, comprobar si la app de iGPSPORT permite exportar o compartir los FIT.
+8. **Comprobaciones antiguas sin registrar:**
+   - F2: una subida conocida contra Strava;
+   - F3: que un entreno se vincule con una salida real;
+   - F4 y F5: rutas reales con claves.
+   - Ver `docs/verificaciones.md`.
 
-Estado de la verificación, 2026-11-09 a las 12:01: `npx vitest run` da 933 de 933 en verde y `npx tsc --noEmit` sale limpio. No se ha publicado.
+### Pendiente técnico
 
-Para subirlo hace falta el OK explícito del usuario. Luego se ejecuta `git push` y se sigue el despliegue con `gh run watch`. Mensaje propuesto:
+- **Sincronización.** Subir a Supabase las salidas, los tracks, el calendario y los objetivos, y la comparativa social. Plan: `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`. Hoy los datos siguen en el IndexedDB de cada cuenta en cada dispositivo.
+- Retirar el worktree de Codex (`C:\testTrain-codex`, rama `codex/fuentes-rutas`, ya integrada en `main`) cuando Codex no lo use.
 
-```
-Stop GPS jumps from adding metres to the total distance
+### Mejoras opcionales (no bloquean)
 
-A GPS spike segment computed with haversine now counts at the median speed
-of its 5-segment window instead of its raw jump distance. Device-recorded
-distance (FIT) is left untouched. Also documents the login request for Friday.
-```
-
-**Viernes 2026-11-13: login y sincronización.** Orden previsto:
-1. El usuario crea la cuenta en supabase.com y un proyecto. Pasa la URL del proyecto y la clave pública (anon). La clave de servicio nunca se pasa ni va al repositorio.
-2. Cerrar con la skill `grilling` las decisiones que faltan, según el plan `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`: método de acceso, datos locales existentes, conflictos y borrados, nombres únicos y zona horaria. Las métricas de la comparativa ya están decididas en ese plan.
-3. Detallar las tareas de cada fase del plan.
-4. Implementar en este orden: Auth, tablas con RLS, sincronización y Storage para los tracks. Probar con dos cuentas que ninguna ve los tracks de la otra.
-
-**Comprobaciones del usuario.** Siguen igual que en el punto 2.
-
-### Revisión de planes, 2026-11-09 (Codex)
-
-Los planes de F1–F5 y del rediseño conservan casillas sin marcar incluso para funcionalidades que este estado recoge como terminadas. No deben tratarse como un registro fiable de tareas pendientes sin contrastarlas con el código y las verificaciones. No se han marcado retroactivamente ni se ha ejecutado una nueva verificación completa en esta revisión.
-
-Además de los pendientes enumerados abajo, los planes proponen comprobaciones reales que no constan como realizadas en `docs/verificaciones.md`:
-
-- F2: comparar una subida conocida y sus pasadas con Strava (longitud y pendiente ±10 %).
-- F3: crear un entreno para el día de una salida real, importarla y comprobar que se vincula.
-- F4: comprobar con una clave ORS válida la respuesta y sus cabeceras; generar una ruta e importar su GPX en iGPSPORT y enviarlo al BSC200S.
-- F5: probar Fondo, Subidas y Mixto con claves reales, contrastar las explicaciones y anotar el consumo de ORS y Groq.
-
-Estas comprobaciones necesitan datos, claves o intervención del usuario. Su ausencia del registro no demuestra por sí sola que nunca se hicieran. Antes de iniciar cambios, acordar prioridades con el usuario.
-
-### 1. Publicar: HECHO el 2026-11-09 (se conserva para referencia)
-
-1. El usuario ejecuta `! gh auth login`.
-2. Hecho el 2026-11-09: `git init -b main` y `.gitignore` ampliado.
-   - Se excluyen `.playwright-mcp`, `tsconfig.tsbuildinfo` y `.impeccable/hook.cache.json`.
-   - Se excluye `docs/design/prototipo-movil/capturas/`: 5.299 PNG, unos 940 MB, que se regeneran con `shots.mjs`.
-   - Entrarían 467 ficheros, unos 32 MB.
-   - Aún no hay ningún commit.
-   - `gh` no tiene sesión iniciada.
-3. Revisar `git status` antes del primer commit: ningún dato real, ninguna clave, nada de `test-results/` ni `.playwright-mcp/`.
-4. Crear el repositorio público `FBikeTrain` con `gh repo create`. Activar GitHub Pages con origen GitHub Actions; el workflow `.github/workflows/deploy.yml` ya existe y usa `BASE_PATH`.
-5. Enseñar el commit propuesto y esperar el OK. Mensaje propuesto:
-
-```
-Initial release of FBikeTrain: Strava import, progress, routes and AI planner
-
-Static Vite + React + TypeScript app for GitHub Pages, mobile-first.
-- Import: Strava account ZIP (CSV + FIT/GPX/TCX), de-duplication and junk/spike filters.
-- Inicio, Historial (rides, climbs, repeated routes), Plan (calendar, goals), Más.
-- Routes: OpenRouteService round trips scored against history, GPX export for iGPSPORT.
-- AI routes (Groq, OpenAI-compatible): summarised figures only, no tracks or home address.
-- Mobile-first design system with dark/light themes and demo data.
-- 932 unit tests, 47 Playwright e2e tests; synthetic fixtures only.
-```
-
-6. Tras desplegar, abrir la URL de Pages en el móvil y comprobar que carga con la base `/FBikeTrain/`.
-
-### 1b. Para el viernes 2026-11-13: cuentas de usuario (login)
-
-Plan y registro: `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`. El acceso y el perfil están integrados localmente con el cliente oficial y la clave publishable facilitada; la migración de perfiles/amistades/Storage privado pasa pruebas en PostgreSQL embebido. El usuario confirma creados Supabase (`btmsakyhkxrndvscmxqs`), Google Cloud (`fbiketrain-514211`) y Brevo con remitente Gmail verificado. **Falta aplicar la migración y verificar OAuth, SMTP y redirects en el proyecto real**, además de sincronización, migración de datos antiguos y pantallas sociales. Recursos y guía: `docs/supabase-configuracion.md`.
-
-Petición del usuario del 2026-11-09: que cada persona tenga su cuenta.
-
-Decisiones del usuario del 2026-11-09: la cuenta será obligatoria para usar la app. Al iniciar sesión en otro dispositivo quiere tenerlo todo: perfil, salidas, mapas y tracks, calendario y objetivos sincronizados. Los tracks serán privados y estarán protegidos mediante las reglas de acceso de Supabase, sin cifrado adicional en el cliente. El usuario quiere buscar perfiles y comparar estadísticas de salidas y rutas para fomentar la competición; faltan por concretar las métricas y los permisos de visibilidad, respetando la privacidad de los tracks. Queda también por decidir la incorporación de datos locales existentes; Supabase es el servicio propuesto. Estas decisiones definen el objetivo, no implican que ya esté implementado.
-
-Decisión social: cada usuario podrá elegir si sus estadísticas son visibles para todos los usuarios de la app o solo para amigos aceptados. Por defecto serán visibles para todos los usuarios de la app. Los perfiles se podrán buscar y comparar según esa elección; los tracks siguen siendo privados. Falta definir las métricas y la gestión de amistades.
-
-Hoy cada navegador guarda sus datos en su propio IndexedDB, sin servidor.
-- Dos personas con el mismo enlace no se pisan ni ven lo del otro.
-- Un mismo usuario tampoco ve en el PC lo que importó en el móvil, salvo por la copia de seguridad (exportar e importar el JSON).
-
-Lo que aporta un login: sincronizar entre los dispositivos del usuario y, si se quiere, compartir con amigos.
-
-Propuesta del 2026-11-09: **Supabase**, con la app sigue en Pages.
-- Auth para el login con correo o Google.
-- Postgres con RLS para que cada usuario lea solo sus filas.
-- Storage para los tracks comprimidos.
-- El plan gratuito (unos 500 MB de base de datos y 1 GB de ficheros) basta. El proyecto se pausa tras unos 7 días sin uso.
-- El usuario debe crear la cuenta en supabase.com.
-
-Alternativas descartadas por ahora:
-- Firebase: consultar el historial es más incómodo.
-- Cloudflare D1: el login habría que hacerlo a mano.
-- Servidor propio: exige mantenimiento.
-
-Ya decidido (2026-11-09):
-- **Servicio:** Supabase. La app sigue estática en Pages y el servicio es externo.
-- **Acceso:** ambos métodos, correo y contraseña y Google.
-- **Correo:** `fbiketrain@gmail.com`, creado y verificado como remitente en Brevo según captura del 2026-11-09. Sin dominio propio; avisos DKIM/DMARC y configuración SMTP pendientes. Contraseña guardada por petición del usuario únicamente en Markdown local excluido de Git (`.local-secrets/`).
-- **Qué se sube:** todo (perfil, salidas, tracks, calendario y objetivos).
-- **Tracks:** privados, protegidos con RLS, sin cifrado en el cliente.
-- **Modo sin cuenta:** no hay. La cuenta es obligatoria.
-- **Social:** estadísticas visibles para todos por defecto, o solo para amigos aceptados si el usuario lo elige. Los tracks nunca se comparten.
-
-Decisiones abiertas para concretar durante el plan:
-- **Comparación de rutas o subidas concretas:** cómo identificar recorridos equivalentes. Para la primera comparativa se han acordado distancia, desnivel, tiempo y número de salidas por semana, mes y año.
-- **Amistades:** cómo se envía, acepta y retira una solicitud.
-- **Datos locales existentes:** cómo se suben a la cuenta la primera vez que el usuario inicia sesión.
-
-Reglas que no cambian:
-- **Claves de ORS y Groq.** Siguen guardándose solo en local, nunca en el servidor.
-- **Repositorio público.** La clave pública (anon) de Supabase puede ir en el código; la de servicio nunca. Las reglas RLS deben hacer que cada usuario lea solo lo suyo, salvo las estadísticas que haya decidido mostrar.
-
-### 2. Comprobaciones del usuario
-
-- Conseguir las claves de OpenRouteService y Groq, meterlas en Ajustes y probar una ruta real y una ruta con IA. Sin claves, Rutas y Rutas con IA solo muestran la pantalla que pide la clave.
-- Comparar un mes real con Strava (distancia, desnivel, tiempo) y anotar el resultado en `docs/verificaciones.md`.
-- Confirmar si la salida descartada por corta del ZIP real es basura de verdad.
-
-### 3. Mejoras opcionales (no bloquean)
-
-- Dividir el bundle con `import()` por pantalla. Ahora el JS principal pesa 795 kB (250 kB comprimido) y el worker 785 kB.
-- Leer el ZIP de Strava en streaming. JSZip lo carga entero en memoria.
-- Añadir los nombres en castellano que falten en `CYCLING_TYPES`, cuando aparezcan en un export: bicicleta virtual, eléctrica, gravel y montaña.
-- Reducir los avisos de la región viva durante la importación.
-- Añadir una prueba e2e de la copia de seguridad (F3 tarea 7) y una prueba de interfaz de que Cancelar en Rutas con IA aborta.
-- Unificar en un helper la restauración del desplazamiento de Inicio, Historial y Subidas.
-- Las fuentes emiten `.woff` además de `.woff2`.
+- Dividir el bundle con `import()` por pantalla.
+- Leer el ZIP de Strava en streaming.
+- Añadir los nombres en castellano que falten en `CYCLING_TYPES`.
+- Añadir una prueba e2e de la copia de seguridad.
 
 ## Límites conocidos
 

@@ -43,9 +43,9 @@ La documentación de Supabase consultada el 2026-11-09 indica 500 MB de base de 
 - [x] Registrar acceso por correo/contraseña y Google.
 - [x] Preparar migración de perfiles, solicitudes de amistad y permisos del bucket privado de tracks.
 - [x] Escribir pruebas SQL con tres identidades y acceso anónimo (permisos, aceptación, duplicados y Storage).
-- [ ] Ejecutar migración y pruebas SQL en una instancia de pruebas; no hay Postgres, Supabase CLI ni Docker disponibles en el entorno actual.
+- [x] Ejecutar migración y pruebas SQL en una instancia de pruebas; no hay Postgres, Supabase CLI ni Docker disponibles en el entorno actual. Hecho: `npm run test:db` (PGlite) en local y en CI.
 - [x] Conectar cliente Auth con URL y clave publishable del usuario e integrar la guardia local.
-- [ ] Configurar proveedor Google y correo; verificar Auth real antes de publicar.
+- [ ] Configurar proveedor Google y correo; verificar Auth real antes de publicar. (2026-11-09: SMTP de Brevo configurado y login real verificado en producción; falta Google.)
 
 ### Lote de acceso y perfil, 2026-11-09
 
@@ -58,7 +58,7 @@ La documentación de Supabase consultada el 2026-11-09 indica 500 MB de base de 
 - [x] Adaptar fixtures e2e para autenticar con sesiones sintéticas, sin llamadas al proyecto real; no existe bypass de autenticación en producción.
 - [x] Comprobar tipos, build y 19 pruebas e2e de acceso/perfil con 32 capturas (cuatro anchos, apaisado y ambos temas). Suite unitaria: 944/949 en pasada bajo carga; los tres ficheros con los cinco fallos pasan después aislados (36/36), sin cambiar las aserciones. La pasada completa no fue limpia; ver `docs/verificaciones.md`.
 - [x] Regresión completa de navegador: 66/66 PASS con el último ajuste visual, incluyendo importación y Worker sobre la base de la cuenta.
-- [ ] Aplicar y comprobar migración en el proyecto Supabase; configurar Google, SMTP y redirects; probar con dos cuentas reales.
+- [ ] Aplicar y comprobar migración en el proyecto Supabase; configurar Google, SMTP y redirects; probar con dos cuentas reales. (2026-11-09: migraciones 0001 y 0002 aplicadas, SMTP y redirects configurados; faltan Google y la prueba con dos cuentas reales.)
 
 La protección de acceso ya está integrada localmente. No se ha publicado. La sincronización y las comparativas aún no están implementadas; el texto de «Más» lo indica. Las cuentas nuevas utilizan una caché vacía propia: no migran ni eliminan los datos de antes del login.
 

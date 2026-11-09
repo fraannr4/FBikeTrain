@@ -133,3 +133,32 @@ Conclusiones:
 - Groq acepta llamadas directas desde el navegador. No hace falta el plan B (Cloudflare Worker) para la IA.
 - ORS acepta el preflight. Queda pendiente confirmar con una clave válida que la respuesta 200 también trae `access-control-allow-origin`.
 - **Consecuencia para `probeOrs`:** la respuesta 403 de ORS por clave mala no trae cabecera CORS, así que el navegador la ve como un error de red (`TypeError`), no como 403. Una clave ORS incorrecta aparecerá como `network` o `cors`, no como `unauthorized`. El mensaje de Ajustes debe decir «Clave rechazada o sin conexión».
+
+## Sesión del 2026-11-09 por la noche: cuentas, servidor y empalmes
+
+**Supabase remoto.** Proyecto `btmsakyhkxrndvscmxqs`, operado con la API de gestión y un token que vive solo en `.local-secrets/`.
+- Las migraciones `202611090001` y `202611090002` estaban sin aplicar: la app daba `PGRST205`. Se aplicaron y se registraron en `supabase_migrations.schema_migrations`.
+- La Site URL era `http://localhost:3000`. Ahora es la URL de Pages, con redirects de Pages y `localhost:5173`.
+- El SMTP no estaba configurado, aunque se creía que sí. Ahora usa Brevo (`smtp-relay.brevo.com:587`), con 30 correos por hora.
+- Login real en producción comprobado: una cuenta confirmada inició sesión el 2026-11-09 a las 15:50.
+- El bundle publicado no lleva secretos. La cadena `sb_secret_` que aparece es la comprobación de prefijo de supabase-js.
+
+**CI.**
+- El run 42645709360 falló en el test del calendario «adds workout from a day»: el título se guardaba como «Co». La hoja del mes, al cerrarse, devolvía el foco a su botón mientras se escribía en la hoja nueva. Corregido en `src/ui/components/Sheet.tsx` (`b36ce54`).
+- Runs en verde y desplegados:
+  - 42647488343;
+  - 42669547748 (`6fdc2e8`, `386a5fd`);
+  - 42671066509 (`f794820`).
+
+**Pruebas sobre `f794820`.**
+- `npx vitest run`: 95 ficheros y 1.171 tests en verde.
+- `npx tsc --noEmit`: limpio.
+- `npm run test:db`: 5 suites SQL en verde.
+- e2e de empalmar y break-ui de empalmar: 12/12.
+
+**Pendiente de comprobar con servicios reales.** Todo requiere las claves de Groq y ORS:
+- `ai-routes`, `ors-proxy` y `route-sources` sin desplegar;
+- migraciones 202611100001-0003 sin aplicar en remoto;
+- variables `VITE_SHARED_*` y `VITE_ROUTE_SOURCES_ENABLED` apagadas.
+
+Wikiloc sigue apagado hasta que el usuario acepte el riesgo de sus condiciones.
