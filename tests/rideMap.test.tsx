@@ -28,6 +28,13 @@ describe('RideMap', () => {
     expect(at('rmap-core')).toBeLessThan(at('rmap-thread'));
   });
 
+  it('draws road connectors over the track in their own class', async () => {
+    const overlays = [{ path: POINTS.slice(0, 2), kind: 'connector' as const }, { path: POINTS.slice(2), kind: 'return' as const }];
+    const { container } = render(<RideMap points={POINTS} label="Mapa del empalme" overlays={overlays} />);
+    await waitFor(() => expect(container.querySelector('path.rmap-connector')).not.toBeNull());
+    expect(container.querySelector('path.rmap-connector--return')).not.toBeNull();
+  });
+
   it('zoom buttons have Spanish names', async () => {
     render(<RideMap points={POINTS} label="Mapa ampliado" />);
     expect(await screen.findByRole('button', { name: 'Acercar' })).toBeInTheDocument();

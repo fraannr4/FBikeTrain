@@ -1,21 +1,22 @@
 import type { LatLng } from '../domain/types';
 import { haversineM } from '../import/summary';
-import { fetchRoadFeature } from './ors';
+import { fetchRoadFeature, type OrsAccess } from './ors';
+import { buildOrsBody } from './shared/orsService';
 import { ROAD_FILTER, UNPAVED_SURFACES } from './analyze';
 
 export type RoadPoint = LatLng & { ele?: number };
 /** El punto solicitado debe estar cerca de la carretera devuelta; no fabricar enlaces lejanos. */
 export const MAX_ROAD_SNAP_M = 30;
 
-export async function fetchRoadPath(key: string, waypoints: LatLng[], signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<RoadPoint[]> {
-  if (!key.trim()) throw new Error('Añade tu clave de rutas en Ajustes para calcular conexiones por carretera.');
+export async function fetchRoadPath(access: OrsAccess, waypoints: LatLng[], signal?: AbortSignal, fetchImpl: typeof fetch = fetch): Promise<RoadPoint[]> {
+  if (typeof access === 'string' && !access.trim()) throw new Error('Añade tu clave de rutas en Ajustes para calcular conexiones por carretera.');
   if (waypoints.length < 2 || waypoints.length > 8 || waypoints.some(p => !Number.isFinite(p.lat) || !Number.isFinite(p.lng) || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180)) {
     throw new Error('Elige entre dos y ocho puntos válidos.');
   }
-  const feature = await fetchRoadFeature(key, {
-    coordinates: waypoints.map(p => [p.lng, p.lat]), elevation: true, instructions: false,
-    extra_info: ['surface', 'waytype', 'steepness'], options: { avoid_features: ['ferries', 'fords', 'steps'] },
-  }, signal, fetchImpl);
+  const request = { operation: 'path' as const, waypoints: waypoints.map(p => ({ lat: p.lat, lng: p.lng })) };
+  const feature = typeof access === 'string'
+    ? await fetchRoadFeature(access, buildOrsBody(request), signal, fetchImpl)
+    : await access.fetch(request, signal);
   const extras = feature.properties?.extras;
   for (const extra of [extras?.surface, extras?.waytypes]) {
     if (!extra || !Array.isArray(extra.summary) || extra.summary.length === 0 || extra.summary.some(s => !Number.isFinite(s.value) || !Number.isFinite(s.distance) || s.distance < 0 || !Number.isFinite(s.amount) || s.amount < 0 || s.amount > 100)) {

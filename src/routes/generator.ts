@@ -4,7 +4,7 @@ import { newRoadPct } from '../metrics/grid';
 import { difficulty, type Difficulty, type UserReference } from '../metrics/reference';
 import { scoreCandidate, type Target } from '../metrics/score';
 import { analyzeRoute, rejectReason, type RejectReason, type RouteCandidate } from './analyze';
-import { fetchRoundTrip, OrsError } from './ors';
+import { fetchRoundTrip, OrsError, type OrsAccess } from './ors';
 
 /** Búsqueda de rutas: pide a ORS una vuelta por semilla, descarta las que no son de carretera y puntúa el resto. */
 
@@ -35,7 +35,8 @@ export type GenerateResult = {
 };
 
 export type GenerateDeps = {
-  apiKey: string;
+  /** Clave personal o servicio común (`chooseOrsAccess`). */
+  apiKey: OrsAccess;
   reference: UserReference | null;
   visited: ReadonlySet<string>;
   seedBase?: number;

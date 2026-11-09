@@ -2,7 +2,7 @@ import type { LatLng, Settings } from '../domain/types';
 import { upliftPct, type UserReference } from '../metrics/reference';
 import type { Target } from '../metrics/score';
 import { generateRoutes, type GeneratedRoute } from '../routes/generator';
-import { OrsError } from '../routes/ors';
+import { OrsError, type OrsAccess } from '../routes/ors';
 import { formatDeltaPct, formatKm, formatMeters } from '../ui/format';
 import { abortError } from './abort';
 import type { LevelSummary } from './levelSummary';
@@ -64,7 +64,7 @@ export type SharedAiPlanner = {
  * Llama a la IA y, si el JSON no es válido, repite una vez con la respuesta anterior y el error.
  * Los demás errores (clave, límite, red) no se repiten.
  */
-async function chatWithRetry<T>(
+export async function chatWithRetry<T>(
   cfg: Settings['llm'],
   req: ChatRequest<T>,
   chat: typeof chatJson,
@@ -227,7 +227,7 @@ export async function runAiRoutes(
   input: { start: LatLng; answers: Answers; reference: UserReference; summary: LevelSummary },
   deps: {
     llm: Settings['llm'];
-    orsKey: string;
+    orsKey: OrsAccess;
     visited: ReadonlySet<string>;
     chat?: typeof chatJson;
     generate?: typeof generateRoutes;
@@ -242,10 +242,20 @@ export async function runAiRoutes(
   const cap = timeCapM(ref, answers);
   const maxKm = Number.isFinite(cap) ? round1(Math.min(cap / 1000, PLAN_MAX_KM)) : PLAN_MAX_KM;
   const { signal } = deps;
+  // El servicio común caído o sin red no es el límite: con clave personal, se sigue con ella. Con 429, no.
+  const personal = !!deps.llm && deps.llm.apiKey.trim() !== '' && deps.llm.model.trim() !== '';
+  const usePersonal = (e: LlmError) => personal && (e.kind === 'network' || e.kind === 'unavailable');
   let planned: Awaited<ReturnType<typeof planWithRetry>>;
-  if (deps.shared) {
-    try { planned = { ok: true, plan: await deps.shared.plan(summary, answers, maxKm, signal) }; }
-    catch (error) { if (!(error instanceof LlmError)) throw error; planned = { ok: false, error }; }
+  let shared = deps.shared;
+  if (shared) {
+    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal) }; }
+    catch (error) {
+      if (!(error instanceof LlmError)) throw error;
+      if (usePersonal(error)) {
+        shared = undefined;
+        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
+      } else planned = { ok: false, error };
+    }
   } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
   if (!planned.ok) {
     const message = planned.error.kind === 'invalid_json' ? FALLBACK_INVALID : planned.error.message;
@@ -285,10 +295,7 @@ export async function runAiRoutes(
   const facts = toFacts(found);
   const texts = new Map<string, string>();
   if (facts.length > 0) {
-    const out = deps.shared ? await (async (): Promise<Outcome<{ explicaciones: { id: string; texto: string }[] }>> => {
-      try { return { ok: true, data: await deps.shared!.explain(summary, facts, signal) }; }
-      catch (error) { if (!(error instanceof LlmError)) throw error; return { ok: false, error }; }
-    })() : await chatWithRetry(
+    const explainPersonal = () => chatWithRetry(
       deps.llm,
       {
         messages: buildExplainMessages(summary, facts),
@@ -299,6 +306,14 @@ export async function runAiRoutes(
       },
       chat,
     );
+    const viaShared = shared;
+    const out = viaShared ? await (async (): Promise<Outcome<{ explicaciones: { id: string; texto: string }[] }>> => {
+      try { return { ok: true, data: await viaShared.explain(summary, facts, signal) }; }
+      catch (error) {
+        if (!(error instanceof LlmError)) throw error;
+        return usePersonal(error) ? explainPersonal() : { ok: false, error };
+      }
+    })() : await explainPersonal();
     if (out.ok) for (const e of out.data.explicaciones) texts.set(e.id, e.texto);
   }
 

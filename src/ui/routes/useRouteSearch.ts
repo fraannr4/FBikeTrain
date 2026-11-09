@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAccount } from '../../auth/AccountBoundary';
 import { listActivities } from '../../db/repo';
 import type { LatLng } from '../../domain/types';
 import { computeReference } from '../../metrics/reference';
@@ -6,6 +7,7 @@ import type { Target } from '../../metrics/score';
 import { DEFAULT_SEEDS, generateRoutes, type GenerateResult } from '../../routes/generator';
 import { loadVisitedCells } from '../../routes/history';
 import { fetchRoundTrip, OrsError, type OrsErrorKind } from '../../routes/ors';
+import { chooseOrsAccess } from '../../routes/orsProxy';
 import { loadSettings } from '../../settings/settings';
 
 /** Peticiones a ORS hechas y previstas en la búsqueda en curso. */
@@ -26,11 +28,13 @@ export type RouteSearch = {
 class SearchCancelled extends Error {}
 
 /**
- * Búsqueda de rutas con la clave de Ajustes, la referencia del historial y sus celdas visitadas.
+ * Búsqueda de rutas por el servicio común (con cuenta y el modo activado) o con la clave de Ajustes,
+ * con la referencia del historial y sus celdas visitadas.
  * Las celdas se leen una vez por pantalla: recorrer los tracks es lo caro. Cancelar no corta la
  * petición que ya está en vuelo, pero no se pide ninguna más.
  */
 export function useRouteSearch(): RouteSearch {
+  const account = useAccount();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; kind: OrsErrorKind | null } | null>(null);
   const [progress, setProgress] = useState<SearchProgress | null>(null);
@@ -66,7 +70,7 @@ export function useRouteSearch(): RouteSearch {
       const result = await generateRoutes(
         { start, target, count: opts.count, seeds: opts.seeds },
         {
-          apiKey: settings.ors.apiKey,
+          apiKey: chooseOrsAccess(settings.ors.apiKey, account),
           reference: computeReference(acts, Date.now()),
           visited: cells,
           fetchRoundTrip: async (key, req) => {
@@ -92,7 +96,7 @@ export function useRouteSearch(): RouteSearch {
         setProgress(null);
       }
     }
-  }, []);
+  }, [account]);
 
   return { run, cancel, busy, error: error?.text ?? null, errorKind: error?.kind ?? null, progress };
 }

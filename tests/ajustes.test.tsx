@@ -1,6 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { AccountContext } from '../src/auth/AccountBoundary';
 import { Ajustes } from '../src/ui/pages/Ajustes';
 import { ToastProvider } from '../src/ui/components/Toast';
 import { db } from '../src/db/db';
@@ -177,6 +179,31 @@ describe('Ajustes', () => {
     renderAjustes();
     expect(await screen.findByText('Para crear rutas faltan dos cosas:')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Empezar por Casa' })).toBeInTheDocument();
+  });
+
+  it('with the shared road service it does not ask for keys and folds them as advanced', async () => {
+    await saveSettings({ ...structuredClone(DEFAULT_SETTINGS), home: { lat: 40.4168, lng: -3.7038 } });
+    vi.stubEnv('VITE_SHARED_ORS_ENABLED', 'true');
+    try {
+      const account = { client: {} as SupabaseClient, user: { id: 'u1' } as User };
+      render(
+        <AccountContext.Provider value={account}>
+          <MemoryRouter initialEntries={['/ajustes']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <ToastProvider>
+              <Ajustes />
+            </ToastProvider>
+          </MemoryRouter>
+        </AccountContext.Provider>,
+      );
+      await screen.findByLabelText('Nombre');
+      const titles = Array.from(document.querySelectorAll('details.disclosure > summary .row-title')).map((n) => n.textContent);
+      expect(titles).toContain('Avanzado: usar mis propias claves');
+      expect(document.querySelector('details#claves')).not.toHaveAttribute('open');
+      expect(screen.queryByText(/Para crear rutas falta/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Falta la clave de rutas')).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('theme toggle lives in Apariencia', async () => {

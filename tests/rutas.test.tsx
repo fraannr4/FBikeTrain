@@ -1,7 +1,9 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { App } from '../src/App';
+import { AccountContext } from '../src/auth/AccountBoundary';
 import { db } from '../src/db/db';
 import { saveActivity } from '../src/db/repo';
 import type { Coord3, LatLng, StoredActivity } from '../src/domain/types';
@@ -106,7 +108,7 @@ describe('Rutas', () => {
     vi.useFakeTimers({ toFake: ['Date'], now: NOW });
     generate.mockReset();
     forgetRoutes();
-    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear()]);
+    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear(), db.referenceRoutes.clear()]);
     try {
       localStorage.clear();
     } catch {
@@ -125,6 +127,28 @@ describe('Rutas', () => {
     expect(screen.getByText(/se calculan con OpenRouteService/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ir a Ajustes' })).toHaveAttribute('href', '#/ajustes?abrir=claves');
     expect(screen.queryByRole('button', { name: /Generar 5 rutas/ })).not.toBeInTheDocument();
+  });
+
+  it('with the shared road service it does not ask for a key nor count this browser', async () => {
+    await seed({ key: '', usage: 2000 });
+    vi.stubEnv('VITE_SHARED_ORS_ENABLED', 'true');
+    try {
+      const quota = new OrsError('quota_day', 'Se ha llegado al límite diario del servicio común de rutas (150 consultas al día por persona).');
+      generate.mockRejectedValue(quota);
+      window.location.hash = '#/rutas';
+      const account = { client: {} as SupabaseClient, user: { id: 'u1' } as User };
+      render(<AccountContext.Provider value={account}><App /></AccountContext.Provider>);
+      const btn = await generateButton();
+      expect(screen.queryByRole('heading', { name: 'Falta tu clave de rutas' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Consultas ORS hoy/)).not.toBeInTheDocument();
+      await userEvent.click(btn);
+      await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+      expect(generate.mock.calls[0][1].apiKey).toMatchObject({ kind: 'shared' });
+      expect(await screen.findByText(/150 consultas al día por persona/)).toBeInTheDocument();
+      expect(screen.queryByText(/Tu clave gratuita de OpenRouteService/)).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('explains how to get the ors key', async () => {
@@ -365,6 +389,27 @@ describe('Rutas', () => {
     const gpx = await (createObjectURL.mock.calls[0] as unknown as [Blob])[0].text();
     expect(gpx).toContain(`<name>${name}</name>`);
     click.mockRestore();
+  });
+
+  it('saves the current route in the library to splice it', async () => {
+    await seed();
+    generate.mockResolvedValue(result());
+    renderRutas();
+    await userEvent.click(await generateButton());
+    const save = await screen.findByRole('button', { name: 'Guardar «Vuelta por el norte» en la biblioteca' });
+    await userEvent.click(save);
+    await waitFor(async () => expect(await db.referenceRoutes.count()).toBe(1));
+    const [saved] = await db.referenceRoutes.toArray();
+    expect(saved).toMatchObject({ name: 'Vuelta por el norte', format: 'gpx', sourceFileName: 'ruta-62km-850m.gpx' });
+    expect(saved.points).toHaveLength(41);
+    // Pulsar otra vez no la duplica.
+    await userEvent.click(save);
+    expect(await screen.findByText('Ya está en la biblioteca')).toBeInTheDocument();
+    expect(await db.referenceRoutes.count()).toBe(1);
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Empalmar' })[0]);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar dos rutas' })).toBeInTheDocument();
+    expect(await screen.findAllByRole('option', { name: /Vuelta por el norte/ })).toHaveLength(2);
   });
 
   it('cancel goes back without routes', async () => {

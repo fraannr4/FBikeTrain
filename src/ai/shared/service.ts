@@ -16,12 +16,17 @@ const factSchema = z.strictObject({
   pendienteMaxima: z.enum(['de menos del 1 %', 'del 1 al 4 %', 'del 4 al 7 %', 'del 7 al 10 %', 'del 10 al 16 %', 'del 16 % o más']),
   limitadoPorTiempo: z.boolean(),
 });
+const spliceFactSchema = z.strictObject({
+  id: z.string().regex(/^c([1-9]|1[0-2])$/), distanciaKm: finite(2000), desnivelM: finite(30_000).nullable(),
+  viasPrincipalesPct: finite(100), conectorKm: finite(2000), solapeKm: finite(2000), retrocesoKm: finite(2000), alternativa: z.boolean(),
+});
 export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('plan'), summary: summarySchema,
     answers: z.strictObject({ focus: z.enum(['fondo', 'subidas', 'mixto']), minutes: z.number().int().min(10).max(1440), explore: z.enum(['repetir', 'descubrir']), notes: z.literal('').default('') }),
     maxDistanciaKm: z.number().finite().min(0).max(200),
   }),
   z.strictObject({ operation: z.literal('explain'), summary: summarySchema, facts: z.array(factSchema).min(1).max(5).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
+  z.strictObject({ operation: z.literal('splice'), facts: z.array(spliceFactSchema).min(1).max(12).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
 ]);
 export type SharedAiRequest = z.infer<typeof sharedAiRequestSchema>;
 export type SharedAiDependencies = {

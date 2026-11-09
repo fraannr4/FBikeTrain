@@ -4,7 +4,7 @@ import {
   parseReferenceRoute, analyzeReferenceRoutePoints, importReferenceRoute, listReferenceRoutes,
   getReferenceRoute, saveReferenceRoute, deleteReferenceRoute, trimReferenceRoute,
   reverseReferenceRoute, changeReferenceRouteStart, restoreReferenceRoute,
-  replaceReferenceRoutePoints, referenceRouteToGpx, type ReferenceRoute,
+  replaceReferenceRoutePoints, referenceRouteToGpx, saveGeneratedRoute, type ReferenceRoute,
 } from '../src/routes/library';
 
 const points = [
@@ -115,6 +115,16 @@ describe('biblioteca de rutas de referencia', () => {
     expect(parseReferenceRoute(exported, 'result.gpx').points).toEqual(withoutElevation.points);
     const tinyCoordinates = replaceReferenceRoutePoints(item, [{ lat: 0.0000001, lng: 2.5 }, { lat: 0.001, lng: 2.5 }]);
     expect(referenceRouteToGpx(tinyCoordinates)).toContain('lat="0.0000001"');
+  });
+  it('guarda una ruta generada en la biblioteca para poder empalmarla', async () => {
+    const coords: [number, number, number][] = points.map(p => [p.lng, p.lat, p.ele]);
+    const saved = await saveGeneratedRoute('Vuelta por el norte', coords, 'ruta-1km-20m.gpx');
+    expect(await listReferenceRoutes()).toEqual([saved]);
+    expect(saved).toMatchObject({ name: 'Vuelta por el norte', format: 'gpx', sourceFileName: 'ruta-1km-20m.gpx', points, originalPoints: points });
+    expect(saved.summary).toMatchObject({ elevGainM: 20, closed: true, pointCount: 4 });
+    // El original es el mismo GPX que se exporta: se vuelve a leer igual.
+    expect(parseReferenceRoute(saved.originalXml, saved.sourceFileName).points).toEqual(points);
+    await expect(saveGeneratedRoute('Sin recorrido', coords.slice(0, 1), 'x.gpx')).rejects.toThrow(/dos puntos/);
   });
   it('la versión nueva conserva datos de una base v3', async () => {
     const name = 'test-route-library-upgrade';

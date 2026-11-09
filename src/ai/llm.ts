@@ -16,6 +16,8 @@ export type LlmErrorKind =
   | 'model_unsupported'
   | 'bad_request'
   | 'network'
+  /** El servicio común de IA responde 503: sin configurar, sin cuota comprobable o caído. */
+  | 'unavailable'
   | 'other';
 
 /** `message` es el texto que ve el usuario; `raw`, el contenido recibido, que se usa al reintentar. */

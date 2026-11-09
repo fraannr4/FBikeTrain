@@ -3,13 +3,15 @@ import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { DECLARED_REFERENCE_KEY } from '../src/ai/levelSummary';
 import { runAiRoutes, type AiRoute, type AiRoutesResult } from '../src/ai/routePlanner';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { App } from '../src/App';
+import { AccountContext } from '../src/auth/AccountBoundary';
 import { aiShown } from '../src/ui/components/AiRoutes';
 import { TrendingDown, TrendingUp } from '../src/ui/icons';
 import { db } from '../src/db/db';
 import { saveActivity } from '../src/db/repo';
 import type { Coord3, LatLng, StoredActivity } from '../src/domain/types';
-import { DEFAULT_SETTINGS, saveSettings } from '../src/settings/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../src/settings/settings';
 import { forgetAiRoutes } from '../src/ui/pages/RutasIa';
 
 // La IA y ORS nunca se llaman: `runAiRoutes` se simula. El mapa de Leaflet se sustituye por un doble.
@@ -126,7 +128,7 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     vi.useFakeTimers({ toFake: ['Date'], now: NOW });
     run.mockReset();
     forgetAiRoutes();
-    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear(), db.climbEfforts.clear()]);
+    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear(), db.climbEfforts.clear(), db.referenceRoutes.clear()]);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -236,6 +238,26 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(deps.orsKey).toBe('test-key');
   });
 
+  it('with the shared road service it does not ask for the ORS key and searches through it', async () => {
+    await seed();
+    await saveSettings({ ...(await loadSettings()), ors: { apiKey: '' } });
+    vi.stubEnv('VITE_SHARED_ORS_ENABLED', 'true');
+    try {
+      run.mockResolvedValue({ kind: 'routes', routes: [aiRoute(0)], warnings: [] });
+      window.location.hash = '#/rutas/ia';
+      const account = { client: {} as SupabaseClient, user: { id: 'u1' } as User };
+      render(<AccountContext.Provider value={account}><App /></AccountContext.Provider>);
+      const user = await answerAll();
+      expect(screen.queryByText(/Falta tu clave de rutas/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Consultas ORS hoy/)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /Pedir rutas a la IA/ }));
+      await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+      expect(run.mock.calls[0][1].orsKey).toMatchObject({ kind: 'shared' });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('shows thinking state while waiting', async () => {
     await seed();
     run.mockReturnValue(new Promise(() => {}));
@@ -265,6 +287,20 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(within(first).getByText(/la opción 1 sube un poco/)).toBeInTheDocument();
     expect(within(first).getByText('+8 % frente a tu referencia en distancia')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Exportar GPX de Opción 1, ruta 1 de 3/ })).toBeInTheDocument();
+  });
+
+  it('saves an ai route in the library to splice it', async () => {
+    await seed();
+    const user = await ask({ kind: 'routes', routes: [aiRoute(0), aiRoute(1)], warnings: [] });
+    const first = await screen.findByRole('article', { name: /Opción 1/ });
+    const name = within(first).getByRole('heading').getAttribute('title') ?? '';
+    await user.click(screen.getByRole('button', { name: `Guardar «${name}» en la biblioteca` }));
+    await waitFor(async () => expect(await db.referenceRoutes.count()).toBe(1));
+    const [saved] = await db.referenceRoutes.toArray();
+    expect(saved).toMatchObject({ name, format: 'gpx', sourceFileName: 'ruta-54km-820m.gpx' });
+    expect(saved.points).toHaveLength(41);
+    await user.click(screen.getByRole('button', { name: 'Empalmar' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar dos rutas' })).toBeInTheDocument();
   });
 
   it('opens the map of an ai route with its full title', async () => {

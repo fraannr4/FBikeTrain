@@ -33,6 +33,12 @@ export const ExplanationSchema = z.strictObject({
   ),
 });
 
+/** Recomendación de empalme: una de las opciones recibidas y una frase. */
+export function spliceAdviceSchema(ids: [string, ...string[]]) {
+  return z.strictObject({ recomendada: z.enum(ids), motivo: z.string().min(1).max(240) });
+}
+export type SpliceAdvice = { recomendada: string; motivo: string };
+
 type JsonNode = Record<string, unknown>;
 
 /** Deja cada objeto con `additionalProperties: false` y todas sus claves en `required`. */

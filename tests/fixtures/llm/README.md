@@ -15,6 +15,7 @@ Ninguno lleva claves, coordenadas ni datos del usuario. Se ha quitado el `id` de
 | `plan-not-json.json` | 200 | `content` cortado (`finish_reason: "length"`) que no se puede leer como JSON. |
 | `plan-bad-schema.json` | 200 | JSON legible pero con `subidaPct: 20` en la primera opción: zod lo rechaza. |
 | `unauthorized-401.json` | 401 | `{ error: { message: "Invalid API Key", type, code } }`. |
+| `splice-ok.json` | 200 | Recomendación de empalme: `{ recomendada: "c2", motivo }` con una frase que cita cifras. |
 | `rate-limit-429.json` | 429 | Límite de peticiones por minuto. La cabecera `retry-after` la pone cada prueba. |
 | `schema-mismatch-400.json` | 400 | «Generated JSON does not match the expected schema. Please adjust your prompt.» (texto de la documentación de Groq). |
 | `model-unsupported-400.json` | 400 | Modelo sin `json_schema`. **El texto es inventado**: la documentación de Groq no lo publica. |

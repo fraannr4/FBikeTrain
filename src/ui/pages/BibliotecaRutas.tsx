@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAccount } from '../../auth/AccountBoundary';
 import { db } from '../../db/db';
 import type { LatLng } from '../../domain/types';
 import { haversineM } from '../../import/summary';
 import { applyRoadEdit, type RoadEdit } from '../../routes/libraryEdit';
+import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
 import {
   importReferenceRoute, listReferenceRoutes, saveReferenceRoute, deleteReferenceRoute,
   trimReferenceRoute, reverseReferenceRoute, restoreReferenceRoute, changeReferenceRouteStart,
@@ -25,6 +27,7 @@ const failure = (e: unknown) => e instanceof Error ? e.message : 'No se pudo com
 let pendingDraft: { database: string; route: ReferenceRoute } | null = null;
 
 export function BibliotecaRutas() {
+  const account = useAccount();
   const navigate = useNavigate();
   const [routes, setRoutes] = useState<ReferenceRoute[]>([]);
   const [draft, setDraft] = useState<ReferenceRoute | null>(() => pendingDraft?.database === db.name ? pendingDraft.route : null);
@@ -137,7 +140,7 @@ export function BibliotecaRutas() {
     setBusy(true); setError(''); setNotice('Calculando la conexión por carretera…');
     try {
       const settings = await loadSettings();
-      const next = await applyRoadEdit(draft, { kind: editKind, point, from, to }, settings.ors.apiKey, controller.signal);
+      const next = await applyRoadEdit(draft, { kind: editKind, point, from, to }, chooseOrsAccess(settings.ors.apiKey, account), controller.signal);
       if (alive.current && !controller.signal.aborted) edit(next);
     } catch (e) { if (alive.current && !controller.signal.aborted) setError(failure(e)); }
     finally { if (alive.current) { setBusy(false); if (controller.signal.aborted) setNotice('Cambio cancelado. Tu ruta sigue igual.'); } abort.current = null; }
@@ -161,6 +164,7 @@ export function BibliotecaRutas() {
     {error && <p className="library-error" role="alert">{error} {loading ? null : <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setLoadAttempt(n => n + 1)}>Volver a leer la biblioteca</button>}</p>}
     {notice && <p className="library-notice" role="status">{notice}</p>}
     {loading ? <p role="status">Leyendo tu biblioteca…</p> : routes.length > 0 && <section className="section library-list" aria-label="Tus recorridos">{routes.map(route => <button className="library-row" type="button" key={route.id} disabled={busy || dirty} aria-pressed={draft?.id === route.id} onClick={() => choose(route)}><b>{route.name}</b><span>{formatKm(route.summary.distanceM, 1)} · {route.format.toUpperCase()}</span></button>)}</section>}
+    {!loading && routes.length >= 2 && <Link className="btn btn--secondary btn--block" to="/rutas/empalmar">Empalmar dos rutas</Link>}
     {draft && <>
       <section className="section card library-panel" aria-label="Recorrido analizado">
         <Field label="Nombre de la ruta" value={draft.name} maxLength={120} disabled={busy} onChange={e => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }} />
@@ -178,7 +182,7 @@ export function BibliotecaRutas() {
           <div className="library-actions"><button type="button" className="btn btn--secondary" onClick={() => local(r => trimReferenceRoute(r, from, to))}>Conservar solo el tramo</button><button type="button" className="btn btn--secondary" onClick={() => local(reverseReferenceRoute)}>Invertir recorrido</button>{draft.summary.closed && <button type="button" className="btn btn--secondary" onClick={() => local(r => changeReferenceRouteStart(r, from))}>Empezar en el punto elegido</button>}</div>
           <p className="help">Recortar o invertir no recalcula carreteras ni valida sentidos de circulación. El original permanece guardado.</p>
           <label className="field"><span className="field-label">Cambio por carretera</span><select className="input" value={editKind} onChange={e => setEditKind(e.target.value as RoadEdit['kind'])}><option value="extend">Prolongar desde el final</option><option value="prepend">Llegar a la ruta desde otro inicio</option><option value="detour">Desviar el tramo elegido por un punto</option></select></label>
-          <p className="help">Elige el punto en el mapa o introduce sus coordenadas. La conexión usa tu clave de rutas de <Link to="/ajustes?abrir=claves">Ajustes</Link>. No se envía a la IA.</p>
+          <p className="help">Elige el punto en el mapa o introduce sus coordenadas. {sharedOrsEnabled() && account ? 'La conexión usa el servicio común de rutas.' : <>La conexión usa tu clave de rutas de <Link to="/ajustes?abrir=claves">Ajustes</Link>.</>} No se envía a la IA.</p>
           <StartPointCanvas key={`${draft.id}-${mapRevision}-${editKind}`} value={point} home={draft.points[editKind === 'extend' ? totalPoints - 1 : 0]} onChange={pickPoint} />
           <div className="library-coordinate"><Field label="Latitud del punto" inputMode="decimal" value={latitude} help="Entre −90 y 90." onChange={e => setLatitude(e.target.value)} /><Field label="Longitud del punto" inputMode="decimal" value={longitude} help="Entre −180 y 180." onChange={e => setLongitude(e.target.value)} /></div>
           <button type="button" className="btn btn--secondary btn--block" disabled={!point} onClick={roadEdit}>Calcular cambio por carretera</button>

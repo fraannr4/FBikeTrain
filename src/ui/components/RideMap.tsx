@@ -11,6 +11,8 @@ export const CYCLOSM_ATTRIBUTION =
 
 /** Subida pintada sobre el trazado: su tramo, su número y la clase de pendiente (0-5, `--g0`...`--g5`). */
 export type MapClimb = { n: number; cls: number; path: LatLng[] };
+/** Tramo calculado por carretera encima del trazado (empalmes): conector de unión o de regreso. */
+export type MapOverlay = { path: LatLng[]; kind: 'connector' | 'return' };
 
 type Props = {
   points: LatLng[];
@@ -18,6 +20,8 @@ type Props = {
   label: string;
   /** Subidas numeradas: el tramo coloreado y una chincheta en su cima. */
   climbs?: MapClimb[];
+  /** Conectores pintados en otro color sobre el trazado. */
+  overlays?: MapOverlay[];
   /** Punto que sigue al dedo en el perfil; `null` lo oculta. */
   cursor?: LatLng | null;
   /**
@@ -48,6 +52,7 @@ export const RideMap = memo(function RideMap({
   points,
   label,
   climbs,
+  overlays,
   cursor = null,
   interactive = true,
   attribution = interactive,
@@ -144,8 +149,15 @@ export const RideMap = memo(function RideMap({
         { className: `rmap-climb rmap-g${c.cls}`, interactive: false },
       ).addTo(a.climbs);
     }
+    for (const o of overlays ?? []) {
+      if (o.path.length < 2) continue;
+      a.L.polyline(
+        o.path.map((p) => [p.lat, p.lng] as [number, number]),
+        { className: `rmap-connector${o.kind === 'return' ? ' rmap-connector--return' : ''}`, interactive: false },
+      ).addTo(a.climbs);
+    }
     drawPins(a, climbs);
-  }, [climbs, ready]);
+  }, [climbs, overlays, ready]);
 
   useEffect(() => {
     const a = api.current;

@@ -1,6 +1,7 @@
 import type { LatLng } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { replaceReferenceRoutePoints, type ReferenceRoute, type RoutePoint } from './library';
+import type { OrsAccess } from './ors';
 import { fetchRoadPath } from './roadPath';
 
 export type RoadEdit = { kind: 'extend' | 'prepend' | 'detour'; point: LatLng; from?: number; to?: number };
@@ -12,7 +13,7 @@ function join(a: RoutePoint[], b: RoutePoint[]): RoutePoint[] {
   return [...a, ...b.slice(1)];
 }
 /** Añade o cambia geometría usando el motor de carreteras, nunca mediante la respuesta textual de IA. */
-export async function applyRoadEdit(route: ReferenceRoute, edit: RoadEdit, key: string, signal?: AbortSignal, road = fetchRoadPath): Promise<ReferenceRoute> {
+export async function applyRoadEdit(route: ReferenceRoute, edit: RoadEdit, key: OrsAccess, signal?: AbortSignal, road = fetchRoadPath): Promise<ReferenceRoute> {
   const p = route.points;
   let next: RoutePoint[];
   if (edit.kind === 'extend') next = join(p, await road(key, [p[p.length - 1], edit.point], signal));

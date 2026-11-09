@@ -15,6 +15,7 @@ import type { Settings } from '../src/domain/types';
 import type { UserReference } from '../src/metrics/reference';
 import type { GeneratedRoute, generateRoutes, GenerateResult } from '../src/routes/generator';
 import { OrsError } from '../src/routes/ors';
+import { createSharedAiPlanner } from '../src/ai/sharedClient';
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(`tests/fixtures/llm/${name}`, 'utf8'));
 
@@ -421,3 +422,61 @@ describe('runAiRoutes', () => {
     }
   });
 });
+
+describe('runAiRoutes con la IA compartida', () => {
+  /** Contenido JSON de una respuesta guardada del proveedor, como lo devuelve la función `ai-routes`. */
+  const content = (name: string) => JSON.parse((fixture(name) as { choices: { message: { content: string } }[] }).choices[0].message.content);
+  const sharedReply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const shared = (fetchImpl: typeof fetch) => createSharedAiPlanner(async () => 'session', fetchImpl);
+
+  it('si el servicio no está disponible (503) y hay clave personal, la usa', async () => {
+    const down = vi.fn<typeof fetch>(async () => sharedReply(503, { error: { code: 'unavailable' } }));
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), shared: shared(down) });
+
+    expect(out.kind).toBe('routes');
+    expect(fn).toHaveBeenCalledTimes(2); // plan y explicación con la clave personal
+    expect(fn.mock.calls[0][0]).toBe(LLM);
+  });
+
+  it('si falla la red, también vuelve a la clave personal', async () => {
+    const offline = vi.fn<typeof fetch>(async () => { throw new TypeError('Failed to fetch'); });
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    expect((await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), shared: shared(offline) })).kind).toBe('routes');
+    expect(fn).toHaveBeenCalled();
+  });
+
+  it('con la cuota agotada (429) no reintenta con la clave personal y muestra el límite', async () => {
+    const limited = vi.fn<typeof fetch>(async () => sharedReply(429, { error: { code: 'quota_exceeded' }, retryAfterS: 3600 }));
+    const { fn, chat } = fakeChat(validPlan);
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), shared: shared(limited) });
+
+    expect(out).toMatchObject({ kind: 'fallback', cause: 'rate_limit', message: expect.stringMatching(/límite/) });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('sin clave personal, un servicio caído lleva al formulario manual', async () => {
+    const down = vi.fn<typeof fetch>(async () => sharedReply(503, {}));
+    const { fn, chat } = fakeChat(validPlan);
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), llm: { ...LLM, apiKey: '' }, shared: shared(down) });
+
+    expect(out.kind).toBe('fallback');
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('las peticiones al servicio común nunca llevan Casa, el inicio ni tracks', async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    fetchImpl
+      .mockResolvedValueOnce(sharedReply(200, { data: content('plan-ok.json') }))
+      .mockResolvedValueOnce(sharedReply(200, { data: content('explain-ok.json') }));
+    const out = await runAiRoutes({ ...input(), start: HOME }, { ...deps(fakeChat().chat, fakeGenerate()), shared: shared(fetchImpl) });
+
+    expect(out.kind === 'routes' && out.routes.length).toBe(3);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetchImpl.mock.calls) {
+      const body = String(init?.body);
+      for (const banned of ['41.1', '2.65', '41.2', '2.7', 'lat', 'lng', 'coordinates', 'coords']) expect(body).not.toContain(banned);
+    }
+  });
+});
+

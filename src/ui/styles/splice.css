@@ -1,0 +1,20 @@
+/* Empalmar dos rutas: tarjetas de opción, leyenda del mapa y avisos. Mobile-first. */
+.splice-options{display:grid;gap:12px;margin:0;padding:0;list-style:none}
+.splice-option{display:grid;gap:12px;padding:20px;min-width:0;overflow-wrap:anywhere;border:1px solid var(--line)}
+.splice-option--selected{border-color:var(--focus)}
+.splice-option-head{display:flex;flex-wrap:wrap;gap:8px}
+.splice-option-head:empty{display:none}
+.splice-option-title{margin:0;font-size:var(--fs-md, 17px);line-height:1.35}
+.splice-badge{background:var(--good-bg);color:var(--good)}
+.splice-advice{display:grid;gap:6px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2)}
+.splice-advice p{margin:0;line-height:1.5}
+.splice-warning{margin:0;padding:10px 14px;border-radius:var(--r-md);background:var(--warning-bg);color:var(--warning);line-height:1.5}
+.splice-check{display:flex;align-items:center;gap:12px;min-height:44px}
+.splice-check input{width:22px;height:22px;accent-color:var(--action);flex:none}
+.splice-legend{display:grid;gap:8px;margin:0;padding:0;list-style:none;font-size:var(--fs-sm);color:var(--ink-2)}
+.splice-legend li{display:flex;align-items:center;gap:10px;min-width:0;overflow-wrap:anywhere}
+.splice-swatch{flex:none;width:28px;height:0;border-top:4px solid var(--trace);border-radius:2px}
+.splice-swatch--connector{border-top:4px dotted var(--acc-speed)}
+.splice-swatch--return{border-top:4px dashed var(--acc-speed)}
+@media(max-width:380px){.splice-option{padding:16px}}
+.splice-map{height:min(52dvh,420px);border-radius:var(--r-md);overflow:hidden}

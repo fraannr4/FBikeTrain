@@ -1,7 +1,9 @@
 import type { Element } from '@xmldom/xmldom';
 import { db } from '../db/db';
+import type { Coord3 } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { child, descendants, parseXml, text, toNumber } from '../import/xml';
+import { toGpx } from './gpx';
 
 /** Recorridos de referencia: no son actividades realizadas y no contienen tiempos ni sensores. */
 export type RoutePoint = { lat: number; lng: number; ele?: number };
@@ -148,6 +150,19 @@ export async function importReferenceRoute(file: File, url?: string): Promise<Re
   return route;
 }
 
+/** Guarda una ruta generada (Rutas o Rutas con IA) con su GPX exportado como original, para empalmarla. */
+export async function saveGeneratedRoute(name: string, coords: Coord3[], fileName: string): Promise<ReferenceRoute> {
+  const points = coords.map(([lng, lat, ele]) => ({ lat, lng, ele }));
+  const summary = analyzeReferenceRoutePoints(points);
+  const now = Date.now();
+  const route: ReferenceRoute = {
+    id: crypto.randomUUID(), name: name.trim().slice(0, 120) || 'Ruta generada', format: 'gpx', sourceFileName: fileName,
+    originalXml: toGpx(name, coords), originalPoints: copy(points), points, summary, createdAt: now, updatedAt: now,
+  };
+  await db.referenceRoutes.add(route);
+  return route;
+}
+
 export function listReferenceRoutes(): Promise<ReferenceRoute[]> {
   return db.referenceRoutes.orderBy('updatedAt').reverse().toArray();
 }
@@ -196,13 +211,18 @@ function escapeXml(value: string): string {
 
 /** Exportación 1.1 compatible con navegación; sin horas ni alturas inventadas. */
 export function referenceRouteToGpx(route: ReferenceRoute): string {
-  analyzeReferenceRoutePoints(route.points);
-  const name = escapeXml(route.name);
+  return routePointsToGpx(route.name, route.points);
+}
+
+/** El mismo GPX para cualquier recorrido de puntos (también los empalmes). */
+export function routePointsToGpx(routeName: string, points: RoutePoint[]): string {
+  analyzeReferenceRoutePoints(points);
+  const name = escapeXml(routeName);
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<gpx version="1.1" creator="FBikeTrain" xmlns="http://www.topografix.com/GPX/1/1">',
     `<metadata><name>${name}</name></metadata><trk><name>${name}</name><trkseg>`,
-    ...route.points.map(point => `<trkpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">${point.ele === undefined ? '' : `<ele>${point.ele.toFixed(2)}</ele>`}</trkpt>`),
+    ...points.map(point => `<trkpt lat="${point.lat.toFixed(7)}" lon="${point.lng.toFixed(7)}">${point.ele === undefined ? '' : `<ele>${point.ele.toFixed(2)}</ele>`}</trkpt>`),
     '</trkseg></trk></gpx>',
   ].join('\n');
 }

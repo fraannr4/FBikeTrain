@@ -111,6 +111,7 @@ Ficheros:
   - tarjetas de las alternativas, con su resumen de cifras, la recomendación de la IA y su limitación;
   - exportación GPX con las funciones existentes.
   - Mobile-first.
+- **Rutas generadas en la biblioteca.** En Rutas y en Rutas con IA, la acción «Guardar en la biblioteca» (`saveGeneratedRoute` en `src/routes/library.ts`, hook `src/ui/routes/useSaveRoute.ts`) guarda la ruta del carrusel con su GPX como original, para empalmarla sin exportar e importar el fichero.
 - Pruebas `tests/splice.test.ts` con geometrías sintéticas:
   - rutas desconectadas;
   - sentidos opuestos;

@@ -138,6 +138,65 @@ const noRoute = {
   info: { engine: { version: 'sintetico', build_date: '2026-11-06T00:00:00Z' }, timestamp: 1793952000000 },
 };
 
+// Trayecto entre dos puntos con `alternative_routes` (target_count 3): ORS devuelve una Feature por
+// ruta, la óptima primero. Aquí, la directa y un desvío por el norte, con `waycategory` (campo de
+// bits: 1 = autopista) además de los extras de siempre.
+const PATH_END = { lat: 40.4258, lng: -3.6938 };
+function pathFeature(points, stateRoadUntil) {
+  const c = points.map(([lng, lat]) => [round(lng, 6), round(lat, 6), 650]);
+  const seg = c.slice(1).map((p, i) => haversine(c[i], p));
+  const tot = seg.reduce((s, x) => s + x, 0);
+  const sp = (from, to) => seg.slice(from, to).reduce((s, x) => s + x, 0);
+  const ex = (values) => {
+    const byValue = new Map();
+    for (const [from, to, v] of values) byValue.set(v, (byValue.get(v) ?? 0) + sp(from, to));
+    return { values, summary: [...byValue.entries()].map(([value, distance]) => ({ value, distance: round(distance, 1), amount: round((distance / tot) * 100, 2) })) };
+  };
+  const n = c.length - 1;
+  const s = { distance: round(tot, 1), duration: round(tot / 6.5, 1), ascent: 0, descent: 0 };
+  return {
+    type: 'Feature',
+    properties: {
+      ascent: 0, descent: 0, segments: [{ ...s }], way_points: [0, n], summary: s,
+      extras: {
+        surface: ex([[0, n, 3]]),
+        waytypes: ex(stateRoadUntil > 0 ? [[0, stateRoadUntil, 1], [stateRoadUntil, n, 2]] : [[0, n, 2]]),
+        steepness: ex([[0, n, 0]]),
+        waycategory: ex([[0, n, 0]]),
+      },
+    },
+    geometry: { type: 'LineString', coordinates: c },
+  };
+}
+const lerp = (a, b, t) => [a.lng + (b.lng - a.lng) * t, a.lat + (b.lat - a.lat) * t];
+const direct = Array.from({ length: 31 }, (_, i) => lerp(START, PATH_END, i / 30));
+const north = { lat: START.lat + 0.0075, lng: START.lng + 0.0035 };
+const detour = [
+  ...Array.from({ length: 16 }, (_, i) => lerp(START, north, i / 15)),
+  ...Array.from({ length: 15 }, (_, i) => lerp(north, PATH_END, (i + 1) / 15)),
+];
+const pathAlternatives = {
+  type: 'FeatureCollection',
+  features: [pathFeature(direct, 0), pathFeature(detour, 3)],
+  metadata: {
+    attribution: 'openrouteservice.org | OpenStreetMap contributors',
+    service: 'routing',
+    timestamp: 1793952000000,
+    query: {
+      coordinates: [[START.lng, START.lat], [PATH_END.lng, PATH_END.lat]],
+      profile: 'cycling-road',
+      format: 'geojson',
+      elevation: true,
+      instructions: false,
+      extra_info: ['surface', 'waytype', 'steepness', 'waycategory'],
+      options: { avoid_features: ['ferries', 'fords', 'steps'] },
+      alternative_routes: { target_count: 3, weight_factor: 1.4, share_factor: 0.6 },
+    },
+    engine: { version: 'sintetico', build_date: '2026-11-06T00:00:00Z', graph_date: '2026-11-06T00:00:00Z' },
+  },
+};
+
 writeFileSync(join(here, 'round-trip-ok.json'), JSON.stringify(ok, null, 2) + '\n');
 writeFileSync(join(here, 'no-route-404.json'), JSON.stringify(noRoute, null, 2) + '\n');
+writeFileSync(join(here, 'path-alternatives-ok.json'), JSON.stringify(pathAlternatives, null, 2) + '\n');
 console.log(`round-trip-ok.json: ${coords.length} puntos, ${summary.distance} m, +${summary.ascent} m`);

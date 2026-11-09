@@ -1,5 +1,5 @@
-import type { Answers, ChatMessage, LevelSummary, RouteFacts } from './contracts.ts';
-export type { Answers, ChatMessage, Focus, RouteFacts } from './contracts.ts';
+import type { Answers, ChatMessage, LevelSummary, RouteFacts, SpliceFacts } from './contracts.ts';
+export type { Answers, ChatMessage, Focus, RouteFacts, SpliceFacts } from './contracts.ts';
 
 const MAX_NOTES = 200;
 
@@ -50,5 +50,21 @@ export function buildExplainMessages(summary: LevelSummary, facts: RouteFacts[])
   return [
     { role: 'system', content: EXPLAIN_SYSTEM },
     { role: 'user', content: JSON.stringify({ resumen: summary, rutas: facts }) },
+  ];
+}
+
+const SPLICE_SYSTEM = [
+  'Eres el asistente de rutas de una web personal de ciclismo de carretera.',
+  'No trazas rutas: las opciones para empalmar dos rutas ya están calculadas por el código, con carreteras de OpenRouteService.',
+  'Recibes en JSON las cifras de cada opción («opciones»): distanciaKm, desnivelM (null si no se conoce), viasPrincipalesPct, conectorKm, solapeKm, retrocesoKm y si es una alternativa parecida de la anterior.',
+  'Recomienda una opción para bici de carretera: primero menos vías principales, después menos retroceso y solape, y después menos distancia.',
+  'En «motivo», escribe una sola frase en castellano que cite las cifras recibidas de la opción elegida. No inventes ni redondees cifras distintas.',
+  'Responde solo con JSON que cumpla el esquema, sin texto alrededor.',
+].join('\n');
+
+export function buildSpliceMessages(facts: SpliceFacts[]): ChatMessage[] {
+  return [
+    { role: 'system', content: SPLICE_SYSTEM },
+    { role: 'user', content: JSON.stringify({ opciones: facts }) },
   ];
 }

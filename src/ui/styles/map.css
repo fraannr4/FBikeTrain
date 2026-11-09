@@ -35,6 +35,8 @@
 .rmap .leaflet-tile-pane { filter: var(--map-filter); }
 .rmap .rmap-halo { stroke: var(--trace); stroke-width: 9; stroke-opacity: calc(0.4 * var(--glow, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-core { stroke: var(--trace); stroke-width: 3; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-connector { stroke: var(--acc-speed); stroke-width: 5; stroke-opacity: 1; fill: none; stroke-dasharray: 2 8; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-connector--return { stroke-dasharray: 10 8; }
 .rmap .rmap-climb { stroke-width: 5; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-climb.rmap-g0 { stroke: var(--g0); } .rmap .rmap-climb.rmap-g1 { stroke: var(--g1); } .rmap .rmap-climb.rmap-g2 { stroke: var(--g2); }
 .rmap .rmap-climb.rmap-g3 { stroke: var(--g3); } .rmap .rmap-climb.rmap-g4 { stroke: var(--g4); } .rmap .rmap-climb.rmap-g5 { stroke: var(--g5); }
@@ -68,6 +70,7 @@
 @media (forced-colors: active) {
   .rmap .leaflet-tint-pane { display: none; }
   .rmap .rmap-core { stroke: Highlight; }
+  .rmap .rmap-connector { stroke: LinkText; }
   .rmap .rmap-halo, .rmap .rmap-thread { stroke-opacity: 0; }
 }
 

@@ -1,0 +1,30 @@
+{
+  "object": "chat.completion",
+  "created": 1793952010,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"recomendada\":\"c2\",\"motivo\":\"La opción c2 suma 21,5 km y 120 m de desnivel sin vías principales ni retroceso.\"}",
+        "reasoning": "Comparo vías principales, retroceso y distancia."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "queue_time": 0.04,
+    "prompt_tokens": 540,
+    "prompt_time": 0.02,
+    "completion_tokens": 120,
+    "completion_time": 0.11,
+    "total_tokens": 660,
+    "total_time": 0.13
+  },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": {
+    "id": "req_synthetic"
+  }
+}

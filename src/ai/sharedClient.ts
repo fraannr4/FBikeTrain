@@ -1,8 +1,8 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
-import type { Answers, RouteFacts } from './prompts';
-import { RoutePlanSchema, ExplanationSchema } from './schema';
+import type { Answers, RouteFacts, SpliceFacts } from './prompts';
+import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, type SpliceAdvice } from './schema';
 import type { SharedAiPlanner } from './routePlanner';
 
 /** Activar solo cuando función y cuota estén desplegadas y verificadas. No habilita un plan de pago. */
@@ -17,8 +17,9 @@ function numericSummary(s: LevelSummary): LevelSummary {
   };
 }
 
-export function createSharedAiPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedAiPlanner {
-  async function request(body: object, signal?: AbortSignal): Promise<unknown> {
+/** Llamada a la función `ai-routes` con la sesión; traduce los errores a `LlmError`. */
+function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof fetch) {
+  return async function request(body: object, signal?: AbortSignal): Promise<unknown> {
     if (signal?.aborted) throw new DOMException('Cancelado', 'AbortError');
     const token = await getToken();
     if (!token) throw new LlmError('other', 'Inicia sesión para usar el servicio de rutas con IA.');
@@ -38,10 +39,15 @@ export function createSharedAiPlanner(getToken: () => Promise<string | null>, fe
         const seconds = Number(payload?.retryAfterS ?? response.headers.get('retry-after'));
         throw new LlmError('rate_limit', 'El servicio gratuito ha alcanzado su límite. Espera antes de volver a buscar.', Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 60);
       }
-      throw new LlmError('other', response.status === 401 ? 'Tu sesión ha caducado. Vuelve a iniciar sesión.' : 'El servicio común todavía no está disponible. Puedes preparar la ruta manualmente.');
+      if (response.status === 503) throw new LlmError('unavailable', 'El servicio común todavía no está disponible. Puedes preparar la ruta manualmente.');
+      throw new LlmError('other', response.status === 401 ? 'Tu sesión ha caducado. Vuelve a iniciar sesión.' : 'El servicio común no ha podido completar la búsqueda. Puedes preparar la ruta manualmente.');
     }
     return payload?.data;
-  }
+  };
+}
+
+export function createSharedAiPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedAiPlanner {
+  const request = sharedRequest(getToken, fetchImpl);
   return {
     plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal) => {
       const data = await request({ operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm }, signal);
@@ -54,6 +60,21 @@ export function createSharedAiPlanner(getToken: () => Promise<string | null>, fe
       const data = await request({ operation: 'explain', summary: numericSummary(summary), facts: safeFacts }, signal);
       const parsed = ExplanationSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('other', 'El servicio no ha devuelto explicaciones válidas.');
+      return parsed.data;
+    },
+  };
+}
+
+export type SharedSpliceAdvisor = { splice: (facts: SpliceFacts[], signal?: AbortSignal) => Promise<SpliceAdvice> };
+
+/** Recomendación de empalme por el servicio común: solo cifras de cada opción. */
+export function createSharedSpliceAdvisor(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedSpliceAdvisor {
+  const request = sharedRequest(getToken, fetchImpl);
+  return {
+    splice: async (facts, signal) => {
+      const data = await request({ operation: 'splice', facts }, signal);
+      const parsed = spliceAdviceSchema(facts.map(f => f.id) as [string, ...string[]]).safeParse(data);
+      if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto una recomendación válida.');
       return parsed.data;
     },
   };

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useAccount } from '../../auth/AccountBoundary';
+import { sharedOrsEnabled } from '../../routes/orsProxy';
 import type { ProbeResult, Settings } from '../../domain/types';
 import { BackupError, exportBackup, getBackupMeta, needsBackup, restoreBackup } from '../../backup/backup';
 import { clearAllData } from '../../db/repo';
@@ -222,6 +224,7 @@ type FormProps = {
 };
 
 function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }: FormProps) {
+  const account = useAccount();
   const toast = useToast();
   const theme = useTheme();
   const [settings, setSettings] = useState(initial);
@@ -282,10 +285,13 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
   }
 
   const missingHome = settings.home === null;
-  const missingKey = !settings.ors.apiKey.trim();
+  // Con el servicio común de rutas no hace falta clave: las propias quedan como opción avanzada.
+  const sharedRoads = sharedOrsEnabled() && account !== null;
+  const ownKey = settings.ors.apiKey.trim() !== '';
+  const missingKey = !sharedRoads && !ownKey;
   const provider = providerName(settings.llm.baseUrl);
 
-  let keysMeta: ReactNode = `Rutas: ${missingKey ? 'sin clave' : ors.ok ? 'conectada' : 'con clave'} · IA: ${
+  let keysMeta: ReactNode = `Rutas: ${!ownKey ? (sharedRoads ? 'servicio común' : 'sin clave') : ors.ok ? 'conectada' : 'con clave'} · IA: ${
     settings.llm.apiKey.trim() ? (llm.ok ? 'conectada' : 'con clave') : 'sin clave'
   }`;
   if (ors.ok === false) keysMeta = <Warn bad>Rutas: la clave no funciona</Warn>;
@@ -398,7 +404,7 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
             icon={KeyRound}
             accent="time"
             leadTone={ors.ok === false ? 'bad' : missingKey ? 'warn' : undefined}
-            title="Claves de servicio"
+            title={sharedRoads ? 'Avanzado: usar mis propias claves' : 'Claves de servicio'}
             meta={keysMeta}
             defaultOpen={isOpen('claves')}
           >

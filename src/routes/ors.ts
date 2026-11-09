@@ -1,8 +1,13 @@
 import type { LatLng } from '../domain/types';
 import { getOrsUsage, recordOrsCall } from './orsUsage';
 import { ORS_ROAD_URL } from './endpoint';
+import type { SharedOrsAccess } from './orsProxy';
+import { buildOrsBody, type SharedOrsRequest } from './shared/orsService';
 
-/** Cliente de OpenRouteService: vuelta circular de bici de carretera con la clave del usuario. */
+/** Cliente de OpenRouteService: vuelta circular de bici de carretera con la clave del usuario o por el servicio común. */
+
+/** Clave personal de ORS (texto) o acceso por el servicio común de la cuenta (`chooseOrsAccess`). */
+export type OrsAccess = string | SharedOrsAccess;
 
 export const ORS_DAILY_LIMIT = 2000;
 export const ORS_MINUTE_LIMIT = 40;
@@ -20,11 +25,12 @@ export type OrsFeature = {
   geometry: { type: 'LineString'; coordinates: [number, number, number][] };
   properties: {
     summary: { distance: number; duration: number; ascent?: number; descent?: number };
-    extras: { surface: OrsExtra; waytypes: OrsExtra; steepness: OrsExtra };
+    /** `waycategory` solo llega en los trayectos (`path`): campo de bits, 1 = autopista. */
+    extras: { surface: OrsExtra; waytypes: OrsExtra; steepness: OrsExtra; waycategory?: OrsExtra };
   };
 };
 
-export type OrsErrorKind = 'unreachable' | 'quota_day' | 'rate_minute' | 'no_route' | 'bad_request' | 'server';
+export type OrsErrorKind = 'unreachable' | 'quota_day' | 'rate_minute' | 'no_route' | 'bad_request' | 'server' | 'session';
 
 /** `message` es el texto que ve el usuario. */
 export class OrsError extends Error {
@@ -47,25 +53,23 @@ const MSG = {
   no_route: 'ORS no encuentra carreteras desde ese punto. Mueve el inicio a una carretera.',
 };
 
+/** La vuelta circular como operación del servicio común: del inicio, solo `lat` y `lng`. */
+function roundTripRequest(r: RoundTripRequest): SharedOrsRequest {
+  return { operation: 'round_trip', start: { lat: r.start.lat, lng: r.start.lng }, lengthM: r.lengthM, points: r.points, seed: r.seed };
+}
+
+/** El mismo cuerpo que construye el servicio común. */
 export function buildRoundTripBody(r: RoundTripRequest): object {
-  return {
-    coordinates: [[r.start.lng, r.start.lat]],
-    elevation: true,
-    instructions: false,
-    extra_info: ['surface', 'waytype', 'steepness'],
-    options: {
-      round_trip: { length: r.lengthM, points: r.points, seed: r.seed },
-      avoid_features: ['ferries', 'fords', 'steps'],
-    },
-  };
+  return buildOrsBody(roundTripRequest(r));
 }
 
 export async function fetchRoundTrip(
-  apiKey: string,
+  access: OrsAccess,
   r: RoundTripRequest,
   fetchImpl: typeof fetch = fetch,
 ): Promise<OrsFeature> {
-  return fetchRoadFeature(apiKey, buildRoundTripBody(r), r.signal, fetchImpl);
+  if (typeof access !== 'string') return access.fetch(roundTripRequest(r), r.signal);
+  return fetchRoadFeature(access, buildRoundTripBody(r), r.signal, fetchImpl);
 }
 
 /** Petición común: contabiliza también los conectores y las modificaciones de rutas importadas. */
@@ -75,6 +79,16 @@ export async function fetchRoadFeature(
   signal?: AbortSignal,
   fetchImpl: typeof fetch = fetch,
 ): Promise<OrsFeature> {
+  return (await fetchRoadFeatures(apiKey, requestBody, signal, fetchImpl))[0];
+}
+
+/** Todas las rutas de la respuesta: con `alternative_routes`, la óptima y sus alternativas. */
+export async function fetchRoadFeatures(
+  apiKey: string,
+  requestBody: object,
+  signal?: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+): Promise<OrsFeature[]> {
   const now = Date.now();
   const previousCalls = (await getOrsUsage(now)).count;
   await recordOrsCall(now);
@@ -97,9 +111,9 @@ export async function fetchRoadFeature(
   const body: unknown = await res.json().catch(() => null);
   if (!res.ok) throw toOrsError(res.status, body);
 
-  const feature = (body as { features?: OrsFeature[] } | null)?.features?.[0];
-  if (!feature) throw new OrsError('no_route', MSG.no_route);
-  return feature;
+  const features = (body as { features?: OrsFeature[] } | null)?.features;
+  if (!features?.length) throw new OrsError('no_route', MSG.no_route);
+  return features;
 }
 
 /** El cuerpo de error de ORS es `{ error: { code, message } }`; el del limitador, `{ error: '...' }`. */

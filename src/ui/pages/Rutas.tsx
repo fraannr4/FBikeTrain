@@ -6,7 +6,9 @@ import { computeReference, type UserReference } from '../../metrics/reference';
 import type { Target } from '../../metrics/score';
 import type { GenerateResult } from '../../routes/generator';
 import { gpxFileName, toGpx } from '../../routes/gpx';
+import { useAccount } from '../../auth/AccountBoundary';
 import { ORS_DAILY_LIMIT } from '../../routes/ors';
+import { SHARED_ORS_LIMITS, sharedOrsEnabled } from '../../routes/orsProxy';
 import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { Banner } from '../components/Banner';
@@ -28,6 +30,7 @@ import {
   CircleCheck,
   Clock,
   Download,
+  Folder,
   KeyRound,
   LoaderCircle,
   MapPin,
@@ -52,6 +55,7 @@ import {
 } from '../routes/routeView';
 import { START_TEXT, StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
 import { useRouteSearch, type SearchProgress } from '../routes/useRouteSearch';
+import { useSaveRoute } from '../routes/useSaveRoute';
 
 const FORM_ID = 'rutas-form';
 const GPX_HELP_KEY = 'fbt-gpx-ayuda';
@@ -100,12 +104,15 @@ const routesWord = (n: number) => (n === 1 ? '1 ruta' : `${formatCount(n)} rutas
 
 /**
  * Rutas: lo que pides (distancia, desnivel, dificultad y de dónde sales), la generación con su
- * progreso y las propuestas en un carrusel con «Exportar GPX» sobre la barra. Sin clave de ORS,
- * lleva a Ajustes; con la cuota del día gastada, lo dice y deja exportar lo que ya hay.
+ * progreso y las propuestas en un carrusel con «Exportar GPX» sobre la barra. Sin clave de ORS (y sin
+ * el servicio común), lleva a Ajustes; con la cuota del día gastada, lo dice y deja exportar lo que ya hay.
  */
 export function Rutas() {
+  const account = useAccount();
+  const sharedOrs = sharedOrsEnabled() && account !== null;
   const toast = useToast();
   const search = useRouteSearch();
+  const saveRoute = useSaveRoute();
   const [ctx, setCtx] = useState<Context | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [usage, setUsage] = useState<OrsUsage | null>(null);
@@ -148,8 +155,9 @@ export function Rutas() {
   }, []);
 
   const home = ctx?.settings.home ?? null;
-  const hasKey = !!ctx && ctx.settings.ors.apiKey.trim() !== '';
-  const spent = !!usage && usage.count >= ORS_DAILY_LIMIT;
+  const hasKey = !!ctx && (sharedOrs || ctx.settings.ors.apiKey.trim() !== '');
+  // El contador local es el de la clave personal; la cuota del servicio común la lleva el servidor.
+  const spent = !sharedOrs && !!usage && usage.count >= ORS_DAILY_LIMIT;
   const quotaOut = spent || search.errorKind === 'quota_day';
   const renew = spent && usage ? renewsAt(usage.windowStart, Date.now()) : null;
   const start = startPoint(kind, home, points);
@@ -229,6 +237,11 @@ export function Rutas() {
     else toast(`GPX exportado: ${file}`, { tone: 'good', action: { label: 'Cómo pasarlo', onClick: () => setSheet('gpx') } });
   };
 
+  const saveToLibrary = (card: RouteCardData) => {
+    const route = run?.result.routes.find((r) => r.id === card.id);
+    if (run && route) void saveRoute(`${run.at}:${route.id}`, card.name, route.coords, gpxFileName(route));
+  };
+
   const cards = run?.cards ?? [];
   const current = cards[Math.min(index, cards.length - 1)] ?? null;
   const gpxInfo =
@@ -279,11 +292,21 @@ export function Rutas() {
     </RouteForm>
   ) : null;
 
-  const usageLine = usage ? (
-    <p className="field-help rutas-usage">
-      {`Consultas ORS hoy: ${formatCount(Math.min(usage.count, ORS_DAILY_LIMIT))} de ${formatCount(ORS_DAILY_LIMIT)} (cuenta de este navegador)`}
-    </p>
-  ) : null;
+  let usageLine: ReactNode = null;
+  if (sharedOrs) {
+    usageLine = <p className="field-help rutas-usage">{`Servicio común de rutas: ${SHARED_ORS_LIMITS}`}</p>;
+  } else if (usage) {
+    usageLine = (
+      <p className="field-help rutas-usage">
+        {`Consultas ORS hoy: ${formatCount(Math.min(usage.count, ORS_DAILY_LIMIT))} de ${formatCount(ORS_DAILY_LIMIT)} (cuenta de este navegador)`}
+      </p>
+    );
+  }
+
+  let quotaText: string | null;
+  if (sharedOrs) quotaText = search.error;
+  else if (renew) quotaText = `Tu clave gratuita de OpenRouteService ha llegado al límite diario y se renueva ${renew}.`;
+  else quotaText = 'Tu clave gratuita de OpenRouteService ha llegado al límite diario. Se renueva 24 h después de la primera consulta del día.';
 
   // En el arranque, la cabecera ya ocupa lo mismo que con el formulario: nada salta al llegar.
   const booting = phase === 'boot' && !loadFailed;
@@ -335,9 +358,7 @@ export function Rutas() {
         {quotaOut && (phase === 'empty' || phase === 'results') ? (
           <Banner tone="warn">
             <b>Cuota de hoy agotada.</b>{' '}
-            {renew
-              ? `Tu clave gratuita de OpenRouteService ha llegado al límite diario y se renueva ${renew}.`
-              : 'Tu clave gratuita de OpenRouteService ha llegado al límite diario. Se renueva 24 h después de la primera consulta del día.'}
+            {quotaText}
             {run && run.cards.length > 0 ? ' Tus últimas rutas siguen aquí y puedes exportarlas.' : ''}
           </Banner>
         ) : null}
@@ -476,6 +497,16 @@ export function Rutas() {
                   meta="BSC200S, en tres pasos con la app"
                   onClick={() => setSheet('gpx')}
                 />
+                {current ? (
+                  <ListRow
+                    icon={Folder}
+                    accent="dist"
+                    title="Guardar en la biblioteca"
+                    meta="Para empalmarla con otra ruta"
+                    ariaLabel={`Guardar «${current.name}» en la biblioteca`}
+                    onClick={() => saveToLibrary(current)}
+                  />
+                ) : null}
               </List>
             ) : null}
           </section>

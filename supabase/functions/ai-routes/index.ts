@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { handleSharedAi, SharedAiRateLimit, type SharedAiRequest } from '../../../src/ai/shared/service.ts';
-import { buildPlanMessages, buildExplainMessages } from '../../../src/ai/prompts.ts';
-import { RoutePlanSchema, ExplanationSchema, toStrictJsonSchema } from '../../../src/ai/schema.ts';
+import { buildPlanMessages, buildExplainMessages, buildSpliceMessages } from '../../../src/ai/prompts.ts';
+import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, toStrictJsonSchema } from '../../../src/ai/schema.ts';
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'openai/gpt-oss-20b';
@@ -18,14 +18,17 @@ const allowedOrigins = (Deno.env.get('APP_ALLOWED_ORIGINS') ?? '').split(',').ma
 const fetchTimed: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10_000)]) });
 
 async function complete(input: SharedAiRequest, signal: AbortSignal): Promise<unknown> {
-  const schema = input.operation === 'plan' ? RoutePlanSchema : ExplanationSchema;
-  const messages = input.operation === 'plan'
-    ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm)
-    : buildExplainMessages(input.summary, input.facts);
+  const schema = input.operation === 'plan' ? RoutePlanSchema
+    : input.operation === 'explain' ? ExplanationSchema
+    : spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]);
+  const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm)
+    : input.operation === 'explain' ? buildExplainMessages(input.summary, input.facts)
+    : buildSpliceMessages(input.facts);
+  const schemaName = { plan: 'plan_rutas', explain: 'explicacion_rutas', splice: 'empalme_rutas' }[input.operation];
   const response = await fetch(GROQ_ENDPOINT, {
     method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, signal,
     body: JSON.stringify({ model: MODEL, messages, temperature: 0.3, max_completion_tokens: MAX_OUTPUT_TOKENS,
-      response_format: { type: 'json_schema', json_schema: { name: input.operation === 'plan' ? 'plan_rutas' : 'explicacion_rutas', strict: true, schema: toStrictJsonSchema(schema) } } }),
+      response_format: { type: 'json_schema', json_schema: { name: schemaName, strict: true, schema: toStrictJsonSchema(schema) } } }),
   });
   if (response.status === 429) throw new SharedAiRateLimit(Number(response.headers.get('retry-after')) || 60);
   if (!response.ok) throw new Error('provider');
@@ -63,6 +66,7 @@ Deno.serve(request => handleSharedAi(request, {
   complete,
   validateOutput: (input, output) => {
     if (input.operation === 'plan') return RoutePlanSchema.safeParse(output).success;
+    if (input.operation === 'splice') return spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]).safeParse(output).success;
     const parsed = ExplanationSchema.safeParse(output);
     if (!parsed.success || parsed.data.explicaciones.length !== input.facts.length) return false;
     const wanted = new Set(input.facts.map(fact => fact.id));

@@ -21,6 +21,7 @@ import type { Target } from '../../metrics/score';
 import { gpxFileName } from '../../routes/gpx';
 import { loadVisitedCells } from '../../routes/history';
 import { ORS_DAILY_LIMIT, OrsError } from '../../routes/ors';
+import { chooseOrsAccess, sessionToken, SHARED_ORS_LIMITS, sharedOrsEnabled } from '../../routes/orsProxy';
 import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { AiNeverList, AiRoutesCarousel, AiSeesList, AI_NEVER, aiShown, type ShownRoute } from '../components/AiRoutes';
@@ -58,6 +59,7 @@ import {
   CircleCheck,
   Clock,
   Download,
+  Folder,
   KeyRound,
   LoaderCircle,
   RefreshCw,
@@ -69,6 +71,7 @@ import {
 import { downloadGpx, GpxHelpSheet } from '../routes/gpxExport';
 import { RouteCardSkeleton, type RouteCardData } from '../routes/RouteCard';
 import { RouteMapSheet } from '../routes/RouteMapSheet';
+import { useSaveRoute } from '../routes/useSaveRoute';
 import { nameRoutes, referenceRange, renewsAt, toCardData } from '../routes/routeView';
 import { useRouteSearch } from '../routes/useRouteSearch';
 import { useReducedMotion } from '../theme/motion';
@@ -118,12 +121,14 @@ function summaryFor(ref: UserReference | null, climbs: ClimbEffort[], now: numbe
 export function RutasIa() {
   const account = useAccount();
   const sharedMode = SHARED_AI_ENABLED && account !== null;
+  const sharedOrs = sharedOrsEnabled() && account !== null;
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
   const reduced = useReducedMotion();
   const search = useRouteSearch();
+  const saveRoute = useSaveRoute();
   const [ctx, setCtx] = useState<Ctx | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [draft, setDraft] = useState<Draft>(session.draft);
@@ -174,8 +179,9 @@ export function RutasIa() {
   const home = ctx?.settings.home ?? null;
   const llm = ctx?.settings.llm;
   const llmReady = sharedMode || (!!llm && llm.apiKey.trim() !== '' && llm.model.trim() !== '');
-  const orsReady = !!ctx && ctx.settings.ors.apiKey.trim() !== '';
-  const quotaOut = !!ctx && ctx.usage.count >= ORS_DAILY_LIMIT;
+  const orsReady = !!ctx && (sharedOrs || ctx.settings.ors.apiKey.trim() !== '');
+  // El contador local es el de la clave personal; la cuota del servicio común la lleva el servidor.
+  const quotaOut = !sharedOrs && !!ctx && ctx.usage.count >= ORS_DAILY_LIMIT;
 
   // El paso va en la URL (?paso=): el gesto atrás vuelve a la pregunta anterior y no saca de la IA.
   const wanted = params.get('paso');
@@ -302,11 +308,7 @@ export function RutasIa() {
     goTo('propuestas', view === 'propuestas'); // «Reintentar» no apila otra entrada igual
     try {
       const visited = await loadVisitedCells();
-      const sharedService = sharedMode && account ? createSharedAiPlanner(async () => {
-        const { data, error } = await account.client.auth.getSession();
-        if (error) return null;
-        return data.session?.access_token ?? null;
-      }) : undefined;
+      const sharedService = sharedMode && account ? createSharedAiPlanner(sessionToken(account.client)) : undefined;
       const shared = sharedService ? {
         plan: async (...args: Parameters<typeof sharedService.plan>) => {
           if (live()) setStage('plan');
@@ -321,7 +323,7 @@ export function RutasIa() {
       } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: ctx.settings.ors.apiKey, visited, chat, signal: controller.signal, shared },
+        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared },
       );
       if (!live()) return;
       if (res.kind === 'routes') {
@@ -426,11 +428,15 @@ export function RutasIa() {
       </div>
     ) : undefined;
 
-  const usageLine = ctx ? (
+  const usageLine = !ctx ? null : sharedOrs ? (
+    <p className="field-help">
+      {`Rutas por el servicio común: ${SHARED_ORS_LIMITS}. Cada búsqueda con IA usa hasta ${ORS_PER_SEARCH}.`}
+    </p>
+  ) : (
     <p className="field-help">
       {`Consultas ORS hoy: ${formatCount(Math.min(ctx.usage.count, ORS_DAILY_LIMIT))} de ${formatCount(ORS_DAILY_LIMIT)}. Cada búsqueda con IA usa hasta ${ORS_PER_SEARCH}.`}
     </p>
-  ) : null;
+  );
 
   const quotaBanner =
     quotaOut && ctx ? (
@@ -644,6 +650,18 @@ export function RutasIa() {
                       meta="BSC200S, en tres pasos con la app"
                       onClick={() => setSheet('gpx')}
                     />
+                    {current ? (
+                      <ListRow
+                        icon={Folder}
+                        accent="dist"
+                        title="Guardar en la biblioteca"
+                        meta="Para empalmarla con otra ruta"
+                        ariaLabel={`Guardar «${current.card.name}» en la biblioteca`}
+                        onClick={() =>
+                          void saveRoute(`${outcome.at}:${current.card.id}`, current.card.name, current.coords, current.file)
+                        }
+                      />
+                    ) : null}
                   </List>
                 </>
               ) : (

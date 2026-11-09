@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import type { Mock } from 'vitest';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { AccountContext } from '../src/auth/AccountBoundary';
 import { db } from '../src/db/db';
 import { fetchRoundTrip, OrsError, type OrsFeature } from '../src/routes/ors';
 import { DEFAULT_SETTINGS, saveSettings } from '../src/settings/settings';
@@ -84,5 +87,22 @@ describe('useRouteSearch', () => {
     });
     expect(result.current.error).toBe('ORS no responde.');
     expect(result.current.errorKind).toBe('unreachable');
+  });
+
+  it('with an account and the shared mode on, goes through the server without a personal key', async () => {
+    await saveSettings({ ...structuredClone(DEFAULT_SETTINGS), ors: { apiKey: '' } });
+    vi.stubEnv('VITE_SHARED_ORS_ENABLED', 'true');
+    try {
+      fetchOne.mockResolvedValue(fixture.features[0]);
+      const account = { client: {} as SupabaseClient, user: { id: 'u1' } as User };
+      const wrapper = ({ children }: { children: ReactNode }) => <AccountContext.Provider value={account}>{children}</AccountContext.Provider>;
+      const { result } = renderHook(() => useRouteSearch(), { wrapper });
+      await act(async () => {
+        await result.current.run(SOL, TARGET, { seeds: 1 });
+      });
+      expect(fetchOne.mock.calls[0][0]).toMatchObject({ kind: 'shared' });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
