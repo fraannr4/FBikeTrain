@@ -11,7 +11,7 @@ try {
     create role service_role nologin;
     create schema auth;
     create schema storage;
-    create table auth.users (id uuid primary key, email text);
+    create table auth.users (id uuid primary key, email text, is_anonymous boolean not null default false);
     create function auth.uid() returns uuid language sql stable as
       $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     create table storage.buckets (id text primary key, name text, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
@@ -32,6 +32,12 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611100001_shared_ors_quota.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/shared_ors_quota.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuotas del motor de rutas compartido por usuario/global y permisos exclusivos del servidor.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611100002_route_sources_cache.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/route_sources_cache.sql', import.meta.url), 'utf8'));
+  console.log('PASS: caché de fuentes, TTL de siete días, límite por proveedor y permisos exclusivos del servidor.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611100003_route_sources_quota.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/route_sources_quota.sql', import.meta.url), 'utf8'));
+  console.log('PASS: cuotas de fuentes por cuenta, rechazo de anónimos, purga acotada y geometrías de hasta 2.000 puntos.');
 } finally {
   await db.close();
 }

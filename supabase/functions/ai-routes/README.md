@@ -75,3 +75,11 @@ npx supabase functions deploy ors-proxy
 No usar `--no-verify-jwt`: la plataforma debe exigir el JWT antes del handler. `db push --dry-run` enseña las migraciones pendientes (0001, 0002 y la de ORS) antes de aplicarlas.
 
 Después, en GitHub, Settings > Secrets and variables > Actions > Variables: `VITE_SHARED_AI_ENABLED=true` y `VITE_SHARED_ORS_ENABLED=true`. Sin ellas el despliegue las deja en `false` y la app pide las claves personales. El despliegue comprueba con `scripts/check-bundle-secrets.mjs` que `dist` no lleva claves de servidor.
+
+# Fuentes de referencia: `route-sources`
+
+`route-sources` no usa Groq ni modifica este servicio IA. Preparar las migraciones `202611100002_route_sources_cache.sql` y `202611100003_route_sources_quota.sql`, `APP_ALLOWED_ORIGINS` y desplegar con `supabase functions deploy route-sources`, manteniendo la verificación JWT. El runtime utiliza su propia clave de servicio para caché/RPC; nunca llevarla al cliente. La nueva migración instala la cuota por cuenta (30/día y 3/minuto, sin anónimos) y la escritura con purga acotada y máximo de 2.000 puntos por ruta.
+
+OSM es el respaldo disponible para activar primero. Wikiloc queda deshabilitado hasta obtener autorización expresa para acceso automatizado y confirmar una plantilla pública de búsqueda de carretera. Solo después se configuran, en servidor, `WIKILOC_AUTOMATION_AUTHORIZED=true` y `WIKILOC_PUBLIC_SEARCH_TEMPLATE`. No hay API pública de Wikiloc ni se sortean login, Premium o captcha. El adaptador se ha probado con fixtures sintéticos, sin validación contra HTML real.
+
+Condiciones consultadas, contrato, límites, smoke tests y pasos completos: [docs/fuentes-rutas.md](../../../docs/fuentes-rutas.md). No se ha realizado despliegue remoto.
