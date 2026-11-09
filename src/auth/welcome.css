@@ -1,0 +1,87 @@
+/* Bienvenida «Cumbre». Tiempos sincronizados con WelcomeScene.tsx (1,8 s; 0,9 s con movimiento reducido).
+   Solo transform, opacity, offset-distance y stroke-dashoffset, con keyframes CSS. */
+.welcome-scene {
+  --brand-ink: var(--account-route);
+  --brand-relief: var(--account-contour);
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(96px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow: hidden; text-align: center;
+  background: var(--account-paper); color: var(--ink); font-family: var(--font-ui);
+  animation: welcome-fade 180ms var(--ease-out) both;
+}
+.welcome-scene.is-leaving { pointer-events: none; animation: welcome-leave 300ms var(--ease-out) both; }
+
+.welcome-mark { position: relative; flex: none; width: min(70vw, 280px, 42vh); aspect-ratio: 1; }
+.welcome-mark svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.welcome-brand .brand-mark-road { stroke-dasharray: 1; animation: welcome-trace 900ms var(--ease-out) both; }
+.welcome-brand .brand-mark-relief { animation: welcome-fade 900ms var(--ease-out) both; }
+.welcome-brand .brand-mark-destination {
+  fill: var(--account-paper); stroke: var(--account-route);
+  transform-box: fill-box; transform-origin: center;
+  animation: welcome-summit 280ms var(--ease-out) 820ms both;
+}
+.welcome-ring {
+  stroke: var(--account-route); stroke-width: 1.5;
+  transform-box: fill-box; transform-origin: center; opacity: 0;
+  animation: welcome-ring 280ms var(--ease-out) 820ms forwards; /* sin «both»: invisible durante la espera */
+}
+/* El ciclista sube por el mismo trazo; si el navegador no tiene offset-path, ni se pinta. */
+.welcome-rider {
+  offset-rotate: 0deg; offset-distance: 0%;
+  animation: welcome-climb 780ms var(--ease-out) 120ms both, welcome-rider-out 200ms var(--ease-out) 900ms forwards;
+}
+.welcome-rider-body { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+.welcome-rider-head { fill: var(--ink); stroke: none; }
+
+.welcome-copy { min-width: 0; max-width: min(100%, 560px); }
+.welcome-greeting {
+  margin: 0; padding-inline: .08em;
+  font: 700 italic clamp(32px, 9vw, 44px)/1.08 var(--font-fig); letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  animation: welcome-rise 400ms var(--ease-out) 900ms both;
+}
+.welcome-subtitle { margin: 10px 0 0; color: var(--ink-2); font-size: 17px; line-height: 1.4; animation: welcome-rise 400ms var(--ease-out) 1100ms both; }
+.welcome-scene .welcome-continue {
+  position: absolute; inset-inline: 0; bottom: max(24px, env(safe-area-inset-bottom)); width: fit-content; margin-inline: auto;
+  min-width: 44px; min-height: 44px; padding-inline: 24px;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--ink);
+  animation: welcome-fade 200ms var(--ease-out) 400ms both;
+}
+
+/* Apaisado en el móvil: trazo y saludo uno al lado del otro. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .welcome-scene { flex-direction: row; gap: 32px; padding-bottom: calc(80px + env(safe-area-inset-bottom)); text-align: left; }
+  .welcome-mark { width: min(40vw, 55vh, 280px); }
+  .welcome-copy { max-width: 50vw; }
+  .welcome-scene .welcome-continue { bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+
+@keyframes welcome-fade { from { opacity: 0; } }
+@keyframes welcome-leave { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes welcome-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes welcome-summit {
+  0% { opacity: 0; transform: scale(.7); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes welcome-ring {
+  from { opacity: .7; transform: scale(1); }
+  to { opacity: 0; transform: scale(2.6); }
+}
+@keyframes welcome-climb {
+  0% { offset-distance: 0%; opacity: 0; }
+  12% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 1; }
+}
+@keyframes welcome-rider-out { to { opacity: 0; } }
+@keyframes welcome-rise { from { opacity: 0; transform: translateY(10px); } }
+
+/* Movimiento reducido: trazo completo, sin ciclista ni pulso, saludo con fundido de 200 ms. */
+@media (prefers-reduced-motion: reduce) {
+  .welcome-brand .brand-mark-road, .welcome-brand .brand-mark-relief, .welcome-brand .brand-mark-destination, .welcome-scene .welcome-continue { animation: none; }
+  .welcome-greeting, .welcome-subtitle { animation: welcome-fade 200ms var(--ease-out) both; }
+  .welcome-scene.is-leaving { animation: welcome-out 200ms var(--ease-out) both; }
+}
+@keyframes welcome-out { to { opacity: 0; } }

@@ -1,12 +1,14 @@
-/* Cartografía: paleta acotada al acceso; el resto de pantallas conserva sus tokens. */
-.account-page {
+/* Cartografía: paleta acotada al acceso y a la bienvenida; el resto de pantallas conserva sus tokens. */
+.account-page, .welcome-scene {
   --ink: #E5EDDF; --ink-2: #B0C2B3; --ink-3: #9AAF9E;
   --surface: #14221F; --surface-2: #1D3029; --line: #354A3D; --line-strong: #647F69;
   --action: #BDD2A7; --action-hover: #D0E3BA; --on-action: #15271E; --link: #A9CCF8; --focus: #A9CCF8;
   --account-map: #233B30; --account-contour: #829778; --account-route: #80B4F5; --account-paper: #14221F;
+}
+.account-page {
   max-width: 1200px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); color: var(--ink);
 }
-:root[data-theme="light"] .account-page {
+:root[data-theme="light"] :is(.account-page, .welcome-scene) {
   --ink: #163B30; --ink-2: #435D4B; --ink-3: #596D5B;
   --surface: #F7F4EA; --surface-2: #EDEFE3; --line: #D1D7C5; --line-strong: #7C8B73;
   --action: #173D33; --action-hover: #245545; --on-action: #FFF; --link: #174A75; --focus: #2465D5;

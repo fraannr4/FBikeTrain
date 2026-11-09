@@ -5,6 +5,7 @@ import { Eye, EyeOff, Lock } from '../ui/icons';
 import { BrandMark } from '../ui/shell/BrandMark';
 import { ThemeToggle } from '../ui/shell/ThemeToggle';
 import { callbackUrl } from './callback';
+import { armFreshSignIn, disarmFreshSignIn } from './useFreshSignIn';
 
 type Mode = 'login' | 'signup' | 'reset' | 'password';
 
@@ -72,25 +73,30 @@ export function AuthScreen({ client, recovery = false, initialError = '', onReco
         if (r.error) throw r.error;
         setPassword(''); onRecovered?.();
       } else if (mode === 'signup') {
+        armFreshSignIn();
         const r = await client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: callbackUrl(window.location.href) } });
         if (r.error) throw r.error;
+        // Con confirmación por correo no hay sesión: la marca se arma al canjear el enlace.
+        if (!r.data.session) disarmFreshSignIn();
         setPassword('');
         setNotice('Revisa tu correo para confirmar la cuenta. Si ya estabas registrado, prueba a entrar o recuperar el acceso.');
       } else {
+        armFreshSignIn();
         const r = await client.auth.signInWithPassword({ email: email.trim(), password });
         if (r.error) throw r.error;
         setPassword('');
       }
-    } catch (err) { setError(authMessage(err)); }
+    } catch (err) { disarmFreshSignIn(); setError(authMessage(err)); }
     finally { setBusy(false); }
   }
 
   async function google() {
     setBusy(true); setError('');
     try {
+      armFreshSignIn();
       const r = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callbackUrl(window.location.href) } });
       if (r.error) throw r.error;
-    } catch (err) { setError(authMessage(err)); setBusy(false); }
+    } catch (err) { disarmFreshSignIn(); setError(authMessage(err)); setBusy(false); }
   }
 
   return <AccountFrame>
