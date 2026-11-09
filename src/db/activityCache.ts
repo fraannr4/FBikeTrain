@@ -9,26 +9,39 @@ import { listActivities } from './repo';
  * en la tabla (importar, cargar o quitar la demo, borrar todo, también desde otra pestaña) vacía la
  * caché; Dexie avisa al confirmarse la transacción, antes de que vuelva el `await` de quien escribe.
  */
-const PART = `idb://${db.name}/activities/`;
-
 let cached: StoredActivity[] | undefined;
 let pending: Promise<StoredActivity[]> | undefined;
 let generation = 0;
+// Cada cuenta abre su propia base (`ciclismo-user-<uuid>`): el nombre se lee en cada evento, no al
+// cargar el módulo, y cambiar de base vacía la caché.
+let cachedFor = db.name;
 
-Dexie.on('storagemutated', (parts) => {
-  if (!(PART in parts)) return;
+function invalidate(): void {
   generation += 1;
   cached = undefined;
   pending = undefined;
+}
+
+function checkDatabase(): void {
+  if (db.name === cachedFor) return;
+  cachedFor = db.name;
+  invalidate();
+}
+
+Dexie.on('storagemutated', (parts) => {
+  if (!(`idb://${db.name}/activities/` in parts)) return;
+  invalidate();
 });
 
 /** Lo ya leído, para pintar sin esperar; `undefined` si hay que leer. */
 export function cachedActivities(): StoredActivity[] | undefined {
+  checkDatabase();
   return cached;
 }
 
 /** Actividades ordenadas por inicio, de memoria si se puede. */
 export function readActivities(): Promise<StoredActivity[]> {
+  checkDatabase();
   if (cached) return Promise.resolve(cached);
   if (pending) return pending;
   const gen = generation;

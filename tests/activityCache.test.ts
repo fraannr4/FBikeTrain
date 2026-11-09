@@ -69,3 +69,17 @@ describe('caché de actividades', () => {
     expect(ids(await readActivities())).toEqual(['a']);
   });
 });
+
+describe('activity cache per account', () => {
+  it('drops the cached list when the app switches to another account database', async () => {
+    const { useDatabase, db: before } = await import('../src/db/db');
+    const { readActivities, cachedActivities } = await import('../src/db/activityCache');
+    await readActivities();
+    expect(cachedActivities()).toBeDefined();
+    useDatabase('ciclismo-user-00000000-0000-0000-0000-0000000000aa');
+    expect(cachedActivities()).toBeUndefined();
+    const { db: after } = await import('../src/db/db');
+    await after.delete();
+    useDatabase(before.name);
+  });
+});
