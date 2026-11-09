@@ -88,7 +88,10 @@ export function Sheet({ open, onClose, title, sub, footer, closeLabel = 'Cerrar'
       done = true;
       if (d.open) d.close();
       document.documentElement.style.overflow = '';
-      trigger.current?.focus({ preventScroll: true });
+      // Devolver el foco solo si sigue perdido o dentro de esta hoja: si entretanto se abrió otra
+      // hoja y el usuario escribe en ella, no se le roba el foco (fallaba en CI con el calendario).
+      const active = document.activeElement;
+      if (!active || active === document.body || d.contains(active)) trigger.current?.focus({ preventScroll: true });
       setMounted(false);
     };
     const onEnd = (e: TransitionEvent) => {

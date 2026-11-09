@@ -44,7 +44,8 @@ Las migraciones se guardan en `supabase/migrations/`. La primera crea perfiles, 
 - Perfiles buscables para usuarios autenticados, sin correos ni metadatos de OAuth públicos. Username único, nombre visible y visibilidad de estadísticas (`everyone` por defecto o `friends`). Cambiar la visibilidad no da acceso a tracks.
 - Solicitudes por pareja única; solo el destinatario acepta. Cualquiera de los dos puede rechazar, cancelar o retirar. No se permiten escrituras directas en amistades.
 - Tracks en bucket privado, bajo `<uuid-usuario>/<archivo>`; cada usuario solo puede leer y escribir en su carpeta. Ningún permiso social habilita lectura del GPS.
-- No se ha aplicado ninguna migración remota ni se han subido datos.
+- 2026-11-09: migraciones 0001 y 0002 aplicadas en remoto con la API de gestión (token local en `.local-secrets/`, fuera del repositorio) y registradas en `supabase_migrations.schema_migrations`. Comprobado: tablas con RLS, bucket privado `fbiketrain-tracks` de 10 MB, 7 políticas, 5 funciones y el trigger de perfil. Aún no se han subido datos.
+- 2026-11-09: Auth configurado por la API de gestión. Site URL `https://fraannr4.github.io/FBikeTrain/`; redirecciones para Pages y `localhost:5173`; SMTP de Brevo (`smtp-relay.brevo.com:587`, remitente `FBikeTrain <fbiketrain@gmail.com>`, 30 correos/hora). Credenciales solo en `.local-secrets/`. Pendiente: probar un registro real y Google.
 
 ## Crear y verificar el remitente en Brevo
 
