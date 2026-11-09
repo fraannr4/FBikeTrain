@@ -217,7 +217,13 @@ export function Calendario() {
   const openForm = (workout: PlannedWorkout | null, date: LocalDate) =>
     setForm((f) => ({ key: f.key + 1, open: true, workout, date }));
   const closeForm = () => setForm((f) => ({ ...f, open: false }));
-  const focusTitle = () => window.setTimeout(() => titleRef.current?.focus({ preventScroll: true }), 280);
+  // Foco diferido al título del día, salvo que entretanto el usuario ya esté escribiendo en un campo.
+  const focusTitleIn = (ms: number) =>
+    window.setTimeout(() => {
+      if (document.activeElement?.closest('input, textarea, select')) return;
+      titleRef.current?.focus({ preventScroll: true });
+    }, ms);
+  const focusTitle = () => focusTitleIn(280);
 
   const refresh = async () => {
     try {
@@ -266,7 +272,7 @@ export function Calendario() {
   const goto = (d: LocalDate) => {
     select(d, { scroll: true });
     stripSecRef.current?.scrollIntoView?.({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-    window.setTimeout(() => titleRef.current?.focus({ preventScroll: true }), 120);
+    focusTitleIn(120);
   };
 
   const goToday = () => {
