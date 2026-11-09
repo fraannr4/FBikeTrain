@@ -1,0 +1,12 @@
+{
+  "version": 0.6,
+  "elements": [
+    {"type":"relation","id":900001,"tags":{"type":"route","route":"bicycle","network":"lcn","name":"Circuito OSM sintético","operator":"Club ficticio"},"members":[{"type":"way","ref":1,"role":""},{"type":"way","ref":2,"role":"backward"}]},
+    {"type":"way","id":1,"tags":{"highway":"residential","surface":"asphalt"},"geometry":[{"lat":0,"lon":0},{"lat":0,"lon":0.001}]},
+    {"type":"way","id":2,"tags":{"highway":"cycleway","surface":"asphalt"},"geometry":[{"lat":0.01,"lon":0},{"lat":0.01,"lon":0.001}]},
+    {"type":"relation","id":900002,"tags":{"type":"route","route":"bicycle","network":"rcn","name":"Trunk excluida"},"members":[{"type":"way","ref":3,"role":""}]},
+    {"type":"way","id":3,"tags":{"highway":"trunk"},"geometry":[{"lat":0,"lon":0},{"lat":0,"lon":0.002}]},
+    {"type":"relation","id":900003,"tags":{"type":"route","route":"bicycle","network":"ncn","name":"Tierra excluida"},"members":[{"type":"way","ref":4,"role":""}]},
+    {"type":"way","id":4,"tags":{"highway":"track","surface":"gravel"},"geometry":[{"lat":0,"lon":0},{"lat":0,"lon":0.002}]}
+  ]
+}

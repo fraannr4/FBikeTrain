@@ -35,3 +35,11 @@ Solo la función SQL de servidor puede consumir. Un bloqueo transaccional compar
 No confundir estas cuotas de aplicación con las efectivas del proveedor (peticiones y tokens). No se cambia automáticamente a planes de pago. Al agotarse, 429 con Retry-After. La clave común de ORS y la centralización del motor cartográfico son otra tarea.
 
 Pruebas: `node node_modules/vitest/vitest.mjs run tests/sharedAi.test.ts --maxWorkers=1 --minWorkers=1` y `npm run test:db` (PostgreSQL embebido, esquemas externos simulados). La prueba de cuotas verifica límites y permisos; la simultaneidad entre conexiones remotas requiere prueba en Supabase.
+
+## Despliegue del módulo independiente de fuentes de rutas
+
+`route-sources` no usa Groq ni modifica este servicio IA. Preparar las migraciones `202611100002_route_sources_cache.sql` y `202611100003_route_sources_quota.sql`, `APP_ALLOWED_ORIGINS` y desplegar con `supabase functions deploy route-sources`, manteniendo la verificación JWT. El runtime utiliza su propia clave de servicio para caché/RPC; nunca llevarla al cliente. La nueva migración instala la cuota por cuenta (30/día y 3/minuto, sin anónimos) y la escritura con purga acotada y máximo de 2.000 puntos por ruta.
+
+OSM es el respaldo disponible para activar primero. Wikiloc queda deshabilitado hasta obtener autorización expresa para acceso automatizado y confirmar una plantilla pública de búsqueda de carretera. Solo después se configuran, en servidor, `WIKILOC_AUTOMATION_AUTHORIZED=true` y `WIKILOC_PUBLIC_SEARCH_TEMPLATE`. No hay API pública de Wikiloc ni se sortean login, Premium o captcha. El adaptador se ha probado con fixtures sintéticos, sin validación contra HTML real.
+
+Condiciones consultadas, contrato, límites, smoke tests y pasos completos: [docs/fuentes-rutas.md](../../../docs/fuentes-rutas.md). No se ha realizado despliegue remoto.
