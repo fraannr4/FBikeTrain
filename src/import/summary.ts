@@ -90,22 +90,38 @@ function elevationGainM(points: TrackPoint[]): number {
 
 /** Totales de una salida a partir de sus puntos, ordenados por tiempo. */
 export function computeTotals(points: TrackPoint[]): ActivityTotals {
+  // Tramos con tiempo: distancia, duración, si la distancia sale del GPS (haversine) y su velocidad.
+  const segs: { d: number; dtS: number; gps: boolean; speed: number; device?: number }[] = [];
   let distanceM = 0;
-  let movingTimeS = 0;
-  const speeds: number[] = [];
-
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1];
     const b = points[i];
     const dtS = (b.t - a.t) / 1000;
     const d = segmentDistanceM(a, b);
-    distanceM += d;
-    if (dtS <= 0) continue;
-    const speed = d / dtS;
-    if (speed >= MOVING_SPEED_THRESHOLD_MS) movingTimeS += dtS;
-    // La velocidad del dispositivo (FIT), si la hay, es más fiable que la calculada; pasa el mismo filtro.
-    speeds.push(b.speed ?? speed);
+    if (dtS <= 0) {
+      distanceM += d;
+      continue;
+    }
+    segs.push({ d, dtS, gps: a.dist === undefined || b.dist === undefined, speed: d / dtS, device: b.speed });
   }
+
+  // Un salto aislado del GPS (ida, o ida y vuelta) no suma sus metros: el tramo se cuenta a la
+  // velocidad mediana de su ventana. Solo con distancia calculada por GPS; la del dispositivo se respeta.
+  const computed = segs.map((g) => g.speed);
+  let movingTimeS = 0;
+  const speeds: number[] = [];
+  segs.forEach((g, i) => {
+    let d = g.d;
+    if (g.gps && g.speed > GPS_SPIKE_SPEED_MS) {
+      const median = windowMedian(computed, i);
+      if (median <= GPS_SPIKE_SPEED_MS) d = median * g.dtS;
+    }
+    distanceM += d;
+    const speed = d / g.dtS;
+    if (speed >= MOVING_SPEED_THRESHOLD_MS) movingTimeS += g.dtS;
+    // La velocidad del dispositivo (FIT), si la hay, es más fiable que la calculada; pasa el mismo filtro.
+    speeds.push(g.device ?? g.speed);
+  });
 
   const totals: ActivityTotals = {
     distanceM,

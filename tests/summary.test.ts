@@ -172,6 +172,15 @@ describe('computeTotals', () => {
       expect(computeTotals(points).maxSpeedMs).toBeLessThan(GPS_SPIKE_SPEED_MS);
     });
 
+    it('a GPS jump out and back does not add its metres to the distance', () => {
+      const clean: TrackPoint[] = Array.from({ length: 21 }, (_, i) => ({ t: s(i), lat: 41 + i * 0.00007, lng: 2.5 }));
+      const jumped = clean.map((p, i) => (i === 10 ? { ...p, lat: p.lat! + 0.0027 } : p)); // ~300 m fuera y vuelta
+      const base = computeTotals(clean);
+      const totals = computeTotals(jumped);
+      expect(totals.distanceM).toBeLessThan(base.distanceM + 20);
+      expect(totals.movingTimeS).toBeLessThanOrEqual(base.movingTimeS);
+    });
+
     it('a sustained 20 m/s descent counts', () => {
       expect(computeTotals(bySpeed([...cruise(10), ...Array<number>(30).fill(20), ...cruise(10)])).maxSpeedMs).toBe(20);
     });
