@@ -79,6 +79,22 @@ describe('IA compartida: límites y privacidad', () => {
     expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ facts: [expect.objectContaining({ titulo: 'Ruta 1' })] }), expect.any(AbortSignal));
     expect((await handleSharedAi(request({ operation: 'explain', summary, facts: [{ ...fact, coordinates: [1, 2] }] }), mock())).status).toBe(400);
   });
+  it('acepta hasta 6 referencias con sus cifras y las pasa al proveedor', async () => {
+    const deps = mock();
+    const referencias = Array.from({ length: 6 }, (_, i) => ({ id: `ref${i + 1}`, nombre: `Vuelta sintética ${i + 1}`, fuente: 'osm', distanciaKm: 40 + i, desnivelM: i === 0 ? null : 500 }));
+    expect((await handleSharedAi(request({ ...plan, referencias }), deps)).status).toBe(200);
+    expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ referencias }), expect.any(AbortSignal));
+  });
+  it.each([
+    ['campos extra', [{ id: 'ref1', nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null, url: 'https://www.openstreetmap.org/relation/1' }]],
+    ['coordenadas', [{ id: 'ref1', nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null, lat: 41, lon: 2 }]],
+    ['más de 6', Array.from({ length: 7 }, (_, i) => ({ id: `ref${i + 1}`, nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null }))],
+    ['ids repetidos', [1, 2].map(() => ({ id: 'ref1', nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null }))],
+  ])('rechaza referencias con %s', async (_name, referencias) => {
+    const deps = mock();
+    expect((await handleSharedAi(request({ ...plan, referencias }), deps)).status).toBe(400);
+    expect(deps.consumeQuota).not.toHaveBeenCalled();
+  });
   it('rechaza origen y payload demasiado grande', async () => {
     const deps = mock(); deps.allowedOrigins = ['https://other.test'];
     expect((await handleSharedAi(request(), deps)).status).toBe(403);

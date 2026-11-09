@@ -25,6 +25,14 @@ export type SpliceFacts = {
   /** Variante parecida de la opción anterior. */
   alternativa: boolean;
 };
+/** Ruta conocida cerca del inicio, tal como la ve la IA: sin enlace, autor ni geometría. */
+export type AiReference = {
+  id: string;
+  nombre: string;
+  fuente: 'wikiloc' | 'osm';
+  distanciaKm: number;
+  desnivelM: number | null;
+};
 export type Focus = 'fondo' | 'subidas' | 'mixto';
 export type Answers = { focus: Focus; minutes: number; explore: 'repetir' | 'descubrir'; notes: string };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
@@ -41,3 +49,7 @@ export type RouteFacts = {
   pendienteMaxima: string;
   limitadoPorTiempo: boolean;
 };
+/** Objetivo con fecha más próximo, tal como lo ve la IA: sin nombre ni lugar. */
+export type WeekGoal = { diasHasta: number; distanciaKm: number | null; desnivelM: number | null };
+/** Lo que se pide para proponer la semana. Los días son índices desde hoy (0 hoy, 6 dentro de 6 días). */
+export type WeekInput = { objetivo: WeekGoal | null; ocupados: number[]; disponibles: number[]; notas: string };

@@ -70,6 +70,22 @@ describe('analyzeRoute', () => {
     expect(rejectReason(limit, limit.distanceM)).toBeNull();
   });
 
+  it('motorway in waycategory rejected as autopista, even on a short stretch', () => {
+    const viaValues = analyzeRoute(feature({ waycategory: extra([[0, 1990, 99.5]], [[0, 1, 0], [1, 2, 1]]) }), 1);
+    expect(viaValues.motorway).toBe(true);
+    expect(rejectReason(viaValues, viaValues.distanceM)).toBe('autopista');
+
+    const viaSummary = analyzeRoute(feature({ waycategory: extra([[0, 1990, 99.5], [3, 10, 0.5]]) }), 1);
+    expect(rejectReason(viaSummary, viaSummary.distanceM)).toBe('autopista');
+  });
+
+  it('primary road (state road) under the limit and no motorway bit is kept', () => {
+    // ORS no separa las autovías (trunk) de las nacionales (primary): las dos son «State Road».
+    const c = analyzeRoute(feature({ waytypes: extra([[1, 300, 15], [2, 1700, 85]]), waycategory: extra([[0, 1700, 85], [2, 300, 15]]) }), 1);
+    expect(c.motorway).toBe(false);
+    expect(rejectReason(c, c.distanceM)).toBeNull();
+  });
+
   it('track over 100 m rejected as pistas', () => {
     const c = analyzeRoute(feature({ waytypes: extra([[5, 120, 6], [2, 1880, 94]]) }), 1);
     expect(c.trackM).toBe(120);
@@ -125,5 +141,11 @@ describe('analyzeRoute with fixture', () => {
     expect(c.profile.length).toBe(c.coords.length);
     expect(c.steep.length).toBeGreaterThan(0);
     expect(rejectReason(c, 30_000)).toBeNull();
+  });
+
+  it('round trip fixture brings waycategory without motorway, as the body now asks for it', () => {
+    const fc = JSON.parse(readFileSync('tests/fixtures/ors/round-trip-ok.json', 'utf8')) as { features: OrsFeature[] };
+    expect(fc.features[0].properties.extras.waycategory?.summary.length).toBeGreaterThan(0);
+    expect(analyzeRoute(fc.features[0], 1).motorway).toBe(false);
   });
 });

@@ -1,5 +1,5 @@
 import type { LevelSummary } from '../src/ai/levelSummary';
-import { buildExplainMessages, buildPlanMessages, type Answers, type RouteFacts } from '../src/ai/prompts';
+import { buildExplainMessages, buildPlanMessages, type AiReference, type Answers, type RouteFacts } from '../src/ai/prompts';
 
 const summary: LevelSummary = {
   fuente: 'historial',
@@ -66,6 +66,23 @@ describe('buildPlanMessages', () => {
     const leaky = { ...answers, start: { lat: 41.39, lng: 2.17 } } as Answers;
     const body = userJson(buildPlanMessages(summary, leaky, 60));
     expect(Object.keys(body.respuestas).sort()).toEqual(['explore', 'focus', 'minutes', 'notes']);
+  });
+
+  it('without references the message has no referencias field', () => {
+    expect(userJson(buildPlanMessages(summary, answers, 60))).not.toHaveProperty('referencias');
+    expect(userJson(buildPlanMessages(summary, answers, 60, []))).not.toHaveProperty('referencias');
+  });
+
+  it('known routes travel as referencias, with only their figures', () => {
+    const referencias: AiReference[] = [{ id: 'ref1', nombre: 'Vuelta sintética', fuente: 'osm', distanciaKm: 52.4, desnivelM: null }];
+    expect(userJson(buildPlanMessages(summary, answers, 60, referencias)).referencias).toEqual(referencias);
+  });
+
+  it('system prompt lets an option rely on a reference within 15 % and forbids other figures', () => {
+    const sys = systemText(buildPlanMessages(summary, answers, 60));
+    expect(sys).toContain('referenciaId');
+    expect(sys).toContain('±15 %');
+    expect(sys).toContain('nunca copies cifras distintas de las recibidas');
   });
 });
 

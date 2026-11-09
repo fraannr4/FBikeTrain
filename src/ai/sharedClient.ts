@@ -1,8 +1,8 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
-import type { Answers, RouteFacts, SpliceFacts } from './prompts';
-import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, type SpliceAdvice } from './schema';
+import type { AiReference, Answers, RouteFacts, SpliceFacts, WeekInput } from './prompts';
+import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
 import type { SharedAiPlanner } from './routePlanner';
 
 /** Activar solo cuando función y cuota estén desplegadas y verificadas. No habilita un plan de pago. */
@@ -49,8 +49,9 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
 export function createSharedAiPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedAiPlanner {
   const request = sharedRequest(getToken, fetchImpl);
   return {
-    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal) => {
-      const data = await request({ operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm }, signal);
+    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = []) => {
+      const refs = referencias.map(r => ({ id: r.id, nombre: r.nombre, fuente: r.fuente, distanciaKm: r.distanciaKm, desnivelM: r.desnivelM }));
+      const data = await request({ operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm, ...(refs.length ? { referencias: refs } : {}) }, signal);
       const parsed = RoutePlanSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('other', 'El servicio no ha devuelto objetivos válidos. Ajusta la ruta manualmente.');
       return parsed.data;
@@ -75,6 +76,23 @@ export function createSharedSpliceAdvisor(getToken: () => Promise<string | null>
       const data = await request({ operation: 'splice', facts }, signal);
       const parsed = spliceAdviceSchema(facts.map(f => f.id) as [string, ...string[]]).safeParse(data);
       if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto una recomendación válida.');
+      return parsed.data;
+    },
+  };
+}
+
+export type SharedWorkoutPlanner = { workouts: (summary: LevelSummary, input: WeekInput, signal?: AbortSignal) => Promise<WorkoutWeek> };
+
+/** Entrenos de la semana por el servicio común: cifras y días; las notas libres no se envían. */
+export function createSharedWorkoutPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedWorkoutPlanner {
+  const request = sharedRequest(getToken, fetchImpl);
+  return {
+    workouts: async (summary, input, signal) => {
+      const o = input.objetivo;
+      const objetivo = o ? { diasHasta: o.diasHasta, distanciaKm: o.distanciaKm, desnivelM: o.desnivelM } : null;
+      const data = await request({ operation: 'workouts', summary: numericSummary(summary), objetivo, ocupados: input.ocupados, disponibles: input.disponibles, notas: '' }, signal);
+      const parsed = WorkoutWeekSchema.safeParse(data);
+      if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto entrenos válidos.');
       return parsed.data;
     },
   };

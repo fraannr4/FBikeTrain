@@ -37,6 +37,8 @@ export type RouteCardData = {
   why?: string;
   /** Líneas cortas bajo las etiquetas (IA): «+8 % frente a tu referencia en distancia». */
   notes?: { icon: LucideIcon; text: string }[];
+  /** Ruta conocida en la que se basa la propuesta de la IA, con su enlace original. */
+  basedOn?: { label: string; url: string };
   kind?: RouteKind;
 };
 
@@ -359,6 +361,13 @@ export const RouteCard = memo(function RouteCard({ route, variant, onDownload, m
               </li>
             ))}
           </ul>
+        ) : null}
+        {route.basedOn ? (
+          <p className="rcard-based">
+            <a href={route.basedOn.url} target="_blank" rel="noopener noreferrer">
+              {route.basedOn.label}
+            </a>
+          </p>
         ) : null}
         <Figures route={route} />
         {/* La explicación de la IA va antes del perfil, en el primer pantallazo (ia.html). */}

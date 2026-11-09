@@ -20,13 +20,26 @@ const spliceFactSchema = z.strictObject({
   id: z.string().regex(/^c([1-9]|1[0-2])$/), distanciaKm: finite(2000), desnivelM: finite(30_000).nullable(),
   viasPrincipalesPct: finite(100), conectorKm: finite(2000), solapeKm: finite(2000), retrocesoKm: finite(2000), alternativa: z.boolean(),
 });
+const referenceSchema = z.strictObject({
+  id: z.string().regex(/^ref([1-9]|10)$/), nombre: z.string().trim().min(1).max(80), fuente: z.enum(['wikiloc', 'osm']),
+  distanciaKm: finite(2000), desnivelM: finite(200_000).nullable(),
+});
+const dayIndex = z.number().int().min(0).max(6);
+const uniqueDays = (min: number) => z.array(dayIndex).min(min).max(7).refine(days => new Set(days).size === days.length);
+const weekGoalSchema = z.strictObject({
+  diasHasta: z.number().int().min(0).max(3650), distanciaKm: finite(2000).nullable(), desnivelM: finite(30_000).nullable(),
+});
 export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('plan'), summary: summarySchema,
     answers: z.strictObject({ focus: z.enum(['fondo', 'subidas', 'mixto']), minutes: z.number().int().min(10).max(1440), explore: z.enum(['repetir', 'descubrir']), notes: z.literal('').default('') }),
     maxDistanciaKm: z.number().finite().min(0).max(200),
+    referencias: z.array(referenceSchema).max(6).refine(refs => new Set(refs.map(ref => ref.id)).size === refs.length).optional(),
   }),
   z.strictObject({ operation: z.literal('explain'), summary: summarySchema, facts: z.array(factSchema).min(1).max(5).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
   z.strictObject({ operation: z.literal('splice'), facts: z.array(spliceFactSchema).min(1).max(12).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
+  // Como en `plan`, las notas libres no salen del navegador por el servicio común.
+  z.strictObject({ operation: z.literal('workouts'), summary: summarySchema, objetivo: weekGoalSchema.nullable(),
+    ocupados: uniqueDays(0), disponibles: uniqueDays(1), notas: z.literal('').default('') }),
 ]);
 export type SharedAiRequest = z.infer<typeof sharedAiRequestSchema>;
 export type SharedAiDependencies = {

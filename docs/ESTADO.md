@@ -129,12 +129,25 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
 
 ## Pendiente
 
-### Lote en curso: IA con referencias y entrenos (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
+### Lote de IA con referencias y entrenos: HECHO (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
 
-- Task 1: Rutas con IA apoyadas en rutas conocidas cercanas y descarte de autopista o autovía en las rutas generadas.
-- Task 2: «Proponer semana con IA» en Calendario.
-
-El estado de cada tarea se anota abajo cuando termina el lote.
+- **Task 1. Referencias y solo carretera.**
+  - Rutas con IA pide rutas conocidas a `route-sources` en un radio de 15 km, solo con `VITE_ROUTE_SOURCES_ENABLED` y con cuenta.
+  - La IA recibe como mucho 6 referencias, cada una con nombre, fuente, km y desnivel, sin URL ni coordenadas, y puede basar una opción en una de ellas.
+  - La tarjeta muestra «Basada en: …» con enlace al original.
+  - Las rutas generadas que usan autopista (`waycategory`) se descartan. `usesMotorway` está compartido con Empalmar.
+  - ORS no distingue autovía (trunk) de nacional: las dos cuentan dentro del límite de vías principales.
+- **Task 2. «Proponer semana con IA» en Plan > Calendario.**
+  - Propone de 1 a 7 entrenos para los próximos 7 días, adaptados al nivel y al próximo objetivo.
+  - El código recorta las cifras al 15 % sobre la referencia, deja una sola salida larga y respeta los días ocupados.
+  - El usuario elige qué añadir.
+  - Usa la operación `workouts` de `ai-routes` o la clave personal, con respaldo ante 503 y sin reintento ante 429.
+  - Si guardar falla a medias, reintenta solo lo que falta, sin volver a pedir a la IA.
+- **Verificación.**
+  - `npx vitest run`: 98 ficheros y 1.227 tests.
+  - `tsc` y build limpios.
+  - `test:db`: 5 suites.
+  - e2e en verde: `ia-entrenos`, `break-ui-ia-entrenos`, `rutas-ia`, `rutas`, `plan` y `empalmar`.
 
 ### Necesita al usuario
 

@@ -1,0 +1,30 @@
+{
+  "object": "chat.completion",
+  "created": 1793952010,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"entrenos\":[{\"dia\":0,\"titulo\":\"Rodaje suave\",\"distanciaKm\":35,\"desnivelM\":300,\"notas\":\"Ritmo cómodo, sin forzar.\"},{\"dia\":2,\"titulo\":\"Subidas\",\"distanciaKm\":45,\"desnivelM\":800,\"notas\":\"Dos puertos a ritmo constante.\"},{\"dia\":5,\"titulo\":\"Salida larga\",\"distanciaKm\":70,\"desnivelM\":650,\"notas\":\"Come cada hora.\"}],\"motivo\":\"Tu media es de 50 km y 600 m: un rodaje suave, un día de subidas y una salida larga.\"}",
+        "reasoning": "Reparto la carga en tres días con descanso entre medias."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "queue_time": 0.04,
+    "prompt_tokens": 610,
+    "prompt_time": 0.02,
+    "completion_tokens": 180,
+    "completion_time": 0.15,
+    "total_tokens": 790,
+    "total_time": 0.17
+  },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": {
+    "id": "req_synthetic"
+  }
+}

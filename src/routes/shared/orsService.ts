@@ -21,7 +21,8 @@ export type SharedOrsRequest = z.infer<typeof sharedOrsRequestSchema>;
 
 /** Cuerpo de `POST /v2/directions/cycling-road/geojson`. Lo usan también las peticiones con clave personal. */
 export function buildOrsBody(r: SharedOrsRequest): object {
-  const common = { elevation: true, instructions: false, extra_info: ['surface', 'waytype', 'steepness'] };
+  // `waycategory` (bit 1 = autopista): descarta autopistas en las vueltas y en los conectores de los empalmes.
+  const common = { elevation: true, instructions: false, extra_info: ['surface', 'waytype', 'steepness', 'waycategory'] };
   const avoid_features = ['ferries', 'fords', 'steps'];
   if (r.operation === 'round_trip') {
     return {
@@ -30,8 +31,7 @@ export function buildOrsBody(r: SharedOrsRequest): object {
     };
   }
   return {
-    // `waycategory` (bit 1 = autopista) solo en trayectos: lo usan los conectores de los empalmes.
-    coordinates: r.waypoints.map(p => [p.lng, p.lat]), ...common, extra_info: [...common.extra_info, 'waycategory'], options: { avoid_features },
+    coordinates: r.waypoints.map(p => [p.lng, p.lat]), ...common, options: { avoid_features },
     // Valores por defecto documentados de ORS; solo admite alternativas con dos coordenadas.
     ...(r.alternatives ? { alternative_routes: { target_count: r.alternatives, weight_factor: 1.4, share_factor: 0.6 } } : {}),
   };

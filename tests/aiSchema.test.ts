@@ -58,6 +58,12 @@ describe('RoutePlanSchema', () => {
     const opciones = [option({ desnivelM: 900, dimension: 'desnivel' }), option(), option()];
     expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(true);
   });
+
+  it('referenciaId is optional and accepts a string or null', () => {
+    const opciones = [option({ referenciaId: 'ref2' }), option({ referenciaId: null }), option()];
+    expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(true);
+    expect(RoutePlanSchema.safeParse({ opciones: [option({ referenciaId: 7 }), option(), option()] }).success).toBe(false);
+  });
 });
 
 describe('ExplanationSchema', () => {
@@ -85,6 +91,8 @@ describe('toStrictJsonSchema', () => {
     const item = (json.properties as JsonNode).opciones as JsonNode;
     const desnivel = ((item.items as JsonNode).properties as JsonNode).desnivelM as JsonNode;
     expect(JSON.stringify(desnivel)).toContain('"null"');
+    const referencia = ((item.items as JsonNode).properties as JsonNode).referenciaId as JsonNode;
+    expect(JSON.stringify(referencia)).toContain('"null"');
   });
 
   it('completes objects that zod leaves loose or partial', async () => {

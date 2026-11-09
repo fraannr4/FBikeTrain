@@ -32,6 +32,7 @@ jobs:
           # Servicios comunes de IA y de rutas: apagados salvo que la variable del repositorio diga 'true'.
           VITE_SHARED_AI_ENABLED: ${{ vars.VITE_SHARED_AI_ENABLED || 'false' }}
           VITE_SHARED_ORS_ENABLED: ${{ vars.VITE_SHARED_ORS_ENABLED || 'false' }}
+          VITE_ROUTE_SOURCES_ENABLED: ${{ vars.VITE_ROUTE_SOURCES_ENABLED || 'false' }}
       - run: node scripts/check-bundle-secrets.mjs dist
       - uses: actions/upload-pages-artifact@v3
         with:

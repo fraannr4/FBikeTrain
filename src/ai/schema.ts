@@ -15,6 +15,8 @@ export const RoutePlanSchema = z.strictObject({
         distanciaKm: z.number().min(10).max(200),
         desnivelM: z.number().min(0).max(4000).nullable(),
         motivo: z.string().min(1).max(300),
+        /** Id de la referencia en la que se basa; uno desconocido lo ignora el código. */
+        referenciaId: z.string().max(20).nullable().optional(),
       }),
     )
     .min(3)
@@ -38,6 +40,28 @@ export function spliceAdviceSchema(ids: [string, ...string[]]) {
   return z.strictObject({ recomendada: z.enum(ids), motivo: z.string().min(1).max(240) });
 }
 export type SpliceAdvice = { recomendada: string; motivo: string };
+
+/**
+ * Entrenos de la semana que propone la IA. `dia` es el índice desde hoy (0 hoy, 6 dentro de 6 días).
+ * El código recorta las cifras y descarta los días que no valen.
+ */
+export const WorkoutWeekSchema = z.strictObject({
+  entrenos: z
+    .array(
+      z.strictObject({
+        dia: z.number().int().min(0).max(6),
+        titulo: z.string().min(1).max(60),
+        distanciaKm: z.number().min(1).max(300),
+        desnivelM: z.number().min(0).max(5000).nullable(),
+        notas: z.string().max(200),
+      }),
+    )
+    .min(1)
+    .max(7),
+  motivo: z.string().min(1).max(300),
+});
+
+export type WorkoutWeek = z.infer<typeof WorkoutWeekSchema>;
 
 type JsonNode = Record<string, unknown>;
 

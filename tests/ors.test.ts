@@ -36,7 +36,7 @@ describe('ors client', () => {
       coordinates: [[-3.7038, 40.4168]],
       elevation: true,
       instructions: false,
-      extra_info: ['surface', 'waytype', 'steepness'],
+      extra_info: ['surface', 'waytype', 'steepness', 'waycategory'],
       options: {
         round_trip: { length: 30000, points: 4, seed: 7 },
         avoid_features: ['ferries', 'fords', 'steps'],

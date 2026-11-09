@@ -4,6 +4,7 @@ import { App } from '../src/App';
 import { db } from '../src/db/db';
 import { saveActivity, setLastBackupAt } from '../src/db/repo';
 import { listWorkouts, saveWorkout } from '../src/calendar/calendarRepo';
+import { DEFAULT_SETTINGS, saveSettings } from '../src/settings/settings';
 import type { LocalDate, PlannedWorkout, StoredActivity } from '../src/domain/types';
 
 // Viernes 6 de noviembre de 2026, 11:00 en Madrid. La semana va del lunes 2 al domingo 8.
@@ -266,5 +267,21 @@ describe('Calendario', { timeout: 20_000 }, () => {
     renderCalendario();
     await screen.findByRole('region', { name: 'Próximos' });
     expect(screen.queryByText('Tu calendario tiene cambios sin copia.')).not.toBeInTheDocument();
+  });
+  it('AI week button only with an AI available', async () => {
+    const user = userEvent.setup();
+    await saveWorkout(workout('w1', '2026-11-07'));
+    const { unmount } = renderCalendario();
+    await screen.findByRole('region', { name: 'Próximos' });
+    expect(screen.queryByRole('button', { name: 'Proponer semana con IA' })).not.toBeInTheDocument();
+    unmount();
+
+    await saveSettings({ ...DEFAULT_SETTINGS, llm: { ...DEFAULT_SETTINGS.llm, apiKey: 'test-key', model: 'openai/gpt-oss-20b' } });
+    renderCalendario();
+    await user.click(await screen.findByRole('button', { name: 'Proponer semana con IA' }));
+    const dialog = sheet('Proponer semana con IA');
+    // El sábado 7 ya tiene entreno: no se puede elegir.
+    expect(within(dialog).getByRole('button', { name: /^Sábado 7 de noviembre, ya tiene entreno/ })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Proponer' })).toBeInTheDocument();
   });
 });

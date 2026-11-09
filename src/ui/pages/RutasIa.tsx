@@ -22,6 +22,7 @@ import { gpxFileName } from '../../routes/gpx';
 import { loadVisitedCells } from '../../routes/history';
 import { ORS_DAILY_LIMIT, OrsError } from '../../routes/ors';
 import { chooseOrsAccess, sessionToken, SHARED_ORS_LIMITS, sharedOrsEnabled } from '../../routes/orsProxy';
+import { routeSourcesEnabled } from '../../routes/sources/client';
 import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { AiNeverList, AiRoutesCarousel, AiSeesList, AI_NEVER, aiShown, type ShownRoute } from '../components/AiRoutes';
@@ -122,6 +123,7 @@ export function RutasIa() {
   const account = useAccount();
   const sharedMode = SHARED_AI_ENABLED && account !== null;
   const sharedOrs = sharedOrsEnabled() && account !== null;
+  const knownRoutes = routeSourcesEnabled() && account !== null;
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -323,7 +325,7 @@ export function RutasIa() {
       } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared },
+        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions },
       );
       if (!live()) return;
       if (res.kind === 'routes') {
@@ -520,7 +522,7 @@ export function RutasIa() {
                     Lo que verá la IA
                   </h2>
                 </div>
-                <AiSeesList summary={ctx.summary} />
+                <AiSeesList summary={ctx.summary} knownRoutes={knownRoutes} />
                 <p className="card-foot">{AI_NEVER}</p>
               </section>
               {usageLine}
@@ -741,7 +743,7 @@ export function RutasIa() {
       >
         <div className="sheet-group">
           <p className="sheet-group-title">Ve estas cifras resumidas</p>
-          <AiSeesList summary={ctx?.summary ?? null} />
+          <AiSeesList summary={ctx?.summary ?? null} knownRoutes={knownRoutes} />
         </div>
         <div className="sheet-group">
           <p className="sheet-group-title">No ve nunca</p>

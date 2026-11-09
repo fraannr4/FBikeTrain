@@ -11,10 +11,14 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { SHARED_AI_ENABLED } from '../../ai/sharedClient';
+import { busyDays } from '../../ai/workoutPlanner';
+import { useAccount } from '../../auth/AccountBoundary';
 import { deleteWorkout, listWorkouts, saveWorkout, setWorkoutDone } from '../../calendar/calendarRepo';
 import { syncCalendar } from '../../calendar/sync';
 import { getBackupMeta, needsBackup } from '../../backup/backup';
 import { getActivity } from '../../db/repo';
+import { loadSettings } from '../../settings/settings';
 import { localDay } from '../../metrics/calendar';
 import type { LocalDate, PlannedWorkout, StoredActivity } from '../../domain/types';
 import {
@@ -31,6 +35,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Sparkles,
 } from '../icons';
 import { formatCount, formatDuration, formatNumber } from '../format';
 import {
@@ -50,6 +55,7 @@ import {
   whenLabel,
   WEEKDAY_INITIALS,
 } from '../calendarGrid';
+import { AiWeekSheet, createWeekProposer } from '../calendario/AiWeekSheet';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
 import { SegmentedNav } from '../components/SegmentedControl';
@@ -64,7 +70,8 @@ import { useReducedMotion } from '../theme/motion';
 type Status = 'done' | 'pending' | 'missed';
 const STATUS_TEXT: Record<Status, string> = { done: 'hecho', pending: 'pendiente', missed: 'sin hacer' };
 
-type Data = { workouts: PlannedWorkout[]; acts: Map<string, StoredActivity>; backup: boolean };
+/** `personalAi`: hay clave y modelo de IA propios en Ajustes. */
+type Data = { workouts: PlannedWorkout[]; acts: Map<string, StoredActivity>; backup: boolean; personalAi: boolean };
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; data: Data };
 
 /** Semanas de la tira antes y después de la de hoy. */
@@ -86,12 +93,13 @@ function kmText(m: number): string {
 }
 
 async function loadData(): Promise<Data> {
-  const [workouts, meta] = await Promise.all([listWorkouts(), getBackupMeta()]);
+  const [workouts, meta, settings] = await Promise.all([listWorkouts(), getBackupMeta(), loadSettings()]);
   const ids = [...new Set(workouts.flatMap((w) => (w.done && w.activityId ? [w.activityId] : [])))];
   const found = await Promise.all(ids.map((id) => getActivity(id)));
   const acts = new Map<string, StoredActivity>();
   for (const a of found) if (a) acts.set(a.id, a);
-  return { workouts, acts, backup: needsBackup(meta) };
+  const personalAi = settings.llm.apiKey.trim() !== '' && settings.llm.model.trim() !== '';
+  return { workouts, acts, backup: needsBackup(meta), personalAi };
 }
 
 /** Día inicial: el de `?mes=yyyy-MM` (hoy si es este mes, si no el día 1) o hoy. */
@@ -113,6 +121,10 @@ export function Calendario() {
     workout: null,
     date: today,
   });
+  const [aiWeek, setAiWeek] = useState({ key: 0, open: false });
+  const account = useAccount();
+  const sharedAi = SHARED_AI_ENABLED && account !== null;
+  const proposeWeek = useMemo(() => createWeekProposer(account?.client ?? null), [account]);
   const toast = useToast();
   const reduced = useReducedMotion();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -280,7 +292,22 @@ export function Calendario() {
     window.scrollTo?.({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
   };
 
+  const closeAiWeek = () => setAiWeek((a) => ({ ...a, open: false }));
+
+  const onAiAdded = async (ws: PlannedWorkout[]) => {
+    closeAiWeek();
+    try {
+      await syncCalendar();
+    } catch {
+      // Marcar como hechos es secundario: los entrenos ya están guardados.
+    }
+    await refresh();
+    if (ws.length > 0) select(ws[0].date, { scroll: true });
+    toast(ws.length === 1 ? '1 entreno añadido' : `${ws.length} entrenos añadidos`, { tone: 'good' });
+  };
+
   const empty = ready && workouts.length === 0;
+  const aiReady = sharedAi || (load.state === 'ready' && load.data.personalAi);
   const planDate = diffDays(selected, today) >= 0 ? selected : today;
 
   const actions =
@@ -380,6 +407,16 @@ export function Calendario() {
               <WeekSummary monday={shownMonday} byDay={byDay} acts={load.data.acts} />
               <Legend className="cal-legend" />
             </div>
+            {aiReady ? (
+              <button
+                className="btn btn--secondary btn--block aiw-open"
+                type="button"
+                onClick={() => setAiWeek((a) => ({ key: a.key + 1, open: true }))}
+              >
+                <Sparkles className="ic" aria-hidden="true" />
+                Proponer semana con IA
+              </button>
+            ) : null}
           </section>
 
           {empty ? (
@@ -435,6 +472,19 @@ export function Calendario() {
             >
               Tu calendario tiene cambios sin copia.
             </Banner>
+          ) : null}
+
+          {aiReady ? (
+            <AiWeekSheet
+              key={aiWeek.key}
+              open={aiWeek.open}
+              onClose={closeAiWeek}
+              today={today}
+              busy={busyDays(workouts, today)}
+              propose={proposeWeek}
+              notesHelp={sharedAi ? 'El servicio común no envía las notas; solo se usan con tu propia clave de IA.' : undefined}
+              onAdded={(ws) => void onAiAdded(ws)}
+            />
           ) : null}
 
           <MonthSheet

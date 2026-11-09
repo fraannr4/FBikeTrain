@@ -15,10 +15,10 @@ const mock = (orsStatus = 200, orsJson: unknown = fixture('round-trip-ok.json'))
 });
 
 describe('ORS compartido: el servidor construye la petición', () => {
-  it('vuelta circular con perfil de carretera, elevación y extra_info', () => {
+  it('vuelta circular con perfil de carretera, elevación y extra_info con waycategory, para descartar autopistas', () => {
     expect(buildOrsBody(roundTrip as never)).toEqual({
       coordinates: [[-3.7038, 40.4168]], elevation: true, instructions: false,
-      extra_info: ['surface', 'waytype', 'steepness'],
+      extra_info: ['surface', 'waytype', 'steepness', 'waycategory'],
       options: { round_trip: { length: 30_000, points: 4, seed: 1 }, avoid_features: ['ferries', 'fords', 'steps'] },
     });
   });
@@ -90,7 +90,7 @@ describe('ORS compartido: límites y privacidad', () => {
     const [feature] = body.data.features;
     expect(feature.geometry.coordinates).toHaveLength(61);
     expect(feature.properties.summary.distance).toBe(29943.1);
-    expect(Object.keys(feature.properties.extras).sort()).toEqual(['steepness', 'surface', 'waytypes']);
+    expect(Object.keys(feature.properties.extras).sort()).toEqual(['steepness', 'surface', 'waycategory', 'waytypes']);
     expect(body.metadata).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain('query');
   });

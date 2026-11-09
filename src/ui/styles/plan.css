@@ -157,6 +157,40 @@
 .wo-done-row { margin: 0 -8px; }
 .wo-done-row .row-lead { --acc: var(--good); }
 
+/* ---------- Semana propuesta por la IA ---------- */
+.aiw-open { margin-top: 12px; }
+.aiw-form { display: grid; gap: 18px; }
+.sheet-body .aiw-form .field + .field { margin-top: 0; }
+.aiw-days { margin: 0; padding: 0; border: 0; min-width: 0; display: grid; gap: 8px; }
+.aiw-days legend { padding: 0; margin-bottom: 8px; }
+/* Siete días en una fila a 360 px: cada pastilla, del ancho de su columna y 52 px de alto. */
+.aiw-chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.aiw-chip { min-height: 52px; width: 100%; }
+.aiw-chip > span { flex-direction: column; justify-content: center; gap: 2px; width: 100%; height: 52px; padding: 0; border-radius: var(--r-lg); font-variant-numeric: tabular-nums; }
+.aiw-chip > span > span { font-weight: 500; color: var(--ink-3); }
+/* Elegido: relleno de acción, como el botón principal; sin elegir, solo el borde. */
+.aiw-chip[aria-pressed="false"] > span { background: transparent; }
+.aiw-chip[aria-pressed="true"] > span { background: var(--action); border-color: var(--action); color: var(--on-action); }
+.aiw-chip[aria-pressed="true"] > span > span { color: var(--on-action); }
+.aiw-chip:disabled { cursor: not-allowed; }
+.aiw-chip:disabled > span { opacity: 0.45; border-style: dashed; }
+.aiw-hint { font-size: var(--t-sm); color: var(--ink-3); text-wrap: pretty; }
+.aiw-wait { display: grid; justify-items: center; gap: 8px; padding: 8px 0 4px; text-align: center; color: var(--ink-2); }
+.aiw-error { display: grid; gap: 12px; justify-items: start; }
+.aiw-result { display: grid; gap: 14px; }
+.aiw-why { font-size: 15px; line-height: 1.5; color: var(--ink-2); text-wrap: pretty; }
+.aiw-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.aiw-list li { position: relative; }
+.aiw-check { position: absolute; top: 16px; left: 14px; width: 22px; height: 22px; margin: 0; accent-color: var(--action); }
+.aiw-item { display: grid; gap: 2px; min-height: 56px; padding: 12px 14px 12px 50px; border-radius: var(--r-lg); border: 1px solid var(--line-strong); background: var(--surface-2); cursor: pointer; }
+.aiw-check:not(:checked) + .aiw-item { background: transparent; border-style: dashed; }
+.aiw-check:not(:checked) + .aiw-item .aiw-title { color: var(--ink-2); }
+.aiw-check:focus-visible + .aiw-item { outline: 2px solid var(--focus); outline-offset: 2px; }
+.aiw-when { font-size: var(--t-sm); color: var(--ink-3); }
+.aiw-title { font: 600 var(--t-lg)/1.25 var(--font-ui); color: var(--ink); overflow-wrap: anywhere; }
+.aiw-figs { font-size: var(--t-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.aiw-notes { font-size: var(--t-sm); color: var(--ink-3); overflow-wrap: anywhere; }
+
 /* ---------- Carga ---------- */
 .cal-sk { display: grid; gap: 4px; padding: 12px 6px; }
 .cal-sk-h { display: flex; justify-content: space-between; padding: 6px 10px 10px; }

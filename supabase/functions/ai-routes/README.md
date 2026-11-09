@@ -7,7 +7,8 @@ Contratos:
 - `{ operation: 'plan', summary: LevelSummary, answers: { focus, minutes, explore, notes: '' }, maxDistanciaKm }`
 - `{ operation: 'explain', summary: LevelSummary, facts: RouteFacts[] }`
 - `{ operation: 'splice', facts: SpliceFacts[] }`: recomendación de empalme. De 1 a 12 opciones con solo cifras (distancia, desnivel, vías principales, conector, solape, retroceso); devuelve `{ recomendada, motivo }` y `recomendada` debe ser uno de los `id` recibidos.
-- Éxito: `{ data: ... }` con RoutePlanSchema o ExplanationSchema.
+- `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: '' }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar y las notas vacías, como en `plan`. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
+- Éxito: `{ data: ... }` con el esquema de la operación.
 - Error: `{ error: { code, message }, retryAfterS? }`. Códigos: unauthorized, invalid_request, quota_exceeded, unavailable, provider_error, timeout, cancelled, invalid_response. No se devuelven errores crudos ni claves.
 
 La validación es estricta: sin coordenadas, tracks ni campos extras. No admite URL, modelo ni prompt del cliente. Notes está vacío por diseño para evitar enviar direcciones en texto libre; los títulos de hechos se sustituyen por `Ruta N`. El servidor reutiliza los prompts/esquemas existentes, controla el modelo (`openai/gpt-oss-20b`), no reintenta automáticamente y limita salida a 1.600 tokens y petición de proveedor a 20 segundos.
@@ -31,7 +32,7 @@ Solo la función SQL de servidor puede consumir. Un bloqueo transaccional compar
 
 - 12 operaciones por día/usuario; 40 globales por día (UTC).
 - 2 operaciones por minuto/usuario; 3 globales por minuto.
-- `plan`, `explain` y `splice` cuentan por separado: una búsqueda habitual necesita dos operaciones. Los intentos ya admitidos consumen incluso si el proveedor falla; evita reintentos ilimitados y gasto no contabilizado.
+- `plan`, `explain`, `splice` y `workouts` cuentan por separado, una operación cada una: una búsqueda habitual necesita dos operaciones. Los intentos ya admitidos consumen incluso si el proveedor falla; evita reintentos ilimitados y gasto no contabilizado.
 
 No confundir estas cuotas de aplicación con las efectivas del proveedor (peticiones y tokens). No se cambia automáticamente a planes de pago. Al agotarse, 429 con Retry-After.
 

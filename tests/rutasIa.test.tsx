@@ -75,6 +75,7 @@ function aiRoute(i: number, over: Partial<AiRoute> = {}): AiRoute {
     trackM: 0,
     mainRoadPct: 0,
     unknownSurfacePct: 0,
+    motorway: false,
     steep: [{ fromM: 0, toM: 54_000, cls: 2 }],
     profile: Array.from({ length: 21 }, (_, k) => ({ dM: k * 2700, ele: 650 + 40 * Math.sin(k / 3) })),
     maxSteepCls: 2,
@@ -224,6 +225,22 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     const card = screen.getByRole('region', { name: 'Lo que verá la IA' });
     expect(within(card).getByText(/50 km/)).toBeInTheDocument();
     expect(within(card).getByText(/Nunca verá tus tracks GPS, dónde está Casa/)).toBeInTheDocument();
+    expect(within(card).queryByText(/rutas públicas conocidas/)).not.toBeInTheDocument();
+  });
+
+  it('with route sources on, says the ai also sees names and figures of known routes', async () => {
+    await seed();
+    vi.stubEnv('VITE_ROUTE_SOURCES_ENABLED', 'true');
+    try {
+      window.location.hash = '#/rutas/ia';
+      const account = { client: {} as SupabaseClient, user: { id: 'u1' } as User };
+      render(<AccountContext.Provider value={account}><App /></AccountContext.Provider>);
+      await answerAll();
+      const card = screen.getByRole('region', { name: 'Lo que verá la IA' });
+      expect(within(card).getByText(/rutas públicas conocidas/)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('sends answers without the start point', async () => {
@@ -287,6 +304,32 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(within(first).getByText(/la opción 1 sube un poco/)).toBeInTheDocument();
     expect(within(first).getByText('+8 % frente a tu referencia en distancia')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Exportar GPX de Opción 1, ruta 1 de 3/ })).toBeInTheDocument();
+  });
+
+  it('a route based on a known route links to it', async () => {
+    await seed();
+    const basadaEn = { nombre: 'Vuelta sintética', fuente: 'wikiloc' as const, url: 'https://es.wikiloc.com/rutas-ciclismo/vuelta-sintetica-900000001' };
+    await ask({ kind: 'routes', routes: [aiRoute(0, { basadaEn }), aiRoute(1)], warnings: [] });
+    const first = await screen.findByRole('article', { name: /Opción 1/ });
+    const link = within(first).getByRole('link', { name: /Vuelta sintética/ });
+    expect(link).toHaveTextContent('Basada en: Vuelta sintética (Wikiloc)');
+    expect(link).toHaveAttribute('href', basadaEn.url);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(within(screen.getByRole('article', { name: /Opción 2/ })).queryByText(/Basada en/)).not.toBeInTheDocument();
+  });
+
+  it('passes the route sources of the account to the planner', async () => {
+    await seed();
+    run.mockResolvedValue({ kind: 'routes', routes: [aiRoute(0)], warnings: [] });
+    window.location.hash = '#/rutas/ia';
+    const functions = { invoke: vi.fn() };
+    const account = { client: { functions } as unknown as SupabaseClient, user: { id: 'u1' } as User };
+    render(<AccountContext.Provider value={account}><App /></AccountContext.Provider>);
+    const user = await answerAll();
+    await user.click(screen.getByRole('button', { name: /Pedir rutas a la IA/ }));
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    expect(run.mock.calls[0][1].sources).toBe(functions);
   });
 
   it('saves an ai route in the library to splice it', async () => {

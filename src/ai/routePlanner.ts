@@ -3,11 +3,14 @@ import { upliftPct, type UserReference } from '../metrics/reference';
 import type { Target } from '../metrics/score';
 import { generateRoutes, type GeneratedRoute } from '../routes/generator';
 import { OrsError, type OrsAccess } from '../routes/ors';
+import { findRouteReferences, routeSourcesEnabled, type RouteSourceInvoker } from '../routes/sources/client';
+import type { RouteReference } from '../routes/sources/schema';
 import { formatDeltaPct, formatKm, formatMeters } from '../ui/format';
 import { abortError } from './abort';
 import type { LevelSummary } from './levelSummary';
 import { chatJson, LlmError, type LlmErrorKind } from './llm';
-import { buildExplainMessages, buildPlanMessages, type Answers, type ChatMessage, type RouteFacts } from './prompts';
+import { buildExplainMessages, buildPlanMessages, type AiReference, type Answers, type ChatMessage, type RouteFacts } from './prompts';
+import { pickReferences } from './references';
 import { ExplanationSchema, RoutePlanSchema, toStrictJsonSchema, type RoutePlan } from './schema';
 
 /**
@@ -28,6 +31,9 @@ const ORS_COUNT = 1;
 const ORS_SEEDS = 3;
 
 const FALLBACK_INVALID = 'La IA no ha devuelto un plan válido. Ajusta la ruta a mano.';
+/** Radio de búsqueda de rutas conocidas alrededor del inicio. */
+const SOURCES_RADIUS_M = 15_000;
+const SOURCES_DOWN = 'No se han podido consultar rutas conocidas cerca del inicio; las propuestas no las tienen en cuenta.';
 
 type Dimension = 'distancia' | 'desnivel';
 
@@ -37,6 +43,8 @@ export type PlannedTarget = {
   target: Target;
   upliftPct: number;
   limitadoPorTiempo: boolean;
+  /** Referencia en la que dice basarse la IA; se comprueba contra las enviadas. */
+  referenciaId: string | null;
 };
 
 export type AiRoute = GeneratedRoute & {
@@ -46,6 +54,8 @@ export type AiRoute = GeneratedRoute & {
   dimension: Dimension;
   /** La distancia la ha recortado el tiempo disponible. */
   limitadoPorTiempo: boolean;
+  /** Ruta conocida en la que se basa la opción, con su enlace original. */
+  basadaEn?: { nombre: string; fuente: RouteReference['source']; url: string };
 };
 
 export type AiRoutesResult =
@@ -56,7 +66,7 @@ type ChatRequest<T> = Parameters<typeof chatJson<T>>[1];
 type Outcome<T> = { ok: true; data: T } | { ok: false; error: LlmError };
 
 export type SharedAiPlanner = {
-  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal) => Promise<RoutePlan>;
+  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias?: AiReference[]) => Promise<RoutePlan>;
   explain: (summary: LevelSummary, facts: RouteFacts[], signal?: AbortSignal) => Promise<{ explicaciones: { id: string; texto: string }[] }>;
 };
 
@@ -90,11 +100,12 @@ export async function planWithRetry(
   maxDistanciaKm: number,
   chat: typeof chatJson = chatJson,
   signal?: AbortSignal,
+  referencias: AiReference[] = [],
 ): Promise<{ ok: true; plan: RoutePlan } | { ok: false; error: LlmError }> {
   const out = await chatWithRetry(
     cfg,
     {
-      messages: buildPlanMessages(summary, answers, maxDistanciaKm),
+      messages: buildPlanMessages(summary, answers, maxDistanciaKm, referencias),
       schemaName: 'plan_rutas',
       jsonSchema: toStrictJsonSchema(RoutePlanSchema),
       schema: RoutePlanSchema,
@@ -120,6 +131,7 @@ function plannedTarget(
   elevGainM: number | null,
   ref: UserReference,
   answers: Answers,
+  referenciaId: string | null,
 ): PlannedTarget {
   const cap = timeCapM(ref, answers);
   const distanceM = Math.round(Math.min(wantedM, cap));
@@ -132,6 +144,7 @@ function plannedTarget(
     target: { distanceM, elevGainM, preferNew: answers.explore === 'descubrir' },
     upliftPct: upliftPct({ distanceM, elevGainM: elevGainM ?? 0 }, ref, dim),
     limitadoPorTiempo: cap < neededM,
+    referenciaId,
   };
 }
 
@@ -141,12 +154,13 @@ function plannedTarget(
  */
 export function targetsFromPlan(plan: RoutePlan, ref: UserReference, answers: Answers): PlannedTarget[] {
   return plan.opciones.map((o) => {
+    const referenciaId = o.referenciaId ?? null;
     if (o.dimension === 'distancia') {
-      return plannedTarget(o.titulo, o.dimension, clamp(o.distanciaKm * 1000, ref.avgDistanceM), o.desnivelM, ref, answers);
+      return plannedTarget(o.titulo, o.dimension, clamp(o.distanciaKm * 1000, ref.avgDistanceM), o.desnivelM, ref, answers, referenciaId);
     }
     const wantedGain = o.desnivelM ?? ref.avgElevGainM * (1 + o.subidaPct / 100);
     const elevGainM = Math.round(clamp(wantedGain, ref.avgElevGainM));
-    return plannedTarget(o.titulo, o.dimension, o.distanciaKm * 1000, elevGainM, ref, answers);
+    return plannedTarget(o.titulo, o.dimension, o.distanciaKm * 1000, elevGainM, ref, answers, referenciaId);
   });
 }
 
@@ -233,6 +247,8 @@ export async function runAiRoutes(
     generate?: typeof generateRoutes;
     signal?: AbortSignal;
     shared?: SharedAiPlanner;
+    /** Función `route-sources` de la cuenta; sin cuenta, no se buscan rutas conocidas. */
+    sources?: RouteSourceInvoker;
   },
 ): Promise<AiRoutesResult> {
   const { start, answers, reference: ref, summary } = input;
@@ -242,21 +258,35 @@ export async function runAiRoutes(
   const cap = timeCapM(ref, answers);
   const maxKm = Number.isFinite(cap) ? round1(Math.min(cap / 1000, PLAN_MAX_KM)) : PLAN_MAX_KM;
   const { signal } = deps;
+  const warnings: string[] = [];
+
+  // Rutas conocidas cerca del inicio. Las coordenadas van solo a nuestra función, nunca a la IA.
+  let known: RouteReference[] = [];
+  if (deps.sources && routeSourcesEnabled()) {
+    try {
+      known = await findRouteReferences({ lat: start.lat, lon: start.lng, radiusM: SOURCES_RADIUS_M }, deps.sources, signal);
+    } catch {
+      if (signal?.aborted) throw abortError();
+      warnings.push(SOURCES_DOWN);
+    }
+  }
+  const { forAi: referencias, byId: referencesById } = pickReferences(known, maxKm);
+
   // El servicio común caído o sin red no es el límite: con clave personal, se sigue con ella. Con 429, no.
   const personal = !!deps.llm && deps.llm.apiKey.trim() !== '' && deps.llm.model.trim() !== '';
   const usePersonal = (e: LlmError) => personal && (e.kind === 'network' || e.kind === 'unavailable');
   let planned: Awaited<ReturnType<typeof planWithRetry>>;
   let shared = deps.shared;
   if (shared) {
-    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal) }; }
+    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal, referencias) }; }
     catch (error) {
       if (!(error instanceof LlmError)) throw error;
       if (usePersonal(error)) {
         shared = undefined;
-        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
+        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias);
       } else planned = { ok: false, error };
     }
-  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
+  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias);
   if (!planned.ok) {
     const message = planned.error.kind === 'invalid_json' ? FALLBACK_INVALID : planned.error.message;
     return { kind: 'fallback', message, cause: planned.error.kind, suggested: suggestedTarget(ref, answers) };
@@ -264,7 +294,6 @@ export async function runAiRoutes(
 
   // Una opción detrás de otra, nunca en paralelo, por la cuota por minuto de ORS.
   const found: Found[] = [];
-  const warnings: string[] = [];
   for (const p of targetsFromPlan(planned.plan, ref, answers)) {
     if (signal?.aborted) throw abortError();
     let res;
@@ -320,6 +349,8 @@ export async function runAiRoutes(
   const routes = found.map(({ route, planned: p, uplift }, i): AiRoute => {
     const f = facts[i];
     const texto = texts.get(f.id);
+    // Un id que no se ha enviado se ignora.
+    const basada = p.referenciaId === null ? undefined : referencesById.get(p.referenciaId);
     return {
       ...route,
       titulo: p.titulo,
@@ -327,6 +358,7 @@ export async function runAiRoutes(
       upliftPct: uplift,
       limitadoPorTiempo: p.limitadoPorTiempo,
       explicacion: texto && citesFigures(texto, f) ? texto : templateExplanation(f),
+      ...(basada ? { basadaEn: { nombre: basada.name, fuente: basada.source, url: basada.url } } : {}),
     };
   });
   return { kind: 'routes', routes, warnings };

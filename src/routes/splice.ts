@@ -2,7 +2,7 @@ import { abortError, isAbort } from '../ai/abort';
 import type { LatLng } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { difficulty, type Difficulty, type UserReference } from '../metrics/reference';
-import { ROAD_FILTER, UNPAVED_SURFACES } from './analyze';
+import { ROAD_FILTER, UNPAVED_SURFACES, usesMotorway } from './analyze';
 import { analyzeReferenceRoutePoints, MAX_REFERENCE_POINTS, RouteLibraryError, routePointsToGpx, type RoutePoint } from './library';
 import { fetchRoadFeatures, OrsError, type OrsAccess, type OrsExtra, type OrsFeature } from './ors';
 import { buildOrsBody, type SharedOrsRequest } from './shared/orsService';
@@ -47,7 +47,6 @@ const OPPOSITE_DEG = 120;
 const MAX_UNKNOWN_SURFACE_PCT = 20;
 const WAYTYPE_STATE_ROAD = 1;
 const WAYTYPE_TRACK = 5;
-const WAYCATEGORY_MOTORWAY = 1;
 const M_PER_DEG_LAT = 111_320;
 
 export type SpliceInput = { id: string; name: string; points: RoutePoint[] };
@@ -186,16 +185,12 @@ const validExtra = (e: OrsExtra | undefined): e is OrsExtra =>
   !!e && Array.isArray(e.values) && Array.isArray(e.summary) && e.summary.length > 0 && e.summary.every(s => Number.isFinite(s.distance) && Number.isFinite(s.amount));
 const sum = (e: OrsExtra, field: 'distance' | 'amount', match: (v: number) => boolean) => e.summary.reduce((n, s) => (match(s.value) ? n + s[field] : n), 0);
 
-/**
- * Conector de carretera válido, o el motivo por el que no lo es. `waycategory` 1 es autopista; ORS
- * no separa las autovías (`trunk`) de las nacionales: van juntas en «State Road» y se limitan como
- * carretera principal.
- */
+/** Conector de carretera válido, o el motivo por el que no lo es. Autopistas: `usesMotorway`. */
 function assess(f: OrsFeature, from: LatLng, to: LatLng): Connector | DiscardReason {
   const coords: unknown = f?.geometry?.coordinates;
   const extras = f?.properties?.extras;
   if (!Array.isArray(coords) || coords.length < 2 || !validExtra(extras?.surface) || !validExtra(extras?.waytypes) || !validExtra(extras?.waycategory)) return 'sin datos';
-  if (extras.waycategory.values.some(([, , v]) => (v & WAYCATEGORY_MOTORWAY) !== 0) || extras.waycategory.summary.some(s => (s.value & WAYCATEGORY_MOTORWAY) !== 0)) return 'autopista';
+  if (usesMotorway(extras.waycategory)) return 'autopista';
   if (sum(extras.surface, 'distance', v => UNPAVED_SURFACES.has(v)) > ROAD_FILTER.maxUnpavedM) return 'sin asfaltar';
   if (sum(extras.waytypes, 'distance', v => v === WAYTYPE_TRACK) > ROAD_FILTER.maxTrackM) return 'pistas';
   if (sum(extras.waytypes, 'amount', v => v === WAYTYPE_STATE_ROAD) > ROAD_FILTER.maxMainRoadPct) return 'carretera principal';

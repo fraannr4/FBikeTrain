@@ -25,7 +25,7 @@ export type OrsFeature = {
   geometry: { type: 'LineString'; coordinates: [number, number, number][] };
   properties: {
     summary: { distance: number; duration: number; ascent?: number; descent?: number };
-    /** `waycategory` solo llega en los trayectos (`path`): campo de bits, 1 = autopista. */
+    /** `waycategory`: campo de bits, 1 = autopista. Opcional: las respuestas antiguas no lo traen. */
     extras: { surface: OrsExtra; waytypes: OrsExtra; steepness: OrsExtra; waycategory?: OrsExtra };
   };
 };

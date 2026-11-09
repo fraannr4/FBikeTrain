@@ -79,6 +79,7 @@ function route(i: number, over: Partial<GeneratedRoute> = {}): GeneratedRoute {
     trackM: 0,
     mainRoadPct: 0,
     unknownSurfacePct: 0,
+    motorway: false,
     steep: [{ fromM: 0, toM: 62_400, cls: 2 }],
     profile: Array.from({ length: 21 }, (_, k) => ({ dM: k * 3120, ele: 650 + 40 * Math.sin(k / 3) })),
     maxSteepCls: 2,

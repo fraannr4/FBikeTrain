@@ -122,6 +122,20 @@ describe('generateRoutes', () => {
     expect(res.routes.map((r) => r.seed)).toEqual([1, 2]);
   });
 
+  it('discards a loop that uses a motorway and keeps one on a primary road', async () => {
+    const ors = fakeOrs((seed) => {
+      const f = feature({ distanceM: 30000 + seed * 500 });
+      // waycategory: campo de bits de ORS, 1 = autopista. La nacional (primary) no lleva ese bit.
+      f.properties.extras.waycategory = { values: [[0, 1, 0], [1, 2, seed === 0 ? 1 : 0]], summary: [{ value: seed === 0 ? 1 : 0, distance: 1000, amount: 3 }] };
+      if (seed === 1) f.properties.extras.waytypes = { values: [[0, 2, 1]], summary: [{ value: 1, distance: 3000, amount: 10 }, { value: 2, distance: 27500, amount: 90 }] };
+      return f;
+    });
+    const res = await run({ seeds: 2 }, ors);
+
+    expect(res.rejected).toEqual([{ seed: 0, reason: 'autopista' }]);
+    expect(res.routes.map((r) => r.seed)).toEqual([1]);
+  });
+
   it('dedupes identical loops', async () => {
     // 30.000 m y 30.020 m redondean a los mismos 100 m; 200 m y 203 m, a los mismos 10 m.
     const ors = fakeOrs((seed) => feature({ distanceM: 30000 + seed * 20, gainM: 200 + seed * 3 }));

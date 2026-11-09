@@ -78,6 +78,9 @@
 .rcard-notes { display: grid; gap: 4px; font-size: var(--t-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .rcard-notes li { display: flex; align-items: center; gap: 6px; }
 .rcard-notes .ic { flex: none; width: 16px; height: 16px; color: var(--link); }
+/* «Basada en»: nombres largos de rutas públicas, sin desbordar a 360 px. */
+.rcard-based { font-size: var(--t-sm); overflow-wrap: anywhere; }
+.rcard-based a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; display: inline-block; min-height: 24px; padding-block: 2px; }
 
 /* Escritorio: las preguntas, en una columna cómoda */
 @media (min-width: 900px) {

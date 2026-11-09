@@ -77,6 +77,8 @@ const steepness = extra([
   [30, 45, -1],
   [45, N, 0],
 ]);
+// Categoría de vía (campo de bits): 0, sin autopista, peaje, escaleras, ferri ni vado.
+const waycategory = extra([[0, N, 0]]);
 
 const lats = coords.map((c) => c[1]);
 const lngs = coords.map((c) => c[0]);
@@ -103,7 +105,7 @@ const ok = {
         ascent: summary.ascent,
         descent: summary.descent,
         segments: [{ ...summary }],
-        extras: { surface, waytypes, steepness },
+        extras: { surface, waytypes, steepness, waycategory },
         way_points: [0, N],
         summary,
       },
@@ -120,7 +122,7 @@ const ok = {
       format: 'geojson',
       elevation: true,
       instructions: false,
-      extra_info: ['surface', 'waytype', 'steepness'],
+      extra_info: ['surface', 'waytype', 'steepness', 'waycategory'],
       options: {
         avoid_features: ['ferries', 'fords', 'steps'],
         round_trip: { length: LENGTH, points: 4, seed: 1 },

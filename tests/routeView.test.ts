@@ -54,6 +54,7 @@ function route(over: Partial<GeneratedRoute> = {}): GeneratedRoute {
     trackM: 0,
     mainRoadPct: 0,
     unknownSurfacePct: 0,
+    motorway: false,
     steep: [{ fromM: 0, toM: 62_400, cls: 1 }],
     profile: [
       { dM: 0, ele: 600 },
@@ -122,6 +123,12 @@ describe('rejectSummary', () => {
         { seed: 2, reason: 'longitud' },
       ]),
     ).toBe('Ninguna candidata pasa el filtro de carretera: 1 con pistas, 1 de otra longitud. Prueba otra distancia u otro inicio.');
+  });
+
+  it('names motorways in plain words', () => {
+    expect(rejectSummary([{ seed: 1, reason: 'autopista' }])).toBe(
+      'Ninguna candidata pasa el filtro de carretera: 1 con autopista. Prueba otra distancia u otro inicio.',
+    );
   });
 
   it('without candidates says that ORS found no roads', () => {

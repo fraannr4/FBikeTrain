@@ -11,12 +11,15 @@ import { Carousel } from './Carousel';
 /** Una ruta lista para pintar y exportar. */
 export type ShownRoute = { card: RouteCardData; coords: Coord3[]; file: string };
 
+const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap' } as const;
+
 /** Tarjeta de cada propuesta: el título de la IA, su explicación y cuánto cambia frente a tu referencia (sube o baja). */
 export function aiShown(routes: AiRoute[]): ShownRoute[] {
   return routes.map((r) => {
     const notes = [{ icon: r.upliftPct >= 0 ? TrendingUp : TrendingDown, text: `${formatDeltaPct(r.upliftPct)} frente a tu referencia en ${r.dimension}` }];
     if (r.limitadoPorTiempo) notes.push({ icon: Clock, text: 'Limitada por tu tiempo disponible' });
-    return { card: { ...toCardData(r, r.titulo), why: r.explicacion, notes }, coords: r.coords, file: gpxFileName(r) };
+    const basedOn = r.basadaEn ? { label: `Basada en: ${r.basadaEn.nombre} (${SOURCE_LABEL[r.basadaEn.fuente]})`, url: r.basadaEn.url } : undefined;
+    return { card: { ...toCardData(r, r.titulo), why: r.explicacion, notes, basedOn }, coords: r.coords, file: gpxFileName(r) };
   });
 }
 
@@ -55,8 +58,8 @@ export function AiRoutesCarousel({
   );
 }
 
-/** Lo que recibe la IA: el resumen del nivel, las respuestas y las cifras de las rutas. */
-export function AiSeesList({ summary }: { summary: LevelSummary | null }) {
+/** Lo que recibe la IA: el resumen del nivel, las respuestas, las cifras de las rutas y, con fuentes, las rutas conocidas. */
+export function AiSeesList({ summary, knownRoutes = false }: { summary: LevelSummary | null; knownRoutes?: boolean }) {
   return (
     <ul className="sees sees--yes">
       {summary ? (
@@ -98,6 +101,14 @@ export function AiSeesList({ summary }: { summary: LevelSummary | null }) {
           Las cifras de las rutas candidatas: km, desnivel, pendiente y % de carretera nueva, <b>sin coordenadas</b>
         </span>
       </li>
+      {knownRoutes ? (
+        <li>
+          <Check className="ic" aria-hidden="true" />
+          <span>
+            El nombre, la fuente, los km y el desnivel de rutas públicas conocidas cerca, <b>sin enlaces ni coordenadas</b>
+          </span>
+        </li>
+      ) : null}
     </ul>
   );
 }

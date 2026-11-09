@@ -148,6 +148,22 @@
                 "amount": 24.99
               }
             ]
+          },
+          "waycategory": {
+            "values": [
+              [
+                0,
+                60,
+                0
+              ]
+            ],
+            "summary": [
+              {
+                "value": 0,
+                "distance": 29943.1,
+                "amount": 100
+              }
+            ]
           }
         },
         "way_points": [
@@ -491,7 +507,8 @@
       "extra_info": [
         "surface",
         "waytype",
-        "steepness"
+        "steepness",
+        "waycategory"
       ],
       "options": {
         "avoid_features": [

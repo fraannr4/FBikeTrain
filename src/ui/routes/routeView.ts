@@ -85,6 +85,7 @@ const REASON_TEXT: Record<RejectReason, string> = {
   'carretera principal': 'carretera principal',
   pistas: 'con pistas',
   longitud: 'de otra longitud',
+  autopista: 'con autopista',
 };
 const REASON_ORDER = Object.keys(REASON_TEXT) as RejectReason[];
 

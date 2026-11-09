@@ -16,6 +16,8 @@ import type { UserReference } from '../src/metrics/reference';
 import type { GeneratedRoute, generateRoutes, GenerateResult } from '../src/routes/generator';
 import { OrsError } from '../src/routes/ors';
 import { createSharedAiPlanner } from '../src/ai/sharedClient';
+import type { RouteSourceInvoker } from '../src/routes/sources/client';
+import type { RouteReference } from '../src/routes/sources/schema';
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(`tests/fixtures/llm/${name}`, 'utf8'));
 
@@ -62,6 +64,7 @@ function route(o: Partial<GeneratedRoute> = {}): GeneratedRoute {
     trackM: 0,
     mainRoadPct: 0,
     unknownSurfacePct: 0,
+    motorway: false,
     steep: [],
     profile: [],
     maxSteepCls: 3,
@@ -480,3 +483,99 @@ describe('runAiRoutes con la IA compartida', () => {
   });
 });
 
+
+describe('runAiRoutes con rutas conocidas cerca del inicio', () => {
+  const at = '2026-11-09T12:00:00.000Z';
+  /** Referencia sintética de OSM: enlace inventado y geometría en el mar. */
+  const known = (n: number, distanceM = 52_000): RouteReference => ({
+    source: 'osm', url: `https://www.openstreetmap.org/relation/90000${n}`, author: 'Autor ficticio', name: `Vuelta sintética ${n}`,
+    distanceM, ascentM: 640, geometry: { type: 'MultiLineString', coordinates: [[[2.5, 41.0], [2.51, 41.01]]] }, fetchedAt: at,
+  });
+  /** `route-sources` simulado: Wikiloc vacío y OSM con `routes`, o un error en las dos. */
+  function sources(routes: RouteReference[] | 'down') {
+    const invoke = vi.fn<RouteSourceInvoker['invoke']>(async (_name, { body }) => {
+      if (routes === 'down') return { data: null, error: new Error('unavailable') };
+      return { data: { data: body.source === 'osm' ? routes : [] }, error: null };
+    });
+    return { invoke };
+  }
+  const withRef = (referenciaId: string | null) => plan(option({ titulo: 'A', referenciaId }), option({ titulo: 'B' }), option({ titulo: 'C' }));
+
+  beforeEach(() => vi.stubEnv('VITE_ROUTE_SOURCES_ENABLED', 'true'));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('busca a 15 km del inicio con la señal y pasa a la IA solo las cifras de cada referencia', async () => {
+    const src = sources([known(1)]);
+    const { fn, chat } = fakeChat(withRef('ref1'), { explicaciones: [] });
+    const signal = new AbortController().signal;
+    await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: src, signal });
+
+    expect(src.invoke).toHaveBeenCalledWith('route-sources', { body: { lat: START.lat, lon: START.lng, radiusM: 15_000, source: 'wikiloc' }, signal });
+    const sent = fn.mock.calls[0][1].messages.map((m) => m.content).join('\n');
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content).referencias).toEqual([
+      { id: 'ref1', nombre: 'Vuelta sintética 1', fuente: 'osm', distanciaKm: 52, desnivelM: 640 },
+    ]);
+    for (const banned of ['openstreetmap', 'Autor ficticio', '41.0', '2.51', String(START.lat)]) expect(sent).not.toContain(banned);
+  });
+
+  it('la opción basada en una referencia la cita con su nombre, fuente y enlace', async () => {
+    const { chat } = fakeChat(withRef('ref1'), { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: sources([known(1)]) });
+
+    if (out.kind !== 'routes') throw new Error('se esperaban rutas');
+    expect(out.routes[0].basadaEn).toEqual({ nombre: 'Vuelta sintética 1', fuente: 'osm', url: 'https://www.openstreetmap.org/relation/900001' });
+    expect(out.routes[1].basadaEn).toBeUndefined();
+  });
+
+  it('un referenciaId desconocido se ignora', async () => {
+    const { chat } = fakeChat(withRef('ref9'), { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: sources([known(1)]) });
+
+    expect(out.kind === 'routes' && out.routes.map((r) => r.basadaEn)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('sin referencias cerca, el plan no lleva el campo y nada sale basado en ellas', async () => {
+    const { fn, chat } = fakeChat(withRef('ref1'), { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: sources([]) });
+
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content)).not.toHaveProperty('referencias');
+    expect(out.kind === 'routes' && out.routes.every((r) => r.basadaEn === undefined)).toBe(true);
+  });
+
+  it('con las fuentes caídas, el plan sigue y aparece un aviso', async () => {
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: sources('down') });
+
+    expect(out.kind).toBe('routes');
+    expect(fn).toHaveBeenCalledTimes(2);
+    expect(out.kind === 'routes' && out.warnings).toEqual([expect.stringMatching(/rutas conocidas/)]);
+  });
+
+  it('con la variable apagada, no llama a route-sources', async () => {
+    vi.stubEnv('VITE_ROUTE_SOURCES_ENABLED', 'false');
+    const src = sources([known(1)]);
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: src });
+
+    expect(src.invoke).not.toHaveBeenCalled();
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content)).not.toHaveProperty('referencias');
+  });
+
+  it('cancelar durante la búsqueda de referencias no pide el plan', async () => {
+    const controller = new AbortController();
+    const src = { invoke: vi.fn<RouteSourceInvoker['invoke']>(async () => { controller.abort(); throw new DOMException('Cancelado', 'AbortError'); }) };
+    const { fn, chat } = fakeChat(validPlan);
+    await expect(runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: src, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('el servicio común recibe las referencias sin enlaces ni coordenadas', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ data: withRef('ref1') }), { status: 200 }));
+    const shared = createSharedAiPlanner(async () => 'session', fetchImpl);
+    const out = await shared.plan(summary, answers, 100, undefined, [{ id: 'ref1', nombre: 'Vuelta sintética 1', fuente: 'osm', distanciaKm: 52, desnivelM: 640 }]);
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    expect(body.referencias).toEqual([{ id: 'ref1', nombre: 'Vuelta sintética 1', fuente: 'osm', distanciaKm: 52, desnivelM: 640 }]);
+    expect(out.opciones[0].referenciaId).toBe('ref1');
+  });
+});

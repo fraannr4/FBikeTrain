@@ -1,5 +1,8 @@
 import { routeReferencesSchema, routeSearchSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema';
 
+/** Rutas conocidas en Rutas con IA: solo cuando la función `route-sources` esté desplegada y verificada. */
+export const routeSourcesEnabled = () => import.meta.env.VITE_ROUTE_SOURCES_ENABLED === 'true';
+
 // Compatible con supabase.functions, sin importar sesiones ni claves a este módulo.
 export type RouteSourceInvoker = {
   invoke: (name: string, options: { body: RouteSearch & { source: 'wikiloc' | 'osm' }; signal?: AbortSignal }) => PromiseLike<{ data: unknown; error: unknown }>;
