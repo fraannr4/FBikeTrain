@@ -53,9 +53,14 @@ export function AccountBoundary({ client, initialize, children, reload = reloadP
       if (!live) return;
       if (err) throw err;
       if (revision === current) setUser(data.session?.user ?? null);
-    }).catch(() => {
+    }).catch(async () => {
       initialized = true;
-      if (live) { setUser(null); setError('No se pudo recuperar el acceso. Vuelve a entrar para continuar.'); }
+      // Un enlace caducado o abierto en otro navegador no debe cerrar una sesión que sigue válida.
+      const { data } = await client.auth.getSession().catch(() => ({ data: { session: null } }));
+      if (!live) return;
+      if (data.session) { setUser(data.session.user); return; }
+      setUser(null);
+      setError('No se pudo completar el acceso con este enlace. Ábrelo en el mismo navegador donde lo pediste o vuelve a solicitarlo.');
     }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; subscription.unsubscribe(); };
   }, [client, initialize]);

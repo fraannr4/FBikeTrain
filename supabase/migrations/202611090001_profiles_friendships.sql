@@ -84,7 +84,10 @@ revoke all on function public.request_friendship(uuid), public.accept_friendship
 grant execute on function public.request_friendship(uuid), public.accept_friendship(uuid),
   public.remove_friendship(uuid) to authenticated;
 
-insert into storage.buckets(id, name, public) values ('fbiketrain-tracks', 'fbiketrain-tracks', false);
+-- Límite de 10 MB por fichero: un FIT o GPX de una salida larga ocupa bastante menos.
+insert into storage.buckets(id, name, public, file_size_limit)
+  values ('fbiketrain-tracks', 'fbiketrain-tracks', false, 10485760)
+  on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit;
 create policy cycling_tracks_read on storage.objects for select to authenticated
   using (bucket_id = 'fbiketrain-tracks' and (storage.foldername(name))[1] = (select auth.uid()::text));
 create policy cycling_tracks_insert on storage.objects for insert to authenticated

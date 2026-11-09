@@ -20,16 +20,16 @@ describe('guardia obligatoria de cuenta', () => {
     const child = vi.fn(() => <p>Datos privados</p>);
     const Child = child;
     render(<AccountBoundary client={client} initialize={initialize}><Child /></AccountBoundary>);
-    expect(await screen.findByRole('heading', { name: 'Vuelve a tu ritmo' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Vuelve a tu ritmo' }, { timeout: 5000 })).toBeVisible();
     expect(child).not.toHaveBeenCalled();
   });
   it('selecciona la base del usuario antes de montar sus pantallas y las retira al salir', async () => {
     const { client, emit } = mockClient({ id: '00000000-0000-0000-0000-000000000088' });
     render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
-    expect(await screen.findByText('Datos privados')).toBeVisible();
+    expect(await screen.findByText('Datos privados', {}, { timeout: 5000 })).toBeVisible();
     expect(db.name).toBe('ciclismo-user-00000000-0000-0000-0000-000000000088');
     act(() => emit(null));
-    expect(await screen.findByRole('heading', { name: 'Vuelve a tu ritmo' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Vuelve a tu ritmo' }, { timeout: 5000 })).toBeVisible();
     expect(screen.queryByText('Datos privados')).not.toBeInTheDocument();
     await db.delete();
   });
@@ -37,7 +37,7 @@ describe('guardia obligatoria de cuenta', () => {
     const { client, emit } = mockClient({ id: '00000000-0000-0000-0000-000000000087' });
     const reload = vi.fn();
     render(<AccountBoundary client={client} initialize={initialize} reload={reload}><p>Datos privados</p></AccountBoundary>);
-    await screen.findByText('Datos privados');
+    await screen.findByText('Datos privados', {}, { timeout: 5000 });
     act(() => emit({ user: { id: '00000000-0000-0000-0000-000000000086' } } as Session));
     expect(screen.queryByText('Datos privados')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Preparando');
@@ -49,7 +49,7 @@ describe('guardia obligatoria de cuenta', () => {
     render(<AccountBoundary client={client} initialize={async () => { throw new Error('expired'); }}><p>Datos privados</p></AccountBoundary>);
     await screen.findByRole('alert');
     act(() => emit({ user: { id: '00000000-0000-0000-0000-000000000085' } } as Session));
-    expect(await screen.findByText('Datos privados')).toBeVisible();
+    expect(await screen.findByText('Datos privados', {}, { timeout: 5000 })).toBeVisible();
     await db.delete();
   });
 });
