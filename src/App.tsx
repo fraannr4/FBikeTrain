@@ -13,6 +13,8 @@ import { RutasIa } from './ui/pages/RutasIa';
 import { Calendario } from './ui/pages/Calendario';
 import { Objetivos } from './ui/pages/Objetivos';
 import { Mas } from './ui/pages/Mas';
+import { Perfil } from './ui/pages/Perfil';
+import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -43,9 +45,11 @@ export function App() {
           <Route path="/historial/:id" element={<Salida />} />
           <Route path="/rutas" element={<Rutas />} />
           <Route path="/rutas/ia" element={<RutasIa />} />
+          <Route path="/rutas/biblioteca" element={<BibliotecaRutas />} />
           <Route path="/plan" element={<Calendario />} />
           <Route path="/plan/objetivos" element={<Objetivos />} />
           <Route path="/mas" element={<Mas />} />
+          <Route path="/perfil" element={<Perfil />} />
           <Route path="/importar" element={<Importar />} />
           <Route path="/ajustes" element={<Ajustes />} />
         </Routes>

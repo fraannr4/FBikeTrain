@@ -1,4 +1,5 @@
 import type { ProbeResult, Settings } from '../domain/types';
+import { ORS_ROAD_URL } from '../routes/endpoint';
 
 // Dos puntos cercanos en Madrid: la ruta más corta posible, para gastar poca cuota.
 const ORS_PROBE_BODY = JSON.stringify({
@@ -24,7 +25,7 @@ async function probe(url: string, init: RequestInit): Promise<ProbeResult> {
 }
 
 export function probeOrs(apiKey: string): Promise<ProbeResult> {
-  return probe('https://api.openrouteservice.org/v2/directions/cycling-road', {
+  return probe(ORS_ROAD_URL, {
     method: 'POST',
     headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
     body: ORS_PROBE_BODY,

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 
 // Inicio en el móvil (auditoría, ronda 2): volver atrás sin perder el sitio, foco tras los datos de
 // ejemplo, vacío en apaisado, cifras de la semana a la misma altura, texto bidireccional y la
@@ -16,7 +16,7 @@ async function seed(page: Page, data: Seed) {
   await expect(page.getByText('Aún no hay salidas')).toBeVisible();
   await page.evaluate(async ({ activities = [], calendar = [] }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('ciclismo');
+      const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

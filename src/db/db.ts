@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { ClimbEffort, Goal, PlannedWorkout, RouteSig, Settings, StoredActivity, TrackPoint } from '../domain/types';
+import type { ReferenceRoute } from '../routes/library';
 
 export type SettingsRow = { key: 'app'; value: Settings };
 export type MetaRow = { key: string; value: unknown };
@@ -17,9 +18,10 @@ export class CyclingDb extends Dexie {
   routeSigs!: Table<RouteSigRow, string>;
   calendar!: Table<PlannedWorkout, string>;
   goals!: Table<Goal, string>;
+  referenceRoutes!: Table<ReferenceRoute, string>;
 
-  constructor() {
-    super('ciclismo');
+  constructor(name = 'ciclismo') {
+    super(name);
     this.version(1).stores({
       activities: 'id, startTime',
       tracks: 'activityId',
@@ -34,7 +36,17 @@ export class CyclingDb extends Dexie {
       calendar: 'id, date',
       goals: 'id, kind',
     });
+    this.version(4).stores({
+      referenceRoutes: 'id, updatedAt',
+    });
   }
 }
 
-export const db = new CyclingDb();
+export let db = new CyclingDb();
+
+/** Solo antes de montar pantallas o iniciar el Worker; nunca migra ni borra la base antigua. */
+export function useDatabase(name: string): void {
+  if (db.name === name) return;
+  db.close();
+  db = new CyclingDb(name);
+}

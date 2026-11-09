@@ -12,6 +12,8 @@ import {
 import { chatJson, LlmError, type LlmErrorKind } from '../../ai/llm';
 import { isAbort } from '../../ai/abort';
 import { runAiRoutes } from '../../ai/routePlanner';
+import { createSharedAiPlanner, SHARED_AI_ENABLED } from '../../ai/sharedClient';
+import { useAccount } from '../../auth/AccountBoundary';
 import { listActivities, listClimbEfforts } from '../../db/repo';
 import type { ClimbEffort, LatLng, Settings } from '../../domain/types';
 import type { UserReference } from '../../metrics/reference';
@@ -23,6 +25,7 @@ import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { AiNeverList, AiRoutesCarousel, AiSeesList, AI_NEVER, aiShown, type ShownRoute } from '../components/AiRoutes';
 import { Banner } from '../components/Banner';
+import { CyclingLoader } from '../components/CyclingLoader';
 import { Dock } from '../components/Dock';
 import {
   AnswerList,
@@ -113,6 +116,8 @@ function summaryFor(ref: UserReference | null, climbs: ClimbEffort[], now: numbe
  * carreteras las pone ORS y las cifras, el código. Si la IA falla, el formulario manual ya relleno.
  */
 export function RutasIa() {
+  const account = useAccount();
+  const sharedMode = SHARED_AI_ENABLED && account !== null;
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -168,7 +173,7 @@ export function RutasIa() {
 
   const home = ctx?.settings.home ?? null;
   const llm = ctx?.settings.llm;
-  const llmReady = !!llm && llm.apiKey.trim() !== '' && llm.model.trim() !== '';
+  const llmReady = sharedMode || (!!llm && llm.apiKey.trim() !== '' && llm.model.trim() !== '');
   const orsReady = !!ctx && ctx.settings.ors.apiKey.trim() !== '';
   const quotaOut = !!ctx && ctx.usage.count >= ORS_DAILY_LIMIT;
 
@@ -297,9 +302,26 @@ export function RutasIa() {
     goTo('propuestas', view === 'propuestas'); // «Reintentar» no apila otra entrada igual
     try {
       const visited = await loadVisitedCells();
+      const sharedService = sharedMode && account ? createSharedAiPlanner(async () => {
+        const { data, error } = await account.client.auth.getSession();
+        if (error) return null;
+        return data.session?.access_token ?? null;
+      }) : undefined;
+      const shared = sharedService ? {
+        plan: async (...args: Parameters<typeof sharedService.plan>) => {
+          if (live()) setStage('plan');
+          const data = await sharedService.plan(...args);
+          if (live()) setStage('ors');
+          return data;
+        },
+        explain: async (...args: Parameters<typeof sharedService.explain>) => {
+          if (live()) setStage('explain');
+          return sharedService.explain(...args);
+        },
+      } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: ctx.settings.ors.apiKey, visited, chat, signal: controller.signal },
+        { llm, orsKey: ctx.settings.ors.apiKey, visited, chat, signal: controller.signal, shared },
       );
       if (!live()) return;
       if (res.kind === 'routes') {
@@ -783,6 +805,7 @@ function Waiting({
   return (
     <section className="section" aria-label="Preparando tus rutas">
       <div className="card gen-progress">
+        <CyclingLoader compact />
         {progress ? (
           <div
             className="genbar"

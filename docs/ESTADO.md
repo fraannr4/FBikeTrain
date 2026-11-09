@@ -6,6 +6,10 @@
 
 La app está terminada, verificada y publicada (2026-11-09).
 
+La versión publicada corresponde a F1–F5. **En desarrollo local:** acceso obligatorio y perfiles (correo/contraseña, Google, recuperación, edición de nombre/privacidad y cierre de sesión), con cachés independientes por cuenta. La sincronización y la comparativa social siguen pendientes. No se ha publicado este lote.
+
+Verificación del lote de cuentas, 2026-11-09: tipos y build correctos, SQL/RLS en PostgreSQL embebido PASS y Playwright completo **66/66 PASS**. Vitest completo: 944/949 bajo carga; los tres ficheros con los cinco fallos pasan aislados (36/36). Detalles y límites en `docs/verificaciones.md`. Pendientes las pruebas contra los servicios reales.
+
 - Repositorio público: https://github.com/fraannr4/FBikeTrain (rama `main`, autor de los commits `fraannr4@users.noreply.github.com`).
 - App en GitHub Pages: https://fraannr4.github.io/FBikeTrain/
 - Cada push a `main` ejecuta los tests, genera el build y despliega (`.github/workflows/deploy.yml`).
@@ -68,6 +72,54 @@ La app está terminada, verificada y publicada (2026-11-09).
 
 ## Pendiente
 
+### Nueva petición: acceso, animación e IA (2026-11-09)
+
+Logo: **B Trazado aprobada para toda la web**, respetando la estética general además del login. SVG nativo integrado en cabeceras, Inicio, navegación lateral, acceso y favicon; colores de los tokens actuales y variantes claro/oscuro. Tipos/build y 37 pruebas aprobadas; sin publicación. Brief y vista global: `docs/design/2026-11-09-logo-propuestas.md` y `docs/design/2026-11-09-logo-trazado-aplicaciones.png`.
+
+**Aprobado: B Cartografía**, columna central de `docs/design/2026-11-09-opciones-login.png`, con animación sutil sin sobrecarga. Ciclista subiendo después del login y en pantallas de carga; IA compartida con coste cero y búsquedas limitadas. Nueva petición: consultar Wikiloc o fuentes equivalentes, considerar puntos de salida/paso y **empalmar rutas/tramos** con conexiones reales calculadas por el motor cartográfico. Wikiloc declara que no tiene API pública: integración automática no confirmada; estudiar acceso autorizado, GPX del usuario y fuentes alternativas verificadas. Brief: `docs/design/2026-11-09-acceso-ciclista-ia.md`. Plan: `docs/superpowers/plans/2026-11-09-login-cartografia-carga-rutas-ia.md`. Todo este nuevo alcance está documentado, no implementado; no cierra los pendientes de cuentas y sincronización.
+
+### 0. Cierre del 2026-11-09: lo que queda abierto
+
+**Cambios sin commit.** Hay tres ficheros modificados que aún no están en GitHub:
+- `src/import/summary.ts`: arreglo de los saltos del GPS. Un tramo calculado con haversine que supera la velocidad de pico cuenta a la mediana de su ventana de 5 tramos, no con la distancia del salto. La distancia que graba el dispositivo (FIT) no se toca.
+- `tests/summary.test.ts`: prueba nueva, «a GPS jump out and back does not add its metres to the distance».
+- `docs/ESTADO.md`: este documento, con la sección del login.
+- `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`: plan de cuentas, sin seguimiento en git.
+- `AGENTS.md`: guía para Codex y otros agentes, sin seguimiento en git.
+
+Estado de la verificación, 2026-11-09 a las 12:01: `npx vitest run` da 933 de 933 en verde y `npx tsc --noEmit` sale limpio. No se ha publicado.
+
+Para subirlo hace falta el OK explícito del usuario. Luego se ejecuta `git push` y se sigue el despliegue con `gh run watch`. Mensaje propuesto:
+
+```
+Stop GPS jumps from adding metres to the total distance
+
+A GPS spike segment computed with haversine now counts at the median speed
+of its 5-segment window instead of its raw jump distance. Device-recorded
+distance (FIT) is left untouched. Also documents the login request for Friday.
+```
+
+**Viernes 2026-11-13: login y sincronización.** Orden previsto:
+1. El usuario crea la cuenta en supabase.com y un proyecto. Pasa la URL del proyecto y la clave pública (anon). La clave de servicio nunca se pasa ni va al repositorio.
+2. Cerrar con la skill `grilling` las decisiones que faltan, según el plan `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`: método de acceso, datos locales existentes, conflictos y borrados, nombres únicos y zona horaria. Las métricas de la comparativa ya están decididas en ese plan.
+3. Detallar las tareas de cada fase del plan.
+4. Implementar en este orden: Auth, tablas con RLS, sincronización y Storage para los tracks. Probar con dos cuentas que ninguna ve los tracks de la otra.
+
+**Comprobaciones del usuario.** Siguen igual que en el punto 2.
+
+### Revisión de planes, 2026-11-09 (Codex)
+
+Los planes de F1–F5 y del rediseño conservan casillas sin marcar incluso para funcionalidades que este estado recoge como terminadas. No deben tratarse como un registro fiable de tareas pendientes sin contrastarlas con el código y las verificaciones. No se han marcado retroactivamente ni se ha ejecutado una nueva verificación completa en esta revisión.
+
+Además de los pendientes enumerados abajo, los planes proponen comprobaciones reales que no constan como realizadas en `docs/verificaciones.md`:
+
+- F2: comparar una subida conocida y sus pasadas con Strava (longitud y pendiente ±10 %).
+- F3: crear un entreno para el día de una salida real, importarla y comprobar que se vincula.
+- F4: comprobar con una clave ORS válida la respuesta y sus cabeceras; generar una ruta e importar su GPX en iGPSPORT y enviarlo al BSC200S.
+- F5: probar Fondo, Subidas y Mixto con claves reales, contrastar las explicaciones y anotar el consumo de ORS y Groq.
+
+Estas comprobaciones necesitan datos, claves o intervención del usuario. Su ausencia del registro no demuestra por sí sola que nunca se hicieran. Antes de iniciar cambios, acordar prioridades con el usuario.
+
 ### 1. Publicar: HECHO el 2026-11-09 (se conserva para referencia)
 
 1. El usuario ejecuta `! gh auth login`.
@@ -95,6 +147,52 @@ Static Vite + React + TypeScript app for GitHub Pages, mobile-first.
 
 6. Tras desplegar, abrir la URL de Pages en el móvil y comprobar que carga con la base `/FBikeTrain/`.
 
+### 1b. Para el viernes 2026-11-13: cuentas de usuario (login)
+
+Plan y registro: `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`. El acceso y el perfil están integrados localmente con el cliente oficial y la clave publishable facilitada; la migración de perfiles/amistades/Storage privado pasa pruebas en PostgreSQL embebido. El usuario confirma creados Supabase (`btmsakyhkxrndvscmxqs`), Google Cloud (`fbiketrain-514211`) y Brevo con remitente Gmail verificado. **Falta aplicar la migración y verificar OAuth, SMTP y redirects en el proyecto real**, además de sincronización, migración de datos antiguos y pantallas sociales. Recursos y guía: `docs/supabase-configuracion.md`.
+
+Petición del usuario del 2026-11-09: que cada persona tenga su cuenta.
+
+Decisiones del usuario del 2026-11-09: la cuenta será obligatoria para usar la app. Al iniciar sesión en otro dispositivo quiere tenerlo todo: perfil, salidas, mapas y tracks, calendario y objetivos sincronizados. Los tracks serán privados y estarán protegidos mediante las reglas de acceso de Supabase, sin cifrado adicional en el cliente. El usuario quiere buscar perfiles y comparar estadísticas de salidas y rutas para fomentar la competición; faltan por concretar las métricas y los permisos de visibilidad, respetando la privacidad de los tracks. Queda también por decidir la incorporación de datos locales existentes; Supabase es el servicio propuesto. Estas decisiones definen el objetivo, no implican que ya esté implementado.
+
+Decisión social: cada usuario podrá elegir si sus estadísticas son visibles para todos los usuarios de la app o solo para amigos aceptados. Por defecto serán visibles para todos los usuarios de la app. Los perfiles se podrán buscar y comparar según esa elección; los tracks siguen siendo privados. Falta definir las métricas y la gestión de amistades.
+
+Hoy cada navegador guarda sus datos en su propio IndexedDB, sin servidor.
+- Dos personas con el mismo enlace no se pisan ni ven lo del otro.
+- Un mismo usuario tampoco ve en el PC lo que importó en el móvil, salvo por la copia de seguridad (exportar e importar el JSON).
+
+Lo que aporta un login: sincronizar entre los dispositivos del usuario y, si se quiere, compartir con amigos.
+
+Propuesta del 2026-11-09: **Supabase**, con la app sigue en Pages.
+- Auth para el login con correo o Google.
+- Postgres con RLS para que cada usuario lea solo sus filas.
+- Storage para los tracks comprimidos.
+- El plan gratuito (unos 500 MB de base de datos y 1 GB de ficheros) basta. El proyecto se pausa tras unos 7 días sin uso.
+- El usuario debe crear la cuenta en supabase.com.
+
+Alternativas descartadas por ahora:
+- Firebase: consultar el historial es más incómodo.
+- Cloudflare D1: el login habría que hacerlo a mano.
+- Servidor propio: exige mantenimiento.
+
+Ya decidido (2026-11-09):
+- **Servicio:** Supabase. La app sigue estática en Pages y el servicio es externo.
+- **Acceso:** ambos métodos, correo y contraseña y Google.
+- **Correo:** `fbiketrain@gmail.com`, creado y verificado como remitente en Brevo según captura del 2026-11-09. Sin dominio propio; avisos DKIM/DMARC y configuración SMTP pendientes. Contraseña guardada por petición del usuario únicamente en Markdown local excluido de Git (`.local-secrets/`).
+- **Qué se sube:** todo (perfil, salidas, tracks, calendario y objetivos).
+- **Tracks:** privados, protegidos con RLS, sin cifrado en el cliente.
+- **Modo sin cuenta:** no hay. La cuenta es obligatoria.
+- **Social:** estadísticas visibles para todos por defecto, o solo para amigos aceptados si el usuario lo elige. Los tracks nunca se comparten.
+
+Decisiones abiertas para concretar durante el plan:
+- **Comparación de rutas o subidas concretas:** cómo identificar recorridos equivalentes. Para la primera comparativa se han acordado distancia, desnivel, tiempo y número de salidas por semana, mes y año.
+- **Amistades:** cómo se envía, acepta y retira una solicitud.
+- **Datos locales existentes:** cómo se suben a la cuenta la primera vez que el usuario inicia sesión.
+
+Reglas que no cambian:
+- **Claves de ORS y Groq.** Siguen guardándose solo en local, nunca en el servidor.
+- **Repositorio público.** La clave pública (anon) de Supabase puede ir en el código; la de servicio nunca. Las reglas RLS deben hacer que cada usuario lea solo lo suyo, salvo las estadísticas que haya decidido mostrar.
+
 ### 2. Comprobaciones del usuario
 
 - Conseguir las claves de OpenRouteService y Groq, meterlas en Ajustes y probar una ruta real y una ruta con IA. Sin claves, Rutas y Rutas con IA solo muestran la pantalla que pide la clave.
@@ -105,7 +203,6 @@ Static Vite + React + TypeScript app for GitHub Pages, mobile-first.
 
 - Dividir el bundle con `import()` por pantalla. Ahora el JS principal pesa 795 kB (250 kB comprimido) y el worker 785 kB.
 - Leer el ZIP de Strava en streaming. JSZip lo carga entero en memoria.
-- Que los saltos del GPS no sumen metros a la distancia total. Ahora solo se filtran en la velocidad máxima.
 - Añadir los nombres en castellano que falten en `CYCLING_TYPES`, cuando aparezcan en un export: bicicleta virtual, eléctrica, gravel y montaña.
 - Reducir los avisos de la región viva durante la importación.
 - Añadir una prueba e2e de la copia de seguridad (F3 tarea 7) y una prueba de interfaz de que Cancelar en Rutas con IA aborta.

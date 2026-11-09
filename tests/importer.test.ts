@@ -37,6 +37,7 @@ describe('workerImporter', () => {
   it('workerImporter forwards phase', async () => {
     const calls: unknown[][] = [];
     const result = workerImporter([file()], (...args) => calls.push(args));
+    expect(FakeWorker.last.posted[0]).toMatchObject({ databaseName: 'ciclismo' });
     FakeWorker.last.reply({ type: 'progress', done: 0, total: 1, phase: 'open' });
     FakeWorker.last.reply({ type: 'progress', done: 1, total: 1, phase: 'activities' });
     FakeWorker.last.reply({ type: 'done', report });

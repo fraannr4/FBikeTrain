@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, ChartColumn, Ellipsis, House, Route, type LucideIcon } from '../icons';
-import { HitoLogo } from './HitoLogo';
+import { BrandMark } from './BrandMark';
 import { TAB_ROOT, tabOf, type TabId } from './screens';
 
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
@@ -19,7 +19,7 @@ type Props = {
 };
 
 /**
- * Barra inferior de cinco pestañas; desde 900 px, carril lateral con el hito arriba (kit.css).
+ * Barra inferior de cinco pestañas; desde 900 px, carril lateral con la marca arriba (kit.css).
  * La pestaña de la pantalla actual, o de su madre, lleva `aria-current="page"`.
  */
 export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
@@ -27,7 +27,7 @@ export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
   return (
     <nav className="tabbar" aria-label="Menú principal">
       <Link className="rail-brand" to="/" aria-label="FBikeTrain, inicio">
-        <HitoLogo />
+        <BrandMark />
       </Link>
       {TABS.map(({ id, label, icon: Icon }) => {
         const badge = id === 'plan' && planBadge > 0 ? planBadge : 0;

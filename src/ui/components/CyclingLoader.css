@@ -1,0 +1,30 @@
+.cycling-loader { width: min(100%, 380px); margin: 8px auto 20px; color: var(--ink); }
+.cycling-loader > svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.cycling-loader--compact { width: min(100%, 280px); margin-block: 4px 12px; }
+.cycling-label { margin: 4px 0 0; text-align: center; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
+.cycling-terrain { stroke: var(--ink-3); opacity: .16; stroke-width: 1; }
+.cycling-road-shadow { stroke: var(--surface-2); stroke-width: 16; }
+.cycling-road { stroke: var(--trace); stroke-width: 2; }
+.cycling-road-marks { stroke: var(--ink-3); stroke-width: 1.5; opacity: .55; animation: cycling-ground 1.6s linear infinite; }
+.cycling-tyre { stroke: var(--ink); stroke-width: 2.5; }
+.cycling-wheel { stroke: var(--ink-3); stroke-width: 1; animation: cycling-turn 1.6s linear infinite; }
+.cycling-wheel--rear { transform-origin: 50px 100px; }.cycling-wheel--front { transform-origin: 132px 100px; }
+.cycling-frame { stroke: var(--trace); stroke-width: 3; stroke-linejoin: round; }
+.cycling-metal { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.cycling-hub, .cycling-head { fill: var(--ink); }
+.cycling-crank { transform-origin: 92px 100px; animation: cycling-turn 1.6s linear infinite; }
+.cycling-rider { animation: cycling-breathe 1.6s ease-in-out infinite; }
+.cycling-jersey { fill: var(--trace); stroke: var(--trace); stroke-width: 3; stroke-linejoin: round; }
+.cycling-body { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.cycling-helmet { fill: var(--surface); stroke: var(--ink); stroke-width: 1.7; stroke-linejoin: round; }
+.cycling-leg { stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; transform-origin: 80px 50px; animation: cycling-thigh 1.6s ease-in-out infinite; }
+.cycling-shin { transform-origin: 97px 74px; animation: cycling-shin 1.6s ease-in-out infinite; }
+.cycling-leg--back { opacity: .45; animation-delay: -.8s; }.cycling-leg--back .cycling-shin { animation-delay: -.8s; }
+.cycling-marker { stroke: var(--ink-3); fill: var(--surface); stroke-width: 1.5; stroke-linejoin: round; }
+.cycling-loader[data-paused="true"] *, .cycling-loader[data-paused="true"] *::before { animation-play-state: paused !important; }
+@keyframes cycling-turn { to { transform: rotate(360deg); } }
+@keyframes cycling-ground { to { transform: translate(-48px, 8px); } }
+@keyframes cycling-thigh { 0%,100% { transform: rotate(-17deg); } 50% { transform: rotate(15deg); } }
+@keyframes cycling-shin { 0%,100% { transform: rotate(20deg); } 50% { transform: rotate(-28deg); } }
+@keyframes cycling-breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1.4px); } }
+@media (prefers-reduced-motion: reduce) { .cycling-loader * { animation: none !important; } }

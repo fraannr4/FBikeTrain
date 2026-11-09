@@ -5,7 +5,7 @@ import { User } from '../icons';
 import type { ProfilePoint } from '../profile';
 import { SceneSvg } from '../scene/SceneSvg';
 import { placeSummitLabel, sceneLayout, type SummitPlace } from '../scene/scene';
-import { HitoLogo } from '../shell/HitoLogo';
+import { BrandMark } from '../shell/BrandMark';
 import type { Notice } from './inicioNotices';
 import { Notices } from './Notices';
 
@@ -190,7 +190,7 @@ export function Hero({
 
       <div className="hero-top">
         <span className="m-brand">
-          <HitoLogo />
+          <BrandMark />
           <span className="m-brand-name">FBikeTrain</span>
         </span>
         <div className="acts" ref={actsRef}>

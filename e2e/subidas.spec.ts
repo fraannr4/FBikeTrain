@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 
 // Subidas y Repetidas en el móvil, con datos sintéticos metidos en la base IndexedDB «ciclismo».
 // Las salidas no traen track: el análisis no las toca y se usan las subidas y firmas sembradas.
@@ -71,7 +71,7 @@ async function seed(page: Page, data: Seed) {
   await expect(page.getByText('Aún no hay subidas detectadas')).toBeVisible();
   await page.evaluate(async ({ activities, climbEfforts, routeSigs }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('ciclismo');
+      const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

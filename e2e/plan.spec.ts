@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 import { MOBILE, NOW } from './seed';
 
 // Plan en el móvil: entrenos del calendario y objetivos. Se crea, se ve y se borra.

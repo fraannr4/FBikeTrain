@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft } from '../icons';
-import { HitoLogo } from '../shell/HitoLogo';
+import { BrandMark } from '../shell/BrandMark';
 import { useBack } from '../shell/navHistory';
 import { useReducedMotion } from '../theme/motion';
 
@@ -36,7 +36,7 @@ export function AppBar({ title, back, actions }: Props) {
 function Brand() {
   return (
     <Link to="/" className="brand" aria-label="FBikeTrain, inicio">
-      <HitoLogo />
+      <BrandMark />
       <span className="brand-name" aria-hidden="true">
         FBikeTrain
       </span>

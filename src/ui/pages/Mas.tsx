@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useAccount } from '../../auth/AccountBoundary';
 import { getBackupMeta } from '../../backup/backup';
 import { listGoals, listWorkouts } from '../../calendar/calendarRepo';
 import { getMeta, listActivities, listClimbEfforts, listRouteSigs } from '../../db/repo';
@@ -17,6 +18,7 @@ import {
   Target,
   TriangleAlert,
   Upload,
+  User,
 } from '../icons';
 import { Banner } from '../components/Banner';
 import { List, ListRow } from '../components/ListRow';
@@ -64,6 +66,7 @@ function ThemeButton() {
  * «Reintentar».
  */
 export function Mas() {
+  const account = useAccount();
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
@@ -183,6 +186,7 @@ export function Mas() {
         </div>
       ) : null}
       <List inset className={off ? 'list--off' : undefined}>
+        {account && <ListRow to="/perfil" icon={User} title="Tu perfil" meta="Nombre, privacidad y cuenta" />}
         <ListRow to="/ajustes" icon={SlidersHorizontal} title="Ajustes" meta="Nombre, Casa, claves y tema" />
         {empty ? null : (
           <ListRow to={to('/importar')} icon={Upload} accent="dist" title="Importar salidas" meta={meta(s?.import)} />
@@ -232,7 +236,7 @@ export function Mas() {
       {empty ? [datos, explorar] : [explorar, datos]}
       <p className="page-note">
         <Lock className="ic" aria-hidden="true" />
-        <span>Sin servidor: tus salidas solo están en este navegador y en las copias que descargues.</span>
+        <span>{account ? 'Tus salidas están guardadas en este dispositivo para tu cuenta. La sincronización todavía no está disponible.' : 'Sin servidor: tus salidas solo están en este navegador y en las copias que descargues.'}</span>
       </p>
     </Page>
   );

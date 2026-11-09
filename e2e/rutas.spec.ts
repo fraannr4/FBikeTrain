@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './accountFixture';
 import { MOBILE, NOW, RIDES, seed, settings } from './seed';
 
 const ORS_OK = readFileSync(fileURLToPath(new URL('../tests/fixtures/ors/round-trip-ok.json', import.meta.url)), 'utf8');
@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('rutas generates and downloads gpx', async ({ page }) => {
   let calls = 0;
-  await page.route('https://api.openrouteservice.org/**', (route) => {
+  await page.route('https://api.heigit.org/openrouteservice/**', (route) => {
     calls++;
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: ORS_OK });
   });
@@ -50,7 +50,7 @@ test('rutas generates and downloads gpx', async ({ page }) => {
 });
 
 test('rutas without a key shows the no-key state', async ({ page }) => {
-  await page.route('https://api.openrouteservice.org/**', (route) => route.abort('failed'));
+  await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort('failed'));
   await seed(page, { activities: RIDES, settings: settings({ orsKey: '' }) });
   await page.goto('#/rutas');
   await expect(page.getByRole('heading', { name: 'Falta tu clave de rutas' })).toBeVisible();
@@ -59,7 +59,7 @@ test('rutas without a key shows the no-key state', async ({ page }) => {
 });
 
 test('rutas shows an error when ORS does not answer', async ({ page }) => {
-  await page.route('https://api.openrouteservice.org/**', (route) => route.abort('failed'));
+  await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.abort('failed'));
   await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
   await page.goto('#/rutas');
   await page.getByRole('button', { name: /Generar 5 rutas/ }).click();

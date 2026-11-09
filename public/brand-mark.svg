@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>FBikeTrain — Trazado</title>
+  <style>
+    .road{stroke:#0E1730}.relief{stroke:#56657F;opacity:.45}.destination{fill:#1F66E0;stroke:#EEF2F8}
+    @media(prefers-color-scheme:dark){.road{stroke:#EAF0FA}.relief{stroke:#8C9AB5}.destination{fill:#4C9BFF;stroke:#0A1122}}
+  </style>
+  <path class="relief" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" transform="translate(0 3)" stroke-width="8" stroke-linecap="round"/>
+  <path class="road" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" stroke-width="7" stroke-linecap="round"/>
+  <circle class="destination" cx="53" cy="9" r="5" stroke-width="2.5"/>
+</svg>

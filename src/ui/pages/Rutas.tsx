@@ -11,6 +11,7 @@ import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { Banner } from '../components/Banner';
 import { Carousel } from '../components/Carousel';
+import { CyclingLoader } from '../components/CyclingLoader';
 import { DifficultyBars } from '../components/Chip';
 import { Dock } from '../components/Dock';
 import { List, ListRow } from '../components/ListRow';
@@ -318,6 +319,7 @@ export function Rutas() {
           </Link>
         }
       >
+        <section className="section"><List inset><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /></List></section>
         {loadFailed ? (
           <section className="section card">
             <StateView
@@ -703,6 +705,7 @@ function Generating({
             Generando rutas
           </h2>
         </div>
+        <CyclingLoader compact />
         <div className="gen-progress-h">
           <p className="gen-progress-v">
             {formatCount(done)} <span className="u">de {formatCount(total)}</span>

@@ -12,8 +12,11 @@ Web estática en Vite + React + TypeScript, publicada en GitHub Pages y sin serv
 - Planes, uno por fase: `docs/superpowers/plans/`
 - Comprobaciones con datos reales: `docs/verificaciones.md`
 - **Estado actual y pendientes: `docs/ESTADO.md`. Léelo primero al retomar.**
+- **Últimas decisiones aprobadas (2026-11-09):** login B Cartografía con animación sutil, ciclista tras login y en cargas, IA compartida a coste cero y búsqueda/composición de rutas externas. Brief y lámina: `docs/design/2026-11-09-acceso-ciclista-ia.md` y `docs/design/2026-11-09-opciones-login.png` (columna B). Plan de continuación: `docs/superpowers/plans/2026-11-09-login-cartografia-carga-rutas-ia.md`. Estas capacidades siguen pendientes de implementar; Wikiloc no ofrece API pública según su ayuda oficial.
 
 ## Reglas del proyecto
+
+- **Marca aprobada (2026-11-09): B Trazado para toda la web.** Implementación SVG en `src/ui/shell/BrandMark.tsx`, favicon en `public/brand-mark.svg`. Mantener la forma compartida y adaptar colores a las superficies con los tokens de la app; el login B Cartografía no obliga a rediseñar la paleta global. Brief y variantes: `docs/design/2026-11-09-logo-propuestas.md`.
 
 - Repositorio público en GitHub: ni claves, ni archivos de Strava, ni tracks reales en el repositorio. Los fixtures son sintéticos.
 - Control de versiones: git con remoto en GitHub, porque GitHub Pages lo exige. Es una excepción a la norma de SVN. Cada commit necesita la confirmación explícita del usuario; los agentes nunca hacen commit.

@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 import { auditContrast, type ContrastReport } from './contrast';
 
 // Datos del peor caso realista para Inicio e Importar (skill break-ui). Se meten por la
@@ -32,7 +32,7 @@ async function seed(page: Page, data: Seed) {
   await expect(page.getByText('Aún no hay salidas')).toBeVisible();
   await page.evaluate(async ({ activities, displayName, lastImportAt, tracks, settings }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('ciclismo');
+      const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

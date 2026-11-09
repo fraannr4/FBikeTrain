@@ -4,25 +4,13 @@ import { db } from '../db/db';
 import type { ClimbEffort, StoredActivity } from '../domain/types';
 import { TZ } from '../metrics/aggregate';
 import { computeReference, LONG_WINDOW_WEEKS, type UserReference } from '../metrics/reference';
+import type { LevelSummary } from './contracts';
+export type { LevelSummary } from './contracts';
 
 /**
  * Resumen del nivel que se envía a la IA: solo cifras, nunca coordenadas.
  * Km y km/h con 1 decimal; metros, minutos y VAM en enteros.
  */
-export type LevelSummary = {
-  fuente: 'historial' | 'declarado';
-  semanas: number | null;
-  salidas: number;
-  salidasPorSemana: number;
-  distanciaMediaKm: number;
-  desnivelMedioM: number;
-  tiempoMedioMin: number;
-  velocidadMediaKmh: number;
-  distanciaMaxKm: number;
-  desnivelMaxM: number;
-  vamMediaMh: number | null;
-  subidaMasLarga: { km: number; pendienteMediaPct: number } | null;
-};
 
 /** Respuestas a las 3 preguntas iniciales, cuando no hay historial suficiente. */
 export type InitialAnswers = { kmPorSalida: number; desnivelPorSalidaM: number; velocidadMediaKmh: number };

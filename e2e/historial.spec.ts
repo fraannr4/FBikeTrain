@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 
 // Historial y detalle de una salida en el móvil, con salidas sintéticas metidas en la base IndexedDB «ciclismo».
 // jsdom no calcula el diseño: estas pruebas miden lo que el navegador pinta de verdad.
@@ -35,7 +35,7 @@ async function seed(page: Page, activities: unknown[]) {
   await expect(page.getByText('Aún no hay subidas detectadas')).toBeVisible();
   await page.evaluate(async (acts) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('ciclismo');
+      const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

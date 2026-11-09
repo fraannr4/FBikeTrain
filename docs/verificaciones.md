@@ -1,5 +1,43 @@
 # Verificaciones (tarea 1, F0)
 
+## Logo B Trazado: integración global, 2026-11-09
+
+- El usuario elige B y pide coherencia con toda la web. SVG nativo aplicado a cabeceras, Inicio, carril lateral, acceso y favicon. `rg` no encuentra referencias a `HitoLogo`/`.hito-logo` en `src` o `index.html`.
+- `node node_modules/typescript/bin/tsc --noEmit`: salida 0.
+- `node node_modules/vitest/vitest.mjs run tests/shell.test.tsx tests/app.test.tsx tests/themeBoot.test.ts --maxWorkers=1 --minWorkers=1`: **37/37 PASS**. No se han añadido pruebas que repliquen la geometría del dibujo.
+- `node node_modules/vite/bin/vite.js build`: correcto, mantiene aviso previo de tamaño de chunk.
+- `node scripts/preview-brand.mjs`: vista generada con navegador instalado fuera del aislamiento, revisada a 16/24/32 px, oscuro/claro y adaptación Cartografía. PNG en `docs/design/2026-11-09-logo-trazado-aplicaciones.png`.
+- Sin commit, push ni publicación. No se ha repetido la suite completa por este cambio visual de marca.
+
+## Documentación de diseño y fuentes externas, 2026-11-09
+
+- Usuario aprueba B Cartografía y animación sutil; ciclista tras login y en cargas; servicio de IA común con coste cero/cuotas. Solicita descubrimiento de rutas externas y empalme de tramos, considerando salida y puntos de paso.
+- Wikiloc: ayuda oficial consultada el 2026-11-09 indica que no ofrece API pública (`https://help.wikiloc.com/article/102-api-for-developers`). Su ayuda describe descarga manual de GPX/TCX (`https://help.wikiloc.com/article/520-download-trails-wikiloc-web`). Esto no prueba acceso automático autorizado ni la existencia de integraciones gratuitas con otros proveedores.
+- Guardada la lámina de propuestas en `docs/design/2026-11-09-opciones-login.png` y aprobado el centro B. Brief y plan de continuación enlazados desde `CLAUDE.md`, `AGENTS.md` y `docs/ESTADO.md`.
+- Este cambio es documental: no se ha cambiado el runtime, no se ha integrado ningún proveedor de rutas nuevo ni se han repetido tests de aplicación por estas ediciones de MD.
+
+## Cuentas y perfiles: preparación del 2026-11-09 (Codex)
+
+### Lote de acceso y perfil (2026-11-09)
+
+- Cliente oficial de Supabase integrado con URL y clave publishable públicas. Registro, entrada, recuperación, Google, perfil editable y salida implementados. Caché `ciclismo-user-<uuid>` y Worker dirigido a esa base; datos antiguos conservados en `ciclismo`.
+- TypeScript: `node node_modules/typescript/bin/tsc --noEmit`, salida 0. Build de producción correcto; JS principal de unos 1.037 kB sin comprimir (314 kB gzip), mantiene aviso de tamaño. No se ha desplegado.
+- SQL: `npm run test:db`, PASS en PostgreSQL embebido con los esquemas externos Auth/Storage simulados. La prueba cubre identidad, permisos, duplicados, aceptación y filas del bucket. La API real no está verificada. Se añade este comando a CI.
+- Vitest completo con cuatro workers bajo carga: 944/949, 77/80 ficheros. Fallan dos pruebas de Ajustes y tres de cuentas por esperas/tiempos y un efecto posterior de timeout. Repetidos esos tres ficheros con un worker: **36/36 PASS**, sin relajar límites ni modificar sus aserciones para pasar. No presentar la pasada global como limpia. Logs locales: `verification-unit.local` y `verification-recheck.local`.
+- Playwright del acceso/perfil: **19 PASS** con backend simulado. 32 capturas a 360×780, 390×844, 412×915 y 430×932 y sus tamaños apaisados, en ambos temas; sin desbordamientos horizontales. Revisión visual corrigió capas del paisaje y contraste del texto en claro. Capturas regenerables en `test-results/accounts/` (no versionadas).
+- Regresión Playwright completa tras el último ajuste visual: **66/66 PASS**, 3,4 minutos, con dos workers. Incluye las 47 pruebas existentes adaptadas a sesiones sintéticas y las 19 nuevas de acceso/perfil. Importación, calendario, rutas/IA y casos de 5.000 salidas siguen pasando. Log local: `verification-e2e-all.local`.
+- El aislamiento bloquea el acceso a localhost (`EACCES`), por lo que se ejecutan servidor y navegador con permiso fuera del aislamiento, en el puerto 4180 (4173 estaba ocupado). Playwright admite `PLAYWRIGHT_PORT` y usa la CLI local de Vite para evitar bloqueos de `npx`.
+- Pendiente: aplicar migración en Supabase, configurar Google/SMTP/redirects y probar con dos cuentas reales. No se han enviado correos ni cambiado los servicios remotos desde esta sesión. Sincronización y comparativas pendientes.
+
+### Registro de preparación anterior
+
+- Decidido acceso con correo y contraseña y Google. Actualización del usuario: creados el proyecto Supabase `btmsakyhkxrndvscmxqs`, Google Cloud `fbiketrain-514211` y la cuenta Brevo. Esto es una confirmación del usuario, no una prueba de conexión ni de configuración.
+- Brevo: captura del usuario muestra `FBikeTrain <fbiketrain@gmail.com>` como verificado. Sin dominio propio; persisten avisos DKIM/DMARC. SMTP y pruebas de correo pendientes. Credencial de Gmail conservada a petición del usuario en un Markdown local excluido de Git; no se registra en documentación versionable.
+- Preparados `supabase/migrations/202611090001_profiles_friendships.sql` y `supabase/tests/profiles_friendships.sql`. Sin aplicación remota ni datos reales.
+- `node node_modules/typescript/bin/tsc --noEmit`: código de salida 0 en esta sesión. Esto comprueba TypeScript, no valida SQL ni los permisos.
+- Pruebas SQL y API de Storage: **pendientes**. No se dispone de instancia configurada ni de Postgres/Supabase CLI/Docker en el entorno actual. No se ha certificado la seguridad ni un login funcional.
+- Guía para continuar: `docs/supabase-configuracion.md`; fases y pendientes en `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`.
+
 Resultados de las comprobaciones previas. No contiene filas del archivo ni tracks reales.
 
 ## Paso 1. Archivo «Descargar tu cuenta» de Strava

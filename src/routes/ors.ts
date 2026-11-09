@@ -1,11 +1,12 @@
 import type { LatLng } from '../domain/types';
 import { getOrsUsage, recordOrsCall } from './orsUsage';
+import { ORS_ROAD_URL } from './endpoint';
 
 /** Cliente de OpenRouteService: vuelta circular de bici de carretera con la clave del usuario. */
 
 export const ORS_DAILY_LIMIT = 2000;
 export const ORS_MINUTE_LIMIT = 40;
-const ORS_URL = 'https://api.openrouteservice.org/v2/directions/cycling-road/geojson';
+const ORS_URL = `${ORS_ROAD_URL}/geojson`;
 
 export type RoundTripRequest = { start: LatLng; lengthM: number; points: number; seed: number; signal?: AbortSignal };
 
@@ -64,6 +65,16 @@ export async function fetchRoundTrip(
   r: RoundTripRequest,
   fetchImpl: typeof fetch = fetch,
 ): Promise<OrsFeature> {
+  return fetchRoadFeature(apiKey, buildRoundTripBody(r), r.signal, fetchImpl);
+}
+
+/** Petición común: contabiliza también los conectores y las modificaciones de rutas importadas. */
+export async function fetchRoadFeature(
+  apiKey: string,
+  requestBody: object,
+  signal?: AbortSignal,
+  fetchImpl: typeof fetch = fetch,
+): Promise<OrsFeature> {
   const now = Date.now();
   const previousCalls = (await getOrsUsage(now)).count;
   await recordOrsCall(now);
@@ -73,11 +84,11 @@ export async function fetchRoundTrip(
     res = await fetchImpl(ORS_URL, {
       method: 'POST',
       headers: { Authorization: apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildRoundTripBody(r)),
-      signal: r.signal,
+      body: JSON.stringify(requestBody),
+      signal,
     });
   } catch (e) {
-    if (r.signal?.aborted) throw e;
+    if (signal?.aborted) throw e;
     // El 403 de ORS llega sin cabecera CORS: el navegador solo ve un error de red.
     if (previousCalls >= ORS_DAILY_LIMIT) throw new OrsError('quota_day', MSG.quota_day);
     throw new OrsError('unreachable', MSG.unreachable);

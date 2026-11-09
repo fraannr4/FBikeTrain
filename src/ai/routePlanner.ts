@@ -55,6 +55,11 @@ export type AiRoutesResult =
 type ChatRequest<T> = Parameters<typeof chatJson<T>>[1];
 type Outcome<T> = { ok: true; data: T } | { ok: false; error: LlmError };
 
+export type SharedAiPlanner = {
+  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal) => Promise<RoutePlan>;
+  explain: (summary: LevelSummary, facts: RouteFacts[], signal?: AbortSignal) => Promise<{ explicaciones: { id: string; texto: string }[] }>;
+};
+
 /**
  * Llama a la IA y, si el JSON no es válido, repite una vez con la respuesta anterior y el error.
  * Los demás errores (clave, límite, red) no se repiten.
@@ -227,6 +232,7 @@ export async function runAiRoutes(
     chat?: typeof chatJson;
     generate?: typeof generateRoutes;
     signal?: AbortSignal;
+    shared?: SharedAiPlanner;
   },
 ): Promise<AiRoutesResult> {
   const { start, answers, reference: ref, summary } = input;
@@ -236,7 +242,11 @@ export async function runAiRoutes(
   const cap = timeCapM(ref, answers);
   const maxKm = Number.isFinite(cap) ? round1(Math.min(cap / 1000, PLAN_MAX_KM)) : PLAN_MAX_KM;
   const { signal } = deps;
-  const planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
+  let planned: Awaited<ReturnType<typeof planWithRetry>>;
+  if (deps.shared) {
+    try { planned = { ok: true, plan: await deps.shared.plan(summary, answers, maxKm, signal) }; }
+    catch (error) { if (!(error instanceof LlmError)) throw error; planned = { ok: false, error }; }
+  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal);
   if (!planned.ok) {
     const message = planned.error.kind === 'invalid_json' ? FALLBACK_INVALID : planned.error.message;
     return { kind: 'fallback', message, cause: planned.error.kind, suggested: suggestedTarget(ref, answers) };
@@ -275,7 +285,10 @@ export async function runAiRoutes(
   const facts = toFacts(found);
   const texts = new Map<string, string>();
   if (facts.length > 0) {
-    const out = await chatWithRetry(
+    const out = deps.shared ? await (async (): Promise<Outcome<{ explicaciones: { id: string; texto: string }[] }>> => {
+      try { return { ok: true, data: await deps.shared!.explain(summary, facts, signal) }; }
+      catch (error) { if (!(error instanceof LlmError)) throw error; return { ok: false, error }; }
+    })() : await chatWithRetry(
       deps.llm,
       {
         messages: buildExplainMessages(summary, facts),

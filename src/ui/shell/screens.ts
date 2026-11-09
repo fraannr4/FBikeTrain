@@ -28,6 +28,7 @@ const NAMES: Record<string, string> = {
   '/historial/repetidas': 'Repetidas',
   '/rutas': 'Rutas',
   '/rutas/ia': 'Rutas con IA',
+  '/rutas/biblioteca': 'Biblioteca de rutas',
   '/plan': 'Plan',
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',

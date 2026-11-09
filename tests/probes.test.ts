@@ -28,8 +28,9 @@ describe('probes', () => {
   });
 
   it('200 gives ok', async () => {
-    mockFetch(async () => new Response('{}', { status: 200 }));
+    const request = mockFetch(async () => new Response('{}', { status: 200 }));
     expect(await probeOrs('k')).toEqual({ ok: true });
+    expect((request.mock.calls[0] as unknown as [string])[0]).toBe('https://api.heigit.org/openrouteservice/v2/directions/cycling-road');
     expect(await probeLlm(llm)).toEqual({ ok: true });
   });
 

@@ -68,7 +68,8 @@ export function StartPointCanvas({ value, home, onChange }: Props) {
   }, []);
 
   useEffect(() => {
-    if (!value || !map.current || !makeMarker.current) return;
+    if (!value) { marker.current?.remove(); marker.current = null; return; }
+    if (!map.current || !makeMarker.current) return;
     if (marker.current) marker.current.setLatLng([value.lat, value.lng]);
     else marker.current = makeMarker.current(value);
   }, [value]);

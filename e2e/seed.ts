@@ -32,7 +32,7 @@ export async function seed(page: Page, rows: { activities?: unknown[]; settings?
   await expect(page.getByRole('heading', { name: 'Ajustes' }).first()).toBeVisible();
   await page.evaluate(async (data) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open('ciclismo');
+      const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

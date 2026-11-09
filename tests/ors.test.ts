@@ -4,7 +4,7 @@ import { buildRoundTripBody, fetchRoundTrip, OrsError, type RoundTripRequest } f
 import { getOrsUsage } from '../src/routes/orsUsage';
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(`tests/fixtures/ors/${name}`, 'utf8'));
-const URL_ORS = 'https://api.openrouteservice.org/v2/directions/cycling-road/geojson';
+const URL_ORS = 'https://api.heigit.org/openrouteservice/v2/directions/cycling-road/geojson';
 const req: RoundTripRequest = { start: { lat: 40.4168, lng: -3.7038 }, lengthM: 30000, points: 4, seed: 7 };
 
 function respond(status: number, body: unknown) {

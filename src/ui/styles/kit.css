@@ -110,10 +110,10 @@ img, svg { display: block; max-width: 100%; }
 .appbar[data-scrolled] .appbar-title { opacity: 1; transform: none; }
 .appbar-actions { display: flex; align-items: center; gap: 2px; justify-self: end; }
 .brand { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px; font: 700 18px/1 var(--font-fig); color: var(--ink); }
-.hito-logo { width: 20px; height: 26px; }
-.hito-logo .body { fill: var(--hito); stroke: var(--hito-stroke); stroke-width: 1.5; }
-.hito-logo .band { fill: var(--hito-band); }
-.hito-logo text { fill: var(--hito-ink); font: 700 15px var(--font-fig); }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand-mark-road { stroke: var(--brand-ink, var(--ink)); }
+.brand-mark-relief { stroke: var(--brand-relief, var(--ink-3)); opacity: .45; }
+.brand-mark-destination { fill: var(--brand-accent, var(--trace)); stroke: var(--bg); }
 
 /* Cabecera de página: el relieve grabado es la firma visual del kit */
 .page-head { position: relative; padding: 4px var(--gutter) 4px; isolation: isolate; }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './accountFixture';
 import { HOME, MOBILE, NOW, RIDES, seed, settings } from './seed';
 
 const fx = (p: string) => readFileSync(fileURLToPath(new URL(`../tests/fixtures/${p}`, import.meta.url)), 'utf8');
@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
 
 async function setup(page: Page, llm: (n: number) => string) {
   const bodies: string[] = [];
-  await page.route('https://api.openrouteservice.org/**', (r) =>
+  await page.route('https://api.heigit.org/openrouteservice/**', (r) =>
     r.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: ORS_OK }),
   );
   await page.route('**/chat/completions', async (r) => {

@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import type { ImportPhase } from '../../import/importService';
 import { formatCount } from '../format';
 import { Check, File, LoaderCircle } from '../icons';
+import { CyclingLoader } from './CyclingLoader';
 
 type Props = {
   /** Lo que se importa: «export_123.zip» o «12 ficheros». */
@@ -43,6 +44,7 @@ export function ImportProgress({ fileLabel, fileMeta, done, total, phase, onCanc
         </span>
       </div>
 
+      <CyclingLoader compact />
       <div className="glance">
         <p className="glance-v" aria-hidden="true">
           <span>{formatCount(ratio * 100)}</span>

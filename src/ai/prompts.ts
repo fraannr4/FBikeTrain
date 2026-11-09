@@ -1,32 +1,5 @@
-import type { Difficulty } from '../metrics/reference';
-import type { LevelSummary } from './levelSummary';
-
-export type Focus = 'fondo' | 'subidas' | 'mixto';
-
-/** Respuestas de las preguntas guiadas. El inicio no va aquí: solo llega a ORS. */
-export type Answers = {
-  focus: Focus;
-  minutes: number;
-  explore: 'repetir' | 'descubrir';
-  notes: string;
-};
-
-export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
-
-/** Cifras de una ruta ya generada por ORS y medida por el código. */
-export type RouteFacts = {
-  id: string;
-  titulo: string;
-  distanciaKm: number;
-  desnivelM: number;
-  tiempoEstimadoMin: number | null;
-  carreteraNuevaPct: number;
-  dificultad: Difficulty | null;
-  sobreReferenciaPct: number;
-  dimension: 'distancia' | 'desnivel';
-  pendienteMaxima: string;
-  limitadoPorTiempo: boolean;
-};
+import type { Answers, ChatMessage, LevelSummary, RouteFacts } from './contracts.ts';
+export type { Answers, ChatMessage, Focus, RouteFacts } from './contracts.ts';
 
 const MAX_NOTES = 200;
 

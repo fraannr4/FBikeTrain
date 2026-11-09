@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { FolderFile, ImportPhase, ImportReport } from '../import/importService';
 import type { ImportRequest, ImportWorkerMessage } from '../import/import.worker';
+import { db } from '../db/db';
 
 /** La fase es opcional para que los importadores simulados de las pruebas sigan valiendo. */
 export type Importer = (
@@ -48,7 +49,7 @@ export const workerImporter: Importer = (files, onProgress, signal) =>
       finish();
       reject(new Error('mensaje del Worker ilegible'));
     };
-    worker.postMessage({ files } satisfies ImportRequest);
+    worker.postMessage({ files, databaseName: db.name } satisfies ImportRequest);
   });
 
 // Las pruebas sustituyen el Worker con un Provider.
