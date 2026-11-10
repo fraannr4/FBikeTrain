@@ -16,10 +16,11 @@ const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap' } as const;
 /** Tarjeta de cada propuesta: el título de la IA, su explicación y cuánto cambia frente a tu referencia (sube o baja). */
 export function aiShown(routes: AiRoute[]): ShownRoute[] {
   return routes.map((r) => {
-    const notes = [{ icon: r.upliftPct >= 0 ? TrendingUp : TrendingDown, text: `${formatDeltaPct(r.upliftPct)} frente a tu referencia en ${r.dimension}` }];
+    const card = toCardData(r, r.titulo);
+    const notes = [...(card.notes ?? []), { icon: r.upliftPct >= 0 ? TrendingUp : TrendingDown, text: `${formatDeltaPct(r.upliftPct)} frente a tu referencia en ${r.dimension}` }];
     if (r.limitadoPorTiempo) notes.push({ icon: Clock, text: 'Limitada por tu tiempo disponible' });
     const basedOn = r.basadaEn ? { label: `Basada en: ${r.basadaEn.nombre} (${SOURCE_LABEL[r.basadaEn.fuente]})`, url: r.basadaEn.url } : undefined;
-    return { card: { ...toCardData(r, r.titulo), why: r.explicacion, notes, basedOn }, coords: r.coords, file: gpxFileName(r) };
+    return { card: { ...card, why: r.explicacion, notes, basedOn }, coords: r.coords, file: gpxFileName(r) };
   });
 }
 

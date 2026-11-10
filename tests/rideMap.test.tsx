@@ -40,6 +40,7 @@ describe('RideMap', () => {
     expect(await screen.findByRole('button', { name: 'Acercar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Alejar' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Zoom/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Encuadrar ruta' })).toBeInTheDocument();
   });
 
   it('static map keeps the CyclOSM and OpenStreetMap attribution when asked', async () => {
@@ -47,6 +48,7 @@ describe('RideMap', () => {
     expect(await screen.findByRole('link', { name: 'CyclOSM' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /OpenStreetMap/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Acercar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Encuadrar ruta' })).not.toBeInTheDocument();
   });
 
   it('tint pane sits between tiles and tracks', async () => {

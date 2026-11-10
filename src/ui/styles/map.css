@@ -1,4 +1,4 @@
-/* Mapa CyclOSM oscuro, trazado luminoso y perfil. Lo rellena la tarea 8. */
+/* Cartografía CyclOSM y trazado con doble borde para los dos temas. */
 
 /* Controles de Leaflet (zoom) con zona táctil de 44x44 en cualquier puntero.
    Leaflet los deja en 26-30 px; la especificidad supera a .leaflet-touch .leaflet-bar a. */
@@ -31,17 +31,17 @@
 }
 
 /* ---- RideMap: trazado, subidas, salida y cursor con tokens (siguen al tema) ---- */
-.rmap { background: var(--map-under); }
+.rmap { background: var(--map-under); isolation: isolate; overflow: hidden; }
 .rmap .leaflet-tile-pane { filter: var(--map-filter); }
-.rmap .rmap-halo { stroke: var(--trace); stroke-width: 9; stroke-opacity: calc(0.4 * var(--glow, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.rmap .rmap-core { stroke: var(--trace); stroke-width: 3; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-halo { stroke: var(--map-route-halo); stroke-width: 10; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-core { stroke: var(--map-route-edge); stroke-width: 7; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-connector { stroke: var(--acc-speed); stroke-width: 5; stroke-opacity: 1; fill: none; stroke-dasharray: 2 8; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-connector--return { stroke-dasharray: 10 8; }
 .rmap .rmap-climb { stroke-width: 5; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-climb.rmap-g0 { stroke: var(--g0); } .rmap .rmap-climb.rmap-g1 { stroke: var(--g1); } .rmap .rmap-climb.rmap-g2 { stroke: var(--g2); }
 .rmap .rmap-climb.rmap-g3 { stroke: var(--g3); } .rmap .rmap-climb.rmap-g4 { stroke: var(--g4); } .rmap .rmap-climb.rmap-g5 { stroke: var(--g5); }
 .rmap .rmap-start { fill: var(--good); fill-opacity: 1; stroke: var(--surface); stroke-width: 2.5; }
-.rmap .rmap-cur { fill: var(--ink); fill-opacity: 1; stroke: var(--trace); stroke-width: 3; }
+.rmap .rmap-cur { fill: var(--ink); fill-opacity: 1; stroke: var(--map-route); stroke-width: 3; }
 .rmap .rmap-pin-box { background: none; border: 0; }
 .rmap-pin {
   display: grid; place-items: center; box-sizing: border-box; width: 100%; height: 24px; padding: 0 5px; border-radius: 12px;
@@ -54,14 +54,16 @@
 .rmap--static { cursor: default; }
 .rmap--static .leaflet-interactive { cursor: default; }
 
-/* ---- Trazado luminoso (tarea 8): halo, núcleo y un hilo blanco encima.
-   En claro --glow y --thread valen 0: queda solo el núcleo. ---- */
-.rmap .rmap-halo { stroke-opacity: calc(0.55 * var(--glow, 1)); }
-.rmap .rmap-thread { stroke: var(--trace-thread); stroke-width: 1; stroke-opacity: calc(0.85 * var(--thread, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* Color propio sobre doble borde opaco: se reconoce sobre zonas claras y oscuras de la tesela. */
+.rmap .rmap-thread { stroke: var(--map-route); stroke-width: 4; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .leaflet-control-fit button {
+  display: block; width: 44px; height: 44px; background: var(--surface); color: var(--ink);
+  font-size: 26px; line-height: 44px; cursor: pointer;
+}
+.rmap .leaflet-control-fit button:hover { background: var(--surface-2); }
 
-/* Tinte salvia entre las teselas (200) y los trazados (400). Va claro a propósito: más oscuro,
-   los rótulos de las poblaciones dejan de leerse. En claro es blanco y no cambia nada. */
-.rmap .leaflet-tint-pane { mix-blend-mode: multiply; pointer-events: none; }
+/* Tinte salvia en oscuro; velo marfil ligero en claro. Atenúa el fondo sin perder los rótulos. */
+.rmap .leaflet-tint-pane { mix-blend-mode: var(--map-tint-blend); pointer-events: none; }
 .rmap .map-tint {
   position: absolute; left: -5000px; top: -5000px; width: 10000px; height: 10000px;
   background: var(--map-tint); pointer-events: none;
@@ -69,9 +71,13 @@
 
 @media (forced-colors: active) {
   .rmap .leaflet-tint-pane { display: none; }
-  .rmap .rmap-core { stroke: Highlight; }
+  .rmap .rmap-halo, .rmap .rmap-core, .rmap .rmap-thread,
+  .rmap .rmap-connector, .rmap .rmap-start, .rmap .rmap-cur { forced-color-adjust: none; }
+  .rmap .rmap-halo { stroke: Canvas; }
+  .rmap .rmap-core { stroke: CanvasText; }
+  .rmap .rmap-thread { stroke: Highlight; }
   .rmap .rmap-connector { stroke: LinkText; }
-  .rmap .rmap-halo, .rmap .rmap-thread { stroke-opacity: 0; }
+  .rmap .rmap-start, .rmap .rmap-cur { fill: CanvasText; stroke: Canvas; }
 }
 
 /* Con zoom fraccionario (zoomSnap 0,25) las teselas escaladas no casan al píxel. Leaflet suma sus

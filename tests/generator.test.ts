@@ -5,7 +5,7 @@ import { EARTH_RADIUS_M } from '../src/import/summary';
 import { buildVisitedCells } from '../src/metrics/grid';
 import { difficulty, type UserReference } from '../src/metrics/reference';
 import type { Target } from '../src/metrics/score';
-import { EXTRA_SEEDS, generateRoutes, type GenerateRequest } from '../src/routes/generator';
+import { SEARCH_REQUEST_BUDGET, generateRoutes, type GenerateRequest } from '../src/routes/generator';
 import { loadVisitedCells } from '../src/routes/history';
 import { OrsError, type fetchRoundTrip, type OrsFeature } from '../src/routes/ors';
 
@@ -76,6 +76,56 @@ function run(req: Partial<GenerateRequest>, ors: ReturnType<typeof fakeOrs>, ext
 }
 
 describe('generateRoutes', () => {
+  it('stops as soon as enough distinct routes have arrived', async () => {
+    const ors = fakeOrs(seed => feature({ distanceM: 30000 + seed * 500 }));
+    const res = await run({ count: 2 }, ors);
+    expect(res.requestsUsed).toBe(2);
+  });
+
+  it('bounds even an unsuccessful search below the shared eight-call quota and preserves fallback', async () => {
+    const ors = fakeOrs(() => feature({ distanceM: 30000, unpavedM: 500 }));
+    const res = await run({}, ors);
+    expect(res.requestsUsed).toBeLessThan(8);
+    expect(res.routes).toHaveLength(1);
+    expect(res.routes[0].warning).toBeDefined();
+  });
+
+  it('clamps an oversized explicit budget including no_route and 5xx responses', async () => {
+    const ors = fakeOrs(seed => seed % 2 ? noRoute() : new OrsError('server', 'ORS 500'));
+    await expect(run({ seeds: 100 }, ors)).rejects.toThrow('ORS 500');
+    expect(ors).toHaveBeenCalledTimes(SEARCH_REQUEST_BUDGET);
+  });
+
+  it('duplicates do not count as sufficient routes', async () => {
+    const res = await run({ count: 2 }, fakeOrs(seed => feature({ distanceM: seed < 3 ? 30000 : 31000 })));
+    expect(res.requestsUsed).toBe(4);
+    expect(res.routes).toHaveLength(2);
+  });
+
+  it('prefers a simple loop to an equally long route with an out-and-back spur', async () => {
+    const at = (x: number, y: number): Coord3 => [START.lng + x / (M_PER_DEG_LAT * Math.cos(START.lat * Math.PI / 180)), START.lat + y / M_PER_DEG_LAT, 600];
+    const ors = fakeOrs(seed => {
+      const f = feature({ distanceM: 30000 });
+      f.geometry.coordinates = seed === 0
+        ? [[0,0], [0,1000], [0,0], [7000,0], [7000,7000], [0,7000], [0,0]].map(([x,y]) => at(x,y))
+        : [[0,0], [7500,0], [7500,7500], [0,7500], [0,0]].map(([x,y]) => at(x,y));
+      return f;
+    });
+    const res = await run({ seeds: 2, count: 1 }, ors);
+    expect(res.routes[0].seed).toBe(1);
+  });
+
+  it('preserves both the road and geometry warnings on a last-resort route', async () => {
+    const ors = fakeOrs(() => {
+      const f = feature({ distanceM: 30000, unpavedM: 500 });
+      f.geometry.coordinates.push(...f.geometry.coordinates.slice(0, -1).reverse());
+      return f;
+    });
+    const res = await run({ seeds: 1, target: { ...TARGET, distanceM: 60000 } }, ors);
+    expect(res.routes).toHaveLength(1);
+    expect(res.routes[0].warning).toContain('0,5 km');
+    expect(res.routes[0].warning).toContain('ida y vuelta');
+  });
   it('requests seeds sequentially with points 4', async () => {
     let inFlight = 0;
     let maxInFlight = 0;
@@ -105,8 +155,8 @@ describe('generateRoutes', () => {
     const ors = fakeOrs((seed) => feature({ distanceM: 30000 + seed * 500 }));
     const res = await run({}, ors);
 
-    expect(ors).toHaveBeenCalledTimes(8);
-    expect(res.requestsUsed).toBe(8);
+    expect(ors).toHaveBeenCalledTimes(5);
+    expect(res.requestsUsed).toBe(5);
     expect(res.routes.map((r) => r.seed)).toEqual([0, 1, 2, 3, 4]);
     const scores = res.routes.map((r) => r.score);
     expect(scores).toEqual([...scores].sort((a, b) => b - a));
@@ -144,14 +194,14 @@ describe('generateRoutes', () => {
     expect(res.routes).toHaveLength(1);
   });
 
-  it('sin ninguna limpia prueba semillas de más y enseña la más cercana con aviso', async () => {
+  it('sin ninguna limpia conserva el presupuesto y enseña la más cercana con aviso', async () => {
     const ors = fakeOrs(() => feature({ distanceM: 30000, unpavedM: 500 }));
     const res = await run({ seeds: 3 }, ors);
 
-    expect(res.requestsUsed).toBe(3 + EXTRA_SEEDS);
-    expect(res.rejected).toHaveLength(3 + EXTRA_SEEDS);
+    expect(res.requestsUsed).toBe(3);
+    expect(res.rejected).toHaveLength(3);
     expect(res.rejected[0]).toEqual({ seed: 0, reason: 'sin asfaltar' });
-    expect(res.routes).toHaveLength(1); // las once son iguales: una tras quitar duplicados
+    expect(res.routes).toHaveLength(1); // tres iguales: una tras quitar duplicados
     expect(res.routes[0].warning).toBe('Incluye 0,5 km de pista o sin asfaltar.');
     expect(res.stoppedBy).toBeNull();
   });
@@ -159,7 +209,7 @@ describe('generateRoutes', () => {
   it('no enseña como último recurso vueltas con mucha pista', async () => {
     const res = await run({ seeds: 2 }, fakeOrs(() => feature({ distanceM: 30000, unpavedM: 3500 })));
     expect(res.routes).toEqual([]);
-    expect(res.rejected).toHaveLength(2 + EXTRA_SEEDS);
+    expect(res.rejected).toHaveLength(2);
   });
 
   it('un fallo suelto del motor (5xx) no corta la búsqueda', async () => {

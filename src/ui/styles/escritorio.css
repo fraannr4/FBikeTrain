@@ -39,7 +39,8 @@
   /* Solo cuando el panel ya enseña el selector de salida; con resultados, el de «Cambiar» sigue visible. */
   .page:has(.route-map-panel .start-pick) .route-controls .start-pick { display: none; }
   .route-map-panel { position: sticky; top: 76px; min-width: 0; }
-  .route-map-panel .rmap, .route-map-panel .start-map { height: max(480px, calc(100dvh - 104px)); border-radius: var(--r-card); }
+  /* Cabecera y margen inferior caben también antes de que el panel alcance su posición sticky. */
+  .route-map-panel .rmap, .route-map-panel .start-map { height: max(320px, calc(100dvh - 200px)); min-height: 320px; border-radius: var(--r-card); }
   .page--cal > .desktop-month { grid-row: 3; }
   .desktop-month { display: grid; gap: 16px; }
   .desktop-month .mo-grid { width: 100%; margin: 0; }

@@ -13,8 +13,12 @@
 .splice-check input{width:22px;height:22px;accent-color:var(--action);flex:none}
 .splice-legend{display:grid;gap:8px;margin:0;padding:0;list-style:none;font-size:var(--fs-sm);color:var(--ink-2)}
 .splice-legend li{display:flex;align-items:center;gap:10px;min-width:0;overflow-wrap:anywhere}
-.splice-swatch{flex:none;width:28px;height:0;border-top:4px solid var(--trace);border-radius:2px}
+.splice-swatch{flex:none;width:28px;height:0;border-top:4px solid var(--map-route);border-radius:2px}
 .splice-swatch--connector{border-top:4px dotted var(--acc-speed)}
 .splice-swatch--return{border-top:4px dashed var(--acc-speed)}
+@media(forced-colors:active){
+  .splice-swatch{forced-color-adjust:none;border-color:Highlight}
+  .splice-swatch--connector,.splice-swatch--return{border-color:LinkText}
+}
 @media(max-width:380px){.splice-option{padding:16px}}
 .splice-map{height:min(52dvh,420px);border-radius:var(--r-md);overflow:hidden}

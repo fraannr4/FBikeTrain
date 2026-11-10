@@ -61,6 +61,10 @@
   --acc-time: #6CD2CB;
   --acc-speed: #DF9DC3;
   --trace: #80B4F5;
+  /* Trazado geográfico cálido sobre la cartografía azul/morada. La marca conserva --trace. */
+  --map-route: #FF8756;
+  --map-route-edge: #28332B;
+  --map-route-halo: #FFFFFF;
 
   /* ---- Pendiente: escala ordinal del libro de ruta [chart] ---- */
   --g0: #8DAB9A;
@@ -139,6 +143,7 @@
      con mix-blend-mode: multiply. ---- */
   --map-filter: invert(1) hue-rotate(180deg) brightness(.72) contrast(1.1) saturate(.25);
   --map-tint: #C3D0AD;
+  --map-tint-blend: multiply;
   --map-under: #1D3029;
 
   /* ---- Pistas de las gráficas: 3:1 sobre --surface (WCAG 1.4.11) ---- */
@@ -182,6 +187,9 @@
   --acc-time: #006E72;
   --acc-speed: #9B4377;
   --trace: #2465D5;
+  --map-route: #DD4215;
+  --map-route-edge: #28332B;
+  --map-route-halo: #FFFFFF;
 
   --series-1: #2465D5;
   --series-2: #8A5100;
@@ -254,8 +262,9 @@
   --shadow-float: 0 1px 2px rgba(22, 59, 48, 0.08), 0 16px 36px -18px rgba(22, 59, 48, 0.32);
   --shadow-sheet: 0 -16px 40px -20px rgba(22, 59, 48, 0.35);
 
-  --map-filter: none;
-  --map-tint: #FFFFFF;
+  --map-filter: saturate(.65);
+  --map-tint: rgba(255, 253, 242, .16);
+  --map-tint-blend: normal;
   --map-under: #EDEFE3;
 
   --track: #73846B;
