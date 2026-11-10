@@ -5,7 +5,7 @@ import { EARTH_RADIUS_M } from '../src/import/summary';
 import { buildVisitedCells } from '../src/metrics/grid';
 import { difficulty, type UserReference } from '../src/metrics/reference';
 import type { Target } from '../src/metrics/score';
-import { generateRoutes, type GenerateRequest } from '../src/routes/generator';
+import { EXTRA_SEEDS, generateRoutes, type GenerateRequest } from '../src/routes/generator';
 import { loadVisitedCells } from '../src/routes/history';
 import { OrsError, type fetchRoundTrip, type OrsFeature } from '../src/routes/ors';
 
@@ -144,17 +144,32 @@ describe('generateRoutes', () => {
     expect(res.routes).toHaveLength(1);
   });
 
-  it('all rejected returns no routes with reasons', async () => {
+  it('sin ninguna limpia prueba semillas de más y enseña la más cercana con aviso', async () => {
     const ors = fakeOrs(() => feature({ distanceM: 30000, unpavedM: 500 }));
     const res = await run({ seeds: 3 }, ors);
 
-    expect(res.routes).toEqual([]);
-    expect(res.rejected).toEqual([
-      { seed: 0, reason: 'sin asfaltar' },
-      { seed: 1, reason: 'sin asfaltar' },
-      { seed: 2, reason: 'sin asfaltar' },
-    ]);
+    expect(res.requestsUsed).toBe(3 + EXTRA_SEEDS);
+    expect(res.rejected).toHaveLength(3 + EXTRA_SEEDS);
+    expect(res.rejected[0]).toEqual({ seed: 0, reason: 'sin asfaltar' });
+    expect(res.routes).toHaveLength(1); // las once son iguales: una tras quitar duplicados
+    expect(res.routes[0].warning).toBe('Incluye 0,5 km de pista o sin asfaltar.');
     expect(res.stoppedBy).toBeNull();
+  });
+
+  it('no enseña como último recurso vueltas con mucha pista', async () => {
+    const res = await run({ seeds: 2 }, fakeOrs(() => feature({ distanceM: 30000, unpavedM: 3500 })));
+    expect(res.routes).toEqual([]);
+    expect(res.rejected).toHaveLength(2 + EXTRA_SEEDS);
+  });
+
+  it('un fallo suelto del motor (5xx) no corta la búsqueda', async () => {
+    const res = await run({ seeds: 3 }, fakeOrs((seed) => (seed === 0 ? new OrsError('server', 'ORS 500') : feature({ distanceM: 30000 + seed * 500 }))));
+    expect(res.routes).toHaveLength(2);
+    expect(res.routes.every((r) => r.warning === undefined)).toBe(true);
+  });
+
+  it('si todas las semillas fallan en el motor, lanza el error', async () => {
+    await expect(run({ seeds: 2 }, fakeOrs(() => new OrsError('server', 'ORS 500')))).rejects.toThrow('ORS 500');
   });
 
   it('rate limit mid-search keeps partial routes', async () => {

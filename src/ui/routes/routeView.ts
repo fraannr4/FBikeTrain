@@ -7,6 +7,7 @@ import type { Target } from '../../metrics/score';
 import type { RejectReason } from '../../routes/analyze';
 import type { GenerateResult, GeneratedRoute } from '../../routes/generator';
 import type { RouteCardData } from './RouteCard';
+import { TriangleAlert } from '../icons';
 
 /** Lo que la pantalla Rutas saca de una búsqueda: nombres, tarjetas, valores por defecto y avisos. */
 
@@ -77,6 +78,7 @@ export function toCardData(route: GeneratedRoute, name: string): RouteCardData {
     profile: route.profile,
     steep: route.steep,
     kind: 'circular',
+    ...(route.warning ? { notes: [{ icon: TriangleAlert, text: route.warning }] } : {}),
   };
 }
 

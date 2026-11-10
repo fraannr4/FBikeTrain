@@ -12,6 +12,11 @@ import { fetchRoundTrip, OrsError, type OrsAccess } from './ors';
 export const ROUND_TRIP_POINTS = 4;
 export const DEFAULT_COUNT = 5;
 export const DEFAULT_SEEDS = 8;
+/** Semillas de más cuando las primeras no dejan ninguna ruta (zonas con muchas pistas). */
+export const EXTRA_SEEDS = 8;
+/** Último recurso: vueltas descartadas que se enseñan con aviso si ninguna pasa el filtro. */
+const FALLBACK_MAX_OFFROAD_M = 3000;
+const FALLBACK_LENGTH_TOLERANCE = 0.4;
 /** Dos vueltas con la misma distancia (redondeada a 100 m) y desnivel (a 10 m) cuentan como la misma. */
 const DEDUPE_DISTANCE_M = 100;
 const DEDUPE_GAIN_M = 10;
@@ -24,6 +29,8 @@ export type GeneratedRoute = RouteCandidate & {
   score: number;
   difficulty: Difficulty | null;
   estTimeS: number | null;
+  /** Solo en las vueltas de último recurso: qué incumple del filtro de carretera. */
+  warning?: string;
 };
 
 export type GenerateResult = {
@@ -61,7 +68,10 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
   let received = 0;
   let stoppedBy: OrsError | null = null;
 
-  for (let i = 0; i < seeds; i++) {
+  const near: { candidate: RouteCandidate; reason: RejectReason }[] = [];
+  let lastError: OrsError | null = null;
+  // Si las primeras semillas no dejan ninguna ruta, se prueban otras tantas antes de rendirse.
+  for (let i = 0; i < seeds || (accepted.length === 0 && i < seeds + EXTRA_SEEDS); i++) {
     if (deps.signal?.aborted) throw abortError();
     const seed = seedBase + i;
     requestsUsed++;
@@ -77,6 +87,8 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
       candidate = analyzeRoute(f, seed);
     } catch (e) {
       if (e instanceof OrsError && e.kind === 'no_route') continue;
+      // Un fallo suelto del motor (HTTP 5xx) no corta la búsqueda: se prueba la semilla siguiente.
+      if (e instanceof OrsError && e.kind === 'server') { lastError = e; continue; }
       if (!(e instanceof OrsError) || received === 0) throw e;
       stoppedBy = e;
       break;
@@ -86,13 +98,34 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
     const reason = rejectReason(candidate, req.target.distanceM);
     if (reason) {
       rejected.push({ seed, reason });
+      if (reason !== 'autopista') near.push({ candidate, reason });
       continue;
     }
     accepted.push(rate(candidate, req.target, deps));
   }
 
+  if (received === 0 && lastError) throw lastError;
+  if (accepted.length === 0) accepted.push(...fallback(near, req.target, deps));
   const routes = dedupe(accepted.sort((a, b) => b.score - a.score)).slice(0, count);
   return { routes, rejected, requestsUsed, stoppedBy };
+}
+
+const km = (m: number) => `${(m / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km`;
+
+/** Qué incumple una vuelta de último recurso, en una línea para la tarjeta. */
+function warningFor(c: RouteCandidate, reason: RejectReason, targetM: number): string {
+  if (reason === 'pistas' || reason === 'sin asfaltar') return `Incluye ${km(c.unpavedM + c.trackM)} de pista o sin asfaltar.`;
+  if (reason === 'carretera principal') return `Un ${Math.round(c.mainRoadPct)} % va por carretera principal.`;
+  return `Sale de ${km(c.distanceM)} frente a los ${km(targetM)} pedidos.`;
+}
+
+/** Sin ninguna ruta limpia: las descartadas más cercanas al filtro, con aviso, para no dejar la búsqueda vacía. */
+function fallback(near: { candidate: RouteCandidate; reason: RejectReason }[], target: Target, deps: GenerateDeps): GeneratedRoute[] {
+  const t = target.distanceM;
+  return near
+    .filter(({ candidate: c }) => c.unpavedM + c.trackM <= FALLBACK_MAX_OFFROAD_M && Math.abs(c.distanceM - t) <= t * FALLBACK_LENGTH_TOLERANCE)
+    .sort((a, b) => a.candidate.unpavedM + a.candidate.trackM - (b.candidate.unpavedM + b.candidate.trackM))
+    .map(({ candidate, reason }) => ({ ...rate(candidate, target, deps), warning: warningFor(candidate, reason, t) }));
 }
 
 function rate(c: RouteCandidate, target: Target, deps: GenerateDeps): GeneratedRoute {
