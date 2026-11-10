@@ -10,11 +10,13 @@ export const meta = {
   ],
 }
 
-// args: { plan: 'docs/superpowers/plans/....md', tasks: [{ n: 2, agent: 'cycling-frontend-dev' }, ...], maxFixRounds?: 2, ui?: true }
+// args: { plan: 'docs/superpowers/plans/....md', tasks: [{ n: 2, agent: 'cycling-frontend-dev' }, ...], maxFixRounds?: 2, ui?: true, model?: 'fable' }
 const A = args || {}
 const PLAN = A.plan
 const TASKS = A.tasks || []
 const MAX_FIX = A.maxFixRounds == null ? 2 : A.maxFixRounds
+// args.model (opcional): modelo para todos los agentes del lote, por ejemplo 'fable' o 'sonnet'.
+const agentM = (prompt, opts) => agent(prompt, A.model ? { ...opts, model: A.model } : opts)
 if (!PLAN || !TASKS.length) throw new Error('Faltan args: { plan, tasks: [{ n, agent }] }')
 
 const SPEC = 'docs/superpowers/specs/2026-11-06-plataforma-ciclismo-design.md'
@@ -82,7 +84,7 @@ const verifyPrompt = t => `Verifica la Task ${t.n} del plan ${PLAN}: ejecuta npx
 const results = []
 for (const t of TASKS) {
   phase('Implementar')
-  let impl = await agent(implPrompt(t), { label: `T${t.n} ${t.agent}`, phase: 'Implementar', agentType: t.agent, schema: IMPL })
+  let impl = await agentM(implPrompt(t), { label: `T${t.n} ${t.agent}`, phase: 'Implementar', agentType: t.agent, schema: IMPL })
   if (!impl || impl.status === 'blocked') {
     results.push({ task: t.n, status: 'blocked', reason: impl ? impl.blockedReason : 'el agente no respondió' })
     log(`T${t.n} bloqueada. Se detiene el lote.`)
@@ -92,17 +94,17 @@ for (const t of TASKS) {
   let open = []
   for (let round = 0; ; round++) {
     const reviews = await parallel([
-      () => agent(specReview(t, impl), { label: `T${t.n} plan`, phase: 'Revisar', agentType: 'cycling-reviewer', schema: REVIEW }),
-      () => agent(qualityReview(t, impl), { label: `T${t.n} calidad`, phase: 'Revisar', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
+      () => agentM(specReview(t, impl), { label: `T${t.n} plan`, phase: 'Revisar', agentType: 'cycling-reviewer', schema: REVIEW }),
+      () => agentM(qualityReview(t, impl), { label: `T${t.n} calidad`, phase: 'Revisar', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
     ])
     open = reviews.filter(Boolean).flatMap(r => r.issues.filter(i => i.severity !== 'minor'))
     if (!open.length || round >= MAX_FIX) break
     log(`T${t.n}: ${open.length} problemas, ronda de corrección ${round + 1}`)
-    const fixed = await agent(fixPrompt(t, open), { label: `T${t.n} corrección ${round + 1}`, phase: 'Implementar', agentType: t.agent, schema: IMPL })
+    const fixed = await agentM(fixPrompt(t, open), { label: `T${t.n} corrección ${round + 1}`, phase: 'Implementar', agentType: t.agent, schema: IMPL })
     if (fixed) impl = { ...fixed, files: [...new Set([...impl.files, ...fixed.files])], pendingUser: [...(impl.pendingUser || []), ...(fixed.pendingUser || [])] }
   }
 
-  const v = await agent(verifyPrompt(t), { label: `T${t.n} verificar`, phase: 'Verificar', agentType: 'cycling-qa', schema: VERIFY })
+  const v = await agentM(verifyPrompt(t), { label: `T${t.n} verificar`, phase: 'Verificar', agentType: 'cycling-qa', schema: VERIFY })
   const ok = !!(v && v.passed) && !open.length
   results.push({ task: t.n, status: ok ? 'ok' : 'needs-attention', files: impl.files, pendingUser: impl.pendingUser || [], openIssues: open, verify: v ? v.output : 'sin verificación', notes: impl.notes })
   if (!ok) {
@@ -116,17 +118,17 @@ phase('Cierre')
 const touched = [...new Set(results.flatMap(r => r.files || []))]
 let simplify = null, finalVerify = null, finalReview = null, uiCheck = null
 if (results.length && results.every(r => r.status === 'ok')) {
-  simplify = await agent(`Simplifica sin cambiar comportamiento estos ficheros recién escritos: ${touched.join(', ')}. Después ejecuta npx vitest run y npx tsc --noEmit; si algo falla, deshaz tu cambio.`, { label: 'simplificar', phase: 'Cierre', agentType: 'code-simplifier:code-simplifier' })
+  simplify = await agentM(`Simplifica sin cambiar comportamiento estos ficheros recién escritos: ${touched.join(', ')}. Después ejecuta npx vitest run y npx tsc --noEmit; si algo falla, deshaz tu cambio.`, { label: 'simplificar', phase: 'Cierre', agentType: 'code-simplifier:code-simplifier' })
   const tail = [
-    () => agent(`Verificación final del lote (tareas ${done.join(', ')} del plan ${PLAN}): npx vitest run, npx tsc --noEmit, npm run build. Devuelve passed y la salida decisiva.`, { label: 'verificación final', phase: 'Cierre', agentType: 'cycling-qa', schema: VERIFY }),
-    () => agent(`Revisión global de los cambios del lote (tareas ${done.join(', ')} del plan ${PLAN}). Ficheros: ${touched.join(', ')}. Busca problemas entre tareas: interfaces que no encajan, duplicación, seguridad. Devuelve approved=true si no hay blocker ni major.`, { label: 'revisión global', phase: 'Cierre', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
+    () => agentM(`Verificación final del lote (tareas ${done.join(', ')} del plan ${PLAN}): npx vitest run, npx tsc --noEmit, npm run build. Devuelve passed y la salida decisiva.`, { label: 'verificación final', phase: 'Cierre', agentType: 'cycling-qa', schema: VERIFY }),
+    () => agentM(`Revisión global de los cambios del lote (tareas ${done.join(', ')} del plan ${PLAN}). Ficheros: ${touched.join(', ')}. Busca problemas entre tareas: interfaces que no encajan, duplicación, seguridad. Devuelve approved=true si no hay blocker ni major.`, { label: 'revisión global', phase: 'Cierre', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
   ]
-  if (A.ui) tail.push(() => agent(`Revisa las pantallas tocadas en el lote con break-ui (datos extremos) y web-design-guidelines. Solo informa de lo que rompe el uso; lo visual queda para el plan de rediseño. Ficheros: ${touched.join(', ')}.`, { label: 'revisión UI', phase: 'Cierre', agentType: 'cycling-qa', schema: REVIEW }))
+  if (A.ui) tail.push(() => agentM(`Revisa las pantallas tocadas en el lote con break-ui (datos extremos) y web-design-guidelines. Solo informa de lo que rompe el uso; lo visual queda para el plan de rediseño. Ficheros: ${touched.join(', ')}.`, { label: 'revisión UI', phase: 'Cierre', agentType: 'cycling-qa', schema: REVIEW }))
   const out = await parallel(tail)
   finalVerify = out[0]; finalReview = out[1]; uiCheck = out[2] || null
 }
 
-const commitProposal = results.length ? await agent(`Propón uno o varios mensajes de commit (imperativo, en castellano, resumen en 1 línea + detalle de qué y por qué) agrupando por intención estos resultados: ${JSON.stringify(results.map(r => ({ task: r.task, status: r.status, files: r.files })))}. No ejecutes git: solo devuelve el texto.`, { label: 'propuesta de commit', phase: 'Cierre', effort: 'low' }) : null
+const commitProposal = results.length ? await agentM(`Propón uno o varios mensajes de commit (imperativo, en castellano, resumen en 1 línea + detalle de qué y por qué) agrupando por intención estos resultados: ${JSON.stringify(results.map(r => ({ task: r.task, status: r.status, files: r.files })))}. No ejecutes git: solo devuelve el texto.`, { label: 'propuesta de commit', phase: 'Cierre', effort: 'low' }) : null
 
 return {
   plan: PLAN,
