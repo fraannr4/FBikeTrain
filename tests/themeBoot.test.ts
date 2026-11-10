@@ -29,7 +29,7 @@ const throwingStorage = new Proxy({} as Pick<Storage, 'getItem'>, {
 describe('theme boot script', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('data-theme');
-    document.head.innerHTML = '<meta name="theme-color" content="#0A1122">';
+    document.head.innerHTML = '<meta name="theme-color" content="#14221F">';
   });
 
   it('boot script defaults to dark', () => {
@@ -40,7 +40,7 @@ describe('theme boot script', () => {
   it('boot script applies a stored light theme', () => {
     runBoot(storageWith('light'));
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#EEF2F8');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F7F4EA');
   });
 
   it('boot script ignores unknown values', () => {

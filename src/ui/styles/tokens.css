@@ -16,91 +16,101 @@
   color-scheme: dark;
 
   /* ---- Superficies (de atrás hacia delante) ---- */
-  --bg: #0A1122;              /* fondo de la página */
-  --side: #0C1427;            /* menú lateral */
-  --surface: #111A2E;         /* tarjeta opaca [chart] */
-  --surface-2: #17223B;       /* relleno de controles, filas en hover [chart] */
-  --surface-3: #1E2B49;       /* pulsado, tooltip elevado */
-  --glass: rgba(16, 25, 46, 0.72);        /* KPI sobre el paisaje */
-  --glass-strong: rgba(12, 19, 36, 0.86); /* barra inferior, placas del mapa */
-  --scrim: rgba(4, 8, 18, 0.6);           /* fondo de hoja y diálogo */
+  --bg: #14221F;
+  --side: #14221F;
+  --surface: #1D3029;          /* [chart] */
+  --surface-2: #233B30;
+  --surface-3: #2A4035;
+  --glass: rgba(29, 48, 41, 0.94);
+  --glass-strong: rgba(20, 34, 31, 0.97);
+  --scrim: rgba(7, 17, 13, 0.65);
 
   /* ---- Bordes ---- */
-  --line: rgba(148, 176, 230, 0.14);        /* [chart] rejilla y separadores */
-  --line-strong: rgba(148, 176, 230, 0.26); /* bordes de vidrio y controles */
+  --line: #415548;            /* [chart] */
+  --line-strong: #859B7F;
 
   /* ---- Tinta (contraste sobre --surface) ---- */
-  --ink: #EAF0FA;     /* 15,2:1 */
-  --ink-2: #A9B6CF;   /*  8,5:1 */
-  --ink-3: #8C9AB5;   /*  6,1:1, mínimo para texto de 12 px */
+  --ink: #E5EDDF;
+  --ink-2: #C3D0C0;
+  --ink-3: #B0C0AF;
 
   /* ---- Acción y estado ---- */
-  --action: #2A64DA;        /* blanco encima: 5,2:1 */
-  --action-hover: #3570E6;
-  --on-action: #FFFFFF;
-  --focus: #7FB2FF;         /* anillo de foco y enlaces en oscuro */
-  --link: #7FB2FF;
-  --good: #3DD68C;          /* sube, objetivo, éxito */
-  --good-bg: rgba(61, 214, 140, 0.13);
-  --warning: #F2B24C;
-  --warning-bg: rgba(201, 130, 11, 0.16);
-  --critical: #FF8590;      /* solo errores reales, nunca una métrica que baja */
-  --critical-bg: rgba(224, 74, 94, 0.15);
-  --badge: #D3343B;         /* contador de avisos, con texto blanco 5,0:1 */
+  --action: #80B4F5;
+  --action-hover: #A3C9FA;
+  --on-action: #14221F;
+  --focus: #80B4F5;
+  --link: #80B4F5;
+  --good: #9BD3AB;
+  --good-bg: #263E30;
+  --warning: #F0CC82;
+  --warning-bg: #403B29;
+  --critical: #FFA7A5;
+  --critical-bg: #42302D;
+  --badge: #A52E34;
+  /* ---- Series categóricas [chart]; las cuatro primeras identifican las métricas ---- */
+  --series-1: #80B4F5;
+  --series-2: #E6B868;
+  --series-3: #6CD2CB;
+  --series-4: #DF9DC3;
+  --series-5: #D9DB99;
+  --series-6: #B9A8EB;
 
   /* ---- Un acento por métrica [chart] ---- */
-  --acc-dist: #3B8BFF;   /* hora azul */
-  --acc-elev: #9277F2;   /* malva del anochecer */
-  --acc-time: #1AA597;   /* verde azulado */
-  --acc-speed: #C9820B;  /* farola de sodio */
-  --trace: #4C9BFF;      /* trazado del mapa y formas de ruta */
+  --acc-dist: #80B4F5;
+  --acc-elev: #E6B868;
+  --acc-time: #6CD2CB;
+  --acc-speed: #DF9DC3;
+  --trace: #80B4F5;
 
   /* ---- Pendiente: escala ordinal del libro de ruta [chart] ---- */
-  --g0: #5C6B8A;  /* menos del 1 % y bajadas */
-  --g1: #F4D77E;  /* 1 a 4 % */
-  --g2: #F2A44E;  /* 4 a 7 % */
-  --g3: #EC7343;  /* 7 a 10 % */
-  --g4: #E04A5E;  /* 10 a 16 % */
-  --g5: #B0368C;  /* 16 % o más */
+  --g0: #8DAB9A;
+  --g1: #E1DC96;
+  --g2: #E6B868;
+  --g3: #E69B77;
+  --g4: #E99DA6;
+  --g5: #D29CC8;
 
   /* ---- Dificultad (texto sobre su fondo, AA) ---- */
-  --easy-ink: #5BE09A;  --easy-bg: rgba(61, 214, 140, 0.13);
-  --mid-ink: #F2B24C;   --mid-bg: rgba(201, 130, 11, 0.18);
-  --hard-ink: #FF8590;  --hard-bg: rgba(224, 74, 94, 0.17);
+  --easy-ink: #9BD3AB;
+  --easy-bg: #263E30;
+  --mid-ink: #F0CC82;
+  --mid-bg: #403B29;
+  --hard-ink: #FFA7A5;
+  --hard-bg: #42302D;
 
-  /* ---- Paisaje del hero: noche con luna sobre un horizonte malva ----
+  /* ---- Paisaje del hero: noche de bosque con luna y horizonte salvia ----
      Perspectiva atmosférica: cuanto más lejos la cresta, más clara y más
      cerca del color del horizonte; cuanto más cerca, más oscura. */
-  --sky-0: #050912;         /* cénit */
-  --sky-1: #0A1430;
-  --sky-2: #17235A;
-  --sky-3: #3A3274;
-  --sky-4: #9A5672;         /* horizonte */
-  --haze: #E98A74;          /* resplandor del horizonte tras las crestas */
-  --orb: #F3EEE6;           /* luna */
-  --orb-glow: #C9D6FF;      /* halo de la luna */
+  --sky-0: #0B1915;
+  --sky-1: #142A22;
+  --sky-2: #2D473A;
+  --sky-3: #53634E;
+  --sky-4: #879277;
+  --haze: #B5B58B;
+  --orb: #ECE9D6;
+  --orb-glow: #C8D1AF;
   --stars: 1;               /* estrellas: 1 en oscuro, 0 en claro */
-  --star: #DCE6FF;
-  --ridge-1: #7A6299;       /* la más lejana, casi horizonte */
-  --ridge-2: #50427F;
-  --ridge-3: #30306A;
-  --ridge-4: #1C2152;
-  --ridge-far: #50427F;     /* alias de --ridge-2 (fondo móvil, assets) */
-  --ridge-mid: #1C2152;     /* alias de --ridge-4 */
-  --ridge-near: #0D1534;    /* la cresta de tu última salida */
-  --ridge-line: #8DBBFF;    /* la línea de luz */
-  --mist: #B97A93;          /* bruma en el pie de cada cresta */
-  --road: #22305F;          /* la carretera de la cresta cercana */
-  --road-edge: rgba(141, 187, 255, 0.55);
-  --road-dash: #F2C46B;     /* raya central: luz de farola */
-  --hero-scrim: rgba(5, 9, 18, 0.66); /* velo tras el saludo, para el contraste */
-  --contour: rgba(141, 187, 255, 0.10); /* curvas de nivel grabadas */
+  --star: #DAE1C8;
+  --ridge-1: #78876D;
+  --ridge-2: #5B715B;
+  --ridge-3: #405E49;
+  --ridge-4: #2A4837;
+  --ridge-far: #5B715B;
+  --ridge-mid: #2A4837;
+  --ridge-near: #183326;
+  --ridge-line: #80B4F5;
+  --mist: #90A27D;
+  --road: #304E3C;
+  --road-edge: rgba(167, 196, 153, 0.65);
+  --road-dash: #E6D3A0;
+  --hero-scrim: rgba(20, 34, 31, 0.86);
+  --contour: rgba(130, 151, 120, 0.20);
 
   /* ---- Hito kilométrico (logotipo y bloque de fecha) ---- */
-  --hito: #EAF0FA;
+  --hito: #E5EDDF;
   --hito-stroke: transparent;
-  --hito-band: #2A64DA;
-  --hito-ink: #0A1122;
+  --hito-band: #80B4F5;
+  --hito-ink: #14221F;
 
   /* ---- Luz y sombra ---- */
   --glow: 0.55;  /* multiplica el halo del dato; 0 en claro */
@@ -108,109 +118,147 @@
   --shadow-card: 0 24px 48px -28px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --shadow-float: 0 18px 40px -18px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   --shadow-sheet: 0 -20px 50px -20px rgba(0, 0, 0, 0.6);
+  /* El texto del botón cambia con el tema; los avisos y el hilo del mapa siguen claros. */
+  --on-badge: #FFFFFF;
+  --trace-thread: #FFFFFF;
+
+  /* Acceso B Cartografía: colores aprobados, compartidos con bienvenida y cargas. */
+  --account-map: var(--surface-2);
+  --account-route: var(--trace);
+  --account-paper: var(--bg);
+  --account-surface-2: var(--surface);
+  --account-contour: #829778;
+  --account-action: #BDD2A7;
+  --account-action-hover: #D0E3BA;
+  --account-on-action: #15271E;
+  --account-line: #354A3D;
+  --account-line-strong: #647F69;
 
   /* ---- Mapa CyclOSM en oscuro: filtro solo sobre .leaflet-tile-pane y,
-     encima de las teselas (debajo del trazado), un panel de tinte azul
-     marino con mix-blend-mode: multiply. ---- */
-  --map-filter: invert(1) hue-rotate(200deg) brightness(0.7) contrast(1.1) saturate(0.25);
-  --map-tint: #A9BEF2;      /* multiplica: azul noche sin apagar las etiquetas */
-  --map-under: #0E1830;     /* fondo bajo las teselas mientras cargan */
+     encima de las teselas (debajo del trazado), un panel de tinte salvia
+     con mix-blend-mode: multiply. ---- */
+  --map-filter: invert(1) hue-rotate(180deg) brightness(.72) contrast(1.1) saturate(.25);
+  --map-tint: #C3D0AD;
+  --map-under: #1D3029;
 
   /* ---- Pistas de las gráficas: 3:1 sobre --surface (WCAG 1.4.11) ---- */
-  --track: #5B6B8C;         /* 3,2:1 */
+  --track: #859B7F;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --bg: #EEF2F8;
-  --side: #F7F9FC;
-  --surface: #FFFFFF;
-  --surface-2: #F2F5FA;
-  --surface-3: #E7EDF6;
-  --glass: rgba(255, 255, 255, 0.86);
-  --glass-strong: rgba(255, 255, 255, 0.94);
-  --scrim: rgba(14, 23, 48, 0.36);
+  --bg: #F7F4EA;
+  --side: #F7F4EA;
+  --surface: #FFFDF5;
+  --surface-2: #EDEFE3;
+  --surface-3: #D8DFC5;
+  --glass: rgba(255, 253, 245, 0.96);
+  --glass-strong: rgba(247, 244, 234, 0.98);
+  --scrim: rgba(22, 59, 48, 0.35);
 
-  --line: #D9E1EE;
-  --line-strong: #C3CEE0;
+  --line: #CBD1BD;
+  --line-strong: #73846B;
 
-  --ink: #0E1730;    /* 17,4:1 sobre blanco */
-  --ink-2: #3E4C68;  /*  8,9:1 */
-  --ink-3: #56657F;  /*  5,9:1 */
+  --ink: #163B30;
+  --ink-2: #3D5543;
+  --ink-3: #4F604F;
 
-  --action: #1F5FD6;
-  --action-hover: #1A52BC;
+  --action: #2465D5;
+  --action-hover: #1C53B2;
   --on-action: #FFFFFF;
-  --focus: #1F5FD6;
-  --link: #1F5FD6;
-  --good: #15803D;   /* 5,0:1 */
-  --good-bg: rgba(21, 128, 61, 0.11);
-  --warning: #8A4A00;
-  --warning-bg: rgba(184, 110, 0, 0.13);
-  --critical: #B4232F;
-  --critical-bg: rgba(194, 40, 60, 0.09);
-  --badge: #C62A33;
+  --focus: #1D56B5;
+  --link: #1D56B5;
+  --good: #28633D;
+  --good-bg: #E0E8D5;
+  --warning: #795000;
+  --warning-bg: #EFE2BA;
+  --critical: #A52E34;
+  --critical-bg: #F3DED5;
+  --badge: #A52E34;
 
-  --acc-dist: #1F66E0;
-  --acc-elev: #6E4BD8;
-  --acc-time: #0B8C80;
-  --acc-speed: #B86E00;
-  --trace: #1F66E0;
+  --acc-dist: #2465D5;
+  --acc-elev: #8A5100;
+  --acc-time: #006E72;
+  --acc-speed: #9B4377;
+  --trace: #2465D5;
 
-  --g0: #A7B3C8;
-  --g1: #D6A21F;
-  --g2: #D9782A;
-  --g3: #C2452B;
-  --g4: #972530;
-  --g5: #5A1634;
+  --series-1: #2465D5;
+  --series-2: #8A5100;
+  --series-3: #006E72;
+  --series-4: #9B4377;
+  --series-5: #626000;
+  --series-6: #6E4DA4;
 
-  --easy-ink: #136B33;  --easy-bg: rgba(21, 128, 61, 0.11);
-  --mid-ink: #8A4A00;   --mid-bg: rgba(184, 110, 0, 0.13);
-  --hard-ink: #A11D2E;  --hard-bg: rgba(194, 40, 60, 0.10);
+  --account-map: var(--surface-3);
+  --account-route: var(--trace);
+  --account-paper: var(--bg);
+  --account-surface-2: var(--surface-2);
+  --account-contour: #879D7D;
+  --account-action: #173D33;
+  --account-action-hover: #245545;
+  --account-on-action: #FFFFFF;
+  --account-line: #D1D7C5;
+  --account-line-strong: #7C8B73;
+  --on-badge: #FFFFFF;
+  --trace-thread: #FFFFFF;
 
-  /* Amanecer saturado: azul arriba, melocotón y oro en el horizonte */
-  --sky-0: #7EA6EA;
-  --sky-1: #A9C3F0;
-  --sky-2: #F1C9B4;
-  --sky-3: #F7AE83;
-  --sky-4: #FFCB6E;
-  --haze: #FFB24F;
-  --orb: #FFF6DC;           /* sol */
-  --orb-glow: #FFC861;
+  --g0: #7E9788;
+  --g1: #A69B40;
+  --g2: #A56C2D;
+  --g3: #AD572D;
+  --g4: #A13A45;
+  --g5: #763D70;
+
+  --easy-ink: #28633D;
+  --easy-bg: #E0E8D5;
+  --mid-ink: #795000;
+  --mid-bg: #EFE2BA;
+  --hard-ink: #A52E34;
+  --hard-bg: #F3DED5;
+
+  /* Amanecer cartográfico: salvia, papel y luz cálida en el horizonte */
+  --sky-0: #ADC8B8;
+  --sky-1: #C5D5C0;
+  --sky-2: #D9DFC5;
+  --sky-3: #EBDFBE;
+  --sky-4: #F2D6A7;
+  --haze: #E6CF9E;
+  --orb: #FFF9E7;
+  --orb-glow: #E7D9AA;
   --stars: 0;
   --star: #FFFFFF;
-  --ridge-1: #EDB59C;
-  --ridge-2: #C893A6;
-  --ridge-3: #8C7CB4;
-  --ridge-4: #5D65A6;
-  --ridge-far: #C893A6;
-  --ridge-mid: #5D65A6;
-  --ridge-near: #36468C;
-  --ridge-line: #FFF2D6;
-  --mist: #FFD9BC;
-  --road: #E9DCCB;
-  --road-edge: rgba(20, 30, 80, 0.55);
-  --road-dash: #FFFFFF;
-  --hero-scrim: rgba(255, 246, 236, 0.62);
-  --contour: rgba(31, 85, 200, 0.11);
+  --ridge-1: #C3CBA4;
+  --ridge-2: #A3B38B;
+  --ridge-3: #829A78;
+  --ridge-4: #5E8063;
+  --ridge-far: #A3B38B;
+  --ridge-mid: #5E8063;
+  --ridge-near: #315D43;
+  --ridge-line: #2465D5;
+  --mist: #CFD7B3;
+  --road: #D6D9BD;
+  --road-edge: rgba(49, 93, 67, 0.55);
+  --road-dash: #FFFDF5;
+  --hero-scrim: rgba(247, 244, 234, 0.88);
+  --contour: rgba(49, 93, 67, 0.16);
 
-  --hito: #FFFFFF;
-  --hito-stroke: #0E1730;
-  --hito-band: #1F5FD6;
-  --hito-ink: #0E1730;
+  --hito: #FFFDF5;
+  --hito-stroke: #163B30;
+  --hito-band: #2465D5;
+  --hito-ink: #163B30;
 
   --glow: 0;
   --thread: 0;
-  --shadow-card: 0 1px 2px rgba(14, 23, 48, 0.06), 0 12px 32px -18px rgba(14, 23, 48, 0.22);
-  --shadow-float: 0 1px 2px rgba(14, 23, 48, 0.08), 0 16px 36px -18px rgba(14, 23, 48, 0.32);
-  --shadow-sheet: 0 -16px 40px -20px rgba(14, 23, 48, 0.35);
+  --shadow-card: 0 1px 2px rgba(22, 59, 48, 0.06), 0 12px 32px -18px rgba(22, 59, 48, 0.22);
+  --shadow-float: 0 1px 2px rgba(22, 59, 48, 0.08), 0 16px 36px -18px rgba(22, 59, 48, 0.32);
+  --shadow-sheet: 0 -16px 40px -20px rgba(22, 59, 48, 0.35);
 
   --map-filter: none;
-  --map-tint: #FFFFFF;      /* multiplicar por blanco no cambia nada */
-  --map-under: #EEF1F4;
+  --map-tint: #FFFFFF;
+  --map-under: #EDEFE3;
 
-  --track: #8290A8;         /* 3,2:1 sobre blanco */
+  --track: #73846B;
 }
 
 /* ---- Tokens que no cambian con el tema ---- */

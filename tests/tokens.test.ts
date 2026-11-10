@@ -46,14 +46,16 @@ function contrast(a: string, b: string): number {
 }
 
 describe('design tokens', () => {
-  it('tokens.css is a literal copy of the design tokens', () => {
+  it('keeps the original typography, spacing, geometry and motion tokens', () => {
     expect(existsSync(appPath)).toBe(true);
-    expect(app.replace(/\r\n/g, '\n')).toBe(design.replace(/\r\n/g, '\n'));
+    // La paleta A sustituye los colores del prototipo, sin rediseñar su interfaz.
+    const shared = /:root\s*\{([^}]*)\}\s*$/;
+    expect(block(app, shared)).toEqual(block(design, shared));
   });
 
   it('chart tokens are hex or comma rgba', () => {
     const names = chartTokens(app);
-    expect(names).toEqual(expect.arrayContaining(['--surface', '--line', '--acc-dist', '--g5']));
+    expect(names).toEqual(expect.arrayContaining(['--surface', '--line', '--acc-dist', '--g5', '--series-1', '--series-6']));
     const ok = (v: string) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v) || /^rgba\(\d+, \d+, \d+, [\d.]+\)$/.test(v);
     for (const theme of [dark(), light()]) {
       for (const name of names) {
@@ -62,13 +64,25 @@ describe('design tokens', () => {
     }
   });
 
-  it('ink is AA on surface in both themes', () => {
-    for (const theme of [dark(), light()]) {
-      const surface = theme.get('--surface')!;
-      for (const ink of ['--ink', '--ink-2', '--ink-3']) {
-        const ratio = contrast(theme.get(ink)!, surface);
-        expect({ ink, ratio, aa: ratio >= 4.5 }).toMatchObject({ aa: true });
+  it('text meets the chosen A palette contrast on every surface, including 12px metadata', () => {
+    const minima = [[9.30, 6.96, 5.84, 5.19, 6.53, 7.26, 6.01], [8.98, 5.93, 4.90, 5.01, 5.19, 5.16, 5.03]];
+    for (const [i, theme] of [dark(), light()].entries()) {
+      for (const surface of ['--bg', '--surface', '--surface-2', '--surface-3']) {
+        for (const [j, ink] of ['--ink', '--ink-2', '--ink-3', '--link', '--good', '--warning', '--critical'].entries()) {
+          const ratio = contrast(theme.get(ink)!, theme.get(surface)!);
+          // La tabla presenta dos decimales; solo se tolera su redondeo, nunca bajar de AA.
+          expect({ ink, surface, ratio, aa: ratio >= Math.max(4.5, minima[i][j] - 0.005) }).toMatchObject({ aa: true });
+        }
       }
+    }
+  });
+
+  it('keeps buttons, badges, difficulty labels and chart series readable', () => {
+    for (const theme of [dark(), light()]) {
+      for (const [fg, bg] of [['--on-action', '--action'], ['--on-action', '--action-hover'], ['--on-badge', '--badge'], ['--easy-ink', '--easy-bg'], ['--mid-ink', '--mid-bg'], ['--hard-ink', '--hard-bg']]) {
+        expect(contrast(theme.get(fg)!, theme.get(bg)!)).toBeGreaterThanOrEqual(4.5);
+      }
+      for (let i = 1; i <= 6; i++) expect(contrast(theme.get(`--series-${i}`)!, theme.get('--surface')!)).toBeGreaterThanOrEqual(3);
     }
   });
 

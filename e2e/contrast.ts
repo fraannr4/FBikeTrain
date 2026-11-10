@@ -8,8 +8,8 @@ export type ContrastReport = { contrast: string[]; unchecked: number; checked: n
  * docs/design/prototipo-movil/shots.mjs, sin las demás (zonas táctiles, cortes...).
  * Los textos sobre una imagen o un fondo que no se puede leer cuentan como `unchecked`.
  */
-export function auditContrast(page: Page): Promise<ContrastReport> {
-  return page.evaluate(() => {
+export function auditContrast(page: Page, minimumTextRatio?: number): Promise<ContrastReport> {
+  return page.evaluate((minimumTextRatio) => {
     const r = { contrast: [] as string[], unchecked: 0, checked: 0 };
     const y0 = scrollY;
     type C = [number, number, number, number];
@@ -24,7 +24,9 @@ export function auditContrast(page: Page): Promise<ContrastReport> {
       return o;
     };
     const visible = (el: Element) => {
-      if (el.closest('[hidden], [aria-hidden="true"], .sr-only, dialog:not([open]), [inert]')) return false;
+      if (el.closest('[hidden], .sr-only, dialog:not([open]), [inert]')) return false;
+      // Una etiqueta de gráfica puede ser visible aunque su alternativa accesible sea otro texto.
+      if (minimumTextRatio === undefined && el.closest('[aria-hidden="true"]')) return false;
       const shut = el.closest('details:not([open])');
       if (shut && !el.closest('summary')) return false;
       const cs = getComputedStyle(el);
@@ -78,9 +80,11 @@ export function auditContrast(page: Page): Promise<ContrastReport> {
       return base;
     };
     document.querySelectorAll('body *').forEach((el) => {
-      if (el.closest('svg, script, style, template') || !ownText(el) || !visible(el)) return;
+      // El modo estricto incluye las etiquetas SVG; paths y otras formas siguen siendo decorativos.
+      const svgText = el.matches('svg text, svg tspan');
+      if (el.closest('script, style, template') || (el.closest('svg') && !(minimumTextRatio !== undefined && svgText)) || !ownText(el) || !visible(el)) return;
       const cs = getComputedStyle(el);
-      const fg = parse(cs.color);
+      const fg = parse(svgText ? cs.fill : cs.color);
       const bg = bgOf(el);
       if (!fg || !bg) {
         r.unchecked++;
@@ -89,16 +93,16 @@ export function auditContrast(page: Page): Promise<ContrastReport> {
       const op = effOpacity(el);
       if (op < 0.6) return; // atenuado a propósito (deshabilitado)
       r.checked++;
-      const f = over([fg[0], fg[1], fg[2], fg[3] * op], bg);
+      const f = over([fg[0], fg[1], fg[2], fg[3] * op * (svgText ? +cs.fillOpacity : 1)], bg);
       const L1 = lum(f);
       const L2 = lum(bg);
       const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
       const fs = parseFloat(cs.fontSize);
       const large = fs >= 24 || (fs >= 18.66 && +cs.fontWeight >= 700);
-      if (ratio < (large ? 3 : 4.5)) r.contrast.push(`${desc(el)} ${ratio.toFixed(2)}:1`);
+      if (ratio < (minimumTextRatio ?? (large ? 3 : 4.5))) r.contrast.push(`${desc(el)} ${ratio.toFixed(2)}:1`);
     });
     scrollTo(0, y0);
     r.contrast = [...new Set(r.contrast)];
     return r;
-  });
+  }, minimumTextRatio);
 }

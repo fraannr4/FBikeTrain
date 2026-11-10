@@ -1,5 +1,18 @@
 # Verificaciones (tarea 1, F0)
 
+## Paleta A Fiel · Atlas de montaña, 2026-11-10
+
+- Aplicada en la rama `codex/paleta-a`, creada desde `main`, siguiendo la propuesta vigente de `C:\testTrain\docs\design\2026-11-10-paleta\propuestas.md`. Esa carpeta de exploración no se incorpora al commit.
+- Solo colores: superficies, tintas, estados, seis series, montaña, bruma, carretera, favicon y fondo previo al CSS. Se conservan geometría del paisaje, marca B Trazado, estructura, textos, navegación y lógica. `BrandMark.tsx` y `SceneSvg.tsx` ya consumen los tokens y no necesitan modificaciones.
+- Acceso B: sus ocho colores aprobados se conservan y pasan a tokens centrales. Se separan `--on-badge` y `--trace-thread` del texto del botón para mantener legibles los avisos rojos y el hilo claro del mapa. Las gráficas activas son SVG; ECharts está instalado pero no se utiliza. Leaflet sigue leyendo sus colores desde CSS.
+- `npx vitest run --maxWorkers=2 --minWorkers=1`: **98 ficheros, 1228/1228 PASS**. La primera pasada detectó tres fallos en el contrato de tokens: copia literal de la paleta azul anterior, marcas `[chart]` ausentes y dos tokens compartidos sin declaración clara explícita. Se corrigieron las declaraciones; la prueba ahora conserva el contrato de tipografía/espaciado/geometría/movimiento y comprueba contraste sobre las cuatro superficies, estados, botones y series.
+- `npx tsc --noEmit`: salida 0. `npm run build`: salida 0; siguen los avisos de anotaciones de Zod, importación mixta de datos de ejemplo y tamaño de bundle.
+- `npx playwright test --workers=2 --output=playwright-report/paleta-a-run`: **95/95 casos existentes PASS**. Los ocho casos nuevos de paleta necesitaron corregir dos selectores de la prueba: distinguir el día del calendario de la fila de próximos entrenos y esperar el listado de propuestas de IA compartido por móvil/PC, en lugar del botón de exportación del dock móvil. No se cambiaron componentes para resolverlos.
+- Repetición final `npx playwright test e2e/paleta.spec.ts --workers=2 --output=playwright-report/paleta-capturas`: **8/8 PASS**. En conjunto quedan verificados los 103 casos. El arranque inicial de Playwright agotó los 180 s del servidor; se compiló y arrancó `vite preview` por separado antes de las pasadas completas.
+- **80 PNG** en `C:\testTrain-codex\test-results\paleta-a\{dark,light}\{360,390,430,1440}\`: Inicio, Historial, Salida, Rutas (formulario y resultado), Rutas con IA (formulario y resultado), Plan/Calendario, Ajustes y Login. Incluyen las cuatro métricas de Inicio, mapa/perfil y datos sintéticos; Supabase/ORS/IA están interceptados y las teselas externas se bloquean.
+- Informes `contraste.json` en cada carpeta: **6774 textos comprobados, cero fallos**, umbral de 4,5:1 también en títulos y etiquetas SVG. Las capturas esperan a que desaparezcan las confirmaciones temporales para no tapar datos. Las tintas cumplen los mínimos de la tabla A en los cuatro fondos; `ink-3` mantiene al menos 5,84:1 en oscuro y 4,90:1 en claro. El auditor compone capas CSS; no certifica contraste de cartografía externa ni reconstruye todos los rellenos SVG arbitrarios.
+- Sin push ni despliegue. Logs locales en `test-results/vitest-paleta-a.log`, `test-results/playwright-paleta-a.log` y `test-results/playwright-paleta-capturas.log`.
+
 ## Logo B Trazado: integración global, 2026-11-09
 
 - El usuario elige B y pide coherencia con toda la web. SVG nativo aplicado a cabeceras, Inicio, carril lateral, acceso y favicon. `rg` no encuentra referencias a `HitoLogo`/`.hito-logo` en `src` o `index.html`.
