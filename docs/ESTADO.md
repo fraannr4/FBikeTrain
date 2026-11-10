@@ -1,6 +1,6 @@
 # Estado del proyecto FBikeTrain
 
-Última actualización: 2026-11-10 por la tarde (commits y push autorizados por el usuario).
+Última actualización: 2026-11-10 por la noche (commits y push autorizados por el usuario). `main` = `dc11295` desplegado.
 
 ### Fusionado el 2026-11-10 por la tarde (trabajo de Codex acabado y publicado)
 
@@ -147,6 +147,24 @@ Detalle en `docs/verificaciones.md`.
 `/rutas/empalmar`.
 
 ## Pendiente
+
+### Siguiente sesión (acordado con el usuario el 2026-11-10)
+
+1. **Conectividad.** Revisar con el usuario el conector de Intervals.icu (Ajustes > Conexiones, `docs/conectores-actividades.md`) con su clave real, y si iGPSPORT envía las salidas a Intervals.icu.
+2. **Propuestas de la IA hacia lados distintos** (aprobado). Ahora cada opción del plan se busca por separado y se queda con la primera vuelta válida, así que varias pueden ir al mismo lado. Pasar los lados ya usados (`routeSide`, `src/routes/side.ts`) del planificador (`src/ai/routePlanner.ts`) al generador y descartarlos o penalizarlos. Prueba en `tests/routePlanner.test.ts`.
+3. **Rutas «chulas» con puertos de montaña** (idea del usuario; diseñar antes con brainstorming y plan). Propuesta:
+   - buscar puertos y collados cerca de Casa en OpenStreetMap por la API Overpass (`mountain_pass=yes`, `natural=saddle`, con `name` y `ele`, a 15-40 km), y sumar las subidas del historial;
+   - la IA recibe solo nombres, cotas y distancias, nunca dónde está Casa, y elige;
+   - el generador hace la vuelta pasando por el puerto con ORS `path`. El puerto está en carretera, así que no crea una punta de ida y vuelta, cosa que sí pasa con puntos de paso al azar.
+4. **Contraste con rutas conocidas y Wikiloc.** Wikiloc no tiene API y su web está detrás de Cloudflare: no se automatiza ni se elude.
+   - Vía principal: compartir el GPX desde la app de Wikiloc a la PWA (Android), que lo guarda en la biblioteca. Después, el lote IA T3: la IA recorta, alarga o empalma rutas de la biblioteca hasta el objetivo, y la geometría la recalcula ORS.
+   - Opcional: un marcador del navegador que, en la página de Wikiloc abierta por el usuario, guarde solo nombre, cifras y enlace. Las condiciones de Wikiloc prohíben extraer el track.
+   - Fuentes con acceso abierto: rutas ciclistas de OSM (ya en `findRouteReferences`). RideWithGPS tiene API con clave (por evaluar). Komoot y Outdooractive solo para socios.
+5. **Detalles menores.**
+   - La miniatura de la tarjeta de ruta sigue en azul `--trace` y el mapa va en bermellón: decidir si se igualan.
+   - `splice.ts` y `roadPath.ts` aún cuentan como pista las pistas asfaltadas.
+   - Los worktrees de Codex ya fusionados se pueden borrar con `git worktree remove`.
+
 
 ### Conector de actividades (rama `codex/conectores`, 2026-11-10)
 
