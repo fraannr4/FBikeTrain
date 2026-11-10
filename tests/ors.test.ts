@@ -65,6 +65,14 @@ describe('ors client', () => {
     expect(feature.properties.summary.distance).toBeGreaterThan(0);
   });
 
+  it('acepta la clave waytype que devuelve ORS desde noviembre de 2026', async () => {
+    const json = fixture('round-trip-ok.json');
+    for (const f of (json as { features: { properties: { extras: Record<string, unknown> } }[] }).features) { f.properties.extras.waytype = f.properties.extras.waytypes; delete f.properties.extras.waytypes; }
+    const feature = await fetchRoundTrip('test-key', req, respond(200, json));
+    expect(Array.isArray(feature.properties.extras.waytypes.summary)).toBe(true);
+    expect(feature.properties.extras).not.toHaveProperty('waytype');
+  });
+
   it('records the call before sending', async () => {
     let usageSeenByFetch = -1;
     const f = vi.fn<typeof fetch>(async () => {

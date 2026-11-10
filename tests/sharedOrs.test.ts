@@ -94,6 +94,12 @@ describe('ORS compartido: límites y privacidad', () => {
     expect(body.metadata).toBeUndefined();
     expect(JSON.stringify(body)).not.toContain('query');
   });
+  it('acepta la clave waytype que devuelve ORS desde noviembre de 2026 y la entrega como waytypes', async () => {
+    const json = fixture('round-trip-ok.json');
+    for (const f of json.features) { f.properties.extras.waytype = f.properties.extras.waytypes; delete f.properties.extras.waytypes; }
+    const body = await (await handleSharedOrs(request(), mock(200, json))).json();
+    expect(Object.keys(body.data.features[0].properties.extras).sort()).toEqual(['steepness', 'surface', 'waycategory', 'waytypes']);
+  });
   it('traduce «sin ruta» de ORS sin reenviar su mensaje, que lleva las coordenadas', async () => {
     const response = await handleSharedOrs(request(), mock(404, fixture('no-route-404.json')));
     expect(response.status).toBe(404);

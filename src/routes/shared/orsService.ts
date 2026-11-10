@@ -75,6 +75,15 @@ async function readBody(request: Request): Promise<string> {
 
 const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 
+/**
+ * Extras de ORS con la clave que usa la app. ORS pide `waytype` en `extra_info` y antes respondía
+ * `waytypes`; desde noviembre de 2026 responde `waytype`. Se aceptan las dos y se devuelve `waytypes`.
+ */
+export function orsExtras(extras: Record<string, unknown> | undefined): Record<string, unknown> {
+  const { waytype, ...rest } = extras ?? {};
+  return rest.waytypes === undefined && waytype !== undefined ? { ...rest, waytypes: waytype } : rest;
+}
+
 /** Solo geometría, resumen y extras; fuera `metadata.query`, `segments` y demás. `null` si no es válido. */
 function trimFeatures(json: unknown): object[] | null {
   const features = (json as { features?: unknown } | null)?.features;
@@ -86,7 +95,7 @@ function trimFeatures(json: unknown): object[] | null {
     if (!coords.every(c => Array.isArray(c) && c.length >= 2 && c.length <= 3 && c.every(finite))) return null;
     const summary = f.properties?.summary;
     if (!summary || !finite(summary.distance) || !finite(summary.duration)) return null;
-    const extras = f.properties?.extras ?? {};
+    const extras = orsExtras(f.properties?.extras);
     out.push({
       type: 'Feature',
       geometry: { type: 'LineString', coordinates: coords },

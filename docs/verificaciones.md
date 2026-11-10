@@ -203,3 +203,7 @@ Wikiloc sigue apagado hasta que el usuario acepte el riesgo de sus condiciones.
 4. Fijar la zona.
 5. Con un evento en Objetivos: el «motivo» de una ruta con IA y la recomendación de Empalmar citan el objetivo.
 6. Empalmar con tres tramos y con una salida del historial; «Empalmar con…» desde una ruta generada.
+
+## 2026-11-10 (tarde): rutas y rutas con IA fallaban siempre
+
+Síntoma: «Ha fallado algo inesperado al preparar las rutas» en Rutas, Rutas con IA y Empalmar. Causa, reproducida con la cadena real cliente → `handleSharedOrs` → ORS: ORS responde ahora el extra `waytype` (singular) en vez de `waytypes`; el proxy lo descartaba y `analyzeRoute` fallaba con `TypeError: Cannot read properties of undefined (reading 'summary')`. Arreglo: `orsExtras()` en `src/routes/shared/orsService.ts` acepta las dos claves y entrega `waytypes`, en el proxy y en la ruta con clave personal (`src/routes/ors.ts`). Tests de regresión en `tests/ors.test.ts` y `tests/sharedOrs.test.ts`; `vitest` 1274/1274, `tsc`, build. `ors-proxy` redesplegada el mismo día. Aparte, ORS da a ratos 404/500 o tarda >60 s en `round_trip` de bici; eso sale como error del motor, no como «inesperado».

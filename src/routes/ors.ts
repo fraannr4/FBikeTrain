@@ -2,7 +2,7 @@ import type { LatLng } from '../domain/types';
 import { getOrsUsage, recordOrsCall } from './orsUsage';
 import { ORS_ROAD_URL } from './endpoint';
 import type { SharedOrsAccess } from './orsProxy';
-import { buildOrsBody, type SharedOrsRequest } from './shared/orsService';
+import { buildOrsBody, orsExtras, type SharedOrsRequest } from './shared/orsService';
 
 /** Cliente de OpenRouteService: vuelta circular de bici de carretera con la clave del usuario o por el servicio común. */
 
@@ -113,6 +113,9 @@ export async function fetchRoadFeatures(
 
   const features = (body as { features?: OrsFeature[] } | null)?.features;
   if (!features?.length) throw new OrsError('no_route', MSG.no_route);
+  for (const f of features) {
+    if (f?.properties) f.properties.extras = orsExtras(f.properties.extras as Record<string, unknown> | undefined) as OrsFeature['properties']['extras'];
+  }
   return features;
 }
 
