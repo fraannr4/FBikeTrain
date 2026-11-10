@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOVELTY_WEIGHT, CLOSENESS_WEIGHT, scoreCandidate, type Target } from '../src/metrics/score';
+import { NOVELTY_WEIGHT, CLOSENESS_WEIGHT, DISTANCE_OVER_WEIGHT, scoreCandidate, type Target } from '../src/metrics/score';
 
 const T: Target = { distanceM: 50_000, elevGainM: null, preferNew: true };
 
@@ -11,11 +11,17 @@ describe('scoreCandidate', () => {
     expect(scoreCandidate({ distanceM: 50_000, elevGainM: 0, newPct: 0 }, T)).toBeCloseTo(CLOSENESS_WEIGHT, 10);
   });
 
-  it('exact target scores higher than 20 % off', () => {
+  it('exact target scores higher than 20 % short', () => {
     const exact = scoreCandidate({ distanceM: 50_000, elevGainM: 0, newPct: 50 }, T);
-    const off = scoreCandidate({ distanceM: 60_000, elevGainM: 0, newPct: 50 }, T);
+    const off = scoreCandidate({ distanceM: 40_000, elevGainM: 0, newPct: 50 }, T);
     expect(exact).toBeGreaterThan(off);
     expect(exact - off).toBeCloseTo(CLOSENESS_WEIGHT * 0.2, 10);
+  });
+
+  it('going over the distance counts three times more than falling short', () => {
+    const c = (distanceM: number) => scoreCandidate({ distanceM, elevGainM: 0, newPct: 50 }, T);
+    expect(c(45_000)).toBeGreaterThan(c(55_000));
+    expect(c(50_000) - c(55_000)).toBeCloseTo(CLOSENESS_WEIGHT * 0.1 * DISTANCE_OVER_WEIGHT, 10);
   });
 
   it('elevation target counts when set', () => {

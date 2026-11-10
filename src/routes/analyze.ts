@@ -27,12 +27,18 @@ export type RouteCandidate = {
 /** Superficies de ORS sin asfaltar. Adoquín (5) y desconocida (0) no cuentan. */
 export const UNPAVED_SURFACES: ReadonlySet<number> = new Set([2, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18]);
 const SURFACE_UNKNOWN = 0;
+/** Superficies firmes (asfaltado, asfalto, hormigón, adoquín liso): una pista así se rueda en carretera. */
+const PAVED_SURFACES: ReadonlySet<number> = new Set([1, 3, 4, 14]);
 const WAYTYPE_STATE_ROAD = 1;
 const WAYTYPE_TRACK = 5;
 /** Bit de `waycategory` de ORS para `highway=motorway` y `motorway_link`. */
 const WAYCATEGORY_MOTORWAY = 1;
 
-export const ROAD_FILTER = { maxUnpavedM: 100, maxTrackM: 100, maxMainRoadPct: 20, lengthTolerance: 0.25 };
+/**
+ * Longitud: la distancia pedida es un techo blando. Se admite hasta un 20 % por debajo y solo un
+ * 8 % por encima (50 km: de 40 a 54).
+ */
+export const ROAD_FILTER = { maxUnpavedM: 100, maxTrackM: 100, maxMainRoadPct: 20, lengthUnder: 0.2, lengthOver: 0.08 };
 
 export type RejectReason = 'autopista' | 'sin asfaltar' | 'pistas' | 'carretera principal' | 'longitud';
 
@@ -74,6 +80,27 @@ function elevationGainM(coords: Coord3[]): number {
   return gain;
 }
 
+/**
+ * Metros de pista sin firme confirmado. En el monte catalán muchas pistas están asfaltadas: esas no
+ * cuentan. Sin tramos por índice (respuestas antiguas), cuenta toda la pista del resumen.
+ */
+function roughTrackM(waytypes: OrsExtra, surface: OrsExtra, cum: number[]): number {
+  const tracks = waytypes.values.filter(([, , v]) => v === WAYTYPE_TRACK);
+  if (tracks.length === 0) return sumSummary(waytypes, 'distance', (v) => v === WAYTYPE_TRACK);
+  const at = (i: number) => cum[Math.min(i, cum.length - 1)] ?? 0;
+  let m = 0;
+  for (const [from, to] of tracks) {
+    m += at(to) - at(from);
+    for (const [sFrom, sTo, value] of surface.values) {
+      if (!PAVED_SURFACES.has(value)) continue;
+      const a = Math.max(from, sFrom);
+      const b = Math.min(to, sTo);
+      if (b > a) m -= at(b) - at(a);
+    }
+  }
+  return Math.max(0, m);
+}
+
 /** Distancia y desnivel salen de las coordenadas, no del `summary` de ORS, para medir igual que el historial. */
 export function analyzeRoute(f: OrsFeature, seed: number): RouteCandidate {
   const coords = f.geometry.coordinates;
@@ -89,7 +116,7 @@ export function analyzeRoute(f: OrsFeature, seed: number): RouteCandidate {
     distanceM,
     elevGainM: elevationGainM(coords),
     unpavedM: sumSummary(surface, 'distance', (v) => UNPAVED_SURFACES.has(v)),
-    trackM: sumSummary(waytypes, 'distance', (v) => v === WAYTYPE_TRACK),
+    trackM: roughTrackM(waytypes, surface, cum),
     mainRoadPct: sumSummary(waytypes, 'amount', (v) => v === WAYTYPE_STATE_ROAD),
     unknownSurfacePct: sumSummary(surface, 'amount', (v) => v === SURFACE_UNKNOWN),
     motorway: waycategory ? usesMotorway(waycategory) : false,
@@ -105,6 +132,6 @@ export function rejectReason(c: RouteCandidate, targetM: number): RejectReason |
   if (c.unpavedM > ROAD_FILTER.maxUnpavedM) return 'sin asfaltar';
   if (c.trackM > ROAD_FILTER.maxTrackM) return 'pistas';
   if (c.mainRoadPct > ROAD_FILTER.maxMainRoadPct) return 'carretera principal';
-  if (Math.abs(c.distanceM - targetM) > targetM * ROAD_FILTER.lengthTolerance) return 'longitud';
+  if (c.distanceM < targetM * (1 - ROAD_FILTER.lengthUnder) || c.distanceM > targetM * (1 + ROAD_FILTER.lengthOver)) return 'longitud';
   return null;
 }

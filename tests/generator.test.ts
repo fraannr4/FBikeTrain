@@ -5,7 +5,7 @@ import { EARTH_RADIUS_M } from '../src/import/summary';
 import { buildVisitedCells } from '../src/metrics/grid';
 import { difficulty, type UserReference } from '../src/metrics/reference';
 import type { Target } from '../src/metrics/score';
-import { SEARCH_REQUEST_BUDGET, generateRoutes, type GenerateRequest } from '../src/routes/generator';
+import { AIM_FRACTION, INITIAL_ROAD_FACTOR, SEARCH_REQUEST_BUDGET, generateRoutes, type GenerateRequest } from '../src/routes/generator';
 import { loadVisitedCells } from '../src/routes/history';
 import { OrsError, type fetchRoundTrip, type OrsFeature } from '../src/routes/ors';
 
@@ -13,19 +13,21 @@ const START = { lat: 40.4168, lng: -3.7038 };
 const TARGET: Target = { distanceM: 30000, elevGainM: null, preferNew: true };
 const M_PER_DEG_LAT = (EARTH_RADIUS_M * Math.PI) / 180;
 
-/** Recorrido recto hacia el norte de `distanceM`, que sube `gainM` hasta la mitad y baja después. */
-function synthCoords(distanceM: number, gainM: number): Coord3[] {
-  const at = (d: number, ele: number): Coord3 => [START.lng, START.lat + d / M_PER_DEG_LAT, ele];
+/** Recorrido recto de `distanceM` hacia el lado `side` (0 norte, 2 este...), que sube `gainM` hasta la mitad y baja después. */
+function synthCoords(distanceM: number, gainM: number, side = 0): Coord3[] {
+  const b = (side * 45 * Math.PI) / 180;
+  const kx = Math.cos((START.lat * Math.PI) / 180);
+  const at = (d: number, ele: number): Coord3 => [START.lng + (d * Math.sin(b)) / (M_PER_DEG_LAT * kx), START.lat + (d * Math.cos(b)) / M_PER_DEG_LAT, ele];
   return [at(0, 600), at(distanceM / 2, 600 + gainM), at(distanceM, 600)];
 }
 
 /** Feature de ORS sintética: asfalto y carretera secundaria, salvo `unpavedM` de grava. */
-function feature(o: { distanceM: number; gainM?: number; unpavedM?: number }): OrsFeature {
+function feature(o: { distanceM: number; gainM?: number; unpavedM?: number; side?: number }): OrsFeature {
   const unpaved = o.unpavedM ?? 0;
   const surface = [{ value: 3, distance: o.distanceM - unpaved, amount: 100 - (unpaved / o.distanceM) * 100 }];
   if (unpaved > 0) surface.push({ value: 10, distance: unpaved, amount: (unpaved / o.distanceM) * 100 });
   return {
-    geometry: { type: 'LineString', coordinates: synthCoords(o.distanceM, o.gainM ?? 200) },
+    geometry: { type: 'LineString', coordinates: synthCoords(o.distanceM, o.gainM ?? 200, o.side) },
     properties: {
       summary: { distance: o.distanceM, duration: 3600 },
       extras: {
@@ -77,9 +79,16 @@ function run(req: Partial<GenerateRequest>, ors: ReturnType<typeof fakeOrs>, ext
 
 describe('generateRoutes', () => {
   it('stops as soon as enough distinct routes have arrived', async () => {
-    const ors = fakeOrs(seed => feature({ distanceM: 30000 + seed * 500 }));
+    const ors = fakeOrs(seed => feature({ distanceM: 30000 + seed * 500, side: seed }));
     const res = await run({ count: 2 }, ors);
     expect(res.requestsUsed).toBe(2);
+  });
+
+  it('two routes towards the same side do not stop the search', async () => {
+    const ors = fakeOrs(seed => feature({ distanceM: 30000 - seed * 500, side: seed < 2 ? 0 : 4 }));
+    const res = await run({ count: 2 }, ors);
+    expect(res.requestsUsed).toBe(3);
+    expect(res.routes.map((r) => r.seed)).toEqual([0, 2]);
   });
 
   it('bounds even an unsuccessful search below the shared eight-call quota and preserves fallback', async () => {
@@ -97,7 +106,7 @@ describe('generateRoutes', () => {
   });
 
   it('duplicates do not count as sufficient routes', async () => {
-    const res = await run({ count: 2 }, fakeOrs(seed => feature({ distanceM: seed < 3 ? 30000 : 31000 })));
+    const res = await run({ count: 2 }, fakeOrs(seed => feature({ distanceM: seed < 3 ? 30000 : 31000, side: seed < 3 ? 0 : 2 })));
     expect(res.requestsUsed).toBe(4);
     expect(res.routes).toHaveLength(2);
   });
@@ -126,7 +135,7 @@ describe('generateRoutes', () => {
     expect(res.routes[0].warning).toContain('0,5 km');
     expect(res.routes[0].warning).toContain('ida y vuelta');
   });
-  it('requests seeds sequentially with points 4', async () => {
+  it('requests seeds sequentially with points 4 and corrects the length ORS overshoots', async () => {
     let inFlight = 0;
     let maxInFlight = 0;
     const ors = vi.fn<typeof fetchRoundTrip>(async () => {
@@ -143,16 +152,47 @@ describe('generateRoutes', () => {
     );
 
     expect(maxInFlight).toBe(1);
-    expect(ors.mock.calls.map(([key, r]) => [key, r])).toEqual([
-      ['test-key', { start: START, lengthM: 30000, points: 4, seed: 10 }],
-      ['test-key', { start: START, lengthM: 30000, points: 4, seed: 11 }],
-      ['test-key', { start: START, lengthM: 30000, points: 4, seed: 12 }],
-    ]);
+    const calls = ors.mock.calls.map(([key, r]) => ({ key, seed: r.seed, points: r.points, lengthM: r.lengthM }));
+    expect(calls.map((c) => [c.key, c.seed, c.points])).toEqual([['test-key', 10, 4], ['test-key', 11, 4], ['test-key', 12, 4]]);
+    // Primera: 94 % de 30 km sobre el factor inicial; ORS se pasa, así que las siguientes piden menos.
+    expect(calls[0].lengthM).toBeCloseTo((30000 * AIM_FRACTION) / INITIAL_ROAD_FACTOR, 6);
+    expect(calls[1].lengthM).toBeLessThan(calls[0].lengthM);
+  });
+
+  it('aims a little under the target once the road factor is known', async () => {
+    // Carretera real 1,4 veces el círculo pedido: la segunda vuelta ya cae en el objetivo rebajado.
+    const ors = vi.fn<typeof fetchRoundTrip>(async (_k, r) => feature({ distanceM: Math.round(r.lengthM * 1.4) }));
+    const res = await generateRoutes(
+      { start: START, target: TARGET, count: 3, seeds: 3 },
+      { apiKey: 'k', reference: null, visited: new Set(), seedBase: 0, fetchRoundTrip: ors },
+    );
+    const lengths = ors.mock.results.length;
+    expect(lengths).toBe(3);
+    for (const r of res.routes) expect(r.distanceM).toBeLessThanOrEqual(30000 * 1.08);
+    // La mejor es una de las ya corregidas, por debajo de los 30 km.
+    expect(res.routes[0].distanceM).toBeLessThan(30000);
+    expect(res.routes[0].distanceM).toBeGreaterThan(30000 * 0.85);
+  });
+
+  it('proposes routes towards different sides before a second one on the same side', async () => {
+    // Semillas 0 y 1 al norte (la 0 puntúa más); la 2 al este, algo peor de longitud.
+    const ors = fakeOrs((seed) => feature({ distanceM: [28200, 28000, 26000][seed] ?? 1, side: seed === 2 ? 2 : 0 }));
+    const res = await run({ count: 2, seeds: 3 }, ors);
+    expect(res.routes.map((r) => Math.round(r.distanceM))).toEqual([28200, 26000]);
+  });
+
+  it('prefers a route slightly short over one slightly long', async () => {
+    const ors = fakeOrs((seed) => feature({ distanceM: seed === 0 ? 31800 : 28200 }));
+    const res = await generateRoutes(
+      { start: START, target: TARGET, count: 2, seeds: 2 },
+      { apiKey: 'k', reference: null, visited: new Set(), seedBase: 0, fetchRoundTrip: ors },
+    );
+    expect(res.routes.map((r) => Math.round(r.distanceM))).toEqual([28200, 31800]);
   });
 
   it('returns best count sorted by score', async () => {
-    // Semillas 0 a 7: de 30 km a 33,5 km, cada una 500 m más lejos del objetivo.
-    const ors = fakeOrs((seed) => feature({ distanceM: 30000 + seed * 500 }));
+    // Semillas 0 a 5, cada una hacia otro lado y 500 m más lejos del objetivo, por debajo de él.
+    const ors = fakeOrs((seed) => feature({ distanceM: 30000 - seed * 500, side: seed }));
     const res = await run({}, ors);
 
     expect(ors).toHaveBeenCalledTimes(5);

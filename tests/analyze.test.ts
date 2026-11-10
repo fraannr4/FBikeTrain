@@ -99,10 +99,11 @@ describe('analyzeRoute', () => {
     expect(rejectReason(candidate({ unpavedM: 100 }), candidate({}).distanceM)).toBeNull();
   });
 
-  it('rejects candidate 30% longer than target', () => {
-    expect(rejectReason(candidate({ distanceM: 39_000 }), 30_000)).toBe('longitud');
-    expect(rejectReason(candidate({ distanceM: 21_000 }), 30_000)).toBe('longitud');
-    expect(rejectReason(candidate({ distanceM: 37_500 }), 30_000)).toBeNull();
+  it('treats the target length as a soft ceiling: 20 % under, only 8 % over', () => {
+    expect(rejectReason(candidate({ distanceM: 33_000 }), 30_000)).toBe('longitud');
+    expect(rejectReason(candidate({ distanceM: 23_500 }), 30_000)).toBe('longitud');
+    expect(rejectReason(candidate({ distanceM: 32_000 }), 30_000)).toBeNull();
+    expect(rejectReason(candidate({ distanceM: 24_500 }), 30_000)).toBeNull();
   });
 
   it('steep segments map point indices to meters', () => {

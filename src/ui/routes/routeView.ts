@@ -6,6 +6,7 @@ import { difficulty, LONG_WINDOW_WEEKS, type Difficulty, type UserReference } fr
 import type { Target } from '../../metrics/score';
 import type { RejectReason } from '../../routes/analyze';
 import type { GenerateResult, GeneratedRoute } from '../../routes/generator';
+import { routeSide } from '../../routes/side';
 import type { RouteCardData } from './RouteCard';
 import { TriangleAlert } from '../icons';
 
@@ -27,31 +28,13 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const roundTo = (v: number, step: number) => Math.round(v / step) * step;
 
 const SIDES = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'];
-/** Si el centro del recorrido queda a menos de esta fracción de su punto más lejano, la vuelta rodea el inicio. */
-const AROUND_START_FRACTION = 0.25;
-
 /**
  * Nombre de una vuelta por el lado del inicio hacia el que va: «Vuelta por el norte». Sin
  * topónimos (no hay geocodificador) y sin decir dónde está el inicio.
  */
 export function routeName(coords: Coord3[], start: LatLng): string {
-  const kx = Math.cos((start.lat * Math.PI) / 180);
-  let sx = 0;
-  let sy = 0;
-  let far = 0;
-  for (const [lng, lat] of coords) {
-    const x = (lng - start.lng) * kx;
-    const y = lat - start.lat;
-    sx += x;
-    sy += y;
-    far = Math.max(far, Math.hypot(x, y));
-  }
-  const n = coords.length || 1;
-  const cx = sx / n;
-  const cy = sy / n;
-  if (far === 0 || Math.hypot(cx, cy) < far * AROUND_START_FRACTION) return 'Vuelta alrededor del inicio';
-  const deg = ((Math.atan2(cx, cy) * 180) / Math.PI + 360) % 360;
-  return `Vuelta por el ${SIDES[Math.round(deg / 45) % 8]}`;
+  const side = routeSide(coords, start);
+  return side < 0 ? 'Vuelta alrededor del inicio' : `Vuelta por el ${SIDES[side]}`;
 }
 
 /** Nombres de las rutas de una búsqueda; la segunda hacia el mismo lado lleva un 2, y así. */
