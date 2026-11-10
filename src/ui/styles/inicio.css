@@ -99,7 +99,7 @@
   padding: 0 5px;
   border-radius: var(--r-pill);
   background: var(--badge);
-  color: var(--on-action);
+  color: var(--on-badge);
   font: 700 12px / 19px var(--font-ui);
   text-align: center;
   box-shadow: 0 0 0 2px var(--sky-1);

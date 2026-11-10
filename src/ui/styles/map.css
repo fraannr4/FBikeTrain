@@ -57,9 +57,9 @@
 /* ---- Trazado luminoso (tarea 8): halo, núcleo y un hilo blanco encima.
    En claro --glow y --thread valen 0: queda solo el núcleo. ---- */
 .rmap .rmap-halo { stroke-opacity: calc(0.55 * var(--glow, 1)); }
-.rmap .rmap-thread { stroke: var(--on-action); stroke-width: 1; stroke-opacity: calc(0.85 * var(--thread, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.rmap .rmap-thread { stroke: var(--trace-thread); stroke-width: 1; stroke-opacity: calc(0.85 * var(--thread, 1)); fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Tinte azul noche entre las teselas (200) y los trazados (400). Va claro a propósito: más oscuro,
+/* Tinte salvia entre las teselas (200) y los trazados (400). Va claro a propósito: más oscuro,
    los rótulos de las poblaciones dejan de leerse. En claro es blanco y no cambia nada. */
 .rmap .leaflet-tint-pane { mix-blend-mode: multiply; pointer-events: none; }
 .rmap .map-tint {

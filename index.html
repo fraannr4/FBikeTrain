@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0A1122" />
+    <meta name="theme-color" content="#14221F" />
     <title>FBikeTrain</title>
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%brand-mark.svg" />
     <!-- Tema antes del primer pintado: localStorage 'fbt-theme' o, sin él, oscuro. -->
@@ -18,12 +18,12 @@
         document.documentElement.setAttribute('data-theme', t);
         if (t === 'light') {
           var m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', '#EEF2F8');
+          if (m) m.setAttribute('content', '#F7F4EA');
         }
       })();
     </script>
     <!-- Evita el destello en dev, donde Vite inyecta el CSS tarde. Coincide con --bg. -->
-    <style>html{background:#0A1122}html[data-theme='light']{background:#EEF2F8}</style>
+    <style>html{background:#14221F}html[data-theme='light']{background:#F7F4EA}</style>
   </head>
   <body>
     <div id="root"></div>
