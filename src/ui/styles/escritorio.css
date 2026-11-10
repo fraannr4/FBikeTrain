@@ -8,16 +8,44 @@
   .appbar, .page, .legacy { max-width: 1180px; }
   .page, .legacy { padding-inline: 28px; }
   .tabbar { padding: 24px 12px; gap: 8px; overflow-y: auto; }
-  .home { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: 24px; }
-  .home > .hero { grid-column: 1; grid-row: 1; }
-  /* Dos columnas equilibradas: saludo y última salida a la izquierda; objetivo, próximo entreno y tendencia a la derecha. */
-  .home > .duo { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0, 1fr); gap: 20px; }
-  .home .duo > * { grid-column: auto; grid-row: auto; }
-  .home > .trend { grid-column: 2; grid-row: 2; }
-  .home > .lastride { grid-column: 1; grid-row: 2; }
+  /* Inicio A: paisaje completo, franja de planificación y dos tarjetas equilibradas. */
+  .home { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 20px; }
+  .home > .hero { grid-column: 1 / -1; grid-row: 1; min-height: 294px; padding-top: 24px; }
+  .home > .hero:not(.hero-empty) .week { padding-top: 24px; padding-bottom: 16px; }
+  .home .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home .kpi--compact { min-height: 96px; }
+  .home > .duo { grid-column: 1 / -1; grid-row: 2; grid-template-columns: minmax(0, .9fr) minmax(0, 1.5fr); align-items: stretch; gap: 20px; }
+  .home .duo > * { min-width: 0; grid-column: 1 / -1; grid-row: auto; }
+  .home .duo > .week-cap { grid-column: 1; grid-row: 1; display: flex; align-items: center; margin: 0; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-xl); }
+  .home .duo > .next { grid-column: 2; grid-row: 1; }
+  .home .next-empty { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .home .next-empty .btn { flex-shrink: 0; }
+  /* Con un entreno, la franja completa evita estirar una sola frase a la altura de toda la ficha. */
+  .home .duo:has(.next-main) > .week-cap { grid-column: 1 / -1; }
+  .home .duo:has(.next-main) > .next { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; }
+  .home .next:has(.next-main) > .card-h, .home .next:has(.next-main) > .card-foot { grid-column: 1 / -1; }
+  .home .next:has(.next-main) > .next-actions { align-self: center; margin-top: 0; }
+  .home:has(.next-main) > .hero { min-height: 360px; }
+  .home > .trend { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-height: 426px; }
+  .home > .lastride { grid-column: 1; grid-row: 3; display: flex; flex-direction: column; min-height: 426px; }
+  .home .lastride-map { height: clamp(182px, calc(14.17vw - 22px), 250px); min-height: 0; flex-shrink: 0; }
+  .home .lastride-map .rmap { min-height: 0; }
+  .home .lastride-body { flex: 1; padding: 12px 16px; column-gap: 20px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+  .home .lastride .profile { min-height: 0; }
+  .home .lastride-stats { gap: 12px 8px; }
+  .home .lastride-stat dd { font-size: 18px; }
+  .home .trend-box { position: relative; flex: 1; min-height: 188px; }
+  .home .trend-chart { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
+  .home .trend-read { min-height: 0; font-size: var(--fs-sm); }
+  /* Sin última salida no queda una columna desocupada. La tabla crece en el flujo. */
+  .home:not(:has(> .lastride)) > .trend { grid-column: 1 / -1; }
   .home > .section:not(.trend), .home > .hero-empty, .home > .home-loading { grid-column: 1 / -1; }
-  .home .lastride .profile { min-height: 220px; }
-  .home .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home > .hero-empty { min-height: 432px; }
+  @media (max-width: 1279px) {
+    .home > .hero:not(.hero-empty) { min-height: 360px; }
+    .home .lastride-body { display: block; }
+    .home .lastride .prof-h { margin-top: 12px; }
+  }
   .home .hero { min-width: 0; }
   .home .hero-scene { max-width: 100%; }
   .duo .next { min-width: 0; }
@@ -69,7 +97,14 @@
   /* Pantallas grandes: más ancho útil en lugar de márgenes vacíos. */
   @media (min-width: 1440px) {
     .main, .account-page, .appbar, .page, .legacy { max-width: 1520px; }
-    .home { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; }
+    .home .next:has(> .next-empty) { display: flex; align-items: center; gap: 20px; padding: 12px 16px; }
+    .home .next:has(> .next-empty) .card-h { flex-shrink: 0; gap: 10px; margin: 0; }
+    .home .next-empty { flex: 1; }
+    .home .next:has(> .next-empty) .card-link { margin-left: 8px; }
+  }
+  @media (min-width: 1800px) {
+    .home > .hero:not(.hero-empty) { min-height: 320px; }
+    .home > .lastride, .home > .trend { min-height: 510px; }
   }
   @media (min-width: 1280px) {
     /* Rail con etiquetas al lado solo cuando sobra ancho; entre 1024 y 1279 px se queda el rail compacto. */

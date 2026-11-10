@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type PointerEvent } from 'react';
 import type { Accent } from '../accent';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { useElementWidth } from '../hooks/useElementWidth';
+import { useElementSize } from '../hooks/useElementWidth';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { ChevronLeft, ChevronRight, Table, TrendingUp } from '../icons';
 import {
@@ -153,9 +153,11 @@ export function TrendCard({ trend, metric, onMetricChange, id }: Props) {
   const [sel, setSel] = useState(LAST);
   const [tableOpen, setTableOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const width = useElementWidth(box) || FALLBACK_W;
+  const size = useElementSize(box);
+  const width = size.width || FALLBACK_W;
   const desktop = useDesktopLayout();
-  const height = desktop ? 480 : H;
+  // En PC comparte fila con el mapa: el SVG usa el alto disponible sin escalar las letras.
+  const height = desktop ? Math.max(H, size.height || 240) : H;
 
   const s = trend.series[metric];
   const c = chart(s, sel, trend.labels, width, height);

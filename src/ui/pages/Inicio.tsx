@@ -17,6 +17,7 @@ import { RideMapCard } from '../components/RideMapCard';
 import { Skeleton } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { StravaHowTo } from '../components/StravaHowTo';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { EventGoalRow, GoalGlance } from '../inicio/GoalGlance';
 import { Hero } from '../inicio/Hero';
 import { heroDate, heroSentence } from '../inicio/heroCopy';
@@ -274,6 +275,7 @@ const REF_SPEED = 'frente a tu media';
 
 function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => void }) {
   const { acts, total, firstStart, lastRide, workouts, goals, lastImportAt, lastBackupAt, displayName, now } = data;
+  const desktop = useDesktopLayout();
   const [metric, setMetric] = useState<Accent>('dist');
   // La métrica de partida (Distancia) no se recalca con el borde de color hasta que eliges una.
   const [picked, setPicked] = useState(false);
@@ -369,7 +371,7 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
               );
             })}
           </ul>
-          <p className="week-cap">{weekCaption(current.rides, trend)}</p>
+          {!desktop ? <p className="week-cap">{weekCaption(current.rides, trend)}</p> : null}
           <p id="kpi-hint" className="sr-only">
             Pulsa una cifra para verla en Tus últimas 12 semanas.
           </p>
@@ -377,6 +379,7 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
       </Hero>
 
       <div className="duo">
+        {desktop ? <p className="week-cap">{weekCaption(current.rides, trend)}</p> : null}
         {/* Un solo objetivo de volumen, el del mes si lo hay (como el prototipo): con los dos, «Próximo
             entreno» no asoma en el primer pantallazo del teléfono. El de la semana vive en Plan > Objetivos. */}
         {plan.glances.slice(0, 1).map(({ id, glance }) => (
