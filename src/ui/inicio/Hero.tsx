@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useElementSize } from '../hooks/useElementWidth';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { User } from '../icons';
 import type { ProfilePoint } from '../profile';
 import { SceneSvg } from '../scene/SceneSvg';
@@ -92,6 +93,7 @@ export function Hero({
   const actsRef = useRef<HTMLDivElement>(null);
   const summitRef = useRef<HTMLSpanElement>(null);
   const { width, height } = useElementSize(heroRef);
+  const desktop = useDesktopLayout();
   const [boxes, setBoxes] = useState<Boxes | null>(null);
   const [placed, setPlaced] = useState<SummitPlace | null>(null);
 
@@ -157,7 +159,10 @@ export function Hero({
     label.classList.add('is-narrow');
     const narrow = { w: label.offsetWidth, h: label.offsetHeight };
     if (!wasNarrow) label.classList.remove('is-narrow');
-    const next = placeSummitLabel(summit, wide, [...boxes.avoid, ...ridge], width, narrow);
+    let next = placeSummitLabel(summit, wide, [...boxes.avoid, ...ridge], width, narrow);
+    // En el paisaje panorámico la cresta puede ocupar todo el espacio lateral. El halo
+    // permite rotularla sin ocultar la cota; el saludo, las acciones y las KPI siguen protegidos.
+    if (desktop && !next.fits) next = placeSummitLabel(summit, wide, boxes.avoid, width, narrow);
     setPlaced((prev) =>
       prev &&
       prev.side === next.side &&
