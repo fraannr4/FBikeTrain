@@ -147,6 +147,10 @@ Detalle en `docs/verificaciones.md`.
 
 ## Pendiente
 
+### Conector de actividades (rama `codex/conectores`, 2026-11-10)
+
+Investigación y decisiones en `docs/conectores-actividades.md`. Implementación local, sin push ni despliegue: Ajustes > Conexiones permite guardar clave personal e id de Intervals.icu (incluido prefijo `i` o alias `0`), traer originales FIT/GPX/TCX por el Worker/importador actual con su informe de duplicados, y comprobar al abrir/reanudar como máximo cada 6 h. CORS permite lectura directa; no hay proxy, SQL nuevo ni claves en Supabase/backups. Configuración y seguimiento aislados por cuenta en IndexedDB. Se excluyen Strava y fuentes/dispositivos identificados como Garmin; Garmin directo queda para Personal/Starter. La app debe estar abierta. Antes de promover uso multiusuario, registrar OAuth de Intervals. Pendiente probar con una clave y dispositivo reales, y confirmar conexión nativa iGPSPORT en el móvil; no usar puentes con contraseña. El conector y el resultado de sus verificaciones se detallan en la guía y `docs/verificaciones.md`.
+
 ### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10)
 
 Implementado en la rama, sin push ni despliegue: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. No hay precaché ni modo offline. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar la instalación y los envíos desde Wikiloc/iGPSPORT en un Android real; iOS no admite `share_target`. Verificación del lote en `docs/verificaciones.md`.

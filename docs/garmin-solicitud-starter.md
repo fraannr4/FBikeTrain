@@ -1,6 +1,8 @@
 # Garmin Connect Developer Program: solicitud de acceso Starter
 
-Fecha: 2026-11-10. Decisión del usuario: pedir el nivel **Starter** para que cualquier usuario de FBikeTrain pueda conectar su cuenta de Garmin desde la app y traer sus salidas y sus rutas (Courses).
+> Revisión del 2026-11-10, conector: consultar [conectores-actividades.md](conectores-actividades.md) antes de enviar. Courses API documenta **publicar** recorridos en Garmin; la lectura de la biblioteca privada no está confirmada. Intervals.icu ya incluye iGPSPORT en su catálogo oficial, pendiente de comprobar disponibilidad en el móvil; quedan descartados los puentes con contraseña descritos al final de este borrador. Intervals avisa de restricciones para redistribuir datos Garmin: usar Personal/Starter directo.
+
+Fecha: 2026-11-10. Decisión del usuario: pedir el nivel **Starter** para conectar Garmin desde FBikeTrain y recibir salidas nuevas. Courses permite publicar recorridos en Garmin; confirmar por separado con Garmin si existe lectura de los recorridos privados del usuario.
 
 ## Por qué Starter y no «login como otras apps»
 
@@ -15,7 +17,7 @@ Fecha: 2026-11-10. Decisión del usuario: pedir el nivel **Starter** para que cu
 ## Qué tiene que hacer el usuario (Claude no puede crear cuentas ni enviar formularios)
 
 1. Entrar en el portal con una cuenta Garmin y abrir el formulario de Starter enlazado en la página del programa.
-2. Rellenarlo con los textos de abajo. Guardar las credenciales que Garmin entregue (consumer key y secret) en `.local-secrets/credenciales.md`, nunca en el repositorio ni en el chat.
+2. Rellenarlo con los textos de abajo. Guardar las credenciales de aplicación que Garmin entregue en `.local-secrets/credenciales.md`, nunca en el repositorio ni en el chat.
 3. Avisar cuando llegue la aprobación. Entonces se planifica el módulo «Conectar con Garmin».
 
 ## Textos propuestos para el formulario (en inglés, que es el idioma del portal)
@@ -44,6 +46,6 @@ Fecha: 2026-11-10. Decisión del usuario: pedir el nivel **Starter** para que cu
 
 ## iGPSPORT
 
-No tiene API pública ni programa de desarrolladores. Opciones honestas:
+No se ha localizado una API pública general para FBikeTrain. Opciones compatibles:
 - Compartir el FIT/GPX desde su app a FBikeTrain (PWA, en curso con Codex).
-- Puente por intervals.icu: el usuario sincroniza iGPSPORT con intervals.icu mediante una herramienta de la comunidad (no oficial, usa sus credenciales de iGPSPORT bajo su responsabilidad) y FBikeTrain lee intervals.icu con su clave de API oficial. Se planifica si el usuario lo quiere.
+- Conexión nativa con Intervals.icu, si la ofrece la app/región del usuario: el catálogo oficial de Intervals ya incluye iGPSPORT. Pendiente comprobar una salida real en el móvil. FBikeTrain lee originales mediante la API oficial de Intervals; no se usan herramientas que pidan contraseña de iGPSPORT. Investigación y conector personal en `docs/conectores-actividades.md`.

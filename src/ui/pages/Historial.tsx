@@ -2,6 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, use
 import { Link, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import type { StoredActivity } from '../../domain/types';
 import { cachedActivities, readActivities } from '../../db/activityCache';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { listRouteSigs } from '../../db/repo';
 import { TZDate } from '@date-fns/tz';
 import { TZ } from '../../metrics/aggregate';
@@ -62,6 +63,7 @@ type Load = { status: 'loading' } | { status: 'error' } | { status: 'ready'; act
 
 /** Historial, vista Salidas: las salidas por mes, con búsqueda, filtros y orden. */
 export function Historial() {
+  const connectionRevision = useConnectionRevision();
   // Si ya se leyeron, la lista se pinta en el primer render: sin esqueleto y con la altura de antes.
   const [load, setLoad] = useState<Load>(() => {
     const acts = cachedActivities();
@@ -78,7 +80,7 @@ export function Historial() {
     return () => {
       alive = false;
     };
-  }, [attempt]);
+  }, [attempt, connectionRevision]);
 
   const retry = () => {
     setLoad({ status: 'loading' });

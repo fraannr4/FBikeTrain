@@ -26,6 +26,7 @@ import { ArrowUp, ChevronDown, ChevronRight, CircleAlert, Mountain, RefreshCw, S
 import { isSheetState, SHEET_STATE } from '../shell/sheetRoute';
 import { HISTORIAL_VIEWS } from '../shell/screens';
 import { useAnalysis } from '../useAnalysis';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { SubidaDetail } from './Subida';
 
 /** Filas por página de la lista; las de una sola pasada empiezan por 10. */
@@ -406,6 +407,7 @@ function ClimbList({ data, onOpen }: { data: Data; onOpen: (id: string) => void 
 
 /** Historial, vista Subidas: los puertos que repites, la última subida y, en una hoja, cada puerto. */
 export function Subidas() {
+  const connectionRevision = useConnectionRevision();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -432,7 +434,7 @@ export function Subidas() {
     return () => {
       alive = false;
     };
-  }, [ready]);
+  }, [ready, connectionRevision]);
 
   const item = shownId && data ? data.byId.get(shownId) : undefined;
   const notFound = Boolean(id && data && !data.byId.has(id));

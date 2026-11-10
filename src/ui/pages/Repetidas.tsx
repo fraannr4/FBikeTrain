@@ -16,6 +16,7 @@ import { lapRank, ROUTE_SORTS, TREND_FLAT, toRouteItems, type RouteItem, type Ro
 import { HISTORIAL_VIEWS } from '../shell/screens';
 import { isSheetState, SHEET_STATE } from '../shell/sheetRoute';
 import { useAnalysis } from '../useAnalysis';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { Hm, lapLine, RepetidaDetail, Trend } from './Repetida';
 
 /** Tarjetas por página; con más, búsqueda. */
@@ -318,6 +319,7 @@ function Loading() {
 
 /** Historial, vista Repetidas: las rutas que haces una y otra vez y, en una hoja, sus vueltas. */
 export function Repetidas() {
+  const connectionRevision = useConnectionRevision();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -344,7 +346,7 @@ export function Repetidas() {
     return () => {
       alive = false;
     };
-  }, [ready]);
+  }, [ready, connectionRevision]);
 
   const item = shownId && data ? data.byId.get(shownId) : undefined;
   const notFound = Boolean(id && data && !data.byId.has(id));

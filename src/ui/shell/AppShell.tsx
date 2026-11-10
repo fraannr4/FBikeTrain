@@ -5,6 +5,7 @@ import { NavHistoryProvider } from './navHistory';
 import { isSheetState } from './sheetRoute';
 import { TabBar } from './TabBar';
 import { usePlanBadge } from './usePlanBadge';
+import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 
 /**
  * Armazón: «Saltar al contenido», contenido, barra inferior de cinco pestañas (carril lateral
@@ -38,12 +39,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         Saltar al contenido
       </a>
       <ToastProvider>
+        <ConnectionsProvider>
         <NavHistoryProvider>
           <main id="contenido" ref={mainRef} tabIndex={-1} className="main">
             {children}
           </main>
         </NavHistoryProvider>
         <TabBar pathname={pathname} planBadge={planBadge} />
+        </ConnectionsProvider>
       </ToastProvider>
     </div>
   );

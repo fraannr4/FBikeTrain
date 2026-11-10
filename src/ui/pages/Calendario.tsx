@@ -67,6 +67,7 @@ import { WorkoutForm } from '../components/WorkoutForm';
 import { PLAN_VIEWS } from '../shell/screens';
 import { useReducedMotion } from '../theme/motion';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 
 type Status = 'done' | 'pending' | 'missed';
 const STATUS_TEXT: Record<Status, string> = { done: 'hecho', pending: 'pendiente', missed: 'sin hacer' };
@@ -111,6 +112,7 @@ function initialDay(mes: string | null, today: LocalDate): LocalDate {
 
 /** Plan, vista Calendario (`/plan`): la semana deslizable, el día elegido, lo próximo y el mes en una hoja. */
 export function Calendario() {
+  const connectionRevision = useConnectionRevision();
   const [params] = useSearchParams();
   const [today] = useState(() => localDay(Date.now()));
   const [selected, setSelected] = useState(() => initialDay(params.get('mes'), today));
@@ -138,7 +140,7 @@ export function Calendario() {
       () => setLoad({ state: 'error' }),
     );
   }, []);
-  useEffect(reload, [reload]);
+  useEffect(reload, [reload, connectionRevision]);
 
   const workouts = load.state === 'ready' ? load.data.workouts : [];
   const byDay = useMemo(() => {
