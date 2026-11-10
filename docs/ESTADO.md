@@ -129,6 +129,10 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
 
 ## Pendiente
 
+### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10)
+
+Implementado en la rama, sin push ni despliegue: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. No hay precaché ni modo offline. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar la instalación y los envíos desde Wikiloc/iGPSPORT en un Android real; iOS no admite `share_target`. Verificación del lote en `docs/verificaciones.md`.
+
 ### Lote de IA con referencias y entrenos: HECHO (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
 
 - **Task 1. Referencias y solo carretera.**

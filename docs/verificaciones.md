@@ -175,3 +175,14 @@ Conclusiones:
 - variables `VITE_SHARED_*` y `VITE_ROUTE_SOURCES_ENABLED` apagadas.
 
 Wikiloc sigue apagado hasta que el usuario acepte el riesgo de sus condiciones.
+
+## 2026-11-10 — PWA y ficheros compartidos (rama `codex/pwa-compartir`)
+
+- Manifest instalable con iconos 192/512 de la marca, SW propio sin precaché ni manejadores de GET, recepción multipart y pantalla `#/compartido`. Instalación en Ajustes y reanudación del envío tras login. Sin dependencias nuevas ni cambios en los archivos reservados al lote de rutas/IA.
+- `npx vitest run --maxWorkers=2 --minWorkers=2 --retry=1`: **99 ficheros y 1.248 pruebas correctas**, incluidos 20 tests nuevos de clasificación y Cache API simulada.
+- `npx tsc --noEmit` y `npm run build`: correctos. El build conserva los avisos existentes de tamaño del bundle, importación de demo y anotaciones de zod.
+- Build adicional con `--base=/FBikeTrain/` y prueba real en Chromium: manifest, start URL, scope, acción POST y scope del SW bajo la subruta correcta. Un envío sintético redirige a `/FBikeTrain/#/compartido?envio=…` y permanece en caché mientras se muestra el login.
+- Los 22 tests de `e2e/compartido.spec.ts` pasan: mezcla de referencias y actividades, duplicados, envío consumido, instalación, vuelta del login, POST multipart al SW y capturas. **18 capturas** en `test-results/pwa-compartir/`: claro/oscuro × 360/390/430 px × uno/tres/no admitido. Sin desbordamiento horizontal; revisión visual de los estados representativos.
+- Regresión completa: `npx playwright test --workers=2 --timeout=90000 --retries=1`, salida **0**: **121 correctos y 4 intermitentes que pasan al reintentarse** (125 casos en total, 20,2 min). Dos casos de Inicio fallaron al cerrar el contexto con `ENOSPC: no space left on device`; dos de Subidas agotaron la espera de 15 s de un elemento. No se han cambiado esas aserciones. Los 22 casos nuevos de PWA pasan sin reintento. La suite no fue una pasada sin incidencias.
+- Incidencias de entorno: el primer arranque de Playwright agotó los 180 s mientras compilaba. La primera pasada unitaria con build/navegador simultáneos tuvo un timeout en «guided questions in order»; la pasada completa final, sin esas cargas simultáneas, está en verde. La prueba de rendimiento de Inicio también pasó al ejecutarse sin Vitest en paralelo. No se cambiaron sus aserciones ni límites.
+- Pendiente real: instalar y compartir archivos desde Wikiloc/iGPSPORT en un Android físico tras publicar los cambios. No se ha probado un dispositivo real ni se ha hecho push o despliegue. iOS no admite `share_target`. Guía, criterio de clasificación y límites de conservación en `docs/pwa-compartir.md`.

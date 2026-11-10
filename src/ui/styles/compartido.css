@@ -1,0 +1,6 @@
+.shared-list { list-style: none; padding: 0; display: grid; gap: 12px; }
+.shared-file { padding: 16px; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.shared-file span { color: var(--ink-2); }
+.shared-file .shared-error { color: var(--critical); }
+.shared-actions { display: grid; gap: 12px; margin-top: 20px; }
+.page--compartido .banner { overflow-wrap: anywhere; }

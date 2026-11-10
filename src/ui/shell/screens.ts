@@ -17,7 +17,7 @@ export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/historial')) return 'historial';
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
-  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/ajustes')) return 'mas';
+  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes')) return 'mas';
   return 'inicio';
 }
 
@@ -33,6 +33,7 @@ const NAMES: Record<string, string> = {
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',
   '/importar': 'Importar',
+  '/compartido': 'Ficheros compartidos',
   '/ajustes': 'Ajustes',
 };
 

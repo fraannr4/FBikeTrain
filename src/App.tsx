@@ -3,6 +3,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 import { AppShell } from './ui/shell/AppShell';
 import { Inicio } from './ui/pages/Inicio';
 import { Importar } from './ui/pages/Importar';
+import { Compartido } from './ui/pages/Compartido';
 import { Ajustes } from './ui/pages/Ajustes';
 import { Historial } from './ui/pages/Historial';
 import { Salida } from './ui/pages/Salida';
@@ -53,6 +54,7 @@ export function App() {
           <Route path="/mas" element={<Mas />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/importar" element={<Importar />} />
+          <Route path="/compartido" element={<Compartido />} />
           <Route path="/ajustes" element={<Ajustes />} />
         </Routes>
       </AppShell>
