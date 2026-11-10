@@ -6,6 +6,7 @@ import { AccountFrame, AuthScreen } from './AuthScreen';
 import { CyclingLoader } from '../ui/components/CyclingLoader';
 import { WelcomeScene, welcomeName } from './WelcomeScene';
 import { takeFreshSignIn } from './useFreshSignIn';
+import { restoreSharedLocation } from '../pwa/sharedFiles';
 
 type Account = { client: SupabaseClient; user: User };
 export const AccountContext = createContext<Account | null>(null);
@@ -23,6 +24,8 @@ function Workspace({ account, welcome, children }: { account: Account; welcome: 
   const [name, setName] = useState(() => welcomeName(account.user));
   useEffect(() => {
     let live = true;
+    // Antes de montar HashRouter, restaura el destino si OAuth sustituyó el hash.
+    restoreSharedLocation();
     useDatabase(accountDatabaseName(account.user.id));
     db.open().then(() => { if (live) setReady(true); }).catch(() => { if (live) setFailed(true); });
     return () => { live = false; };

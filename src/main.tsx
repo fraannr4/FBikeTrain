@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { AccountBoundary } from './auth/AccountBoundary';
 import { accountClient, initializeAccount } from './auth/client';
+import { rememberSharedLocation } from './pwa/sharedFiles';
 // Fuentes autoalojadas, solo el subconjunto latin.
 import '@fontsource/barlow/latin-400.css';
 import '@fontsource/barlow/latin-500.css';
@@ -34,6 +35,7 @@ import './ui/styles/objetivos.css';
 import './ui/styles/mas.css';
 import './ui/styles/account.css';
 
+rememberSharedLocation();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AccountBoundary client={accountClient} initialize={initializeAccount}><App /></AccountBoundary>

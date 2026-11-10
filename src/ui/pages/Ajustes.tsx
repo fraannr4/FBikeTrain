@@ -45,6 +45,7 @@ import { Sheet } from '../components/Sheet';
 import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { ThemeToggle } from '../shell/ThemeToggle';
+import { InstallApp } from '../components/InstallApp';
 import { useTheme } from '../theme/theme';
 
 const DAY = 86_400_000;
@@ -177,6 +178,7 @@ export function Ajustes() {
         </>
       }
     >
+      <InstallApp />
       {body}
     </Page>
   );
