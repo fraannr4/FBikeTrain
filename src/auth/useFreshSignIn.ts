@@ -1,5 +1,5 @@
 /**
- * Marca de «acceso recién hecho». Separa un inicio de sesión real (contraseña, Google, enlace de
+ * Marca de «acceso recién hecho». Separa un inicio de sesión real (contraseña, enlace de
  * correo) del `SIGNED_IN` que Supabase repite al volver a la pestaña o de una sesión restaurada.
  * Se guarda en sessionStorage para sobrevivir a la redirección de OAuth; si el navegador lo
  * bloquea, queda en memoria para el acceso con contraseña.

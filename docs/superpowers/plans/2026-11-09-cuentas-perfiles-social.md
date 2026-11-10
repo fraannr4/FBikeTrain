@@ -45,7 +45,7 @@ La documentación de Supabase consultada el 2026-11-09 indica 500 MB de base de 
 - [x] Escribir pruebas SQL con tres identidades y acceso anónimo (permisos, aceptación, duplicados y Storage).
 - [x] Ejecutar migración y pruebas SQL en una instancia de pruebas; no hay Postgres, Supabase CLI ni Docker disponibles en el entorno actual. Hecho: `npm run test:db` (PGlite) en local y en CI.
 - [x] Conectar cliente Auth con URL y clave publishable del usuario e integrar la guardia local.
-- [ ] Configurar proveedor Google y correo; verificar Auth real antes de publicar. (2026-11-09: SMTP de Brevo configurado y login real verificado en producción; falta Google.)
+- [x] Configurar correo; verificar Auth real antes de publicar. (2026-11-09: SMTP de Brevo configurado y login real verificado en producción. 2026-11-10: el usuario retira el acceso con Google; solo correo y contraseña.)
 
 ### Lote de acceso y perfil, 2026-11-09
 

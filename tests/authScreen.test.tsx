@@ -9,7 +9,6 @@ function mockClient() {
     signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
     resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
     updateUser: vi.fn().mockResolvedValue({ error: null }),
-    signInWithOAuth: vi.fn().mockResolvedValue({ error: null }),
   };
   return { auth, client: { auth } as unknown as SupabaseClient };
 }
@@ -45,11 +44,10 @@ describe('acceso a la cuenta', () => {
     expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.invalid', { redirectTo: expect.stringContaining('?auth=recovery') });
     expect(await screen.findByRole('status')).toHaveTextContent('Si existe una cuenta');
   });
-  it('Google vuelve fuera del fragmento del router', async () => {
-    const { client, auth } = mockClient();
+  it('no ofrece acceso con Google', () => {
+    const { client } = mockClient();
     render(<AuthScreen client={client} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }));
-    expect(auth.signInWithOAuth).toHaveBeenCalledWith({ provider: 'google', options: { redirectTo: expect.not.stringContaining('#') } });
+    expect(screen.queryByRole('button', { name: /Google/ })).toBeNull();
   });
   it('solo termina la recuperación cuando updateUser tiene éxito', async () => {
     const { client, auth } = mockClient();

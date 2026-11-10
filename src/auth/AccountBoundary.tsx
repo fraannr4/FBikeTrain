@@ -83,7 +83,7 @@ export function AccountBoundary({ client, initialize, children, reload = reloadP
       if (!live) return;
       if (err) throw err;
       if (revision !== current) return;
-      // Vuelta de Google o del enlace de correo: la marca se armó antes de salir o al canjear el código.
+      // Vuelta del enlace de correo: la marca se armó antes de salir o al canjear el código.
       if (data.session && takeFreshSignIn()) setWelcome(true);
       setUser(data.session?.user ?? null);
     }).catch(async () => {

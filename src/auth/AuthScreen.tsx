@@ -90,19 +90,9 @@ export function AuthScreen({ client, recovery = false, initialError = '', onReco
     finally { setBusy(false); }
   }
 
-  async function google() {
-    setBusy(true); setError('');
-    try {
-      armFreshSignIn();
-      const r = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: callbackUrl(window.location.href) } });
-      if (r.error) throw r.error;
-    } catch (err) { disarmFreshSignIn(); setError(authMessage(err)); setBusy(false); }
-  }
-
   return <AccountFrame>
     <h1>{title}</h1>
     <p className="account-intro">{mode === 'reset' ? 'Te enviaremos un enlace para cambiar tu contraseña.' : mode === 'password' ? 'Elige una contraseña de al menos 10 caracteres.' : 'Entra en tu cuenta para seguir con tus salidas y tu progresión.'}</p>
-    {(mode === 'login' || mode === 'signup') && <><button type="button" className="btn btn--outline btn--block" disabled={busy} onClick={google}>Continuar con Google</button><div className="account-divider"><span>o con tu correo</span></div></>}
     <form onSubmit={submit} className="account-form" aria-label={mode === 'signup' ? 'Crear cuenta' : mode === 'reset' ? 'Recuperar acceso' : mode === 'password' ? 'Cambiar contraseña' : 'Entrar'}>
       <fieldset disabled={busy}>
         {mode !== 'password' && <Field label="Correo electrónico" type="email" autoComplete="email" required maxLength={254} value={email} onChange={e => setEmail(e.target.value)} />}
