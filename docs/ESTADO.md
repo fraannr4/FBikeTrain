@@ -182,12 +182,12 @@ Orden: lote de IA, amigos, retos. Cada uno con commit, push, CI y migración rem
 
 Decisiones del usuario que mandan: zona tras el login («al menos el pueblo»); búsqueda de personas por nombre, para cualquiera; búsqueda cercana a 25 o 50 km; retos 1 contra 1 entre amigos, plazo de 30 días, salidas elegidas a mano y visibles solo para los dos; sin valoraciones de rutas por ahora; paleta A.
 
-### Ramas de Codex (worktree `C:\testTrain-codex`)
+### Ramas de Codex: FUSIONADAS el 2026-11-10
 
-- `codex/paleta-a`: fusionada.
-- `codex/pwa-compartir` (worktree `C:\testTrain-codex`): PWA y Web Share Target para GPX, TCX y FIT. Revisada el 2026-11-10: mergeable con correcciones menores (`id` del manifest relativo al origen, `accept` sin `text/xml`, sin icono maskable, el envío se borra al leerlo y no al importar, prioridad del envío pendiente sobre la futura redirección a `#/zona`, menciones a Google por rebase pendiente). Sin commit en la rama todavía.
-- `codex/escritorio` (worktree `C:\testTrain-codex-escritorio`): escritorio a partir de 1024 px (`escritorio.css`, `useDesktopLayout`). Revisada el 2026-11-10: móvil intacto, pero tres regresiones en PC (selector de salida oculto en Rutas con resultados, tira semanal y leyenda ocultas en Calendario, `Page.tsx` remonta los hijos al llegar `desktopMap`). Sin commit en la rama todavía.
-- Las correcciones pedidas a Codex están en `docs/codex-correcciones-2026-11-10.md`. Fusionar cuando Codex las haga commit: rebase sobre `main`, CI, push.
+- `codex/pwa-compartir` en `b489fc2`: PWA instalable y Web Share Target (GPX, TCX, FIT). Ajustado al fusionar: `id` del manifest `/FBikeTrain/`, `text/xml` y `application/xml` aceptados. Límites conocidos: sin icono maskable; el envío se consume al leerlo. Falta probarlo en un Android real.
+- `codex/escritorio` en `e8b64fa`: escritorio desde 1024 px. Corregido al fusionar: `Page.tsx` ya no remonta los hijos al llegar el mapa, Rutas deja cambiar la salida con resultados y Calendario conserva la tira semanal. Menores sin hacer: `useDesktopLayout` se resuscribe en cada render, umbrales 1024/1280 repetidos, `HistoryWorkspace` con dos `Page`, sin prueba de capturas a 390 px contra main.
+- Arreglo del mismo día (`cdda84f`): ORS responde `waytype` en vez de `waytypes`; las rutas fallaban con «algo inesperado». `ors-proxy` redesplegada.
+- Siguiente encargo a Codex: conectores de actividades (intervals.icu como puente; Garmin Starter cuando lo aprueben), rama `codex/conectores`.
 
 ### Necesita al usuario
 
