@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { routeReferenceSchema, routeSearchSchema, RouteSourceError, type RouteSearch, type RouteReference } from './schema';
+import { routeReferenceSchema, routeSearchSchema, RouteSourceError, type RouteSearch, type RouteReference } from './schema.ts';
 
 const point = z.object({ lat: z.number().finite().min(-90).max(90), lon: z.number().finite().min(-180).max(180) });
 const member = z.object({ type: z.string(), ref: z.number().int(), role: z.string().default('') });

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { routeSearchSchema, routeReferencesSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema';
-import { loadOverpass, loadWikiloc, readLimited, sourceTransport } from './providers';
-import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } from './limits';
+import { routeSearchSchema, routeReferencesSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema.ts';
+import { loadOverpass, loadWikiloc, readLimited, sourceTransport } from './providers.ts';
+import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } from './limits.ts';
 
 const requestSchema = routeSearchSchema.extend({ source: z.enum(['wikiloc', 'osm']).default('wikiloc') });
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;

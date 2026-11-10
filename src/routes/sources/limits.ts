@@ -1,5 +1,5 @@
-import { metres } from './overpass';
-import { routeSearchSchema, type RouteReference, type RouteSearch } from './schema';
+import { metres } from './overpass.ts';
+import { routeSearchSchema, type RouteReference, type RouteSearch } from './schema.ts';
 
 export function normalizeRouteSearch(input: RouteSearch): RouteSearch {
   const value = routeSearchSchema.parse(input);

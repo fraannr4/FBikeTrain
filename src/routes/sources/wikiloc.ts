@@ -1,5 +1,5 @@
 import { DOMParser } from '@xmldom/xmldom';
-import { routeReferenceSchema, RouteSourceError, type RouteReference } from './schema';
+import { routeReferenceSchema, RouteSourceError, type RouteReference } from './schema.ts';
 
 function decode(text: string): string {
   return text.replace(/&#(x[\da-f]+|\d+);/gi, (_, code: string) => {

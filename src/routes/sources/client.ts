@@ -1,4 +1,4 @@
-import { routeReferencesSchema, routeSearchSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema';
+import { routeReferencesSchema, routeSearchSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema.ts';
 
 /** Rutas conocidas en Rutas con IA: solo cuando la función `route-sources` esté desplegada y verificada. */
 export const routeSourcesEnabled = () => import.meta.env.VITE_ROUTE_SOURCES_ENABLED === 'true';

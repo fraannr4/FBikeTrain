@@ -1,6 +1,6 @@
-import { buildOverpassQuery, parseOverpass } from './overpass';
-import { assertPublicHtml, parsePublicGpx, parseWikilocDetail, safeWikilocUrl, wikilocLinks } from './wikiloc';
-import { RouteSourceError, type RouteReference, type RouteSearch } from './schema';
+import { buildOverpassQuery, parseOverpass } from './overpass.ts';
+import { assertPublicHtml, parsePublicGpx, parseWikilocDetail, safeWikilocUrl, wikilocLinks } from './wikiloc.ts';
+import { RouteSourceError, type RouteReference, type RouteSearch } from './schema.ts';
 
 export const SOURCE_USER_AGENT = 'FBikeTrain-RouteSources/1.0 (+https://github.com/fraannr4/FBikeTrain)';
 export type SourceTransport = (url: string, init?: RequestInit) => Promise<string>;
