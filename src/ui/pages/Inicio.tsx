@@ -26,6 +26,7 @@ import { KpiCard } from '../inicio/KpiCard';
 import { NextWorkout } from '../inicio/NextWorkout';
 import { TrendCard } from '../inicio/TrendCard';
 import { weeklyTrend } from '../inicio/trend';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { YourData } from '../inicio/YourData';
 
 const NO_POINTS: TrackPoint[] = [];
@@ -61,6 +62,7 @@ type Data = {
 };
 
 export function Inicio() {
+  const connectionRevision = useConnectionRevision();
   const { key: entry, pathname, search } = useLocation();
   const navType = useNavigationType();
   // Al volver atrás, la altura que tenía y los últimos datos leídos (inicioMemory).
@@ -147,7 +149,7 @@ export function Inicio() {
     return () => {
       alive = false;
     };
-  }, [version]);
+  }, [version, connectionRevision]);
 
   let body = <Loading />;
   if (data) body = <Dashboard data={data} onDemoLoaded={onDemoLoaded} />;

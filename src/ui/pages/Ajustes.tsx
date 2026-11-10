@@ -46,6 +46,9 @@ import { Skeleton } from '../components/Skeleton';
 import { useToast } from '../components/Toast';
 import { ThemeToggle } from '../shell/ThemeToggle';
 import { InstallApp } from '../components/InstallApp';
+import { ActivityConnections } from '../components/ActivityConnections';
+import { useConnections } from '../../connections/ConnectionsProvider';
+import '../styles/conexiones.css';
 import { useTheme } from '../theme/theme';
 
 const DAY = 86_400_000;
@@ -53,7 +56,7 @@ const GROQ_URL = DEFAULT_SETTINGS.llm.baseUrl;
 const ORS_SIGNUP = 'https://openrouteservice.org/dev/#/signup';
 const GROQ_KEYS = 'https://console.groq.com/keys';
 const STORAGE_DOWN = 'el almacenamiento de este navegador no está disponible.';
-const SECTIONS = ['perfil', 'casa', 'claves', 'apariencia', 'copia', 'borrar'] as const;
+const SECTIONS = ['perfil', 'casa', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
 
 function probeMessage(r: ProbeResult): string {
   if (r.ok) return 'Conexión correcta.';
@@ -341,6 +344,7 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
 
       <section className="section" aria-label="Secciones de ajustes">
         <div className="settings">
+          <ActivityConnections defaultOpen={isOpen('conexiones')} />
           <Disclosure
             id="perfil"
             name="ajustes"
@@ -971,13 +975,16 @@ function BackupSection({
 }
 
 function DeleteSection({ rides, onDeleted }: { rides: number; onDeleted: () => Promise<void> }) {
+  const connections = useConnections();
   const toast = useToast();
   const [confirm, setConfirm] = useState(false);
   const [failed, setFailed] = useState(false);
 
   async function deleteAll() {
     try {
+      await connections?.stop();
       await clearAllData();
+      await connections?.refresh();
       setConfirm(false);
       setFailed(false);
       await onDeleted();

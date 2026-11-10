@@ -25,6 +25,7 @@ import {
   type Slot,
 } from '../objetivos/model';
 import { PLAN_VIEWS } from '../shell/screens';
+import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 
 type Data = { goals: Goal[]; acts: StoredActivity[]; workouts: PlannedWorkout[]; now: number };
 type Load = { state: 'loading' } | { state: 'error' } | { state: 'ready'; data: Data };
@@ -40,6 +41,7 @@ const avgText = (a: Average | undefined): string =>
 
 /** Plan, vista Objetivos (`/plan/objetivos`): volumen de la semana y del mes, el evento y lo anterior. */
 export function Objetivos() {
+  const connectionRevision = useConnectionRevision();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [form, setForm] = useState<FormState>({ key: 0, open: false, goal: null, kind: 'event', period: 'week' });
   const toast = useToast();
@@ -55,7 +57,7 @@ export function Objetivos() {
   }, []);
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, connectionRevision]);
 
   const data = load.state === 'ready' ? load.data : null;
   const today = localDay(data?.now ?? Date.now());
