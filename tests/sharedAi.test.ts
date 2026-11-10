@@ -1,4 +1,4 @@
-import { handleSharedAi, SharedAiRateLimit, type SharedAiDependencies } from '../src/ai/shared/service';
+import { handleSharedAi, SharedAiRateLimit, sharedAiRequestSchema, type SharedAiDependencies } from '../src/ai/shared/service';
 
 const summary = { fuente: 'declarado', semanas: null, salidas: 0, salidasPorSemana: 0, distanciaMediaKm: 45, desnivelMedioM: 600, tiempoMedioMin: 120, velocidadMediaKmh: 23, distanciaMaxKm: 45, desnivelMaxM: 600, vamMediaMh: null, subidaMasLarga: null };
 const plan = { operation: 'plan', summary, answers: { focus: 'mixto', minutes: 120, explore: 'descubrir', notes: '' }, maxDistanciaKm: 50 };
@@ -120,5 +120,38 @@ describe('IA compartida: límites y privacidad', () => {
     Object.defineProperty(aborted.signal, 'aborted', { value: true });
     expect((await handleSharedAi(aborted, deps)).status).toBe(499);
     expect(deps.consumeQuota).not.toHaveBeenCalled();
+  });
+});
+
+describe('IA compartida: objetivo del usuario', () => {
+  const evento = { tipo: 'evento', diasHasta: 5, distanciaKm: 120, desnivelM: 1500 };
+  const volumen = { tipo: 'volumen', diasRestantes: 9, distanciaRestanteKm: 0, desnivelRestanteM: null };
+  const splice = { operation: 'splice', facts: [{ id: 'c1', distanciaKm: 20, desnivelM: 120, viasPrincipalesPct: 4, conectorKm: 1.5, solapeKm: 0.3, retrocesoKm: 0, alternativa: false }] };
+
+  it.each([
+    ['plan con evento', { ...plan, objetivo: evento }],
+    ['plan con volumen', { ...plan, objetivo: volumen }],
+    ['plan sin objetivo', { ...plan, objetivo: null }],
+    ['splice con evento', { ...splice, objetivo: evento }],
+    ['splice con volumen', { ...splice, objetivo: volumen }],
+  ])('acepta el objetivo en %s', (_name, body) => {
+    expect(sharedAiRequestSchema.safeParse(body).success).toBe(true);
+  });
+
+  it('el objetivo llega al proveedor con sus cifras', async () => {
+    const deps = mock();
+    expect((await handleSharedAi(request({ ...plan, objetivo: evento }), deps)).status).toBe(200);
+    expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ objetivo: evento }), expect.any(AbortSignal));
+  });
+
+  it.each([
+    ['campos extra', { tipo: 'evento', diasHasta: 5, extra: 1 }],
+    ['días negativos', { tipo: 'evento', diasHasta: -1, distanciaKm: 120, desnivelM: 1500 }],
+    ['nombre', { ...evento, titulo: 'Marcha' }],
+    ['tipo desconocido', { tipo: 'semana', diasHasta: 5 }],
+    ['restantes negativos', { ...volumen, distanciaRestanteKm: -1 }],
+  ])('rechaza un objetivo con %s en plan y splice', (_name, objetivo) => {
+    expect(sharedAiRequestSchema.safeParse({ ...plan, objetivo }).success).toBe(false);
+    expect(sharedAiRequestSchema.safeParse({ ...splice, objetivo }).success).toBe(false);
   });
 });

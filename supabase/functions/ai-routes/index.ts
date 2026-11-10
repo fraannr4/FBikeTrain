@@ -22,10 +22,10 @@ async function complete(input: SharedAiRequest, signal: AbortSignal): Promise<un
     : input.operation === 'explain' ? ExplanationSchema
     : input.operation === 'workouts' ? WorkoutWeekSchema
     : spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]);
-  const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm, input.referencias)
+  const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm, input.referencias, input.objetivo)
     : input.operation === 'explain' ? buildExplainMessages(input.summary, input.facts)
     : input.operation === 'workouts' ? buildWorkoutMessages(input.summary, input)
-    : buildSpliceMessages(input.facts);
+    : buildSpliceMessages(input.facts, input.objetivo);
   const schemaName = { plan: 'plan_rutas', explain: 'explicacion_rutas', splice: 'empalme_rutas', workouts: 'entrenos_semana' }[input.operation];
   const response = await fetch(GROQ_ENDPOINT, {
     method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, signal,

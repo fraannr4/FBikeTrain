@@ -9,7 +9,7 @@ import { formatDeltaPct, formatKm, formatMeters } from '../ui/format';
 import { abortError } from './abort';
 import type { LevelSummary } from './levelSummary';
 import { chatJson, LlmError, type LlmErrorKind } from './llm';
-import { buildExplainMessages, buildPlanMessages, type AiReference, type Answers, type ChatMessage, type RouteFacts } from './prompts';
+import { buildExplainMessages, buildPlanMessages, type AiGoal, type AiReference, type Answers, type ChatMessage, type RouteFacts } from './prompts';
 import { pickReferences } from './references';
 import { ExplanationSchema, RoutePlanSchema, toStrictJsonSchema, type RoutePlan } from './schema';
 
@@ -66,7 +66,7 @@ type ChatRequest<T> = Parameters<typeof chatJson<T>>[1];
 type Outcome<T> = { ok: true; data: T } | { ok: false; error: LlmError };
 
 export type SharedAiPlanner = {
-  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias?: AiReference[]) => Promise<RoutePlan>;
+  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias?: AiReference[], objetivo?: AiGoal | null) => Promise<RoutePlan>;
   explain: (summary: LevelSummary, facts: RouteFacts[], signal?: AbortSignal) => Promise<{ explicaciones: { id: string; texto: string }[] }>;
 };
 
@@ -101,11 +101,12 @@ export async function planWithRetry(
   chat: typeof chatJson = chatJson,
   signal?: AbortSignal,
   referencias: AiReference[] = [],
+  objetivo: AiGoal | null = null,
 ): Promise<{ ok: true; plan: RoutePlan } | { ok: false; error: LlmError }> {
   const out = await chatWithRetry(
     cfg,
     {
-      messages: buildPlanMessages(summary, answers, maxDistanciaKm, referencias),
+      messages: buildPlanMessages(summary, answers, maxDistanciaKm, referencias, objetivo),
       schemaName: 'plan_rutas',
       jsonSchema: toStrictJsonSchema(RoutePlanSchema),
       schema: RoutePlanSchema,
@@ -249,11 +250,14 @@ export async function runAiRoutes(
     shared?: SharedAiPlanner;
     /** Función `route-sources` de la cuenta; sin cuenta, no se buscan rutas conocidas. */
     sources?: RouteSourceInvoker;
+    /** Objetivo vigente del usuario (`aiGoal`), solo cifras; sin él, el plan no lo menciona. */
+    goal?: AiGoal | null;
   },
 ): Promise<AiRoutesResult> {
   const { start, answers, reference: ref, summary } = input;
   const chat = deps.chat ?? chatJson;
   const generate = deps.generate ?? generateRoutes;
+  const objetivo = deps.goal ?? null;
 
   const cap = timeCapM(ref, answers);
   const maxKm = Number.isFinite(cap) ? round1(Math.min(cap / 1000, PLAN_MAX_KM)) : PLAN_MAX_KM;
@@ -278,15 +282,15 @@ export async function runAiRoutes(
   let planned: Awaited<ReturnType<typeof planWithRetry>>;
   let shared = deps.shared;
   if (shared) {
-    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal, referencias) }; }
+    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal, referencias, objetivo) }; }
     catch (error) {
       if (!(error instanceof LlmError)) throw error;
       if (usePersonal(error)) {
         shared = undefined;
-        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias);
+        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo);
       } else planned = { ok: false, error };
     }
-  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias);
+  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo);
   if (!planned.ok) {
     const message = planned.error.kind === 'invalid_json' ? FALLBACK_INVALID : planned.error.message;
     return { kind: 'fallback', message, cause: planned.error.kind, suggested: suggestedTarget(ref, answers) };

@@ -29,14 +29,22 @@ const uniqueDays = (min: number) => z.array(dayIndex).min(min).max(7).refine(day
 const weekGoalSchema = z.strictObject({
   diasHasta: z.number().int().min(0).max(3650), distanciaKm: finite(2000).nullable(), desnivelM: finite(30_000).nullable(),
 });
+// Objetivo del usuario como contexto de `plan` y `splice`: solo cifras; sin nombre ni lugar.
+const aiGoalSchema = z.discriminatedUnion('tipo', [
+  z.strictObject({ tipo: z.literal('evento'), diasHasta: z.number().int().min(0).max(730), distanciaKm: finite(1000).nullable(), desnivelM: finite(20_000).nullable() }),
+  z.strictObject({ tipo: z.literal('volumen'), diasRestantes: z.number().int().min(0).max(366), distanciaRestanteKm: finite(5000).nullable(), desnivelRestanteM: finite(100_000).nullable() }),
+]);
 export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('plan'), summary: summarySchema,
     answers: z.strictObject({ focus: z.enum(['fondo', 'subidas', 'mixto']), minutes: z.number().int().min(10).max(1440), explore: z.enum(['repetir', 'descubrir']), notes: z.literal('').default('') }),
     maxDistanciaKm: z.number().finite().min(0).max(200),
     referencias: z.array(referenceSchema).max(6).refine(refs => new Set(refs.map(ref => ref.id)).size === refs.length).optional(),
+    objetivo: aiGoalSchema.nullable().optional(),
   }),
   z.strictObject({ operation: z.literal('explain'), summary: summarySchema, facts: z.array(factSchema).min(1).max(5).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
-  z.strictObject({ operation: z.literal('splice'), facts: z.array(spliceFactSchema).min(1).max(12).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),
+  z.strictObject({ operation: z.literal('splice'), facts: z.array(spliceFactSchema).min(1).max(12).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length),
+    objetivo: aiGoalSchema.nullable().optional(),
+  }),
   // Como en `plan`, las notas libres no salen del navegador por el servicio común.
   z.strictObject({ operation: z.literal('workouts'), summary: summarySchema, objetivo: weekGoalSchema.nullable(),
     ocupados: uniqueDays(0), disponibles: uniqueDays(1), notas: z.literal('').default('') }),

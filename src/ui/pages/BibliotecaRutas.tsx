@@ -164,7 +164,7 @@ export function BibliotecaRutas() {
     {error && <p className="library-error" role="alert">{error} {loading ? null : <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setLoadAttempt(n => n + 1)}>Volver a leer la biblioteca</button>}</p>}
     {notice && <p className="library-notice" role="status">{notice}</p>}
     {loading ? <p role="status">Leyendo tu biblioteca…</p> : routes.length > 0 && <section className="section library-list" aria-label="Tus recorridos">{routes.map(route => <button className="library-row" type="button" key={route.id} disabled={busy || dirty} aria-pressed={draft?.id === route.id} onClick={() => choose(route)}><b>{route.name}</b><span>{formatKm(route.summary.distanceM, 1)} · {route.format.toUpperCase()}</span></button>)}</section>}
-    {!loading && routes.length >= 2 && <Link className="btn btn--secondary btn--block" to="/rutas/empalmar">Empalmar dos rutas</Link>}
+    {!loading && routes.length >= 2 && <Link className="btn btn--secondary btn--block" to="/rutas/empalmar">Empalmar rutas</Link>}
     {draft && <>
       <section className="section card library-panel" aria-label="Recorrido analizado">
         <Field label="Nombre de la ruta" value={draft.name} maxLength={120} disabled={busy} onChange={e => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }} />

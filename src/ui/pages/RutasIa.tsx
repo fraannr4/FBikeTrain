@@ -11,11 +11,14 @@ import {
 } from '../../ai/levelSummary';
 import { chatJson, LlmError, type LlmErrorKind } from '../../ai/llm';
 import { isAbort } from '../../ai/abort';
+import { aiGoal } from '../../ai/goalContext';
 import { runAiRoutes } from '../../ai/routePlanner';
 import { createSharedAiPlanner, SHARED_AI_ENABLED } from '../../ai/sharedClient';
 import { useAccount } from '../../auth/AccountBoundary';
+import { listGoals } from '../../calendar/calendarRepo';
 import { listActivities, listClimbEfforts } from '../../db/repo';
 import type { ClimbEffort, LatLng, Settings } from '../../domain/types';
+import { localDay } from '../../metrics/calendar';
 import type { UserReference } from '../../metrics/reference';
 import type { Target } from '../../metrics/score';
 import { gpxFileName } from '../../routes/gpx';
@@ -72,7 +75,7 @@ import {
 import { downloadGpx, GpxHelpSheet } from '../routes/gpxExport';
 import { RouteCardSkeleton, type RouteCardData } from '../routes/RouteCard';
 import { RouteMapSheet } from '../routes/RouteMapSheet';
-import { useSaveRoute } from '../routes/useSaveRoute';
+import { spliceHref, useSaveRoute } from '../routes/useSaveRoute';
 import { nameRoutes, referenceRange, renewsAt, toCardData } from '../routes/routeView';
 import { useRouteSearch } from '../routes/useRouteSearch';
 import { useReducedMotion } from '../theme/motion';
@@ -310,6 +313,10 @@ export function RutasIa() {
     goTo('propuestas', view === 'propuestas'); // «Reintentar» no apila otra entrada igual
     try {
       const visited = await loadVisitedCells();
+      // El objetivo vigente, solo cifras; si no se puede leer, la IA no lo recibe.
+      const now = Date.now();
+      const goal = await Promise.all([listGoals(), listActivities(referenceRange(now))])
+        .then(([goals, acts]) => aiGoal(goals, acts, now, localDay(now)), () => null);
       const sharedService = sharedMode && account ? createSharedAiPlanner(sessionToken(account.client)) : undefined;
       const shared = sharedService ? {
         plan: async (...args: Parameters<typeof sharedService.plan>) => {
@@ -325,7 +332,7 @@ export function RutasIa() {
       } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions },
+        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions, goal },
       );
       if (!live()) return;
       if (res.kind === 'routes') {
@@ -387,6 +394,14 @@ export function RutasIa() {
     setMapRoute(c);
     setSheet('map');
   }, []);
+
+  /** «Empalmar con…»: la ruta pasa a la biblioteca y Empalmar se abre con ella de primer tramo. */
+  const spliceWith = async (card: RouteCardData) => {
+    const s = shown.find((x) => x.card.id === card.id);
+    if (!s || outcome?.kind !== 'routes') return;
+    const id = await saveRoute(`${outcome.at}:${card.id}`, card.name, s.coords, s.file);
+    if (id) navigate(spliceHref(id));
+  };
 
   // Cabecera: en las preguntas, el paso y la pregunta; en los estados, dónde estás y qué pasa.
   // El resumen cuenta como el último paso, como en el prototipo («Paso 4 de 4»); aquí son cinco porque
@@ -643,6 +658,7 @@ export function RutasIa() {
                     onIndexChange={setIndex}
                     onExport={exportRoute}
                     onMap={openMap}
+                    onSplice={(card) => void spliceWith(card)}
                   />
                   <List inset>
                     <ListRow

@@ -4,7 +4,7 @@ import { MOBILE, NOW, RIDES, seed, settings } from './seed';
 
 test.use({ viewport: MOBILE, hasTouch: true });
 
-// Rutas sintéticas junto a la Puerta del Sol (punto público): dos tramos abiertos de 3 km separados 2 km.
+// Rutas sintéticas junto a la Puerta del Sol (punto público): tramos abiertos de 3 km separados 2 km.
 const LAT = 40.4168;
 const M_LNG = 111_320 * Math.cos((LAT * Math.PI) / 180);
 const lng = (x: number) => -3.75 + x / M_LNG;
@@ -17,6 +17,9 @@ function stored(id: string, name: string, points: { lat: number; lng: number; el
     summary: { distanceM, elevGainM: points[points.length - 1].ele - points[0].ele, elevLossM: 0, closed: false, pointCount: points.length }, createdAt: 1, updatedAt: 1,
   };
 }
+const ROUTES = [stored('a', 'Costa sintética', line(0, 3000)), stored('b', 'Interior sintético', line(5000, 8000)), stored('c', 'Sierra sintética', line(10_000, 13_000))];
+/** Track de una salida del historial: la misma recta, con hora en cada punto. */
+const TRACK = { activityId: 's0', points: line(15_000, 18_000).map((p, i) => ({ t: NOW.getTime() - 2 * 86_400_000 + i * 5000, ...p, dist: i * 10 })) };
 
 /** ORS simulado: una recta entre los dos puntos pedidos, con los extras que pide el empalme. */
 function orsPath(body: { coordinates: [number, number][] }) {
@@ -28,46 +31,55 @@ function orsPath(body: { coordinates: [number, number][] }) {
   return { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates }, properties: { summary: { distance: d, duration: d / 6 }, extras: { surface: one(3), waytypes: one(2), steepness: one(0), waycategory: one(0) } } }] };
 }
 
-async function seedRoutes(page: Page) {
-  await page.evaluate(async (routes) => {
+async function seedRoutes(page: Page, routes: unknown[], tracks: unknown[] = []) {
+  await page.evaluate(async ({ routes, tracks }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const req = indexedDB.open('ciclismo-user-00000000-0000-0000-0000-000000000011');
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
-    const tx = db.transaction(['referenceRoutes'], 'readwrite');
+    const tx = db.transaction(['referenceRoutes', 'tracks'], 'readwrite');
     for (const r of routes) tx.objectStore('referenceRoutes').put(r);
+    for (const t of tracks) tx.objectStore('tracks').put(t);
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); });
     db.close();
-  }, [stored('a', 'Costa sintética', line(0, 3000)), stored('b', 'Interior sintético', line(5000, 8000))]);
+  }, { routes, tracks });
 }
 
-test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(NOW);
-});
-
-test('empalma dos rutas a 390 px y exporta un GPX continuo', async ({ page }) => {
+async function mockOrs(page: Page) {
   let calls = 0;
   await page.route('https://api.heigit.org/openrouteservice/**', (route) => {
     calls++;
     const body = JSON.parse(route.request().postData() ?? '{}');
     return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(orsPath(body)) });
   });
+  return () => calls;
+}
+
+const combo = (page: Page, name: string) => page.getByRole('combobox', { name });
+const options = (page: Page) => page.getByRole('list', { name: 'Opciones de empalme' });
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(NOW);
+});
+
+test('empalma dos rutas a 390 px y exporta un GPX continuo', async ({ page }) => {
+  const calls = await mockOrs(page);
   await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
-  await seedRoutes(page);
+  await seedRoutes(page, ROUTES.slice(0, 2));
   await page.goto('#/rutas/empalmar');
 
-  await expect(page.getByRole('heading', { name: 'Empalmar dos rutas', level: 1 })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('a');
-  await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('b');
+  await expect(page.getByRole('heading', { name: 'Empalmar rutas', level: 1 })).toBeVisible();
+  await combo(page, 'Primera ruta').selectOption('lib:a');
+  await combo(page, 'Segunda ruta').selectOption('lib:b');
   await page.getByText('Volver al inicio al terminar').click();
   await page.getByRole('button', { name: 'Calcular empalme' }).click();
 
-  const list = page.getByRole('list', { name: 'Opciones de empalme' });
+  const list = options(page);
   await expect(list).toBeVisible({ timeout: 30_000 });
   await expect(list.getByRole('listitem').first().getByText('Recomendada')).toBeVisible();
   await expect(page.getByRole('list', { name: 'Leyenda del mapa' })).toContainText('Regreso al inicio');
-  expect(calls).toBeGreaterThan(0);
+  expect(calls()).toBeGreaterThan(0);
 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Exportar GPX' }).click()]);
   const gpx = readFileSync((await download.path())!, 'utf8');
@@ -85,14 +97,60 @@ test('empalma dos rutas a 390 px y exporta un GPX continuo', async ({ page }) =>
   await page.screenshot({ path: 'test-results/empalmar-390.png', fullPage: true });
 });
 
+test('empalma tres rutas de la biblioteca en el orden elegido y guarda el resultado', async ({ page }) => {
+  await mockOrs(page);
+  await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
+  await seedRoutes(page, ROUTES);
+  await page.goto('#/rutas/empalmar');
+
+  await combo(page, 'Primera ruta').selectOption('lib:a');
+  await combo(page, 'Segunda ruta').selectOption('lib:b');
+  await combo(page, 'Tercera ruta (opcional)').selectOption('lib:c');
+  for (const width of [360, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+    expect(overflow, `sin scroll horizontal a ${width} px`).toBe(false);
+    await page.screenshot({ path: `test-results/empalmar-tres-${width}.png`, fullPage: true });
+  }
+  await page.getByRole('button', { name: 'Calcular empalme' }).click();
+
+  const list = options(page);
+  await expect(list).toBeVisible({ timeout: 30_000 });
+  await expect(list.getByRole('listitem').first()).toContainText('Primero «Costa sintética», luego «Interior sintético» y después «Sierra sintética»');
+  await expect(page.getByRole('list', { name: 'Leyenda del mapa' })).toContainText('«Costa sintética», «Interior sintético» y «Sierra sintética»');
+
+  await page.getByRole('button', { name: 'Guardar en la biblioteca' }).click();
+  await expect(page.getByRole('status')).toContainText('Guardada en la biblioteca.');
+  await page.goto('#/rutas/biblioteca');
+  await expect(page.getByText('Empalme Costa sintética, Interior sintético y Sierra sintética')).toBeVisible();
+});
+
+test('empalma una ruta con una salida del historial', async ({ page }) => {
+  const calls = await mockOrs(page);
+  await seed(page, { activities: [{ ...RIDES[0], name: 'Salida sintética', hasTrack: true }, ...RIDES.slice(1)], settings: settings({ orsKey: 'test-key' }) });
+  await seedRoutes(page, ROUTES.slice(0, 1), [TRACK]);
+  await page.goto('#/rutas/empalmar');
+
+  const first = combo(page, 'Primera ruta');
+  await expect(first.locator('optgroup[label="Salidas"] option')).toHaveCount(1);
+  await expect(first.locator('optgroup[label="Salidas"] option')).toContainText('Salida sintética · 4 nov · 35,0 km');
+  await first.selectOption('lib:a');
+  await combo(page, 'Segunda ruta').selectOption('act:s0');
+  await page.getByRole('button', { name: 'Calcular empalme' }).click();
+
+  await expect(options(page)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('list', { name: 'Leyenda del mapa' })).toContainText('«Costa sintética» y «Salida sintética»');
+  expect(calls()).toBeGreaterThan(0);
+});
+
 test('con la cuota diaria de ORS agotada lo explica', async ({ page }) => {
   await page.route('https://api.heigit.org/openrouteservice/**', (route) =>
     route.fulfill({ status: 403, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ error: { code: 403, message: 'Quota exceeded' } }) }));
   await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
-  await seedRoutes(page);
+  await seedRoutes(page, ROUTES.slice(0, 2));
   await page.goto('#/rutas/empalmar');
-  await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('a');
-  await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('b');
+  await combo(page, 'Primera ruta').selectOption('lib:a');
+  await combo(page, 'Segunda ruta').selectOption('lib:b');
   await page.getByRole('button', { name: 'Calcular empalme' }).click();
   await expect(page.getByRole('alert')).toContainText('2.000 consultas diarias', { timeout: 30_000 });
 });

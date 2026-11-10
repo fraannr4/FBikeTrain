@@ -51,5 +51,12 @@ export type RouteFacts = {
 };
 /** Objetivo con fecha más próximo, tal como lo ve la IA: sin nombre ni lugar. */
 export type WeekGoal = { diasHasta: number; distanciaKm: number | null; desnivelM: number | null };
+/**
+ * Objetivo vigente como contexto de las rutas y los empalmes: el evento más próximo con los días que
+ * faltan, o lo que queda del volumen del periodo actual. Solo cifras: nunca el nombre ni el lugar.
+ */
+export type AiGoal =
+  | { tipo: 'evento'; diasHasta: number; distanciaKm: number | null; desnivelM: number | null }
+  | { tipo: 'volumen'; diasRestantes: number; distanciaRestanteKm: number | null; desnivelRestanteM: number | null };
 /** Lo que se pide para proponer la semana. Los días son índices desde hoy (0 hoy, 6 dentro de 6 días). */
 export type WeekInput = { objetivo: WeekGoal | null; ocupados: number[]; disponibles: number[]; notas: string };

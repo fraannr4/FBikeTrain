@@ -23,19 +23,21 @@ export function aiShown(routes: AiRoute[]): ShownRoute[] {
   });
 }
 
-/** Carrusel de propuestas; en el teléfono, «Exportar GPX» va en el dock. */
+/** Carrusel de propuestas; en el teléfono, «Exportar GPX» va en el dock y «Empalmar con…» queda en la tarjeta. */
 export function AiRoutesCarousel({
   shown,
   resetKey,
   onIndexChange,
   onExport,
   onMap,
+  onSplice,
 }: {
   shown: ShownRoute[];
   resetKey: unknown;
   onIndexChange: (i: number) => void;
   onExport: (card: RouteCardData) => void;
   onMap: (card: RouteCardData) => void;
+  onSplice: (card: RouteCardData) => void;
 }) {
   return (
     <Carousel
@@ -52,6 +54,7 @@ export function AiRoutesCarousel({
           className="rcard--docked"
           onDownload={onExport}
           onMap={onMap}
+          onSplice={onSplice}
         />
       )}
     />

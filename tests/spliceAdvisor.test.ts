@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { AiGoal } from '../src/ai/contracts';
 import type { Settings } from '../src/domain/types';
 import { chatJson, LlmError } from '../src/ai/llm';
 import { adviseSplice, spliceFacts } from '../src/ai/spliceAdvisor';
@@ -18,7 +19,7 @@ const notJson = { ...(fixture('splice-ok.json') as object), choices: [{ index: 0
 
 // Coordenadas sintéticas en el mar: no deben llegar nunca a la IA.
 const option = (id: string, distanceM: number, mainRoadPct: number): SpliceOption => ({
-  id, order: 'AB', reversed: { A: false, B: false },
+  id, order: 'AB', reversed: { A: false, B: false, C: false },
   points: [{ lat: 41.123456, lng: 2.654321, ele: 10 }, { lat: 41.2, lng: 2.7, ele: 20 }],
   pieces: [{ source: 'A', from: 0, to: 1 }],
   distanceM, distinctM: distanceM - 300, elevGainM: 120, estTimeS: null, difficulty: null,
@@ -104,5 +105,32 @@ describe('recomendación de empalme por el servicio común', () => {
     const advisor = createSharedSpliceAdvisor(async () => 'jwt', server);
     expect(await advisor.splice(facts)).toEqual({ recomendada: 'c2', motivo: '21,5 km sin vías principales.' });
     expect(JSON.parse(String(server.mock.calls[0][1]!.body))).toEqual({ operation: 'splice', facts });
+  });
+});
+
+describe('recomendación de empalme con el objetivo del usuario', () => {
+  const objetivo: AiGoal = { tipo: 'volumen', diasRestantes: 9, distanciaRestanteKm: 120.5, desnivelRestanteM: null };
+
+  it('con clave propia, el objetivo va en el mensaje solo con sus cifras', async () => {
+    const f = respond([200, fixture('splice-ok.json')]);
+    await adviseSplice(options, { personal: cfg, chat: chatWith(f), objetivo: { ...objetivo, titulo: 'Noviembre en Mallorca' } as AiGoal });
+    const body = String(f.mock.calls[0][1]!.body);
+    expect(JSON.parse(JSON.parse(body).messages[1].content).objetivo).toEqual(objetivo);
+    expect(body).not.toContain('Mallorca');
+  });
+
+  it('el servicio común recibe el objetivo, y el cliente lo envía solo si lo hay', async () => {
+    const shared = { splice: vi.fn().mockResolvedValue({ recomendada: 'c2', motivo: '21,5 km.' }) };
+    await adviseSplice(options, { personal: null, shared, objetivo });
+    expect(shared.splice).toHaveBeenCalledWith(spliceFacts(options), undefined, objetivo);
+    const server = vi.fn<typeof fetch>(async (_url, init) => handleSharedAi(new Request('https://example.invalid/ai-routes', init), {
+      enabled: true, allowedOrigins: [], authenticate: async () => 'user-1', consumeQuota: async () => ({ allowed: true, retryAfterS: 0 }),
+      complete: async () => ({ recomendada: 'c1', motivo: '20 km.' }), validateOutput: () => true,
+    }));
+    const advisor = createSharedSpliceAdvisor(async () => 'jwt', server);
+    await advisor.splice(spliceFacts(options), undefined, objetivo);
+    expect(JSON.parse(String(server.mock.calls[0][1]!.body))).toEqual({ operation: 'splice', facts: spliceFacts(options), objetivo });
+    await advisor.splice(spliceFacts(options), undefined, null);
+    expect(JSON.parse(String(server.mock.calls[1][1]!.body))).toEqual({ operation: 'splice', facts: spliceFacts(options) });
   });
 });

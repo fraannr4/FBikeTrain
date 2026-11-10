@@ -62,8 +62,8 @@ test.describe('Empalmar, peor caso', () => {
     await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
     await putRoutes(page, [stored('a', LONG_NAME, line(0, 40_000)), stored('b', ARABIC, line(45_000, 48_000)), stored('c', UNBROKEN, line(50_000, 53_000))]);
     await page.goto('#/rutas/empalmar');
-    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('a');
-    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('c');
+    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('lib:a');
+    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('lib:c');
     expect(await noHorizontalScroll(page)).toBe(true);
     const t0 = Date.now();
     await page.getByRole('button', { name: 'Calcular empalme' }).click();
@@ -92,8 +92,8 @@ test.describe('Empalmar, peor caso', () => {
     // Cada una está dentro del límite de 50.000 puntos de la biblioteca; juntas, no.
     await putRoutes(page, [stored('a', 'Larga uno', line(0, 300_000)), stored('b', 'Larga dos', line(305_000, 605_000))]);
     await page.goto('#/rutas/empalmar');
-    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('a');
-    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('b');
+    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('lib:a');
+    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('lib:b');
     await page.getByRole('button', { name: 'Calcular empalme' }).click();
     await expect(page.getByRole('list', { name: 'Opciones de empalme' })).toBeVisible({ timeout: 60_000 });
     const downloaded = page.waitForEvent('download', { timeout: 5_000 }).then(() => true, () => false);
@@ -112,8 +112,8 @@ test.describe('Empalmar, peor caso', () => {
     await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
     await putRoutes(page, [stored('a', 'Cuatrocientos', line(0, 400_000)), stored('c', 'Corta', line(410_000, 413_000))]);
     await page.goto('#/rutas/empalmar');
-    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('a');
-    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('c');
+    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('lib:a');
+    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('lib:c');
     await page.getByRole('button', { name: 'Calcular empalme' }).click();
     await expect(page.getByRole('list', { name: 'Opciones de empalme' })).toBeVisible({ timeout: 30_000 });
   });
@@ -124,8 +124,8 @@ test.describe('Empalmar, peor caso', () => {
     await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
     await putRoutes(page, [stored('b', ARABIC, line(405_000, 408_000)), stored('c', UNBROKEN, line(410_000, 413_000))]);
     await page.goto('#/rutas/empalmar');
-    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('b');
-    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('c');
+    await page.getByRole('combobox', { name: 'Primera ruta' }).selectOption('lib:b');
+    await page.getByRole('combobox', { name: 'Segunda ruta' }).selectOption('lib:c');
     await page.getByRole('button', { name: 'Calcular empalme' }).click();
     await expect(page.getByRole('list', { name: 'Opciones de empalme' })).toBeVisible({ timeout: 30_000 });
     expect(await noHorizontalScroll(page)).toBe(true);
@@ -137,7 +137,7 @@ test.describe('Empalmar, peor caso', () => {
       await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
       if (n === 1) await putRoutes(page, [stored('a', LONG_NAME, line(0, 3000))]);
       await page.goto('#/rutas/empalmar');
-      await expect(page.getByText('Necesitas al menos dos rutas')).toBeVisible();
+      await expect(page.getByText('Necesitas al menos dos tramos')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Calcular empalme' })).toBeDisabled();
       expect(await noHorizontalScroll(page)).toBe(true);
     });

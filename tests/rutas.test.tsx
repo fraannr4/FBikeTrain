@@ -409,8 +409,8 @@ describe('Rutas', () => {
     expect(await db.referenceRoutes.count()).toBe(1);
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Empalmar' })[0]);
-    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar dos rutas' })).toBeInTheDocument();
-    expect(await screen.findAllByRole('option', { name: /Vuelta por el norte/ })).toHaveLength(2);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar rutas' })).toBeInTheDocument();
+    expect(await screen.findAllByRole('option', { name: /Vuelta por el norte/ })).toHaveLength(3);
   });
 
   it('cancel goes back without routes', async () => {

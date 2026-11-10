@@ -1,5 +1,6 @@
+import type { AiGoal } from '../src/ai/contracts';
 import type { LevelSummary } from '../src/ai/levelSummary';
-import { buildExplainMessages, buildPlanMessages, type AiReference, type Answers, type RouteFacts } from '../src/ai/prompts';
+import { buildExplainMessages, buildPlanMessages, buildSpliceMessages, type AiReference, type Answers, type RouteFacts, type SpliceFacts } from '../src/ai/prompts';
 
 const summary: LevelSummary = {
   fuente: 'historial',
@@ -83,6 +84,36 @@ describe('buildPlanMessages', () => {
     expect(sys).toContain('referenciaId');
     expect(sys).toContain('±15 %');
     expect(sys).toContain('nunca copies cifras distintas de las recibidas');
+  });
+});
+
+describe('objetivo del usuario en plan y empalme', () => {
+  const spliceFacts: SpliceFacts[] = [{ id: 'c1', distanciaKm: 20, desnivelM: 120, viasPrincipalesPct: 4, conectorKm: 1.5, solapeKm: 0.3, retrocesoKm: 0, alternativa: false }];
+  const evento: AiGoal = { tipo: 'evento', diasHasta: 12, distanciaKm: 120, desnivelM: 1500 };
+  const volumen: AiGoal = { tipo: 'volumen', diasRestantes: 9, distanciaRestanteKm: 120.5, desnivelRestanteM: null };
+
+  it('with a goal, the user json carries it and both system prompts explain «objetivo»', () => {
+    const plan = buildPlanMessages(summary, answers, 60, [], evento);
+    expect(userJson(plan).objetivo).toEqual(evento);
+    expect(systemText(plan)).toContain('«objetivo»');
+    expect(systemText(plan)).toContain('5-15 %');
+    const splice = buildSpliceMessages(spliceFacts, volumen);
+    expect(userJson(splice).objetivo).toEqual(volumen);
+    expect(systemText(splice)).toContain('«objetivo»');
+  });
+
+  it('without a goal, the key is absent', () => {
+    expect(userJson(buildPlanMessages(summary, answers, 60))).not.toHaveProperty('objetivo');
+    expect(userJson(buildPlanMessages(summary, answers, 60, [], null))).not.toHaveProperty('objetivo');
+    expect(userJson(buildSpliceMessages(spliceFacts))).not.toHaveProperty('objetivo');
+    expect(userJson(buildSpliceMessages(spliceFacts, null))).not.toHaveProperty('objetivo');
+  });
+
+  it('only the goal figures reach the ai, never a name', () => {
+    const leaky = { ...evento, titulo: 'Marcha de Mallorca' } as AiGoal;
+    expect(Object.keys(userJson(buildPlanMessages(summary, answers, 60, [], leaky)).objetivo).sort()).toEqual(['desnivelM', 'diasHasta', 'distanciaKm', 'tipo']);
+    const leakyVolume = { ...volumen, titulo: 'Noviembre en Mallorca' } as AiGoal;
+    expect(Object.keys(userJson(buildSpliceMessages(spliceFacts, leakyVolume)).objetivo).sort()).toEqual(['desnivelRestanteM', 'diasRestantes', 'distanciaRestanteKm', 'tipo']);
   });
 });
 

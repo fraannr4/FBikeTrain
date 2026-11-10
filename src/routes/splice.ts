@@ -1,5 +1,5 @@
 import { abortError, isAbort } from '../ai/abort';
-import type { LatLng } from '../domain/types';
+import type { LatLng, StoredActivity, TrackPoint } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { difficulty, type Difficulty, type UserReference } from '../metrics/reference';
 import { ROAD_FILTER, UNPAVED_SURFACES, usesMotorway } from './analyze';
@@ -8,12 +8,14 @@ import { fetchRoadFeatures, OrsError, type OrsAccess, type OrsExtra, type OrsFea
 import { buildOrsBody, type SharedOrsRequest } from './shared/orsService';
 
 /**
- * Empalme de dos rutas guardadas en una sola, para bici de carretera. El código elige el orden, el
- * sentido y los puntos de unión; las carreteras de los conectores las pone ORS y las cifras las
- * calcula el código. Nada de esto pasa por la IA.
+ * Empalme de dos o tres tramos (rutas de la biblioteca o salidas del historial) en una sola ruta,
+ * para bici de carretera. El código elige el orden, el sentido y los puntos de unión; las carreteras
+ * de los conectores las pone ORS y las cifras las calcula el código. Nada de esto pasa por la IA.
  */
 
 export const SPLICE = {
+  /** Tramos que admite un empalme. */
+  maxInputs: 3,
   /** Una ruta cuyo final queda a esta distancia de su inicio es circular y se puede invertir. */
   loopCloseM: 50,
   /** Si las rutas pasan a menos de esto, se unen por su punto más cercano y no por los extremos. */
@@ -51,17 +53,19 @@ const M_PER_DEG_LAT = 111_320;
 
 export type SpliceInput = { id: string; name: string; points: RoutePoint[] };
 export type ConnectorFetch = (from: LatLng, to: LatLng, signal?: AbortSignal) => Promise<OrsFeature[]>;
-export type PieceSource = 'A' | 'B' | 'conector' | 'regreso';
+export type SpliceLetter = 'A' | 'B' | 'C';
+export const SPLICE_LETTERS: readonly SpliceLetter[] = ['A', 'B', 'C'];
+export type PieceSource = SpliceLetter | 'conector' | 'regreso';
 /** Tramo de `points` (índices incluidos) y de dónde sale. */
 export type SplicePiece = { source: PieceSource; from: number; to: number };
 export type DiscardReason = 'autopista' | 'carretera principal' | 'sin asfaltar' | 'pistas' | 'firme desconocido' | 'salto' | 'sin datos' | 'sin carretera' | 'demasiados puntos';
 
 export type SpliceOption = {
   id: string;
-  /** AB: primero la ruta A y luego la B. */
-  order: 'AB' | 'BA';
-  /** Ruta recorrida al revés (solo las circulares). */
-  reversed: { A: boolean; B: boolean };
+  /** Letras de los tramos en el orden recorrido: `AB`, `BA` o `ABC`. */
+  order: string;
+  /** Tramo recorrido al revés (solo las circulares); `C` siempre `false` con dos tramos. */
+  reversed: Record<SpliceLetter, boolean>;
   points: RoutePoint[];
   pieces: SplicePiece[];
   distanceM: number;
@@ -83,7 +87,7 @@ export type SpliceOption = {
 
 export type SpliceResult = {
   options: SpliceOption[];
-  discarded: { order: 'AB' | 'BA'; reason: DiscardReason }[];
+  discarded: { order: string; reason: DiscardReason }[];
   requestsUsed: number;
   /** Error de ORS que cortó la búsqueda a medias; las opciones ya calculadas se conservan. */
   stoppedBy: OrsError | null;
@@ -294,7 +298,7 @@ function thin(points: RoutePoint[], pieces: SplicePiece[]): { points: RoutePoint
 }
 
 function measure(
-  base: { id: string; order: 'AB' | 'BA'; reversed: { A: boolean; B: boolean } },
+  base: Pick<SpliceOption, 'id' | 'order' | 'reversed'>,
   points: RoutePoint[],
   pieces: SplicePiece[],
   used: Connector[],
@@ -324,13 +328,31 @@ export function defaultChoice(options: SpliceOption[]): string | null {
 
 const pointKey = (p: LatLng) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
 
+/** Todas las combinaciones de sentido: una circular se prueba al derecho y al revés; un tramo abierto, solo al derecho. */
+function directions(loops: boolean[]): boolean[][] {
+  return loops.reduce<boolean[][]>((acc, loop) => acc.flatMap(prefix => (loop ? [false, true] : [false]).map(r => [...prefix, r])), [[]]);
+}
+
+/** Una salida del historial como tramo: solo los puntos con GPS, con su altitud si la trae. */
+export function activityToSpliceInput(activity: StoredActivity, track: TrackPoint[]): SpliceInput {
+  const points: RoutePoint[] = [];
+  for (const p of track) {
+    if (p.lat === undefined || p.lng === undefined) continue;
+    points.push({ lat: p.lat, lng: p.lng, ...(p.ele !== undefined ? { ele: p.ele } : {}) });
+  }
+  if (points.length < 2) throw new RouteLibraryError('Esa salida no tiene un track válido para empalmar.');
+  return { id: activity.id, name: activity.name?.trim() || 'Salida sin nombre', points };
+}
+
 /**
- * Prueba las combinaciones de orden y sentido permitidas (una circular se puede invertir; un tramo
- * abierto, no), pide a ORS los conectores sin repetir consulta y devuelve las opciones válidas.
- * Un trayecto sin carretera descarta la combinación; cualquier otro error de ORS lanza si aún no
- * hay ninguna opción, o corta la búsqueda y se devuelve en `stoppedBy`.
+ * Prueba las combinaciones de orden y sentido permitidas (con dos tramos, AB y BA; con tres, solo
+ * el orden elegido; una circular se puede invertir y un tramo abierto, no), pide a ORS los
+ * conectores sin repetir consulta y devuelve las opciones válidas. Un trayecto sin carretera
+ * descarta la combinación; cualquier otro error de ORS lanza si aún no hay ninguna opción, o corta
+ * la búsqueda y se devuelve en `stoppedBy`.
  */
-export async function spliceRoutes(a: SpliceInput, b: SpliceInput, opts: { returnToStart: boolean }, deps: SpliceDeps): Promise<SpliceResult> {
+export async function spliceRoutes(inputs: SpliceInput[], opts: { returnToStart: boolean }, deps: SpliceDeps): Promise<SpliceResult> {
+  if (inputs.length < 2 || inputs.length > SPLICE.maxInputs) throw new RangeError('Se empalman entre 2 y 3 rutas.');
   const { signal } = deps;
   const reference = deps.reference ?? null;
   const checkAbort = () => { if (signal?.aborted) throw abortError(); };
@@ -339,7 +361,7 @@ export async function spliceRoutes(a: SpliceInput, b: SpliceInput, opts: { retur
   const discarded: SpliceResult['discarded'] = [];
 
   /** Cada consulta a ORS se hace una vez; sus descartes se anotan al recibirla. */
-  async function connectorsFor(from: LatLng, to: LatLng, order: 'AB' | 'BA'): Promise<Connectors> {
+  async function connectorsFor(from: LatLng, to: LatLng, order: string): Promise<Connectors> {
     const key = `${pointKey(from)}>${pointKey(to)}`;
     const known = cache.get(key);
     if (known) return known;
@@ -361,62 +383,76 @@ export async function spliceRoutes(a: SpliceInput, b: SpliceInput, opts: { retur
     return result;
   }
 
-  const routes = { A: a, B: b };
+  const letters = SPLICE_LETTERS.slice(0, inputs.length);
+  const routes = new Map(letters.map((letter, i) => [letter, inputs[i]]));
+  const orders = inputs.length === 2 ? ['AB', 'BA'] : [letters.join('')];
   const groups: SpliceOption[][] = [];
   let stoppedBy: OrsError | null = null;
 
   try {
-    for (const order of ['AB', 'BA'] as const) {
-      const [firstKey, secondKey] = order === 'AB' ? (['A', 'B'] as const) : (['B', 'A'] as const);
-      const first = routes[firstKey].points; const second = routes[secondKey].points;
-      const firstLoop = isLoop(first); const secondLoop = isLoop(second);
+    for (const order of orders) {
+      const keys = [...order] as SpliceLetter[];
+      const tracks = keys.map(k => routes.get(k)!.points);
+      const loops = tracks.map(isLoop);
       // Los puntos de unión se eligen una vez por orden: invertir una circular no cambia dónde se une
-      // ni gasta más consultas.
-      const pair = joinPair(first, firstLoop, second, secondLoop);
-      const exit = first[pair.i]; const entry = second[pair.j];
-      for (const revFirst of firstLoop ? [false, true] : [false]) {
-        for (const revSecond of secondLoop ? [false, true] : [false]) {
-          checkAbort();
-          const x = revFirst ? [...first].reverse() : first;
-          const y = revSecond ? [...second].reverse() : second;
-          const xr = firstLoop ? rotate(x, ringIndex(x, exit)) : x;
-          const yr = secondLoop ? rotate(y, ringIndex(y, entry)) : y;
-          const p = xr[xr.length - 1]; const q = yr[0];
-          let variants: (Connector | null)[] = [null];
-          if (gap(p, q) > SPLICE.directJoinM) {
-            const found = await connectorsFor(p, q, order);
-            if (found.valid.length === 0) continue;
-            const [main, alt] = found.valid;
-            variants = alt && similar(main, alt) ? [main, alt] : [main];
-          }
-          const reversed = { [firstKey]: revFirst, [secondKey]: revSecond } as { A: boolean; B: boolean };
-          const id = `${order}-${Number(reversed.A)}${Number(reversed.B)}`;
-          const group: SpliceOption[] = [];
-          for (const [k, conn] of variants.entries()) {
-            const points: RoutePoint[] = []; const pieces: SplicePiece[] = []; const used: Connector[] = [];
-            append(points, pieces, xr, firstKey);
-            if (conn) { append(points, pieces, conn.points, 'conector'); used.push(conn); }
-            append(points, pieces, yr, secondKey);
-            const start = points[0]; const end = points[points.length - 1];
-            if (opts.returnToStart && gap(end, start) > SPLICE.directJoinM) {
-              const back = await connectorsFor(end, start, order);
-              if (back.valid.length === 0) continue;
-              append(points, pieces, back.valid[0].points, 'regreso'); used.push(back.valid[0]);
-            }
-            let option: SpliceOption;
-            try {
-              const thinned = thin(points, pieces);
-              option = measure({ id: k === 0 ? id : `${id}-alt`, order, reversed }, thinned.points, thinned.pieces, used, reference);
-            } catch (err) {
-              // Una combinación que no cabe no tumba las demás: se descarta con su motivo.
-              if (!(err instanceof RouteLibraryError)) throw err;
-              discarded.push({ order, reason: 'demasiados puntos' });
-              continue;
-            }
-            group.push(k > 0 && group[0] ? { ...option, alternativeOf: group[0].id } : option);
-          }
-          if (group.length > 0) groups.push(group);
+      // ni gasta más consultas. Una circular intermedia entra y sale por el mismo punto, así que
+      // desde el segundo tramo la salida está fijada en su final.
+      const joins: { exit: RoutePoint; entry: RoutePoint }[] = [];
+      for (let i = 1; i < tracks.length; i++) {
+        const prev = i === 1 ? tracks[0] : loops[i - 1] ? [joins[i - 2].entry] : tracks[i - 1];
+        const pair = joinPair(prev, i === 1 && loops[0], tracks[i], loops[i]);
+        joins.push({ exit: prev[pair.i], entry: tracks[i][pair.j] });
+      }
+      for (const rev of directions(loops)) {
+        checkAbort();
+        const legs = tracks.map((track, i) => {
+          const x = rev[i] ? [...track].reverse() : track;
+          return loops[i] ? rotate(x, ringIndex(x, i === 0 ? joins[0].exit : joins[i - 1].entry)) : x;
+        });
+        // Conectores entre tramos consecutivos; `null` si se unen directamente. Si en alguna unión
+        // hay dos conectores parecidos, se propone una segunda variante con las alternativas.
+        const junctions: (Connector[] | null)[] = [];
+        let possible = true;
+        for (let i = 1; i < legs.length && possible; i++) {
+          const p = legs[i - 1][legs[i - 1].length - 1]; const q = legs[i][0];
+          if (gap(p, q) <= SPLICE.directJoinM) { junctions.push(null); continue; }
+          const found = await connectorsFor(p, q, order);
+          if (found.valid.length === 0) { possible = false; break; }
+          const [main, alt] = found.valid;
+          junctions.push(alt && similar(main, alt) ? [main, alt] : [main]);
         }
+        if (!possible) continue;
+        const reversed = Object.fromEntries(SPLICE_LETTERS.map(l => [l, false])) as Record<SpliceLetter, boolean>;
+        keys.forEach((k, i) => { reversed[k] = rev[i]; });
+        const id = `${order}-${letters.map(l => Number(reversed[l])).join('')}`;
+        const variants = junctions.some(j => j && j.length > 1) ? [0, 1] : [0];
+        const group: SpliceOption[] = [];
+        for (const k of variants) {
+          const points: RoutePoint[] = []; const pieces: SplicePiece[] = []; const used: Connector[] = [];
+          legs.forEach((leg, i) => {
+            const conn = i > 0 ? junctions[i - 1] : null;
+            if (conn) { const chosen = conn[k] ?? conn[0]; append(points, pieces, chosen.points, 'conector'); used.push(chosen); }
+            append(points, pieces, leg, keys[i]);
+          });
+          const start = points[0]; const end = points[points.length - 1];
+          if (opts.returnToStart && gap(end, start) > SPLICE.directJoinM) {
+            const back = await connectorsFor(end, start, order);
+            if (back.valid.length === 0) continue;
+            append(points, pieces, back.valid[0].points, 'regreso'); used.push(back.valid[0]);
+          }
+          let option: SpliceOption;
+          try {
+            const thinned = thin(points, pieces);
+            option = measure({ id: k === 0 ? id : `${id}-alt`, order, reversed }, thinned.points, thinned.pieces, used, reference);
+          } catch (err) {
+            // Una combinación que no cabe no tumba las demás: se descarta con su motivo.
+            if (!(err instanceof RouteLibraryError)) throw err;
+            discarded.push({ order, reason: 'demasiados puntos' });
+            continue;
+          }
+          group.push(k > 0 && group[0] ? { ...option, alternativeOf: group[0].id } : option);
+        }
+        if (group.length > 0) groups.push(group);
       }
     }
   } catch (e) {
@@ -424,7 +460,7 @@ export async function spliceRoutes(a: SpliceInput, b: SpliceInput, opts: { retur
     stoppedBy = e;
   }
 
-  const rank = (o: SpliceOption) => [o.mainRoadPct > 0 ? 1 : 0, Math.round(o.distanceM / 100), Number(o.reversed.A) + Number(o.reversed.B)];
+  const rank = (o: SpliceOption) => [o.mainRoadPct > 0 ? 1 : 0, Math.round(o.distanceM / 100), SPLICE_LETTERS.filter(l => o.reversed[l]).length];
   const compare = (x: SpliceOption, y: SpliceOption) => {
     const rx = rank(x); const ry = rank(y);
     return rx[0] - ry[0] || rx[1] - ry[1] || rx[2] - ry[2] || x.order.localeCompare(y.order);

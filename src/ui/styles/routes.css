@@ -98,6 +98,8 @@
 .rcard-actions { display: grid; margin-top: auto; padding-top: 2px; }
 /* En el carrusel de Rutas, el dock repite el botón en el teléfono: la tarjeta no lo lleva */
 @media (max-width: 599px) and (min-height: 501px) { .rcard--docked .rcard-actions { display: none; } }
+/* «Empalmar con…» no está en el dock: la tarjeta lo lleva siempre, también en el teléfono */
+.rcard-splice { display: grid; }
 
 /* ---------- Fila compacta (dentro de List) ---------- */
 .rcard-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }

@@ -1,7 +1,7 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
-import type { AiReference, Answers, RouteFacts, SpliceFacts, WeekInput } from './prompts';
+import { goalFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
 import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
 import type { SharedAiPlanner } from './routePlanner';
 
@@ -49,9 +49,12 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
 export function createSharedAiPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedAiPlanner {
   const request = sharedRequest(getToken, fetchImpl);
   return {
-    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = []) => {
+    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = [], objetivo: AiGoal | null = null) => {
       const refs = referencias.map(r => ({ id: r.id, nombre: r.nombre, fuente: r.fuente, distanciaKm: r.distanciaKm, desnivelM: r.desnivelM }));
-      const data = await request({ operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm, ...(refs.length ? { referencias: refs } : {}) }, signal);
+      const data = await request({
+        operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm,
+        ...(refs.length ? { referencias: refs } : {}), ...(objetivo ? { objetivo: goalFields(objetivo) } : {}),
+      }, signal);
       const parsed = RoutePlanSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('other', 'El servicio no ha devuelto objetivos válidos. Ajusta la ruta manualmente.');
       return parsed.data;
@@ -66,14 +69,14 @@ export function createSharedAiPlanner(getToken: () => Promise<string | null>, fe
   };
 }
 
-export type SharedSpliceAdvisor = { splice: (facts: SpliceFacts[], signal?: AbortSignal) => Promise<SpliceAdvice> };
+export type SharedSpliceAdvisor = { splice: (facts: SpliceFacts[], signal?: AbortSignal, objetivo?: AiGoal | null) => Promise<SpliceAdvice> };
 
-/** Recomendación de empalme por el servicio común: solo cifras de cada opción. */
+/** Recomendación de empalme por el servicio común: solo cifras de cada opción y del objetivo. */
 export function createSharedSpliceAdvisor(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedSpliceAdvisor {
   const request = sharedRequest(getToken, fetchImpl);
   return {
-    splice: async (facts, signal) => {
-      const data = await request({ operation: 'splice', facts }, signal);
+    splice: async (facts, signal, objetivo = null) => {
+      const data = await request({ operation: 'splice', facts, ...(objetivo ? { objetivo: goalFields(objetivo) } : {}) }, signal);
       const parsed = spliceAdviceSchema(facts.map(f => f.id) as [string, ...string[]]).safeParse(data);
       if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto una recomendación válida.');
       return parsed.data;

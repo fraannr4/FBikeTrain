@@ -4,9 +4,10 @@
 
 Contratos:
 
-- `{ operation: 'plan', summary: LevelSummary, answers: { focus, minutes, explore, notes: '' }, maxDistanciaKm }`
+- `{ operation: 'plan', summary: LevelSummary, answers: { focus, minutes, explore, notes: '' }, maxDistanciaKm, referencias?, objetivo? }`
 - `{ operation: 'explain', summary: LevelSummary, facts: RouteFacts[] }`
-- `{ operation: 'splice', facts: SpliceFacts[] }`: recomendación de empalme. De 1 a 12 opciones con solo cifras (distancia, desnivel, vías principales, conector, solape, retroceso); devuelve `{ recomendada, motivo }` y `recomendada` debe ser uno de los `id` recibidos.
+- `{ operation: 'splice', facts: SpliceFacts[], objetivo? }`: recomendación de empalme. De 1 a 12 opciones con solo cifras (distancia, desnivel, vías principales, conector, solape, retroceso); devuelve `{ recomendada, motivo }` y `recomendada` debe ser uno de los `id` recibidos.
+- `objetivo` (opcional en `plan` y `splice`, o `null`): el objetivo vigente del usuario como contexto, solo cifras. `{ tipo: 'evento', diasHasta (0-730), distanciaKm, desnivelM }` o `{ tipo: 'volumen', diasRestantes (0-366), distanciaRestanteKm, desnivelRestanteM }`; nunca el nombre ni el lugar. Lo calcula `src/ai/goalContext.ts` en el navegador.
 - `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: '' }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar y las notas vacías, como en `plan`. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
 - Éxito: `{ data: ... }` con el esquema de la operación.
 - Error: `{ error: { code, message }, retryAfterS? }`. Códigos: unauthorized, invalid_request, quota_exceeded, unavailable, provider_error, timeout, cancelled, invalid_response. No se devuelven errores crudos ni claves.
@@ -15,7 +16,7 @@ La validación es estricta: sin coordenadas, tracks ni campos extras. No admite 
 
 ## Activación y secretos
 
-No se ha activado ningún servicio remoto. Antes de desplegar deben comprobarse el runtime/bundle de Deno, aplicar `202611090002_shared_ai_quota.sql` y comprobar Auth/RLS/HTTP reales. Los tests locales no equivalen a esa verificación.
+No se ha activado ningún servicio remoto. Antes de desplegar deben comprobarse el runtime/bundle de Deno, aplicar `202611090002_shared_ai_quota.sql` y `202611100004_shared_ai_quota_raise.sql`, y comprobar Auth/RLS/HTTP reales. Los tests locales no equivalen a esa verificación.
 
 Configurar solo en secretos del proyecto:
 
@@ -26,12 +27,15 @@ Configurar solo en secretos del proyecto:
 
 La función usa las credenciales de Supabase ya disponibles en el entorno del servidor; nunca las copie a Vite ni al repositorio. Si falta configuración o falla comprobar la cuota, el servicio devuelve 503 antes de llamar a Groq.
 
-## Cuotas iniciales conservadoras
+## Cuotas
 
-Solo la función SQL de servidor puede consumir. Un bloqueo transaccional compartido evita sobreconsumo por concurrencia:
+Solo la función SQL de servidor puede consumir. Un bloqueo transaccional compartido evita sobreconsumo por concurrencia. Límites vigentes (`202611100004_shared_ai_quota_raise.sql`, que reemplaza la función de `202611090002` sin tocar la tabla ni los contadores):
 
-- 12 operaciones por día/usuario; 40 globales por día (UTC).
-- 2 operaciones por minuto/usuario; 3 globales por minuto.
+| Ventana | Por usuario | Global |
+|---|---|---|
+| Día (UTC) | 30 operaciones (antes 12) | 300 (antes 40) |
+| Minuto | 2 operaciones | 10 (antes 3) |
+
 - `plan`, `explain`, `splice` y `workouts` cuentan por separado, una operación cada una: una búsqueda habitual necesita dos operaciones. Los intentos ya admitidos consumen incluso si el proveedor falla; evita reintentos ilimitados y gasto no contabilizado.
 
 No confundir estas cuotas de aplicación con las efectivas del proveedor (peticiones y tokens). No se cambia automáticamente a planes de pago. Al agotarse, 429 con Retry-After.
@@ -73,7 +77,7 @@ npx supabase functions deploy ai-routes
 npx supabase functions deploy ors-proxy
 ```
 
-No usar `--no-verify-jwt`: la plataforma debe exigir el JWT antes del handler. `db push --dry-run` enseña las migraciones pendientes (0001, 0002 y la de ORS) antes de aplicarlas.
+No usar `--no-verify-jwt`: la plataforma debe exigir el JWT antes del handler. `db push --dry-run` enseña las migraciones pendientes (0001, 0002, las de ORS y fuentes, y 0004 con la cuota subida) antes de aplicarlas.
 
 Después, en GitHub, Settings > Secrets and variables > Actions > Variables: `VITE_SHARED_AI_ENABLED=true` y `VITE_SHARED_ORS_ENABLED=true`. Sin ellas el despliegue las deja en `false` y la app pide las claves personales. El despliegue comprueba con `scripts/check-bundle-secrets.mjs` que `dist` no lleva claves de servidor.
 

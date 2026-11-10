@@ -163,6 +163,19 @@ export async function saveGeneratedRoute(name: string, coords: Coord3[], fileNam
   return route;
 }
 
+/** Guarda el empalme elegido como una ruta más de la biblioteca; su original es el mismo GPX que se exporta. */
+export async function saveSplicedRoute(name: string, points: RoutePoint[]): Promise<ReferenceRoute> {
+  const routeName = name.trim().slice(0, 120) || 'Empalme';
+  const summary = analyzeReferenceRoutePoints(points);
+  const now = Date.now();
+  const route: ReferenceRoute = {
+    id: crypto.randomUUID(), name: routeName, format: 'gpx', sourceFileName: 'empalme.gpx',
+    originalXml: routePointsToGpx(routeName, points), originalPoints: copy(points), points: copy(points), summary, createdAt: now, updatedAt: now,
+  };
+  await db.referenceRoutes.add(route);
+  return route;
+}
+
 export function listReferenceRoutes(): Promise<ReferenceRoute[]> {
   return db.referenceRoutes.orderBy('updatedAt').reverse().toArray();
 }

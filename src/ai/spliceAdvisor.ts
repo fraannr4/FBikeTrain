@@ -2,7 +2,7 @@ import type { Settings } from '../domain/types';
 import { defaultChoice, type SpliceOption } from '../routes/splice';
 import { formatKm, formatMeters, formatNumber } from '../ui/format';
 import { chatJson, LlmError } from './llm';
-import { buildSpliceMessages, type SpliceFacts } from './prompts';
+import { buildSpliceMessages, type AiGoal, type SpliceFacts } from './prompts';
 import { chatWithRetry } from './routePlanner';
 import { spliceAdviceSchema, toStrictJsonSchema, type SpliceAdvice as AiAdvice } from './schema';
 import type { SharedSpliceAdvisor } from './sharedClient';
@@ -27,6 +27,8 @@ export type SpliceAdvisorDeps = {
   shared?: SharedSpliceAdvisor;
   chat?: typeof chatJson;
   signal?: AbortSignal;
+  /** Objetivo vigente del usuario (`aiGoal`), solo cifras; sin él, la IA decide por las cifras de las opciones. */
+  objetivo?: AiGoal | null;
 };
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
@@ -62,16 +64,17 @@ export async function adviseSplice(options: SpliceOption[], deps: SpliceAdvisorD
   const ids = facts.map(f => f.id) as [string, ...string[]];
   const pick = (a: AiAdvice): SpliceAdvice => ({ id: options[ids.indexOf(a.recomendada)].id, motivo: a.motivo, source: 'ia', aviso: null });
   const personal = deps.personal?.apiKey.trim() && deps.personal.model.trim() ? deps.personal : null;
+  const objetivo = deps.objetivo ?? null;
 
   async function viaPersonal(cfg: Settings['llm']): Promise<SpliceAdvice | null> {
     const schema = spliceAdviceSchema(ids);
-    const out = await chatWithRetry(cfg, { messages: buildSpliceMessages(facts), schemaName: 'empalme_rutas', jsonSchema: toStrictJsonSchema(schema), schema, signal: deps.signal }, deps.chat ?? chatJson);
+    const out = await chatWithRetry(cfg, { messages: buildSpliceMessages(facts, objetivo), schemaName: 'empalme_rutas', jsonSchema: toStrictJsonSchema(schema), schema, signal: deps.signal }, deps.chat ?? chatJson);
     return out.ok ? pick(out.data) : byCode(options, fallbackNotice(out.error));
   }
 
   if (deps.shared) {
     try {
-      return pick(await deps.shared.splice(facts, deps.signal));
+      return pick(await deps.shared.splice(facts, deps.signal, objetivo));
     } catch (e) {
       if (!(e instanceof LlmError)) throw e;
       // Con el servicio caído se prueba la clave propia; con la cuota agotada, no: se enseña el límite.

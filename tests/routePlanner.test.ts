@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { AiGoal } from '../src/ai/contracts';
 import { buildLevelSummary } from '../src/ai/levelSummary';
 import { chatJson, LlmError } from '../src/ai/llm';
 import type { Answers, ChatMessage, RouteFacts } from '../src/ai/prompts';
@@ -577,5 +578,42 @@ describe('runAiRoutes con rutas conocidas cerca del inicio', () => {
     const body = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
     expect(body.referencias).toEqual([{ id: 'ref1', nombre: 'Vuelta sintética 1', fuente: 'osm', distanciaKm: 52, desnivelM: 640 }]);
     expect(out.opciones[0].referenciaId).toBe('ref1');
+  });
+});
+
+describe('runAiRoutes con el objetivo del usuario', () => {
+  const objetivo: AiGoal = { tipo: 'evento', diasHasta: 12, distanciaKm: 120, desnivelM: 1500 };
+  const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+  it('con la clave personal, el objetivo va en el plan y no en la explicación', async () => {
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), goal: objetivo });
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content).objetivo).toEqual(objetivo);
+    expect(JSON.parse(fn.mock.calls[1][1].messages[1].content)).not.toHaveProperty('objetivo');
+  });
+
+  it('sin objetivo, el plan no lleva el campo', async () => {
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), goal: null });
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content)).not.toHaveProperty('objetivo');
+  });
+
+  it('el servicio común recibe el objetivo en el plan y no en la explicación', async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    fetchImpl.mockResolvedValueOnce(reply({ data: validPlan })).mockResolvedValueOnce(reply({ data: { explicaciones: [] } }));
+    const shared = createSharedAiPlanner(async () => 'session', fetchImpl);
+    const out = await runAiRoutes(input(), { ...deps(fakeChat().chat, fakeGenerate()), shared, goal: objetivo });
+    expect(out.kind).toBe('routes');
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body)).objetivo).toEqual(objetivo);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1][1]?.body))).not.toHaveProperty('objetivo');
+  });
+
+  it('el cliente común solo envía las cifras del objetivo', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => reply({ data: validPlan }));
+    const shared = createSharedAiPlanner(async () => 'session', fetchImpl);
+    await shared.plan(summary, answers, 100, undefined, [], { ...objetivo, titulo: 'Marcha de Mallorca' } as AiGoal);
+    const body = String(fetchImpl.mock.calls[0][1]?.body);
+    expect(JSON.parse(body).objetivo).toEqual(objetivo);
+    expect(body).not.toContain('Mallorca');
   });
 });

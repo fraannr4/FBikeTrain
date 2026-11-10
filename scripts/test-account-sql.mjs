@@ -38,6 +38,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611100003_route_sources_quota.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/route_sources_quota.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuotas de fuentes por cuenta, rechazo de anónimos, purga acotada y geometrías de hasta 2.000 puntos.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611100004_shared_ai_quota_raise.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/shared_ai_quota_raise.sql', import.meta.url), 'utf8'));
+  console.log('PASS: cuota de la IA compartida subida: 30 por usuario y 300 globales al día, 10 globales por minuto.');
 } finally {
   await db.close();
 }

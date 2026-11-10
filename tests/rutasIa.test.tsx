@@ -6,6 +6,7 @@ import { runAiRoutes, type AiRoute, type AiRoutesResult } from '../src/ai/routeP
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { App } from '../src/App';
 import { AccountContext } from '../src/auth/AccountBoundary';
+import { saveGoal } from '../src/calendar/calendarRepo';
 import { aiShown } from '../src/ui/components/AiRoutes';
 import { TrendingDown, TrendingUp } from '../src/ui/icons';
 import { db } from '../src/db/db';
@@ -129,7 +130,7 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     vi.useFakeTimers({ toFake: ['Date'], now: NOW });
     run.mockReset();
     forgetAiRoutes();
-    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear(), db.climbEfforts.clear(), db.referenceRoutes.clear()]);
+    await Promise.all([db.activities.clear(), db.tracks.clear(), db.settings.clear(), db.meta.clear(), db.climbEfforts.clear(), db.referenceRoutes.clear(), db.goals.clear()]);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -255,6 +256,22 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(deps.orsKey).toBe('test-key');
   });
 
+  it('pasa el objetivo vigente al planificador, solo con cifras', async () => {
+    await seed();
+    await saveGoal({ kind: 'event', id: 'g1', title: 'Marcha de Mallorca', date: '2026-11-20', distanceM: 92_400, elevGainM: 1650, createdAt: 1 });
+    await ask({ kind: 'routes', routes: [aiRoute(0)], warnings: [] });
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    expect(run.mock.calls[0][1].goal).toEqual({ tipo: 'evento', diasHasta: 14, distanciaKm: 92.4, desnivelM: 1650 });
+    expect(JSON.stringify(run.mock.calls[0][1].goal)).not.toContain('Mallorca');
+  });
+
+  it('sin objetivos, el planificador recibe null', async () => {
+    await seed();
+    await ask({ kind: 'routes', routes: [aiRoute(0)], warnings: [] });
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    expect(run.mock.calls[0][1].goal).toBeNull();
+  });
+
   it('with the shared road service it does not ask for the ORS key and searches through it', async () => {
     await seed();
     await saveSettings({ ...(await loadSettings()), ors: { apiKey: '' } });
@@ -343,7 +360,24 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(saved).toMatchObject({ name, format: 'gpx', sourceFileName: 'ruta-54km-820m.gpx' });
     expect(saved.points).toHaveLength(41);
     await user.click(screen.getByRole('button', { name: 'Empalmar' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar dos rutas' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar rutas' })).toBeInTheDocument();
+    // La ruta recién guardada ya va de primer tramo.
+    await screen.findAllByRole('option', { name: new RegExp(name) });
+    expect(screen.getByRole('combobox', { name: 'Primera ruta' })).toHaveValue(`lib:${saved.id}`);
+  });
+
+  it('«Empalmar con…» guarda la ruta en la biblioteca y abre Empalmar con ella de primer tramo', async () => {
+    await seed();
+    const user = await ask({ kind: 'routes', routes: [aiRoute(0), aiRoute(1)], warnings: [] });
+    const second = await screen.findByRole('article', { name: /Opción 2/ });
+    const name = within(second).getByRole('heading').getAttribute('title') ?? '';
+    await user.click(within(second).getByRole('button', { name: `Empalmar «${name}» con otra ruta` }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Empalmar rutas' })).toBeInTheDocument();
+    const [saved] = await db.referenceRoutes.toArray();
+    expect(saved).toMatchObject({ name, format: 'gpx', sourceFileName: 'ruta-55km-830m.gpx' });
+    expect(window.location.hash).toBe(`#/rutas/empalmar?primera=lib:${saved.id}`);
+    await screen.findAllByRole('option', { name: new RegExp(name) });
+    expect(screen.getByRole('combobox', { name: 'Primera ruta' })).toHaveValue(`lib:${saved.id}`);
   });
 
   it('opens the map of an ai route with its full title', async () => {

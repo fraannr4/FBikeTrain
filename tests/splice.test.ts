@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { db } from '../src/db/db';
 import { haversineM } from '../src/import/summary';
 import { sharedOrsAccess } from '../src/routes/orsProxy';
-import type { LatLng } from '../src/domain/types';
+import type { LatLng, StoredActivity, TrackPoint } from '../src/domain/types';
 import type { RoutePoint } from '../src/routes/library';
 import { OrsError, type OrsFeature } from '../src/routes/ors';
-import { defaultChoice, orsConnectors, spliceGpx, spliceRoutes, SPLICE, type SpliceInput } from '../src/routes/splice';
+import { activityToSpliceInput, defaultChoice, orsConnectors, spliceGpx, spliceRoutes, SPLICE, type SpliceInput } from '../src/routes/splice';
 import type { UserReference } from '../src/metrics/reference';
 
 // Geometrías sintéticas en el mar frente a la costa (lat 41.0, lng 2.5), como el resto de fixtures.
@@ -71,7 +71,7 @@ describe('empalme de dos rutas: orden, sentido y puntos de unión', () => {
     const a = route('A', line(0, 0, 5000, 0, { ele: flat }));
     const b = route('B', line(7000, 0, 12_000, 0, { ele: flat }));
     const connectors = roads();
-    const result = await spliceRoutes(a, b, { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([a, b], { returnToStart: false }, { connectors });
     const best = result.options.find(o => o.id === defaultChoice(result.options))!;
     expect(best.order).toBe('AB');
     expect(best.distanceM).toBeGreaterThan(11_900);
@@ -84,19 +84,19 @@ describe('empalme de dos rutas: orden, sentido y puntos de unión', () => {
   });
 
   it('un tramo abierto nunca se invierte; una ruta circular sí', async () => {
-    const open = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors: roads() });
+    const open = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors: roads() });
     expect(open.options.every(o => !o.reversed.A && !o.reversed.B)).toBe(true);
-    const loops = await spliceRoutes(route('A', square(0, 0, 2000)), route('B', square(5000, 0, 2000)), { returnToStart: false }, { connectors: roads() });
+    const loops = await spliceRoutes([route('A', square(0, 0, 2000)), route('B', square(5000, 0, 2000))], { returnToStart: false }, { connectors: roads() });
     expect(loops.options.some(o => o.reversed.A || o.reversed.B)).toBe(true);
   });
 
   it('sentidos opuestos: no invierte el tramo y avisa del retroceso de más de 500 m', async () => {
     const a = route('A', line(0, 0, 5000, 0));
     const b = route('B', line(12_000, 0, 7000, 0));
-    const result = await spliceRoutes(a, b, { returnToStart: false }, { connectors: roads() });
+    const result = await spliceRoutes([a, b], { returnToStart: false }, { connectors: roads() });
     expect(result.options.length).toBeGreaterThan(0);
     for (const o of result.options) {
-      expect(o.reversed).toEqual({ A: false, B: false });
+      expect(o.reversed).toEqual({ A: false, B: false, C: false });
       expect(o.backtrackM).toBeGreaterThan(SPLICE.backtrackMinM);
     }
   });
@@ -105,16 +105,74 @@ describe('empalme de dos rutas: orden, sentido y puntos de unión', () => {
     const a = route('A', square(0, 0, 2000));
     const b = route('B', square(2200, 500, 1000));
     const connectors = roads();
-    const result = await spliceRoutes(a, b, { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([a, b], { returnToStart: false }, { connectors });
     expect(result.options.length).toBeGreaterThan(0);
     for (const [from, to] of connectors.mock.calls) expect(haversineM(from.lat, from.lng, to.lat, to.lng)).toBeLessThan(SPLICE.nearM);
+  });
+});
+
+describe('empalme de tres tramos', () => {
+  // Tres circulares de 2 km de lado separadas 2 km entre sí.
+  const a = route('A', square(0, 0, 2000));
+  const b = route('B', square(4000, 0, 2000));
+  const c = route('C', square(8000, 0, 2000));
+
+  it('con tres tramos solo prueba el orden elegido y los conectores entre consecutivos', async () => {
+    const connectors = roads();
+    const out = await spliceRoutes([a, b, c], { returnToStart: false }, { connectors });
+    expect(out.options.length).toBeGreaterThan(0);
+    expect(out.options.every(o => o.order === 'ABC')).toBe(true);
+    expect(out.options[0].pieces.map(p => p.source)).toEqual(['A', 'conector', 'B', 'conector', 'C']);
+    // Un par de puntos por unión, cacheado entre los sentidos de cada circular.
+    const calls = new Set(connectors.mock.calls.map(([from, to]) => `${from.lat},${from.lng}>${to.lat},${to.lng}`));
+    expect(calls.size).toBe(2);
+    expect(out.requestsUsed).toBe(2);
+    expect(SPLICE.maxInputs).toBe(3);
+  });
+
+  it('con dos tramos sigue probando AB y BA', async () => {
+    const out = await spliceRoutes([a, b], { returnToStart: false }, { connectors: roads() });
+    expect(new Set(out.options.map(o => o.order))).toEqual(new Set(['AB', 'BA']));
+    expect(out.options.every(o => o.reversed.C === false)).toBe(true);
+  });
+
+  it('rechaza 1 o 4 entradas', async () => {
+    const deps = { connectors: roads() };
+    await expect(spliceRoutes([a], { returnToStart: false }, deps)).rejects.toThrow('Se empalman entre 2 y 3 rutas.');
+    await expect(spliceRoutes([a, b, c, a], { returnToStart: false }, deps)).rejects.toThrow('Se empalman entre 2 y 3 rutas.');
+    expect(deps.connectors).not.toHaveBeenCalled();
+  });
+
+  it('dos tramos iguales entre tres no rompen y el solape se mide', async () => {
+    const out = await spliceRoutes([a, a, b], { returnToStart: false }, { connectors: roads() });
+    expect(out.options.length).toBeGreaterThan(0);
+    expect(out.options[0].overlapM).toBeGreaterThan(0);
+  });
+
+  it('el id lleva un bit por tramo y el regreso cierra el recorrido de tres', async () => {
+    const out = await spliceRoutes([a, b, c], { returnToStart: true }, { connectors: roads() });
+    expect(out.options.length).toBeGreaterThan(0);
+    for (const o of out.options) {
+      expect(o.id).toMatch(/^ABC-[01]{3}(-alt)?$/);
+      expect(o.pieces.at(-1)?.source).toBe('regreso');
+    }
+  });
+
+  it('activityToSpliceInput descarta puntos sin GPS y exige 2 válidos', () => {
+    const act: StoredActivity = { id: 'act-1', startTime: 1, sport: 'cycling', name: 'Mañana por la costa', totals: { distanceM: 1000, movingTimeS: 100, elapsedTimeS: 100, elevGainM: 0, avgSpeedMs: 10, maxSpeedMs: 10 }, hasTrack: true, source: 'gpx', importedAt: 1 };
+    const track: TrackPoint[] = [{ t: 1 }, { t: 2, lat: 40, lng: -3, ele: 500 }, { t: 3, lat: 40.01, lng: -3 }];
+    const input = activityToSpliceInput(act, track);
+    expect(input).toMatchObject({ id: 'act-1', name: 'Mañana por la costa' });
+    expect(input.points).toEqual([{ lat: 40, lng: -3, ele: 500 }, { lat: 40.01, lng: -3 }]);
+    expect(() => activityToSpliceInput(act, [{ t: 1, lat: 40, lng: -3 }])).toThrow('Esa salida no tiene un track válido para empalmar.');
+    expect(activityToSpliceInput({ ...act, name: undefined }, track).name).toBe('Salida sin nombre');
   });
 });
 
 describe('empalme: consultas a ORS', () => {
   it('invertir circulares no gasta consultas de más: como mucho 4 por empalme, con regreso', async () => {
     const connectors = roads();
-    const result = await spliceRoutes(route('A', square(0, 0, 2000)), route('B', square(2200, 500, 1000)), { returnToStart: true }, { connectors });
+    const result = await spliceRoutes([route('A', square(0, 0, 2000)), route('B', square(2200, 500, 1000))], { returnToStart: true }, { connectors });
     expect(result.options.length).toBeGreaterThan(0);
     expect(connectors.mock.calls.length).toBeLessThanOrEqual(4);
     expect(result.requestsUsed).toBe(connectors.mock.calls.length);
@@ -127,7 +185,7 @@ describe('empalme: validez de los conectores', () => {
       const a = xy(from); const b = xy(to);
       return [straight(from, to, { motorway: true }), feature(chain(line(a.x, a.y, (a.x + b.x) / 2, 600), line((a.x + b.x) / 2, 600, b.x, b.y)))];
     });
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors });
     expect(result.discarded.some(d => d.reason === 'autopista')).toBe(true);
     expect(result.options.length).toBeGreaterThan(0);
     for (const o of result.options) expect(o.connectorM).toBeGreaterThan(2100);
@@ -135,21 +193,21 @@ describe('empalme: validez de los conectores', () => {
 
   it('descarta el conector con demasiada carretera principal', async () => {
     const connectors = vi.fn(async (from: LatLng, to: LatLng) => [straight(from, to, { stateRoadPct: 60 })]);
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors });
     expect(result.options).toHaveLength(0);
     expect(result.discarded.map(d => d.reason)).toContain('carretera principal');
   });
 
   it('descarta el conector que empieza a más de 50 m del punto pedido', async () => {
     const connectors = vi.fn(async (_from: LatLng, to: LatLng) => [straight(at(5000, 400), to)]);
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors });
     expect(result.options).toHaveLength(0);
     expect(result.discarded.map(d => d.reason)).toContain('salto');
   });
 
   it('conector imposible: sin carretera entre las rutas, ninguna opción y el motivo', async () => {
     const connectors = vi.fn(async () => { throw new OrsError('no_route', 'sin carretera'); });
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors });
     expect(result.options).toHaveLength(0);
     expect(result.discarded.map(d => d.reason)).toContain('sin carretera');
   });
@@ -158,7 +216,7 @@ describe('empalme: validez de los conectores', () => {
 describe('empalme: cifras', () => {
   it('solapes: dos circulares que comparten un lado se unen sin conector y descuentan el tramo repetido', async () => {
     const connectors = roads();
-    const result = await spliceRoutes(route('A', square(0, 0, 2000)), route('B', square(2000, 0, 2000)), { returnToStart: false }, { connectors });
+    const result = await spliceRoutes([route('A', square(0, 0, 2000)), route('B', square(2000, 0, 2000))], { returnToStart: false }, { connectors });
     expect(connectors).not.toHaveBeenCalled();
     const o = result.options[0];
     expect(o.connectorM).toBe(0);
@@ -170,7 +228,7 @@ describe('empalme: cifras', () => {
 
   it('rutas sin altitud: el desnivel queda sin calcular, no a cero', async () => {
     const ref: UserReference = { source: 'history', weeks: 8, rides: 10, ridesPerWeek: 1.25, avgDistanceM: 10_000, avgElevGainM: 200, avgMovingTimeS: 1800, avgSpeedMs: 7, longestDistanceM: 20_000, maxElevGainM: 400 };
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors: roads(), reference: ref });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors: roads(), reference: ref });
     const o = result.options[0];
     expect(o.elevGainM).toBeNull();
     expect(o.difficulty).toBeNull();
@@ -180,14 +238,14 @@ describe('empalme: cifras', () => {
   it('con altitud recalcula desnivel, duración y dificultad con la referencia', async () => {
     const ref: UserReference = { source: 'history', weeks: 8, rides: 10, ridesPerWeek: 1.25, avgDistanceM: 10_000, avgElevGainM: 50, avgMovingTimeS: 1800, avgSpeedMs: 7, longestDistanceM: 20_000, maxElevGainM: 400 };
     const up = (t: number) => 100 + 100 * t;
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0, { ele: up })), route('B', line(7000, 0, 12_000, 0, { ele: flat })), { returnToStart: false }, { connectors: roads(), reference: ref });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0, { ele: up })), route('B', line(7000, 0, 12_000, 0, { ele: flat }))], { returnToStart: false }, { connectors: roads(), reference: ref });
     const o = result.options.find(x => x.order === 'AB')!;
     expect(o.elevGainM).toBeGreaterThanOrEqual(100);
     expect(o.difficulty).toBe('Dura');
   });
 
   it('«Volver al inicio» añade el conector de regreso y acaba donde empieza', async () => {
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: true }, { connectors: roads() });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: true }, { connectors: roads() });
     const o = result.options[0];
     expect(o.pieces.at(-1)?.source).toBe('regreso');
     const first = o.points[0]; const last = o.points[o.points.length - 1];
@@ -195,7 +253,7 @@ describe('empalme: cifras', () => {
   });
 
   it('la elección sin IA es la combinación más corta sin vías principales', () => {
-    const base = { distinctM: 0, elevGainM: 0, estTimeS: null, difficulty: null, connectorM: 0, overlapM: 0, backtrackM: 0, points: [], pieces: [], order: 'AB' as const, reversed: { A: false, B: false } };
+    const base = { distinctM: 0, elevGainM: 0, estTimeS: null, difficulty: null, connectorM: 0, overlapM: 0, backtrackM: 0, points: [], pieces: [], order: 'AB', reversed: { A: false, B: false, C: false } };
     expect(defaultChoice([
       { ...base, id: 'corta-principal', distanceM: 10_000, mainRoadPct: 5 },
       { ...base, id: 'larga-limpia', distanceM: 12_000, mainRoadPct: 0 },
@@ -212,14 +270,14 @@ describe('empalme: alternativas', () => {
   });
 
   it('dos conectores parecidos (≤ 15 % de diferencia y < 70 % compartido) se proponen los dos', async () => {
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors: twoWays(140) });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors: twoWays(140) });
     const ab = result.options.filter(o => o.order === 'AB');
     expect(ab).toHaveLength(2);
     expect(ab[1].alternativeOf).toBe(ab[0].id);
   });
 
   it('si la segunda es mucho más larga, solo queda la primera', async () => {
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors: twoWays(800) });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors: twoWays(800) });
     expect(result.options.filter(o => o.order === 'AB')).toHaveLength(1);
   });
 });
@@ -228,13 +286,13 @@ describe('empalme: cuota, cancelación y GPX', () => {
   it('cuota agotada: el error de ORS llega tal cual para mostrar el límite', async () => {
     const quota = new OrsError('quota_day', 'Has gastado las 2.000 consultas diarias de ORS.');
     const connectors = vi.fn(async () => { throw quota; });
-    await expect(spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: false }, { connectors })).rejects.toBe(quota);
+    await expect(spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: false }, { connectors })).rejects.toBe(quota);
   });
 
   it('cancelación: no pide más conectores y termina con AbortError', async () => {
     const controller = new AbortController();
     const connectors = vi.fn(async (from: LatLng, to: LatLng) => { controller.abort(); return [straight(from, to)]; });
-    await expect(spliceRoutes(route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0)), { returnToStart: true }, { connectors, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(spliceRoutes([route('A', line(0, 0, 5000, 0)), route('B', line(7000, 0, 12_000, 0))], { returnToStart: true }, { connectors, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
     expect(connectors).toHaveBeenCalledTimes(1);
   });
 
@@ -243,7 +301,7 @@ describe('empalme: cuota, cancelación y GPX', () => {
       const a = xy(from); const b = xy(to);
       return [feature(line(a.x, a.y, b.x, b.y, { step: 400, ele: flat }))];
     });
-    const result = await spliceRoutes(route('A', line(0, 0, 5000, 0, { ele: flat })), route('B', line(7000, 0, 12_000, 0, { ele: flat })), { returnToStart: true }, { connectors: sparse });
+    const result = await spliceRoutes([route('A', line(0, 0, 5000, 0, { ele: flat })), route('B', line(7000, 0, 12_000, 0, { ele: flat }))], { returnToStart: true }, { connectors: sparse });
     const gpx = spliceGpx('Empalme', result.options[0]);
     expect(gpx).toContain('version="1.1"');
     expect(gpx).toContain('http://www.topografix.com/GPX/1/1');
@@ -286,7 +344,7 @@ describe('empalme: conectores pedidos a ORS', () => {
     const a = route('A', line(-2000, 0, 0, 0).map(p => ({ ...p, lat: p.lat - O.lat + coords(0)[0][1], lng: p.lng - O.lng + coords(0)[0][0] })));
     const lastPoint = coords(0)[coords(0).length - 1];
     const b = route('B', line(0, 0, 2000, 0).map(p => ({ ...p, lat: p.lat - O.lat + lastPoint[1], lng: p.lng - O.lng + lastPoint[0] })));
-    const result = await spliceRoutes(a, b, { returnToStart: false }, { connectors: async () => features });
+    const result = await spliceRoutes([a, b], { returnToStart: false }, { connectors: async () => features });
     const ab = result.options.filter(o => o.order === 'AB');
     expect(ab).toHaveLength(2);
     expect(ab[1].mainRoadPct).toBeGreaterThan(0);

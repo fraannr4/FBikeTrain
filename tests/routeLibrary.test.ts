@@ -4,7 +4,7 @@ import {
   parseReferenceRoute, analyzeReferenceRoutePoints, importReferenceRoute, listReferenceRoutes,
   getReferenceRoute, saveReferenceRoute, deleteReferenceRoute, trimReferenceRoute,
   reverseReferenceRoute, changeReferenceRouteStart, restoreReferenceRoute,
-  replaceReferenceRoutePoints, referenceRouteToGpx, saveGeneratedRoute, type ReferenceRoute,
+  replaceReferenceRoutePoints, referenceRouteToGpx, saveGeneratedRoute, saveSplicedRoute, type ReferenceRoute,
 } from '../src/routes/library';
 
 const points = [
@@ -125,6 +125,17 @@ describe('biblioteca de rutas de referencia', () => {
     // El original es el mismo GPX que se exporta: se vuelve a leer igual.
     expect(parseReferenceRoute(saved.originalXml, saved.sourceFileName).points).toEqual(points);
     await expect(saveGeneratedRoute('Sin recorrido', coords.slice(0, 1), 'x.gpx')).rejects.toThrow(/dos puntos/);
+  });
+  it('guarda un empalme en la biblioteca con su GPX y sin inventar el desnivel', async () => {
+    const flat = points.map(({ lat, lng }) => ({ lat, lng }));
+    const saved = await saveSplicedRoute(`Empalme ${'x'.repeat(200)}`, flat);
+    expect(await listReferenceRoutes()).toEqual([saved]);
+    expect(saved).toMatchObject({ format: 'gpx', sourceFileName: 'empalme.gpx', points: flat, originalPoints: flat });
+    expect(saved.name).toHaveLength(120);
+    expect(saved.summary.elevGainM).toBeNull();
+    expect(saved.originalXml).toContain('version="1.1"');
+    expect(parseReferenceRoute(saved.originalXml, saved.sourceFileName).points).toEqual(flat);
+    await expect(saveSplicedRoute('Corto', flat.slice(0, 1))).rejects.toThrow(/dos puntos/);
   });
   it('la versión nueva conserva datos de una base v3', async () => {
     const name = 'test-route-library-upgrade';

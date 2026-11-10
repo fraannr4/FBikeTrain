@@ -10,7 +10,7 @@ import { ListRow } from '../components/ListRow';
 import { Skeleton } from '../components/Skeleton';
 import { ValueText } from '../components/ValueText';
 import { formatCount, formatDuration, formatKm, formatMeters, formatNumber } from '../format';
-import { ArrowLeftRight, CircleCheck, Download, MapIcon, Repeat, Sparkles, type LucideIcon } from '../icons';
+import { ArrowLeftRight, CircleCheck, Download, MapIcon, Repeat, Route, Sparkles, type LucideIcon } from '../icons';
 import type { ProfilePoint } from '../profile';
 
 export type { DifficultyLevel };
@@ -54,6 +54,8 @@ type Props = {
   mapHref?: string;
   /** Alternativa a `mapHref`: abrir la hoja del mapa. */
   onMap?: (route: RouteCardData) => void;
+  /** «Empalmar con…»: guardar la ruta y abrir Empalmar con ella de primer tramo. Sin él, no hay botón. */
+  onSplice?: (route: RouteCardData) => void;
   /** Posición en el carrusel: «1» en la esquina y «Ruta 1 de 5» para el lector de pantalla. */
   rank?: { n: number; of: number };
   /** `rcard--docked`: el botón de la tarjeta se oculta en el teléfono porque el dock lo repite. */
@@ -303,7 +305,7 @@ function FeatureCard({ route, onDownload, mapHref, onMap, className }: Omit<Prop
  * ti, la carretera nueva, las cifras y el perfil coloreado por pendiente (rutas.html, `.rcard`).
  * En `compact` es una fila de lista (`li`): va dentro de `List`.
  */
-export const RouteCard = memo(function RouteCard({ route, variant, onDownload, mapHref, onMap, rank, className }: Props) {
+export const RouteCard = memo(function RouteCard({ route, variant, onDownload, mapHref, onMap, onSplice, rank, className }: Props) {
   if (variant === 'compact') return <CompactRow route={route} mapHref={mapHref} onMap={onMap} />;
   if (variant === 'feature') {
     return <FeatureCard route={route} onDownload={onDownload} mapHref={mapHref} onMap={onMap} className={className} />;
@@ -378,6 +380,20 @@ export const RouteCard = memo(function RouteCard({ route, variant, onDownload, m
             <button type="button" className="btn btn--primary btn--block" onClick={() => onDownload(route)}>
               <Download className="ic" aria-hidden="true" />
               Exportar GPX
+            </button>
+          </div>
+        ) : null}
+        {/* Fuera de `.rcard-actions`: el dock del teléfono no lo repite, así que la tarjeta sí lo lleva. */}
+        {onSplice ? (
+          <div className="rcard-splice">
+            <button
+              type="button"
+              className="btn btn--secondary btn--block"
+              aria-label={`Empalmar «${route.name}» con otra ruta`}
+              onClick={() => onSplice(route)}
+            >
+              <Route className="ic" aria-hidden="true" />
+              Empalmar con…
             </button>
           </div>
         ) : null}
