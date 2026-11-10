@@ -93,6 +93,6 @@ Pruebas:
 
 ## Comprobaciones del usuario (anotar en `docs/verificaciones.md`)
 
-1. Claves `GROQ_API_KEY` y `ORS_API_KEY`. Despliegue de `ai-routes`, `ors-proxy` y `route-sources`, más las migraciones 202611100001-0003.
-2. Activar `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED`.
+1. [x] (hecho 2026-11-10) Claves `GROQ_API_KEY` y `ORS_API_KEY`. Despliegue de `ai-routes`, `ors-proxy` y `route-sources`, más las migraciones 202611100001-0003.
+2. [x] (hecho 2026-11-10) Activar `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED`.
 3. En el móvil: una ruta con IA que cite una referencia conocida y una semana propuesta añadida al calendario.

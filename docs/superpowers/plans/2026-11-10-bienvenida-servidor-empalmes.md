@@ -127,7 +127,7 @@ Ficheros:
 
 ## Comprobaciones del usuario (anotar en `docs/verificaciones.md`)
 
-1. Aplicar las migraciones 0001, 0002 y la nueva de ORS en Supabase (SQL Editor o `npx supabase db push`).
-2. Crear la clave de Groq en el plan gratuito, sin método de pago, y la clave de ORS. Guardarlas con `supabase secrets set`.
-3. Desplegar `ai-routes` y `ors-proxy`. Activar las variables del repositorio `VITE_SHARED_AI_ENABLED` y `VITE_SHARED_ORS_ENABLED`.
+1. [x] (hecho 2026-11-10) Aplicar las migraciones 0001, 0002 y la nueva de ORS en Supabase (SQL Editor o `npx supabase db push`).
+2. [x] (hecho 2026-11-10) Crear la clave de Groq en el plan gratuito, sin método de pago, y la clave de ORS. Guardarlas con `supabase secrets set`.
+3. [x] (hecho 2026-11-10) Desplegar `ai-routes` y `ors-proxy`. Activar las variables del repositorio `VITE_SHARED_AI_ENABLED` y `VITE_SHARED_ORS_ENABLED`.
 4. Probar en el móvil el login real con la escena de bienvenida, una ruta sin claves y un empalme exportado al BSC200S.

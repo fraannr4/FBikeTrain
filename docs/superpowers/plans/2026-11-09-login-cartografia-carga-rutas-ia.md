@@ -59,3 +59,13 @@ Pendientes reales: aplicar migración Supabase, Google/SMTP/redirects y dos cuen
 Después de cada lote, actualizar plan, `docs/ESTADO.md` y `docs/verificaciones.md` con cambios, comandos y límites reales. Revisar cumplimiento y calidad, corregir y validar móvil antes de cerrar. Commits solo con confirmación expresa. No marcar como disponible una fuente externa por haber escrito un adaptador simulado.
 
 Fuentes y razonamiento técnico: `docs/design/2026-11-09-acceso-ciclista-ia.md`.
+
+## Ampliación 2026-11-10
+
+Nuevas líneas de trabajo surgidas tras desplegar el servidor (IA y ORS compartidos, referencias de rutas; Wikiloc bloqueado por Cloudflare, se importa el GPX a mano):
+
+- Referencias de biblioteca con enlace y autor, objetivo en los prompts y cuota de IA 30/300: `2026-11-10-ia-empalmes-objetivo-biblioteca.md` (en curso).
+- Zona, buscador de personas y amigos: `2026-11-10-zona-buscador-amigos.md`.
+- Retos 1 contra 1 entre amigos: `2026-11-10-retos.md`.
+- Garmin Starter: `../../garmin-solicitud-starter.md`.
+- PWA para compartir GPX/TCX/FIT y diseño de escritorio: ramas de Codex `codex/pwa-compartir` y `codex/escritorio`, pendientes de revisar y fusionar.

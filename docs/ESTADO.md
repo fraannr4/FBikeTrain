@@ -1,10 +1,10 @@
 # Estado del proyecto FBikeTrain
 
-Última actualización: 2026-11-10 (sesión nocturna del 2026-11-09, con commits y push autorizados por el usuario).
+Última actualización: 2026-11-10 por la tarde (commits y push autorizados por el usuario).
 
 ## Resumen
 
-La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega solo cuando el CI está en verde.
+La app está publicada en GitHub Pages con cuentas de Supabase y el servidor de IA y ORS compartidos en marcha. `main` despliega solo cuando el CI está en verde.
 
 - Repositorio público: https://github.com/fraannr4/FBikeTrain (rama `main`).
 - App: https://fraannr4.github.io/FBikeTrain/
@@ -24,34 +24,38 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
 | `7efa992` | La caché de salidas se invalida al cambiar de cuenta |
 | `b36ce54` | Una hoja que se cierra ya no roba el foco a la que se abre (CI del calendario) |
 | `6fdc2e8` | Escena de bienvenida «Cumbre» tras un inicio de sesión real |
-| `386a5fd` | IA y mapas desde el servidor (`ai-routes`, `ors-proxy`) y Empalmar rutas (`/rutas/empalmar`) |
-| `f794820` | Fuentes de referencia de rutas (`route-sources`): OSM activo y Wikiloc apagado por defecto (rama de Codex) |
+| `386a5fd` | IA y mapas desde el servidor (`ai-routes`, `ors-proxy`) y Empalmar rutas |
+| `f794820` | Fusión de las fuentes de rutas de Codex: Wikiloc apagado, respaldo OSM |
+| `8845887` | Reescritura de la documentación |
+| `0a04198` | IA de rutas con referencias conocidas, filtro de autopista y «Proponer semana con IA» en Calendario |
+| `6630691` | Imports `.ts` explícitos en `src/routes/sources` para que el empaquetador de Edge Functions los resuelva |
+| `8da9efb` | Fusión de la paleta A «Atlas de montaña» de Codex (solo color; revisada) |
+| `684a295` | Se ignora `supabase/.temp` |
+| `8a7e831` | Se quita el acceso con Google: solo correo y contraseña |
+| `c3c57e9` | Tres planes nuevos y `develop-phase.js` acepta `args.model` |
 
-### Verificación actual (2026-11-10, sobre `f794820`)
+### Verificación actual (2026-11-10, sobre `c3c57e9`)
 
 | Comprobación | Resultado |
 |---|---|
-| `npx vitest run` | 95 ficheros, 1.171 tests en verde |
-| `npx tsc --noEmit` | sin errores |
-| `npm run test:db` | 5 suites SQL en verde: perfiles, cuota de IA, cuota de ORS, caché y cuota de fuentes |
-| e2e | bienvenida, acceso, empalmar y break-ui de empalmar en verde (12/12 en empalmar) |
-| CI | runs 42669547748 (`386a5fd`) y 42671066509 (`f794820`) en verde y desplegados |
-| Producción | el login real funciona: una cuenta confirmada inició sesión el 2026-11-09 |
+| CI | en verde y desplegado en Pages |
+| Servidor | `ai-routes`, `ors-proxy` y `route-sources` responden 401 sin JWT |
+| Tests de acceso | 13/13 tras quitar Google |
+| Paleta A | tokens y contrastes revisados; mapa oscuro de Salida con teselas reales |
+| Wikiloc | 403 de Cloudflare, no se esquiva |
+| Pruebas completas | las últimas cifras completas (98 ficheros, 1.227 tests, `tsc` y build limpios, `test:db` con 5 suites) son del lote de IA con referencias; el lote en curso las repetirá al cerrar |
 
-### Estado en Supabase (remoto)
+Detalle en `docs/verificaciones.md`.
 
-- Aplicadas y registradas en `schema_migrations`:
-  - `202611090001_profiles_friendships.sql` (perfiles, amistades y bucket privado de tracks);
-  - `202611090002_shared_ai_quota.sql`.
-- Auth configurado por la API de gestión:
-  - Site URL de Pages y redirects de Pages y `localhost:5173`;
-  - SMTP de Brevo (`smtp-relay.brevo.com:587`), con 30 correos por hora.
-- **Sin aplicar:**
-  - `202611100001_shared_ors_quota.sql`;
-  - `202611100002_route_sources_cache.sql`;
-  - `202611100003_route_sources_quota.sql`.
-- **Funciones sin desplegar:** `ai-routes`, `ors-proxy` y `route-sources`.
-- Las variables del repositorio `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED` siguen apagadas. Mientras tanto, la app pide claves personales en Ajustes.
+### Estado en Supabase (remoto): EN MARCHA
+
+- Migraciones aplicadas y registradas (5 de 5): `202611090001`, `202611090002`, `202611100001`, `202611100002`, `202611100003`.
+- Secretos: `GROQ_API_KEY`, `ORS_API_KEY`, `SHARED_AI_ENABLED`, `GROQ_FREE_TIER_CONFIRMED`, `SHARED_ORS_ENABLED` y `APP_ALLOWED_ORIGINS`. Las claves solo están en `.local-secrets/credenciales.md`.
+- Funciones desplegadas: `ai-routes`, `ors-proxy` y `route-sources`.
+- Variables del repositorio `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED` en `true`; Pages redesplegado.
+- Cuotas: IA 12 al día por usuario, 40 globales, 2 por minuto por usuario y 3 globales (modelo `openai/gpt-oss-20b` en Groq); ORS 150 al día por usuario y 1.800 globales.
+- Auth: Site URL y redirects de Pages y `localhost:5173`; SMTP de Brevo (30 correos por hora).
+- Guía en `docs/supabase-configuracion.md`.
 
 ## Qué está hecho
 
@@ -99,7 +103,7 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
 ### Añadido el 2026-11-09 y 2026-11-10
 
 - **Cuentas.**
-  - Acceso obligatorio con correo y contraseña, recuperación y confirmación por correo. Google está preparado en el código, pero falta configurarlo en Supabase.
+  - Acceso obligatorio con correo y contraseña, recuperación y confirmación por correo. Google se quitó el 2026-11-10.
   - Perfil editable.
   - Una base IndexedDB por cuenta (`ciclismo-user-<uuid>`), sin mezclar datos entre cuentas.
 - **Bienvenida «Cumbre».**
@@ -122,6 +126,14 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
   - Wikiloc está apagado hasta `WIKILOC_AUTOMATION_AUTHORIZED=true`.
   - Caché de 7 días y cuota por cuenta de 30 al día y 3 por minuto.
   - Detalle en `docs/fuentes-rutas.md`.
+
+### Añadido el 2026-11-10 por la tarde
+
+- **Servidor real en marcha.** Migraciones, secretos, funciones y variables como arriba. La IA y ORS compartidos funcionan sin pedir claves en Ajustes.
+- **IA con referencias.** Rutas con IA se apoya en rutas conocidas y descarta las que usan autopista.
+- **«Proponer semana con IA»** en Plan > Calendario.
+- **Paleta A «Atlas de montaña»** en toda la app.
+- **Acceso solo con correo y contraseña.** Google se ha quitado.
 
 ### Rutas de la app añadidas
 
@@ -149,32 +161,42 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
   - `test:db`: 5 suites.
   - e2e en verde: `ia-entrenos`, `break-ui-ia-entrenos`, `rutas-ia`, `rutas`, `plan` y `empalmar`.
 
+### Lote en curso (NO terminado)
+
+Workflow `develop-phase` `wf_99c6f3b8-740` sobre `docs/superpowers/plans/2026-11-10-ia-empalmes-objetivo-biblioteca.md`. El árbol de trabajo tiene sus cambios sin commit.
+- T1: Empalmar hasta 3 tramos, con salidas del historial, guardar el resultado y «Empalmar con…» desde la tarjeta de IA.
+- T2: el objetivo en los prompts de plan y empalme, y cuota 30/300 (migración `202611100004`, con 10 por minuto globales).
+- T3: referencias de la biblioteca con enlace al GPX y autor.
+
+Planes en cola, escritos y commiteados, sin lanzar:
+1. `docs/superpowers/plans/2026-11-10-zona-buscador-amigos.md` (migración `202611100005`).
+2. `docs/superpowers/plans/2026-11-10-retos.md` (migración `202611100006`).
+
+Orden: lote de IA, amigos, retos. Cada uno con commit, push, CI y migración remota.
+
+Decisiones del usuario que mandan: zona tras el login («al menos el pueblo»); búsqueda de personas por nombre, para cualquiera; búsqueda cercana a 25 o 50 km; retos 1 contra 1 entre amigos, plazo de 30 días, salidas elegidas a mano y visibles solo para los dos; sin valoraciones de rutas por ahora; paleta A.
+
+### Ramas de Codex (worktree `C:\testTrain-codex`)
+
+- `codex/paleta-a`: fusionada.
+- `codex/pwa-compartir`: PWA y Web Share Target para GPX, TCX y FIT desde las apps de Wikiloc e iGPSPORT. En curso.
+- `codex/escritorio`: diseño de escritorio a partir de 1024 px en `src/ui/styles/escritorio.css`. En curso.
+- Las dos se revisan y fusionan después del lote de IA.
+
 ### Necesita al usuario
 
-1. **Claves del servidor.** Crear la clave de Groq (plan gratuito, sin tarjeta) y la de OpenRouteService, y guardarlas en `.local-secrets/credenciales.md` como `GROQ_API_KEY=` y `ORS_API_KEY=`. Con ellas, Claude hace lo siguiente:
-   - aplica las migraciones 202611100001-0003;
-   - despliega `ai-routes`, `ors-proxy` y `route-sources`;
-   - guarda los secretos (`SHARED_AI_ENABLED`, `GROQ_FREE_TIER_CONFIRMED`, `SHARED_ORS_ENABLED` y `APP_ALLOWED_ORIGINS`);
-   - activa las variables `VITE_*` y vuelve a desplegar.
-2. **Wikiloc.** Confirmar si se acepta el riesgo de sus condiciones de uso antes de activar el rastreo. Sin esa confirmación, solo se usa OSM.
-3. **Google OAuth.** Configurar el proveedor en Supabase con el cliente de Google Cloud `fbiketrain-514211`.
-4. **Paleta de colores.** Elegir entre las propuestas de `docs/design/2026-11-10-paleta/`, que salen de otro chat y aún no están en git. No se aplica nada sin esa elección.
-5. **Seguridad.** Al terminar, revocar el token de gestión de Supabase y la clave SMTP de Brevo: se pegaron en el chat. Guardar los nuevos solo en `.local-secrets/`.
-6. **En el móvil.** Probar:
-   - la bienvenida tras el login;
-   - una ruta sin claves, cuando el servidor esté activo;
-   - un empalme exportado al BSC200S con la app de iGPSPORT.
-7. **Garmin e iGPSPORT.** La importación de varios FIT sueltos ya funciona en Importar. La investigación recomienda un conector de intervals.icu (clave personal, `GET /api/v1/activity/{id}/file`) para no depender del límite de exportación de Strava. Antes de planificarlo, comprobar si la app de iGPSPORT permite exportar o compartir los FIT.
-8. **Comprobaciones antiguas sin registrar:**
-   - F2: una subida conocida contra Strava;
-   - F3: que un entreno se vincule con una salida real;
-   - F4 y F5: rutas reales con claves.
-   - Ver `docs/verificaciones.md`.
+1. **Garmin.** Enviar el formulario de Garmin Starter (`docs/garmin-solicitud-starter.md`). Falta una página pública de privacidad en `#/privacidad`. Opcional: una clave Garmin Personal en `credenciales.md`.
+2. **En el móvil.** Probar una ruta con IA que cite una referencia, la semana con IA en el calendario, un empalme exportado al BSC200S y fijar la zona.
+3. **Seguridad.** Rotar el token de Supabase y la clave SMTP de Brevo. Aplazado porque es una app de pruebas.
+4. **Comprobaciones antiguas sin registrar:** F2, una subida conocida contra Strava; F3, vincular un entreno con una salida real. Ver `docs/verificaciones.md`.
+
+### Hoja de ruta
+
+Amigos, Retos, Garmin Starter, PWA para compartir, escritorio, conector opcional de intervals.icu (iGPSPORT no tiene API: se comparte por la PWA o se puentea con intervals.icu) y sincronización de salidas con Supabase.
 
 ### Pendiente técnico
 
 - **Sincronización.** Subir a Supabase las salidas, los tracks, el calendario y los objetivos, y la comparativa social. Plan: `docs/superpowers/plans/2026-11-09-cuentas-perfiles-social.md`. Hoy los datos siguen en el IndexedDB de cada cuenta en cada dispositivo.
-- Retirar el worktree de Codex (`C:\testTrain-codex`, rama `codex/fuentes-rutas`, ya integrada en `main`) cuando Codex no lo use.
 
 ### Mejoras opcionales (no bloquean)
 
@@ -187,6 +209,10 @@ La app está publicada en GitHub Pages con cuentas de Supabase. `main` despliega
 
 - El BSC200S no se detecta por USB. Se probó con el dock, con un puerto directo y con 2 cables. El GPX se pasa con la app de iGPSPORT.
 - No se usan la API ni el MCP de Strava: piden suscripción.
+- Wikiloc bloquea el acceso automatizado con Cloudflare (403 con desafío, incluso en `robots.txt`). No se esquiva: el usuario descarga el GPX con su cuenta y lo importa.
+- ORS no distingue autovía (trunk) de nacional: solo se filtra la autopista (motorway).
+- La IA no ve el mapa, solo cifras.
+- Las salidas aún no se sincronizan con Supabase.
 
 ## Datos útiles
 

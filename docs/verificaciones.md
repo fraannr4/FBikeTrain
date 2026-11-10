@@ -175,3 +175,25 @@ Conclusiones:
 - variables `VITE_SHARED_*` y `VITE_ROUTE_SOURCES_ENABLED` apagadas.
 
 Wikiloc sigue apagado hasta que el usuario acepte el riesgo de sus condiciones.
+
+
+## Sesión del 2026-11-10 (tarde): servidor en marcha, paleta y Wikiloc
+
+**Despliegue del servidor** (proyecto `btmsakyhkxrndvscmxqs`).
+- Migraciones remotas aplicadas y registradas: `202611090001`, `202611090002`, `202611100001`, `202611100002`, `202611100003` (5 de 5).
+- Secretos puestos: `GROQ_API_KEY`, `ORS_API_KEY`, `SHARED_AI_ENABLED`, `GROQ_FREE_TIER_CONFIRMED`, `SHARED_ORS_ENABLED` y `APP_ALLOWED_ORIGINS` (Pages y `localhost:5173`). Las claves solo viven en `.local-secrets/credenciales.md`.
+- Funciones desplegadas: `ai-routes`, `ors-proxy` y `route-sources`. Prueba de humo: las tres responden 401 sin JWT.
+- Variables del repositorio `VITE_SHARED_AI_ENABLED`, `VITE_SHARED_ORS_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED` en `true`; Pages redesplegado con ellas.
+- Cuota de IA hoy: 12 al día por usuario, 40 globales, 2 por minuto por usuario y 3 globales. La subida a 30/300 y 10 por minuto globales va en la migración `202611100004` del lote en curso. Cuota de ORS: 150 al día por usuario y 1.800 globales.
+
+**Paleta A «Atlas de montaña»** (`8da9efb`, de Codex). Solo color. Revisada: los tokens y los contrastes coinciden con `docs/design/2026-11-10-paleta/propuestas.md`. El mapa de Salida en oscuro se comprobó con teselas reales.
+
+**Wikiloc.** Acceso automatizado bloqueado por Cloudflare: HTTP 403 con desafío `__cf_chl`, incluso para `robots.txt` y con un User-Agent identificable. No se esquiva; `WIKILOC_AUTOMATION_AUTHORIZED` sigue sin definir.
+
+**Retirada de Google** (`8a7e831`). Tests de acceso en verde: 13/13.
+
+**Pendiente de comprobar por el usuario, en el móvil:**
+1. Una ruta con IA que cite una referencia conocida.
+2. «Proponer semana con IA» en Calendario.
+3. Un empalme exportado al BSC200S con la app de iGPSPORT.
+4. Fijar la zona.
