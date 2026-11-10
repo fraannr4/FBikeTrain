@@ -187,6 +187,7 @@ Decisiones del usuario que mandan: zona tras el login («al menos el pueblo»); 
 - `codex/pwa-compartir` en `b489fc2`: PWA instalable y Web Share Target (GPX, TCX, FIT). Ajustado al fusionar: `id` del manifest `/FBikeTrain/`, `text/xml` y `application/xml` aceptados. Límites conocidos: sin icono maskable; el envío se consume al leerlo. Falta probarlo en un Android real.
 - `codex/escritorio` en `e8b64fa`: escritorio desde 1024 px. Corregido al fusionar: `Page.tsx` ya no remonta los hijos al llegar el mapa, Rutas deja cambiar la salida con resultados y Calendario conserva la tira semanal. Menores sin hacer: `useDesktopLayout` se resuscribe en cada render, umbrales 1024/1280 repetidos, `HistoryWorkspace` con dos `Page`, sin prueba de capturas a 390 px contra main.
 - Arreglo del mismo día (`cdda84f`): ORS responde `waytype` en vez de `waytypes`; las rutas fallaban con «algo inesperado». `ors-proxy` redesplegada.
+- Mismo día, tarde: `6f8f2f4` las búsquedas de rutas no se quedan vacías (8 semillas de más, 5xx de ORS saltados, vueltas cercanas con aviso como último recurso; desde Granollers solo 2 de 8 vueltas pasaban el filtro por pistas). `e6f045f` escritorio: Inicio en dos columnas equilibradas, páginas de 1520 px desde 1440, rail ancho desde 1280.
 - Siguiente encargo a Codex: conectores de actividades (intervals.icu como puente; Garmin Starter cuando lo aprueben), rama `codex/conectores`.
 
 ### Necesita al usuario
