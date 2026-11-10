@@ -2,11 +2,11 @@
 
 Última actualización: 2026-11-10 por la tarde (commits y push autorizados por el usuario).
 
-### Worktree de mapas, 2026-11-10: sin commit
+### Fusionado el 2026-11-10 por la tarde (trabajo de Codex acabado y publicado)
 
-`C:\testTrain-mapa-rutas`, rama `codex/mapa-rutas`, desde `main` en `650a510`. Contraste del trazado con doble borde y bermellón, panel de escritorio dentro de la ventana, botón de encuadre, penalización de retrocesos/lazos y búsqueda secuencial limitada a seis consultas (también en el conjunto del plan IA). Conserva el respaldo con aviso y las notas en tarjetas IA. Diagnóstico con pruebas y límites: `docs/superpowers/plans/2026-11-10-mapa-rutas.md`.
-
-Tipos y build correctos; 98 pruebas focalizadas correctas. Suite completa con dos workers y 22 e2e de rutas sobre build propia en `PLAYWRIGHT_PORT=4178`, en curso. Si se reinicia el PC antes de cerrar, esas dos verificaciones quedan pendientes. Log de Vitest y capturas antes/después a 390/1440 px: `mapa-rutas.local/` (ignorado). No hay commit, push ni despliegue de este worktree.
+- **Mapa de rutas** (`codex/mapa-rutas`): trazado bermellón con doble borde, para que no se confunda con los carriles bici de CyclOSM; panel de escritorio dentro de la ventana y botón «Encuadrar ruta»; `src/routes/quality.ts` penaliza tramos de ida y vuelta y bucles pequeños; una búsqueda gasta como mucho 6 consultas de ORS (`SEARCH_REQUEST_BUDGET`) y la IA reparte ese presupuesto entre sus opciones. Diagnóstico: `docs/superpowers/plans/2026-11-10-mapa-rutas.md`.
+- **Inicio de escritorio A** (`codex/escritorio-inicio`): cabecera de lado a lado, cuatro KPI en fila, franja con el texto semanal y el próximo entreno, y última salida y tendencia a la misma altura. Maquetas: `docs/design/2026-11-10-escritorio-inicio/`.
+- **Conector de Intervals.icu** (`codex/conectores`): ver la sección del conector más abajo. Falta probarlo con la clave real del usuario.
 
 ## Resumen
 
@@ -149,7 +149,7 @@ Detalle en `docs/verificaciones.md`.
 
 ### Conector de actividades (rama `codex/conectores`, 2026-11-10)
 
-Investigación y decisiones en `docs/conectores-actividades.md`. Implementación local, sin push ni despliegue: Ajustes > Conexiones permite guardar clave personal e id de Intervals.icu (incluido prefijo `i` o alias `0`), traer originales FIT/GPX/TCX por el Worker/importador actual con su informe de duplicados, y comprobar al abrir/reanudar como máximo cada 6 h. CORS permite lectura directa; no hay proxy, SQL nuevo ni claves en Supabase/backups. Configuración y seguimiento aislados por cuenta en IndexedDB. Se excluyen Strava y fuentes/dispositivos identificados como Garmin; Garmin directo queda para Personal/Starter. La app debe estar abierta. Antes de promover uso multiusuario, registrar OAuth de Intervals. Pendiente probar con una clave y dispositivo reales, y confirmar conexión nativa iGPSPORT en el móvil; no usar puentes con contraseña. El conector y el resultado de sus verificaciones se detallan en la guía y `docs/verificaciones.md`.
+Investigación y decisiones en `docs/conectores-actividades.md`. Fusionado en `main` y publicado el 2026-11-10: Ajustes > Conexiones permite guardar clave personal e id de Intervals.icu (incluido prefijo `i` o alias `0`), traer originales FIT/GPX/TCX por el Worker/importador actual con su informe de duplicados, y comprobar al abrir/reanudar como máximo cada 6 h. CORS permite lectura directa; no hay proxy, SQL nuevo ni claves en Supabase/backups. Configuración y seguimiento aislados por cuenta en IndexedDB. Se excluyen Strava y fuentes/dispositivos identificados como Garmin; Garmin directo queda para Personal/Starter. La app debe estar abierta. Antes de promover uso multiusuario, registrar OAuth de Intervals. Pendiente probar con una clave y dispositivo reales, y confirmar conexión nativa iGPSPORT en el móvil; no usar puentes con contraseña. El conector y el resultado de sus verificaciones se detallan en la guía y `docs/verificaciones.md`.
 
 ### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10)
 
