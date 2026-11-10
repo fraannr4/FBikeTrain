@@ -175,7 +175,9 @@ for (const [label, name, w, h] of [
   ['nombre largo apaisado 740x360', LONG_NAME, 740, 360],
 ] as const) {
   baseTest(`bienvenida: ${label}`, async ({ page }) => {
-    await page.clock.install();
+    // La auditoría mide la escena de 1,8 s incluso con la máquina cargada.
+    await page.clock.install({ time: new Date('2026-11-10T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-11-10T13:00:00Z'));
     await page.setViewportSize({ width: w, height: h });
     await signInWith(page, name);
     const heading = page.getByRole('heading', { name: /Hola/ });

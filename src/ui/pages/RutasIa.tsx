@@ -50,6 +50,7 @@ import { List, ListRow } from '../components/ListRow';
 import { Page } from '../components/Page';
 import { RouteForm } from '../components/RouteForm';
 import { Sheet } from '../components/Sheet';
+import { RideMap } from '../components/RideMap';
 import { StateView } from '../components/StateView';
 import { useToast } from '../components/Toast';
 import { formatCount } from '../format';
@@ -457,6 +458,7 @@ export function RutasIa() {
         barTitle={TITLE}
         back="/rutas"
         className="page--ia"
+        desktopMap={current ? <RideMap points={current.card.shape} label={`Mapa de ${current.card.name}`} /> : undefined}
         kicker={kicker}
         busy={phase === 'boot' || phase === 'loading' || phase === 'searching'}
         nav={progress}
