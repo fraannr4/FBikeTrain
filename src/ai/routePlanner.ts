@@ -1,7 +1,7 @@
 import type { LatLng, Settings } from '../domain/types';
 import { upliftPct, type UserReference } from '../metrics/reference';
 import type { Target } from '../metrics/score';
-import { generateRoutes, type GeneratedRoute } from '../routes/generator';
+import { generateRoutes, SEARCH_REQUEST_BUDGET, type GeneratedRoute } from '../routes/generator';
 import { OrsError, type OrsAccess } from '../routes/ors';
 import { findRouteReferences, routeSourcesEnabled, type RouteSourceInvoker } from '../routes/sources/client';
 import type { RouteReference } from '../routes/sources/schema';
@@ -26,7 +26,7 @@ export const MAX_UPLIFT = 1.15;
 const SUGGESTED_UPLIFT = 1.1;
 /** Tope de `distanciaKm` en `RoutePlanSchema`, para cuando no hay velocidad con la que limitar. */
 const PLAN_MAX_KM = 200;
-/** Una búsqueda de ORS por opción: 1 ruta de 3 semillas. De 3 a 5 opciones dan como mucho 15 peticiones. */
+/** Una ruta por opción, con un único presupuesto de consultas para todo el plan. */
 const ORS_COUNT = 1;
 const ORS_SEEDS = 3;
 
@@ -298,12 +298,17 @@ export async function runAiRoutes(
 
   // Una opción detrás de otra, nunca en paralelo, por la cuota por minuto de ORS.
   const found: Found[] = [];
-  for (const p of targetsFromPlan(planned.plan, ref, answers)) {
+  const targets = targetsFromPlan(planned.plan, ref, answers);
+  let remaining = SEARCH_REQUEST_BUDGET;
+  for (const [index, p] of targets.entries()) {
     if (signal?.aborted) throw abortError();
+    if (remaining <= 0) break;
+    // Repartir el presupuesto deja al menos un intento a las opciones siguientes.
+    const seeds = Math.min(ORS_SEEDS, Math.max(1, Math.floor(remaining / (targets.length - index))));
     let res;
     try {
       res = await generate(
-        { start, target: p.target, count: ORS_COUNT, seeds: ORS_SEEDS },
+        { start, target: p.target, count: ORS_COUNT, seeds },
         { apiKey: deps.orsKey, reference: ref, visited: deps.visited, signal },
       );
     } catch (e) {
@@ -311,6 +316,7 @@ export async function runAiRoutes(
       warnings.push(e.message);
       break;
     }
+    remaining -= res.requestsUsed;
     const [route] = res.routes;
     if (route) {
       const dim = p.dimension === 'distancia' ? 'distance' : 'elevation';

@@ -443,6 +443,17 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(down.card.notes?.[0]).toMatchObject({ icon: TrendingDown, text: expect.stringContaining('9 % frente a tu referencia en distancia') });
   });
 
+  it('keeps geometry warnings alongside reference and time notes in AI cards', () => {
+    const warning = 'Incluye tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir.';
+    const [shown] = aiShown([aiRoute(0, { warning, limitadoPorTiempo: true })]);
+    expect(shown.card.notes?.map(note => note.text)).toEqual(expect.arrayContaining([
+      warning,
+      expect.stringContaining('8 % frente a tu referencia en distancia'),
+      'Limitada por tu tiempo disponible',
+    ]));
+    expect(shown.card.notes).toHaveLength(3);
+  });
+
   it('shows warnings', async () => {
     await seed();
     await ask({ kind: 'routes', routes: [aiRoute(0)], warnings: ['No hay ruta de asfalto para "Opción 2".'] });

@@ -101,6 +101,7 @@ describe('toCardData', () => {
       kind: 'circular',
     });
     expect(c.shape[0]).toEqual({ lat: SOL.lat + 8 * KM_LAT, lng: SOL.lng + 3 * KM_LNG });
+    expect(c.shape).toEqual(route().coords.map(([lng, lat]) => ({ lat, lng })));
     expect(c.profile).toHaveLength(2);
   });
 });

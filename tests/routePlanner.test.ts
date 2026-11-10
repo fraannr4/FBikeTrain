@@ -80,7 +80,7 @@ function route(o: Partial<GeneratedRoute> = {}): GeneratedRoute {
 const result = (routes: GeneratedRoute[], stoppedBy: OrsError | null = null): GenerateResult => ({
   routes,
   rejected: [],
-  requestsUsed: 3,
+  requestsUsed: 1,
   stoppedBy,
 });
 
@@ -270,7 +270,7 @@ describe('runAiRoutes', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('one ors search per option with count 1 and seeds 3', async () => {
+  it('one ors search per option, sharing six requests across the complete plan', async () => {
     const four = plan(option({ titulo: 'A' }), option({ titulo: 'B' }), option({ titulo: 'C' }), option({ titulo: 'D' }));
     const { chat } = fakeChat(four, { explicaciones: [] });
     const generate = fakeGenerate();
@@ -278,11 +278,20 @@ describe('runAiRoutes', () => {
     const out = await runAiRoutes(input(), d);
 
     expect(generate).toHaveBeenCalledTimes(4);
+    expect(generate.mock.calls.map(([req]) => req.seeds)).toEqual([1, 1, 2, 3]);
     for (const [req, g] of generate.mock.calls) {
-      expect(req).toMatchObject({ start: START, count: 1, seeds: 3 });
+      expect(req).toMatchObject({ start: START, count: 1 });
       expect(g).toMatchObject({ apiKey: 'ors-key', reference: ref, visited: d.visited });
     }
     expect(out.kind === 'routes' && out.routes.map((r) => r.titulo)).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('never multiplies the budget when no AI option yields a clean route', async () => {
+    const { chat } = fakeChat(validPlan, { explicaciones: [] });
+    const generate = vi.fn<typeof generateRoutes>(async req => ({ ...result([]), requestsUsed: req.seeds! }));
+    await runAiRoutes(input(), deps(chat, generate));
+    expect(generate.mock.calls.map(([req]) => req.seeds)).toEqual([2, 2, 2]);
+    expect((await Promise.all(generate.mock.results.map(r => r.value))).reduce((sum, r) => sum + r.requestsUsed, 0)).toBe(6);
   });
 
   it('option without route is dropped with warning', async () => {

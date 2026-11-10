@@ -84,7 +84,7 @@ export const RideMap = memo(function RideMap({
       });
       m.attributionControl?.setPrefix(false);
       if (interactive) L.control.zoom({ zoomInTitle: 'Acercar', zoomOutTitle: 'Alejar' }).addTo(m);
-      // Tinte azul noche entre las teselas (200) y los trazados (400); en claro es blanco y no cambia nada.
+      // Atenuación del fondo entre las teselas (200) y los trazados (400).
       const tint = m.createPane('tint');
       tint.style.zIndex = '250';
       L.DomUtil.create('div', 'map-tint', tint);
@@ -102,6 +102,23 @@ export const RideMap = memo(function RideMap({
         else m.setView(line[0], 13, { animate: false });
       };
       fit();
+      if (interactive) {
+        const FitControl = L.Control.extend({
+          onAdd: () => {
+            const box = L.DomUtil.create('div', 'leaflet-bar leaflet-control-fit');
+            const button = L.DomUtil.create('button', '', box);
+            button.type = 'button';
+            button.textContent = '⤢';
+            button.title = 'Encuadrar ruta';
+            button.setAttribute('aria-label', 'Encuadrar ruta');
+            L.DomEvent.disableClickPropagation(box);
+            L.DomEvent.disableScrollPropagation(box);
+            L.DomEvent.on(button, 'click', fit);
+            return box;
+          },
+        });
+        new FitControl({ position: 'topleft' }).addTo(m);
+      }
       L.polyline(line, { className: 'rmap-halo', interactive: false }).addTo(m);
       L.polyline(line, { className: 'rmap-core', interactive: false }).addTo(m);
       L.polyline(line, { className: 'rmap-thread', interactive: false }).addTo(m);

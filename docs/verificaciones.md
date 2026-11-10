@@ -1,5 +1,15 @@
 # Verificaciones (tarea 1, F0)
 
+## Mapa de rutas, 2026-11-10 — `codex/mapa-rutas`
+
+- Worktree `C:\testTrain-mapa-rutas`, base `650a510`, sin commit/push. Diagnóstico y límites en `docs/superpowers/plans/2026-11-10-mapa-rutas.md`.
+- Tres regresiones fallaron sobre producción original: ocho peticiones en vez de dos al alcanzar el número de rutas, dieciséis peticiones si todas tenían pista moderada y elección de una vuelta con retroceso antes que una simple. Tras corregir, las 98 pruebas focalizadas de generador/geometría/mapa/plan IA/vista pasan. La regresión adicional de notas IA también falló primero y pasó tras conservar los avisos.
+- `npx tsc --noEmit`: correcto. Build de producción (`npm run build`, ejecutado por Playwright): correcto, con los avisos existentes de tamaño de bundle, anotaciones zod e importación de demo.
+- En curso: `npx vitest run --maxWorkers=2 --minWorkers=2` (log: `mapa-rutas.local/vitest.log`). La primera ejecución sin límite de workers se interrumpió por saturación de la máquina; no se cuenta como pasada completa.
+- En curso: `CI=1 PLAYWRIGHT_PORT=4178 MAPA_CAPTURAS=1 npx playwright test e2e/rutas.spec.ts e2e/rutas-ia.spec.ts e2e/empalmar.spec.ts e2e/break-ui-empalmar.spec.ts e2e/mapa-rutas.spec.ts --workers=1 --retries=0`. Arranque exclusivo del servidor de esta build. Una primera ejecución reutilizó un preview previo y se descartó como validación de este worktree.
+- Capturas reales de la aplicación, móvil 390 px antes de escritorio 1440 px, claro/oscuro y forced-colors en `mapa-rutas.local/antes` y `mapa-rutas.local/despues`. Baseline desde archivo de `650a510`; teselas reales de CyclOSM y recorridos matemáticos sintéticos, sin tracks privados. Encuadre interno correcto antes y después, también tras cambio de tarjeta/tamaño. El panel inicial de escritorio antes terminaba en y=921,44 con ventana de 900 px; después en y=825,44.
+- La cuota sigue siendo del servidor: seis consultas por operación no impiden agotar ocho por minuto al encadenar operaciones. Geometría a 15 m de tolerancia: puede marcar ramas paralelas muy próximas; las conserva como respaldo con aviso, sin inventar ni recortar el GPX.
+
 ## Paleta A Fiel · Atlas de montaña, 2026-11-10
 
 - Aplicada en la rama `codex/paleta-a`, creada desde `main`, siguiendo la propuesta vigente de `C:\testTrain\docs\design\2026-11-10-paleta\propuestas.md`. Esa carpeta de exploración no se incorpora al commit.

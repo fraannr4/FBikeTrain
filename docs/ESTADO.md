@@ -2,6 +2,12 @@
 
 Última actualización: 2026-11-10 por la tarde (commits y push autorizados por el usuario).
 
+### Worktree de mapas, 2026-11-10: sin commit
+
+`C:\testTrain-mapa-rutas`, rama `codex/mapa-rutas`, desde `main` en `650a510`. Contraste del trazado con doble borde y bermellón, panel de escritorio dentro de la ventana, botón de encuadre, penalización de retrocesos/lazos y búsqueda secuencial limitada a seis consultas (también en el conjunto del plan IA). Conserva el respaldo con aviso y las notas en tarjetas IA. Diagnóstico con pruebas y límites: `docs/superpowers/plans/2026-11-10-mapa-rutas.md`.
+
+Tipos y build correctos; 98 pruebas focalizadas correctas. Suite completa con dos workers y 22 e2e de rutas sobre build propia en `PLAYWRIGHT_PORT=4178`, en curso. Si se reinicia el PC antes de cerrar, esas dos verificaciones quedan pendientes. Log de Vitest y capturas antes/después a 390/1440 px: `mapa-rutas.local/` (ignorado). No hay commit, push ni despliegue de este worktree.
+
 ## Resumen
 
 La app está publicada en GitHub Pages con cuentas de Supabase y el servidor de IA y ORS compartidos en marcha. `main` despliega solo cuando el CI está en verde.

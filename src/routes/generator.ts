@@ -5,15 +5,16 @@ import { difficulty, type Difficulty, type UserReference } from '../metrics/refe
 import { scoreCandidate, type Target } from '../metrics/score';
 import { analyzeRoute, rejectReason, type RejectReason, type RouteCandidate } from './analyze';
 import { fetchRoundTrip, OrsError, type OrsAccess } from './ors';
+import { geometryQuality } from './quality';
 
 /** Búsqueda de rutas: pide a ORS una vuelta por semilla, descarta las que no son de carretera y puntúa el resto. */
 
 /** Puntos de paso de cada vuelta circular. */
 export const ROUND_TRIP_POINTS = 4;
 export const DEFAULT_COUNT = 5;
-export const DEFAULT_SEEDS = 8;
-/** Semillas de más cuando las primeras no dejan ninguna ruta (zonas con muchas pistas). */
-export const EXTRA_SEEDS = 8;
+/** Presupuesto de una operación completa; deja margen bajo las 8 consultas/minuto compartidas. */
+export const SEARCH_REQUEST_BUDGET = 6;
+export const DEFAULT_SEEDS = SEARCH_REQUEST_BUDGET;
 /** Último recurso: vueltas descartadas que se enseñan con aviso si ninguna pasa el filtro. */
 const FALLBACK_MAX_OFFROAD_M = 3000;
 const FALLBACK_LENGTH_TOLERANCE = 0.4;
@@ -57,12 +58,13 @@ export type GenerateDeps = {
  * llegado ninguna candidata; si ya ha llegado alguna, corta la búsqueda y se devuelve en `stoppedBy`.
  */
 export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): Promise<GenerateResult> {
-  const seeds = req.seeds ?? DEFAULT_SEEDS;
+  const seeds = Math.max(0, Math.min(req.seeds ?? DEFAULT_SEEDS, SEARCH_REQUEST_BUDGET));
   const count = req.count ?? DEFAULT_COUNT;
   const seedBase = deps.seedBase ?? Math.floor(Math.random() * MAX_SEED_BASE);
   const fetchOne = deps.fetchRoundTrip ?? fetchRoundTrip;
 
   const accepted: GeneratedRoute[] = [];
+  const awkward: GeneratedRoute[] = [];
   const rejected: GenerateResult['rejected'] = [];
   let requestsUsed = 0;
   let received = 0;
@@ -70,8 +72,7 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
 
   const near: { candidate: RouteCandidate; reason: RejectReason }[] = [];
   let lastError: OrsError | null = null;
-  // Si las primeras semillas no dejan ninguna ruta, se prueban otras tantas antes de rendirse.
-  for (let i = 0; i < seeds || (accepted.length === 0 && i < seeds + EXTRA_SEEDS); i++) {
+  for (let i = 0; i < seeds; i++) {
     if (deps.signal?.aborted) throw abortError();
     const seed = seedBase + i;
     requestsUsed++;
@@ -101,11 +102,16 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
       if (reason !== 'autopista') near.push({ candidate, reason });
       continue;
     }
-    accepted.push(rate(candidate, req.target, deps));
+    const rated = rate(candidate, req.target, deps);
+    // Las puntas y lazos no pueden llenar el cupo de rutas buenas ni detener la búsqueda pronto.
+    if (rated.warning) awkward.push(rated);
+    else accepted.push(rated);
+    if (dedupe(accepted).length >= count) break;
   }
 
   if (received === 0 && lastError) throw lastError;
-  if (accepted.length === 0) accepted.push(...fallback(near, req.target, deps));
+  // Respaldo acotado: conserva candidatas utilizables con aviso, nunca autopistas ni mucha pista.
+  if (accepted.length === 0) accepted.push(...awkward, ...fallback(near, req.target, deps));
   const routes = dedupe(accepted.sort((a, b) => b.score - a.score)).slice(0, count);
   return { routes, rejected, requestsUsed, stoppedBy };
 }
@@ -125,16 +131,21 @@ function fallback(near: { candidate: RouteCandidate; reason: RejectReason }[], t
   return near
     .filter(({ candidate: c }) => c.unpavedM + c.trackM <= FALLBACK_MAX_OFFROAD_M && Math.abs(c.distanceM - t) <= t * FALLBACK_LENGTH_TOLERANCE)
     .sort((a, b) => a.candidate.unpavedM + a.candidate.trackM - (b.candidate.unpavedM + b.candidate.trackM))
-    .map(({ candidate, reason }) => ({ ...rate(candidate, target, deps), warning: warningFor(candidate, reason, t) }));
+    .map(({ candidate, reason }) => {
+      const rated = rate(candidate, target, deps);
+      return { ...rated, warning: [warningFor(candidate, reason, t), rated.warning].filter(Boolean).join(' ') };
+    });
 }
 
 function rate(c: RouteCandidate, target: Target, deps: GenerateDeps): GeneratedRoute {
   const newPct = newRoadPct(c.coords, deps.visited);
   const ref = deps.reference;
+  const quality = geometryQuality(c.coords);
   return {
     ...c,
     newPct,
-    score: scoreCandidate({ distanceM: c.distanceM, elevGainM: c.elevGainM, newPct }, target),
+    score: Math.max(0, scoreCandidate({ distanceM: c.distanceM, elevGainM: c.elevGainM, newPct }, target) - quality.penalty),
+    ...(quality.penalty > 0 ? { warning: 'Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir.' } : {}),
     difficulty: ref ? difficulty(c, ref) : null,
     estTimeS: ref && ref.avgSpeedMs > 0 ? c.distanceM / ref.avgSpeedMs : null,
   };
