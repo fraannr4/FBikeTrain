@@ -3,32 +3,30 @@
 
 /* Mejoras de PC. Se carga al final; el teléfono conserva íntegra su cascada. */
 @media (min-width: 1024px) {
-  :root { --rail-w: 184px; }
   .main { width: 100%; max-width: 1180px; margin-inline: auto; }
   .account-page { max-width: 1180px; }
   .appbar, .page, .legacy { max-width: 1180px; }
   .page, .legacy { padding-inline: 28px; }
   .tabbar { padding: 24px 12px; gap: 8px; overflow-y: auto; }
-  .rail-brand { justify-content: start; padding-inline: 16px; height: 64px; margin-bottom: 24px; }
-  .rail-brand .brand-mark { width: 40px; height: 40px; }
-  .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 14px; min-height: 52px; padding: 12px 16px; font-size: 16px; }
-  .tabbar .tab:last-child { margin-top: 0; }
-  .tabbar .tab-ic { flex: none; }
   .home { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: 24px; }
   .home > .hero { grid-column: 1; grid-row: 1; }
-  .home > .duo { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  /* Dos columnas equilibradas: saludo y última salida a la izquierda; objetivo, próximo entreno y tendencia a la derecha. */
+  .home > .duo { grid-column: 2; grid-row: 1; grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .home .duo > * { grid-column: auto; grid-row: auto; }
-  .home > .trend { grid-column: 1; grid-row: 2; }
-  .home > .lastride, .home > .section:not(.trend), .home > .hero-empty, .home > .home-loading { grid-column: 1 / -1; }
+  .home > .trend { grid-column: 2; grid-row: 2; }
+  .home > .lastride { grid-column: 1; grid-row: 2; }
+  .home > .section:not(.trend), .home > .hero-empty, .home > .home-loading { grid-column: 1 / -1; }
+  .home .lastride .profile { min-height: 220px; }
   .home .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .home .hero { min-width: 0; }
   .home .hero-scene { max-width: 100%; }
   .duo .next { min-width: 0; }
-  .trend-chart, .scrub, .climb, .passes > svg { min-height: 480px; }
+  .scrub, .climb, .passes > svg { min-height: 480px; }
+  .trend-chart { min-height: 360px; }
   .rmap, .start-map, .ride-hero, .lastride-map { min-height: 480px; }
   .ride-hero { height: 480px; }
   .ride-hero-map { height: 100%; }
-  .lastride .profile, .rcard .profile, .rmap-sheet .profile { min-height: 480px; }
+  .rcard .profile, .rmap-sheet .profile { min-height: 320px; }
   .page--ajustes { width: 100%; max-width: 720px; grid-template-columns: minmax(0, 1fr); }
   .page--ajustes .settings { grid-template-columns: minmax(0, 1fr); }
   .page--narrow:not(.page--ajustes) { max-width: 780px; }
@@ -67,7 +65,19 @@
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
   .toasts { max-width: calc(100vw - var(--rail-w) - 48px); }
 
+  /* Pantallas grandes: más ancho útil en lugar de márgenes vacíos. */
+  @media (min-width: 1440px) {
+    .main, .account-page, .appbar, .page, .legacy { max-width: 1520px; }
+    .home { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; }
+  }
   @media (min-width: 1280px) {
+    /* Rail con etiquetas al lado solo cuando sobra ancho; entre 1024 y 1279 px se queda el rail compacto. */
+    :root { --rail-w: 184px; }
+    .rail-brand { justify-content: start; padding-inline: 16px; height: 64px; margin-bottom: 24px; }
+    .rail-brand .brand-mark { width: 40px; height: 40px; }
+    .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 14px; min-height: 52px; padding: 12px 16px; font-size: 16px; }
+    .tabbar .tab:last-child { margin-top: 0; }
+    .tabbar .tab-ic { flex: none; }
     .history-workspace { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; }
     .history-workspace > .history-list { position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; scrollbar-gutter: stable; }
     .history-workspace .hist { padding-inline: 20px; }
