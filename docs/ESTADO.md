@@ -161,12 +161,14 @@ Detalle en `docs/verificaciones.md`.
   - `test:db`: 5 suites.
   - e2e en verde: `ia-entrenos`, `break-ui-ia-entrenos`, `rutas-ia`, `rutas`, `plan` y `empalmar`.
 
-### Lote en curso (NO terminado)
+### Lote de IA: Empalmar y objetivo HECHOS (`031a5c4`); referencias de biblioteca PENDIENTE
 
-Workflow `develop-phase` `wf_99c6f3b8-740` sobre `docs/superpowers/plans/2026-11-10-ia-empalmes-objetivo-biblioteca.md`. El árbol de trabajo tiene sus cambios sin commit.
-- T1: Empalmar hasta 3 tramos, con salidas del historial, guardar el resultado y «Empalmar con…» desde la tarjeta de IA.
-- T2: el objetivo en los prompts de plan y empalme, y cuota 30/300 (migración `202611100004`, con 10 por minuto globales).
-- T3: referencias de la biblioteca con enlace al GPX y autor.
+Plan `docs/superpowers/plans/2026-11-10-ia-empalmes-objetivo-biblioteca.md`. El workflow se paró a propósito antes de la Task 3 (presupuesto semanal al 15 %).
+- T1 hecha: Empalmar hasta 3 tramos en el orden elegido, salidas del historial como tramo, guardar el empalme en la biblioteca y «Empalmar con…» desde la tarjeta de IA (guardado automático). e2e `empalmar`, `break-ui-empalmar` y `rutas-ia`: 17/17 en el verificador del workflow.
+- T2 hecha: el objetivo (evento más próximo; si no, el volumen vigente; solo cifras, nunca nombres) va en los prompts de plan y de empalme con `aiGoalSchema` estricto; cuota de la IA 30 por usuario y 300 globales al día, 10 globales por minuto (migración `202611100004`, aplicada en remoto el 2026-11-10). `ai-routes` redesplegada ese día.
+- T3 pendiente: referencias de la biblioteca con enlace y autor del GPX (`ReferenceRoute.author`, `referenceSite`, `libraryReferences`, `pickReferences`, fuente `biblioteca`). Relanzar con `Workflow({ name: 'develop-phase', args: { plan, ui: true, maxFixRounds: 1, model: 'fable', tasks: [{ n: 3, agent: 'cycling-routes-engineer' }] } })`.
+- Verificado antes del commit: `tsc`, `vitest` (98 ficheros), `test:db` (6 suites), `build`. No se repitió el e2e tras la T2.
+- En el móvil, pendiente: con un evento en Objetivos, que el «motivo» de una ruta con IA y la recomendación de Empalmar citen el objetivo.
 
 Planes en cola, escritos y commiteados, sin lanzar:
 1. `docs/superpowers/plans/2026-11-10-zona-buscador-amigos.md` (migración `202611100005`).
@@ -179,9 +181,9 @@ Decisiones del usuario que mandan: zona tras el login («al menos el pueblo»); 
 ### Ramas de Codex (worktree `C:\testTrain-codex`)
 
 - `codex/paleta-a`: fusionada.
-- `codex/pwa-compartir`: PWA y Web Share Target para GPX, TCX y FIT desde las apps de Wikiloc e iGPSPORT. En curso.
-- `codex/escritorio`: diseño de escritorio a partir de 1024 px en `src/ui/styles/escritorio.css`. En curso.
-- Las dos se revisan y fusionan después del lote de IA.
+- `codex/pwa-compartir` (worktree `C:\testTrain-codex`): PWA y Web Share Target para GPX, TCX y FIT. Revisada el 2026-11-10: mergeable con correcciones menores (`id` del manifest relativo al origen, `accept` sin `text/xml`, sin icono maskable, el envío se borra al leerlo y no al importar, prioridad del envío pendiente sobre la futura redirección a `#/zona`, menciones a Google por rebase pendiente). Sin commit en la rama todavía.
+- `codex/escritorio` (worktree `C:\testTrain-codex-escritorio`): escritorio a partir de 1024 px (`escritorio.css`, `useDesktopLayout`). Revisada el 2026-11-10: móvil intacto, pero tres regresiones en PC (selector de salida oculto en Rutas con resultados, tira semanal y leyenda ocultas en Calendario, `Page.tsx` remonta los hijos al llegar `desktopMap`). Sin commit en la rama todavía.
+- Las correcciones pedidas a Codex están en `docs/codex-correcciones-2026-11-10.md`. Fusionar cuando Codex las haga commit: rebase sobre `main`, CI, push.
 
 ### Necesita al usuario
 

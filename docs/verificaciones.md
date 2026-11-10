@@ -192,8 +192,14 @@ Wikiloc sigue apagado hasta que el usuario acepte el riesgo de sus condiciones.
 
 **Retirada de Google** (`8a7e831`). Tests de acceso en verde: 13/13.
 
+**Lote de IA, T1 y T2** (`031a5c4`). Antes del commit: `npx tsc --noEmit` rc 0; `npx vitest run` rc 0 (98 ficheros); `npm run test:db` 6 suites PASS, incluida la nueva «cuota de la IA compartida subida: 30 por usuario y 300 globales al día, 10 globales por minuto»; `npm run build` rc 0 (`index-DonpDOhd.js`, 1.201 kB). e2e de la T1 (17/17) solo en el verificador del workflow, con `PLAYWRIGHT_PORT=4174` porque el 4173 lo ocupaba un `vite preview` de Codex con un bundle viejo; `playwright.config.ts` reutiliza ese puerto, así que con Codex activo hay que fijar `PLAYWRIGHT_PORT`. `ai-routes` redesplegada y migración `202611100004` aplicada en remoto el 2026-11-10.
+
+**Ramas de Codex revisadas** (agentes sonnet, solo lectura, `tsc` rc 0 en las dos; `tests/sharedFiles.test.ts` 20/20): detalle en `docs/ESTADO.md` y correcciones en `docs/codex-correcciones-2026-11-10.md`.
+
 **Pendiente de comprobar por el usuario, en el móvil:**
 1. Una ruta con IA que cite una referencia conocida.
 2. «Proponer semana con IA» en Calendario.
 3. Un empalme exportado al BSC200S con la app de iGPSPORT.
 4. Fijar la zona.
+5. Con un evento en Objetivos: el «motivo» de una ruta con IA y la recomendación de Empalmar citan el objetivo.
+6. Empalmar con tres tramos y con una salida del historial; «Empalmar con…» desde una ruta generada.

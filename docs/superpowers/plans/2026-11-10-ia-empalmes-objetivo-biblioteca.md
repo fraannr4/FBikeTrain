@@ -59,7 +59,7 @@
   - Query de Empalmar: `/rutas/empalmar?primera=lib:<id>` preselecciona el primer tramo.
   - `AiRoutesCarousel` gana la prop `onSplice: (card: RouteCardData) => void` y cada tarjeta un botón «Empalmar con…».
 
-- [ ] **Step 1: Tests de `spliceRoutes` con lista de entradas**
+- [x] **Step 1: Tests de `spliceRoutes` con lista de entradas**
 
 En `tests/splice.test.ts`, adaptar las llamadas existentes a `spliceRoutes([a, b], ...)` y añadir:
 
@@ -87,17 +87,17 @@ it('activityToSpliceInput descarta puntos sin GPS y exige 2 válidos', () => {
 });
 ```
 
-- [ ] **Step 2: Ejecutar `npx vitest run tests/splice.test.ts` y ver fallar los nuevos**
+- [x] **Step 2: Ejecutar `npx vitest run tests/splice.test.ts` y ver fallar los nuevos**
 
-- [ ] **Step 3: Implementar en `src/routes/splice.ts`**
+- [x] **Step 3: Implementar en `src/routes/splice.ts`**
 
 `spliceRoutes` generaliza el bucle actual: `orders = inputs.length === 2 ? ['AB', 'BA'] : ['ABC']`; para cada orden, los tramos consecutivos se unen por parejas con `joinPair` (salida del tramo i, entrada del i+1) y se exploran los sentidos de cada tramo circular (abiertos no se invierten, como hoy). `id` de opción: `${order}-${bits}` con un bit por tramo. `connectorsFor` conserva la caché por par de puntos. `measure`, `thin`, el regreso y el ranking no cambian.
 
-- [ ] **Step 4: `npx vitest run tests/splice.test.ts` en verde**
+- [x] **Step 4: `npx vitest run tests/splice.test.ts` en verde**
 
-- [ ] **Step 5: Tests de `saveSplicedRoute`** en `tests/routeLibrary.test.ts`: guarda puntos sin `ele`, `summary.elevGainM === null`, `sourceFileName === 'empalme.gpx'`, nombre recortado a 120. Ver fallar, implementar en `library.ts`, ver pasar.
+- [x] **Step 5: Tests de `saveSplicedRoute`** en `tests/routeLibrary.test.ts`: guarda puntos sin `ele`, `summary.elevGainM === null`, `sourceFileName === 'empalme.gpx'`, nombre recortado a 120. Ver fallar, implementar en `library.ts`, ver pasar.
 
-- [ ] **Step 6: Tests de la página** en `tests/empalmar.test.tsx` (mismos mocks que los existentes):
+- [x] **Step 6: Tests de la página** en `tests/empalmar.test.tsx` (mismos mocks que los existentes):
   - el desplegable muestra dos grupos: «Biblioteca» y «Salidas» (salidas con `hasTrack: true`, etiqueta `nombre · fecha · km`, las 50 más recientes);
   - «Tercera ruta (opcional)» vacío por defecto; con dos elegidas se llama `spliceRoutes` con 2 entradas, con tres con 3;
   - elegir una salida llama `getTrack(id)` y pasa `activityToSpliceInput`; con track inválido se muestra el mensaje de la Review Focus 1 y no se llama a ORS;
@@ -105,13 +105,13 @@ it('activityToSpliceInput descarta puntos sin GPS y exige 2 válidos', () => {
   - tras calcular, el botón «Guardar en la biblioteca» llama `saveSplicedRoute(nombre, selected.points)` y muestra «Guardada en la biblioteca.»; el botón GPX sigue igual.
   Ver fallar.
 
-- [ ] **Step 7: Implementar en `Empalmar.tsx`**: valores de selección `lib:<id>` / `act:<id>`; `Names` pasa a `Partial<Record<SpliceLetter, string>>`; `title()` y `OptionCard` muestran A, B y C; el nombre del empalme es `Empalme ${A} y ${B}` o `Empalme ${A}, ${B} y ${C}`. Mobile-first: los tres `select` apilados a 360 px.
+- [x] **Step 7: Implementar en `Empalmar.tsx`**: valores de selección `lib:<id>` / `act:<id>`; `Names` pasa a `Partial<Record<SpliceLetter, string>>`; `title()` y `OptionCard` muestran A, B y C; el nombre del empalme es `Empalme ${A} y ${B}` o `Empalme ${A}, ${B} y ${C}`. Mobile-first: los tres `select` apilados a 360 px.
 
-- [ ] **Step 8: Tests de `rutasIa.test.tsx`**: la tarjeta tiene «Empalmar con…»; al pulsar se guarda la ruta en la biblioteca (`saveGeneratedRoute` o el hook) y se navega a `/rutas/empalmar?primera=lib:<id>`. Ver fallar, implementar en `AiRoutes.tsx` y `RutasIa.tsx`, ver pasar.
+- [x] **Step 8: Tests de `rutasIa.test.tsx`**: la tarjeta tiene «Empalmar con…»; al pulsar se guarda la ruta en la biblioteca (`saveGeneratedRoute` o el hook) y se navega a `/rutas/empalmar?primera=lib:<id>`. Ver fallar, implementar en `AiRoutes.tsx` y `RutasIa.tsx`, ver pasar.
 
-- [ ] **Step 9: e2e** `e2e/empalmar.spec.ts`: añadir un caso con tres rutas de la biblioteca y otro con una salida del historial (track sintético sembrado en IndexedDB como hace `e2e/paleta.spec.ts`), a 390x844, con ORS simulado; capturas a 360 y 430 del formulario con tres tramos. Ejecutar `npx playwright test e2e/empalmar.spec.ts e2e/break-ui-empalmar.spec.ts e2e/rutas-ia.spec.ts`.
+- [x] **Step 9: e2e** `e2e/empalmar.spec.ts`: añadir un caso con tres rutas de la biblioteca y otro con una salida del historial (track sintético sembrado en IndexedDB como hace `e2e/paleta.spec.ts`), a 390x844, con ORS simulado; capturas a 360 y 430 del formulario con tres tramos. Ejecutar `npx playwright test e2e/empalmar.spec.ts e2e/break-ui-empalmar.spec.ts e2e/rutas-ia.spec.ts`.
 
-- [ ] **Step 10: `npx vitest run`, `npx tsc --noEmit`, `npm run build`**
+- [x] **Step 10: `npx vitest run`, `npx tsc --noEmit`, `npm run build`**
 
 ---
 
@@ -136,7 +136,7 @@ it('activityToSpliceInput descarta puntos sin GPS y exige 2 válidos', () => {
   - `src/ai/shared/service.ts`: `aiGoalSchema` estricto (`evento`: `diasHasta` entero 0-730, `distanciaKm` 0-1000 o null, `desnivelM` 0-20000 o null; `volumen`: `diasRestantes` entero 0-366, `distanciaRestanteKm` 0-5000 o null, `desnivelRestanteM` 0-100000 o null); campo `objetivo: aiGoalSchema.nullable().optional()` en `plan` y `splice`.
   - Migración `202611100004_shared_ai_quota_raise.sql`: `create or replace function public.consume_shared_ai_quota` copiada de `202611090002_shared_ai_quota.sql` cambiando solo los límites: usuario/día 12 → 30, global/día 40 → 300, global/minuto 3 → 10; usuario/minuto sigue en 2. Misma firma, mismos `revoke`/`grant`.
 
-- [ ] **Step 1: `tests/goalContext.test.ts`**
+- [x] **Step 1: `tests/goalContext.test.ts`**
 
 ```ts
 it('prefiere el evento futuro más próximo', () => expect(aiGoal([volume, eventIn20d, eventIn5d], acts, NOW, TODAY)).toEqual({ tipo: 'evento', diasHasta: 5, distanciaKm: 120, desnivelM: 1500 }));
@@ -148,23 +148,25 @@ it('evento pasado y periodo terminado dan null', () => expect(aiGoal([pastEvent,
 it('no incluye nombre ni lugar', () => expect(JSON.stringify(aiGoal([eventIn5d], acts, NOW, TODAY))).not.toMatch(/Mallorca|title/));
 ```
 
-- [ ] **Step 2: Ver fallar, implementar `goalContext.ts`, ver pasar**
+- [x] **Step 2: Ver fallar, implementar `goalContext.ts`, ver pasar**
 
-- [ ] **Step 3: `tests/prompts.test.ts`**: con `objetivo` el JSON de usuario lo incluye y el sistema de `plan` y de `splice` mencionan «objetivo»; con `null` no aparece la clave. Ver fallar, implementar en `prompts.ts` y `contracts.ts`, ver pasar.
+- [x] **Step 3: `tests/prompts.test.ts`**: con `objetivo` el JSON de usuario lo incluye y el sistema de `plan` y de `splice` mencionan «objetivo»; con `null` no aparece la clave. Ver fallar, implementar en `prompts.ts` y `contracts.ts`, ver pasar.
 
-- [ ] **Step 4: Esquema compartido**: en el test existente del servicio compartido, `plan` y `splice` aceptan `objetivo` válido y rechazan `{ tipo: 'evento', diasHasta: 5, extra: 1 }` y `diasHasta: -1`. Ver fallar, implementar `aiGoalSchema`, ver pasar. La función `ai-routes` importa este módulo: no hay cambios en `supabase/functions/ai-routes/index.ts`.
+- [x] **Step 4: Esquema compartido**: en el test existente del servicio compartido, `plan` y `splice` aceptan `objetivo` válido y rechazan `{ tipo: 'evento', diasHasta: 5, extra: 1 }` y `diasHasta: -1`. Ver fallar, implementar `aiGoalSchema`, ver pasar. La función `ai-routes` importa este módulo: no hay cambios en `supabase/functions/ai-routes/index.ts`.
 
-- [ ] **Step 5: `tests/routePlanner.test.ts` y `tests/spliceAdvisor.test.ts`**: el objetivo pasado en `deps` llega a `buildPlanMessages`/`buildSpliceMessages` y al cliente compartido. Ver fallar, implementar (`routePlanner` recibe `goal: AiGoal | null` en sus deps; `adviseSplice` recibe `objetivo`), ver pasar.
+- [x] **Step 5: `tests/routePlanner.test.ts` y `tests/spliceAdvisor.test.ts`**: el objetivo pasado en `deps` llega a `buildPlanMessages`/`buildSpliceMessages` y al cliente compartido. Ver fallar, implementar (`routePlanner` recibe `goal: AiGoal | null` en sus deps; `adviseSplice` recibe `objetivo`), ver pasar.
 
-- [ ] **Step 6: Páginas**: `RutasIa.tsx` y `Empalmar.tsx` calculan `aiGoal(await listGoals(), acts, Date.now(), today)` antes de pedir el plan o el consejo; cualquier error al leer objetivos deja `null`. Sin cambios visuales.
+- [x] **Step 6: Páginas**: `RutasIa.tsx` y `Empalmar.tsx` calculan `aiGoal(await listGoals(), acts, Date.now(), today)` antes de pedir el plan o el consejo; cualquier error al leer objetivos deja `null`. Sin cambios visuales.
 
-- [ ] **Step 7: Migración y test SQL**: añadir `202611100004_shared_ai_quota_raise.sql`; en el test SQL de la cuota, un usuario con 12 llamadas hoy sigue permitido, la 31.ª se deniega y la 301.ª global también; `npm run test:db` en verde. Actualizar la tabla del README de `ai-routes`.
+- [x] **Step 7: Migración y test SQL**: añadir `202611100004_shared_ai_quota_raise.sql`; en el test SQL de la cuota, un usuario con 12 llamadas hoy sigue permitido, la 31.ª se deniega y la 301.ª global también; `npm run test:db` en verde. Actualizar la tabla del README de `ai-routes`.
 
-- [ ] **Step 8: `npx vitest run`, `npx tsc --noEmit`, `npm run build`, `npm run test:db`**
+- [x] **Step 8: `npx vitest run`, `npx tsc --noEmit`, `npm run build`, `npm run test:db`**
 
 ---
 
 ### Task 3: Referencias desde la biblioteca, con enlace y autor del GPX
+
+> Pendiente (2026-11-10): el lote se paró antes de esta tarea por el presupuesto semanal. T1 y T2 están en `031a5c4`.
 
 **Files:**
 - Modify: `src/routes/library.ts` (`ReferenceRoute.author?`, lectura de `<link>` y `<author>` en `parseReferenceRoute`)
