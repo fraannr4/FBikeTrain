@@ -5,8 +5,7 @@ import { Inicio } from './ui/pages/Inicio';
 import { Importar } from './ui/pages/Importar';
 import { Compartido } from './ui/pages/Compartido';
 import { Ajustes } from './ui/pages/Ajustes';
-import { Historial } from './ui/pages/Historial';
-import { Salida } from './ui/pages/Salida';
+import { HistoryWorkspace } from './ui/historial/HistoryWorkspace';
 import { Subidas } from './ui/pages/Subidas';
 import { Repetidas } from './ui/pages/Repetidas';
 import { Rutas } from './ui/pages/Rutas';
@@ -39,12 +38,12 @@ export function App() {
               </Legacy>
             }
           />
-          <Route path="/historial" element={<Historial />} />
+          <Route path="/historial" element={<HistoryWorkspace />} />
           <Route path="/historial/subidas" element={<Subidas />} />
           <Route path="/historial/subidas/:id" element={<Subidas />} />
           <Route path="/historial/repetidas" element={<Repetidas />} />
           <Route path="/historial/repetidas/:id" element={<Repetidas />} />
-          <Route path="/historial/:id" element={<Salida />} />
+          <Route path="/historial/:id" element={<HistoryWorkspace />} />
           <Route path="/rutas" element={<Rutas />} />
           <Route path="/rutas/ia" element={<RutasIa />} />
           <Route path="/rutas/biblioteca" element={<BibliotecaRutas />} />

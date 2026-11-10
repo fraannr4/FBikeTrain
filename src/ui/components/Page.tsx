@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AppBar } from './AppBar';
 import { PageHead } from './PageHead';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 
 type Props = {
   /** `h1` de la pantalla (en Subidas, «Historial»: la pestaña). */
@@ -23,11 +24,17 @@ type Props = {
   /** Aria-busy mientras carga. */
   busy?: boolean;
   className?: string;
+  /** Mapa junto a los controles en PC; en móvil se conserva la hoja del mapa. */
+  desktopMap?: ReactNode;
   children?: ReactNode;
 };
 
 /** Pantalla del kit: barra superior, cabecera con relieve y la rejilla `.page` de 28 px de hueco. */
-export function Page({ title, barTitle, back, actions, kicker, lead, nav, variant, busy, className, children }: Props) {
+export function Page(props: Props) {
+  const { title, barTitle, back, actions, kicker, lead, nav, variant, busy, className, desktopMap, children } = props;
+  // Con la prop presente (aunque aún sin mapa) el envoltorio no cambia: los hijos no se remontan al llegar el mapa.
+  const withMap = 'desktopMap' in props;
+  const desktop = useDesktopLayout();
   const cls = ['page', variant ? `page--${variant}` : '', className ?? ''].filter(Boolean).join(' ');
   return (
     <>
@@ -36,7 +43,12 @@ export function Page({ title, barTitle, back, actions, kicker, lead, nav, varian
         <PageHead title={title} kicker={kicker} lead={nav ? undefined : lead} />
         {nav}
         {nav && lead ? <p className="page-lead page-lead--sub">{lead}</p> : null}
-        {children}
+        {withMap ? (
+          <div className={desktop && desktopMap ? 'route-workspace' : 'route-workspace route-workspace--off'}>
+            <div className="route-controls">{children}</div>
+            {desktop && desktopMap ? <aside className="route-map-panel" aria-label="Vista del recorrido">{desktopMap}</aside> : null}
+          </div>
+        ) : children}
       </div>
     </>
   );

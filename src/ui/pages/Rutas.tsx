@@ -43,6 +43,8 @@ import {
 } from '../icons';
 import { RouteCard, RouteCardSkeleton, type RouteCardData } from '../routes/RouteCard';
 import { RouteMapSheet } from '../routes/RouteMapSheet';
+import { RideMap } from '../components/RideMap';
+import { StartPointMap } from '../components/StartPointMap';
 import {
   clockTime,
   defaultTarget,
@@ -327,6 +329,11 @@ export function Rutas() {
       <Page
         title="Rutas"
         className="page--rutas"
+        desktopMap={current ? (
+          <RideMap points={current.shape} label={`Mapa de ${current.name}`} />
+        ) : phase === 'empty' ? (
+          <StartPointMap value={start} home={home} onChange={(p) => { setKind('mapa'); setPoints((ps) => ({ ...ps, mapa: p })); }} onSaveHome={(p) => void saveHome(p)} />
+        ) : undefined}
         kicker={kicker}
         busy={phase === 'boot' || phase === 'loading'}
         lead={

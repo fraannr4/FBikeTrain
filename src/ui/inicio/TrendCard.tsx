@@ -2,6 +2,7 @@ import { useId, useRef, useState, type PointerEvent } from 'react';
 import type { Accent } from '../accent';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useElementWidth } from '../hooks/useElementWidth';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { ChevronLeft, ChevronRight, Table, TrendingUp } from '../icons';
 import {
   COLUMN,
@@ -42,7 +43,7 @@ type Geo = { padL: number; slot: number };
  * (fuera de los datos), la cifra de la semana elegida va pegada encima de su barra y, en la semana en
  * curso, una marca corta dice lo que sueles llevar a estas alturas.
  */
-function chart(s: TrendSeries, sel: number, labels: string[], W: number) {
+function chart(s: TrendSeries, sel: number, labels: string[], W: number, H: number) {
   const sc = trendScale(s.values, s.mean, s.metric);
   const line = isLine(s.metric);
   const meanTxt = s.mean === null ? '' : trendFigure(s.metric, s.mean);
@@ -153,9 +154,11 @@ export function TrendCard({ trend, metric, onMetricChange, id }: Props) {
   const [tableOpen, setTableOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const width = useElementWidth(box) || FALLBACK_W;
+  const desktop = useDesktopLayout();
+  const height = desktop ? 480 : H;
 
   const s = trend.series[metric];
-  const c = chart(s, sel, trend.labels, width);
+  const c = chart(s, sel, trend.labels, width, height);
 
   const go = (i: number) => {
     if (Number.isFinite(i)) setSel(Math.max(0, Math.min(LAST, i)));
@@ -203,8 +206,8 @@ export function TrendCard({ trend, metric, onMetricChange, id }: Props) {
           className="trend-chart"
           role="img"
           aria-label={trendAriaLabel(s)}
-          viewBox={`0 0 ${c.W} ${H}`}
-          height={H}
+          viewBox={`0 0 ${c.W} ${height}`}
+          height={height}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
         >
@@ -227,11 +230,11 @@ export function TrendCard({ trend, metric, onMetricChange, id }: Props) {
             </g>
           ) : null}
           {c.xLabels.map((l) => (
-            <text key={l.text} x={f1(l.x)} y={H - 6} textAnchor="middle">
+            <text key={l.text} x={f1(l.x)} y={height - 6} textAnchor="middle">
               {l.text}
             </text>
           ))}
-          <text className="xl-now" x={c.W - c.padR} y={H - 6} textAnchor="end">
+          <text className="xl-now" x={c.W - c.padR} y={height - 6} textAnchor="end">
             En curso
           </text>
 

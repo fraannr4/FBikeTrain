@@ -1,0 +1,85 @@
+/* Sin mapa (móvil, o en PC antes de que llegue): los envoltorios no cuentan en la rejilla de .page. */
+.route-workspace--off, .route-workspace--off > .route-controls { display: contents; }
+
+/* Mejoras de PC. Se carga al final; el teléfono conserva íntegra su cascada. */
+@media (min-width: 1024px) {
+  :root { --rail-w: 184px; }
+  .main { width: 100%; max-width: 1180px; margin-inline: auto; }
+  .account-page { max-width: 1180px; }
+  .appbar, .page, .legacy { max-width: 1180px; }
+  .page, .legacy { padding-inline: 28px; }
+  .tabbar { padding: 24px 12px; gap: 8px; overflow-y: auto; }
+  .rail-brand { justify-content: start; padding-inline: 16px; height: 64px; margin-bottom: 24px; }
+  .rail-brand .brand-mark { width: 40px; height: 40px; }
+  .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 14px; min-height: 52px; padding: 12px 16px; font-size: 16px; }
+  .tabbar .tab:last-child { margin-top: 0; }
+  .tabbar .tab-ic { flex: none; }
+  .home { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+  .home > .hero { grid-column: 1; grid-row: 1; }
+  .home > .duo { grid-column: 2; grid-row: 1 / span 2; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .home .duo > * { grid-column: auto; grid-row: auto; }
+  .home > .trend { grid-column: 1; grid-row: 2; }
+  .home > .lastride, .home > .section:not(.trend), .home > .hero-empty, .home > .home-loading { grid-column: 1 / -1; }
+  .home .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home .hero { min-width: 0; }
+  .home .hero-scene { max-width: 100%; }
+  .duo .next { min-width: 0; }
+  .trend-chart, .scrub, .climb, .passes > svg { min-height: 480px; }
+  .rmap, .start-map, .ride-hero, .lastride-map { min-height: 480px; }
+  .ride-hero { height: 480px; }
+  .ride-hero-map { height: 100%; }
+  .lastride .profile, .rcard .profile, .rmap-sheet .profile { min-height: 480px; }
+  .page--ajustes { width: 100%; max-width: 720px; grid-template-columns: minmax(0, 1fr); }
+  .page--ajustes .settings { grid-template-columns: minmax(0, 1fr); }
+  .page--narrow:not(.page--ajustes) { max-width: 780px; }
+  .page--rutas, .page--ia { overflow: visible; }
+  .route-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
+  .route-controls { display: grid; gap: 24px; min-width: 0; }
+  .route-controls .carousel { margin-inline: 0; padding-inline: 0; scroll-padding-inline: 0; }
+  .route-controls .carousel > li { flex-basis: 100%; }
+  .route-controls .gen-inline { max-width: none; }
+  /* Solo cuando el panel ya enseña el selector de salida; con resultados, el de «Cambiar» sigue visible. */
+  .page:has(.route-map-panel .start-pick) .route-controls .start-pick { display: none; }
+  .route-map-panel { position: sticky; top: 76px; min-width: 0; }
+  .route-map-panel .rmap, .route-map-panel .start-map { height: max(480px, calc(100dvh - 104px)); border-radius: var(--r-card); }
+  .page--cal > .desktop-month { grid-row: 3; }
+  .desktop-month { display: grid; gap: 16px; }
+  .desktop-month .mo-grid { width: 100%; margin: 0; }
+  .desktop-month .mo-grid .day { min-height: 88px; border-radius: var(--r-md); border: 1px solid var(--line); }
+  .desktop-month .mo-nav { margin: 0; }
+  .desktop-month .mo-sum { text-align: left; }
+  .desktop-month .mo-legend { justify-content: start; }
+  .history-workspace > * { min-width: 0; }
+  .history-prompt { align-self: start; margin: 80px 28px 0 0; }
+  dialog.sheet, dialog.sheet:has(.sheet-cols), dialog.sheet--month {
+    inset: 0; margin: auto; width: calc(100% - 48px); max-width: 560px;
+    height: fit-content; max-height: calc(100dvh - 48px); border-radius: var(--r-sheet);
+    transform: none; transition-property: opacity;
+  }
+  dialog.sheet.is-open { transform: none; }
+  .sheet-handle { display: none; }
+  .sheet-grab { cursor: default; padding-top: 12px; }
+  dialog.sheet--month .sheet-grab { position: static; width: auto; }
+  dialog.sheet--month .sheet-body { display: block; }
+  dialog.sheet--month .mo-nav { margin: 0; }
+  dialog.sheet--month .mo-sum { margin-block: 10px; }
+  dialog.sheet .sheet-cols { grid-template-columns: minmax(0, 1fr); }
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .toasts { max-width: calc(100vw - var(--rail-w) - 48px); }
+
+  @media (min-width: 1280px) {
+    .history-workspace { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; }
+    .history-workspace > .history-list { position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; scrollbar-gutter: stable; }
+    .history-workspace .hist { padding-inline: 20px; }
+    .history-workspace .hist-tools { grid-template-columns: minmax(0, 1fr); }
+    .history-workspace .ride { padding-inline: 20px; }
+    .history-workspace .ride-screen { border-left: 1px solid var(--line); }
+    .history-workspace .ride-head { padding-top: 24px; }
+    .history-workspace .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tab:hover, .row:hover, .icon-btn:hover, .choice:hover { background-color: var(--surface-2); }
+    .btn:not(:disabled):hover { box-shadow: 0 0 0 2px var(--line-strong); }
+    .card-link:hover, .rail-brand:hover { text-decoration: underline; text-underline-offset: 4px; }
+  }
+}

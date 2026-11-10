@@ -34,6 +34,7 @@ import './ui/styles/plan.css';
 import './ui/styles/objetivos.css';
 import './ui/styles/mas.css';
 import './ui/styles/account.css';
+import './ui/styles/escritorio.css';
 
 rememberSharedLocation();
 createRoot(document.getElementById('root')!).render(

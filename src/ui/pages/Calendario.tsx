@@ -66,6 +66,7 @@ import { useToast } from '../components/Toast';
 import { WorkoutForm } from '../components/WorkoutForm';
 import { PLAN_VIEWS } from '../shell/screens';
 import { useReducedMotion } from '../theme/motion';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 
 type Status = 'done' | 'pending' | 'missed';
 const STATUS_TEXT: Record<Status, string> = { done: 'hecho', pending: 'pendiente', missed: 'sin hacer' };
@@ -933,7 +934,11 @@ type MonthProps = {
 };
 
 function MonthSheet({ open, onClose, selected, today, byDay, onPick }: MonthProps) {
+  const desktop = useDesktopLayout();
   const [month, setMonth] = useState(selected.slice(0, 7));
+  useEffect(() => {
+    if (desktop) setMonth(selected.slice(0, 7));
+  }, [desktop, selected]);
   // Cada vez que se abre, enseña el mes del día elegido.
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
@@ -955,8 +960,8 @@ function MonthSheet({ open, onClose, selected, today, byDay, onPick }: MonthProp
     ? `${ws.length} ${ws.length === 1 ? 'entreno' : 'entrenos'}: ${parts.join(', ')}.`
     : 'Nada planificado este mes.';
 
-  return (
-    <Sheet open={open} onClose={onClose} title="Elegir día" className="sheet--month">
+  const content = (
+    <>
       <div className="mo-nav">
         <button className="icon-btn" type="button" aria-label="Mes anterior" onClick={() => setMonth((m) => addMonths(m, -1))}>
           <ChevronLeft className="ic" aria-hidden="true" />
@@ -984,7 +989,10 @@ function MonthSheet({ open, onClose, selected, today, byDay, onPick }: MonthProp
         )}
       </div>
       <Legend className="mo-legend" />
-    </Sheet>
+    </>
+  );
+  return desktop ? <section className="card desktop-month" aria-label="Calendario mensual">{content}</section> : (
+    <Sheet open={open} onClose={onClose} title="Elegir día" className="sheet--month">{content}</Sheet>
   );
 }
 
