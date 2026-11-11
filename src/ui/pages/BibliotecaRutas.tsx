@@ -9,7 +9,7 @@ import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
 import {
   importReferenceRoute, listReferenceRoutes, saveReferenceRoute, deleteReferenceRoute,
   trimReferenceRoute, reverseReferenceRoute, restoreReferenceRoute, changeReferenceRouteStart,
-  referenceRouteToGpx, type ReferenceRoute,
+  referenceRouteToGpx, referenceSite, type ReferenceRoute,
 } from '../../routes/library';
 import { loadSettings } from '../../settings/settings';
 import { Field } from '../components/Field';
@@ -156,9 +156,9 @@ export function BibliotecaRutas() {
   return <Page title="Biblioteca de rutas" back="/rutas" variant="narrow" className="page--library" lead="Abre un GPX o TCX de Wikiloc u otra fuente, analiza el recorrido y prepara tu propia versión.">
     <section className="section card library-panel" aria-label="Añadir un recorrido">
       <h2 className="card-title">Tu fichero, como punto de partida</h2>
-      <p className="help">Añadir una ruta aquí no la convierte en una salida realizada ni cambia tus estadísticas.</p>
+      <p className="help">En Wikiloc, descarga la ruta como archivo GPX y elígelo aquí desde Archivos o Descargas. También funciona en iPhone. Añadir una ruta no cambia tus estadísticas.</p>
       <Field label="Enlace de origen (opcional)" type="url" maxLength={2000} placeholder="https://…" value={sourceUrl} disabled={busy || dirty || loading} onChange={e => setSourceUrl(e.target.value)} help="Solo guardamos la referencia: el enlace no descarga el recorrido automáticamente." />
-      <label className="btn btn--primary btn--block"><Upload className="ic" aria-hidden="true" />Elegir GPX o TCX<input className="sr-only" type="file" accept=".gpx,.tcx" aria-label="Elegir GPX o TCX" disabled={busy || dirty || loading} onChange={imported} /></label>
+      <label className="btn btn--primary btn--block"><Upload className="ic" aria-hidden="true" />Elegir GPX o TCX<input className="sr-only" type="file" accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml" aria-label="Elegir GPX o TCX" disabled={busy || dirty || loading} onChange={imported} /></label>
       <p className="help">Hasta 10 MB y 50.000 puntos. Un único recorrido continuo. Tus rutas se guardan en este dispositivo; exporta el GPX para conservar una copia.</p>
     </section>
     {error && <p className="library-error" role="alert">{error} {loading ? null : <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setLoadAttempt(n => n + 1)}>Volver a leer la biblioteca</button>}</p>}
@@ -170,7 +170,7 @@ export function BibliotecaRutas() {
         <Field label="Nombre de la ruta" value={draft.name} maxLength={120} disabled={busy} onChange={e => { setDraft({ ...draft, name: e.target.value }); setDirty(true); }} />
         <dl className="library-metrics"><div><dt>Distancia</dt><dd>{formatKm(draft.summary.distanceM, 1)}</dd></div><div><dt>Desnivel</dt><dd>{draft.summary.elevGainM === null ? 'Sin altitud' : formatMeters(draft.summary.elevGainM)}</dd></div><div><dt>Trazado</dt><dd>{draft.summary.closed ? 'Circular' : 'Abierto'}</dd></div></dl>
         <p className="help">{formatCount(draft.summary.pointCount)} puntos · Desnivel geométrico calculado del fichero. Firme y sentidos del fichero sin verificar. No estimamos tiempos a partir de datos que el fichero no contiene.</p>
-        {draft.sourceUrl && <a className="btn btn--ghost" href={draft.sourceUrl} target="_blank" rel="noopener noreferrer">Ver fuente original</a>}
+        {draft.sourceUrl ? <a className="btn btn--ghost btn--wrap" href={draft.sourceUrl} target="_blank" rel="noopener noreferrer">Origen: {referenceSite(draft.sourceUrl) === 'wikiloc' ? 'Wikiloc' : 'enlace'}{draft.author ? ` · ${draft.author}` : ''}</a> : draft.author && <p className="help">Autor: {draft.author}</p>}
         <RideMap points={draft.points} label="Mapa de tu ruta de referencia" interactive />
         <ProfileSvg profile={profile} label="Perfil de la ruta importada" axis height={100} />
         <button type="button" className="btn btn--primary btn--block" onClick={download} disabled={busy}><Download className="ic" aria-hidden="true" />Exportar GPX actual</button>

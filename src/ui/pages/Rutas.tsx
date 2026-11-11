@@ -34,6 +34,7 @@ import {
   KeyRound,
   LoaderCircle,
   MapPin,
+  Mountain,
   Navigation,
   RefreshCw,
   Route,
@@ -349,7 +350,7 @@ export function Rutas() {
           </Link>
         }
       >
-        <section className="section"><List inset><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /></List></section>
+        <section className="section"><List inset><ListRow to="/rutas/wikiloc" icon={Mountain} accent="elev" title="Rutas de Wikiloc cerca" meta="Las que pasan por tu zona, adaptadas a lo que pides" /><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /></List></section>
         {loadFailed ? (
           <section className="section card">
             <StateView

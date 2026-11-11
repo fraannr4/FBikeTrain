@@ -1,6 +1,37 @@
 # Estado del proyecto FBikeTrain
 
-Última actualización: 2026-11-10 por la noche (commits y push autorizados por el usuario). `main` = `dc11295` desplegado.
+## Preparado el 2026-11-11: Rutas de Wikiloc cerca y adaptación (sin publicar)
+
+Misma rama `codex/integracion-rutas`, sin commit. Plan: `docs/superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md`. Operativa, límites, instalación del marcador y cómo ajustar `WIKILOC_FORMAT`: [wikiloc-cerca.md](wikiloc-cerca.md).
+- `#/rutas/wikiloc`: el usuario pide distancia (y desnivel opcional); «Buscar en Wikiloc» abre el mapa de ciclismo de carretera alrededor del inicio. La lista que trae el marcador se ordena por lo pedido (`rankForTarget`, de 0,5× a 1,6×); el nivel solo etiqueta y desempata. La IA elige de 3 a 5 con la operación `plan` y solo ve nombre, fuente, km y desnivel.
+- Marcador «→ FBikeTrain» (`src/bookmarklet/`, `npm run build:bookmarklet` genera `public/wikiloc-marcador.html`): lee las rutas visibles o, en una ficha, hace la descarga oficial del GPX con la cuenta del usuario. Una petición por toque como máximo; no salta Premium, sesión ni confirmaciones. Entrega por `postMessage` a `#/rutas/wikiloc/recibir`, que solo acepta `https://*.wikiloc.com` y valida con zod.
+- `#/rutas/wikiloc/adaptar` (`adaptRoute`, `src/routes/adapt.ts`): rota el circuito si pasa a menos de 300 m del inicio o lo une con conectores ORS; recorta (+8 %) o alarga (−20 %) con como mucho 4 consultas a ORS, y rechaza autopista, pistas, retroceso y saltos de más de 5 km. Guardar en la biblioteca con autor y enlace, y «Enviar al iGPSPORT» (Web Share o descarga GPX 1.1).
+- Base Dexie de la cuenta: versión 5 con la tabla `wikilocNearby`; la lista y la ruta recibida caducan a los 7 días. Sin cambios en Supabase ni migraciones de servidor.
+- **`WIKILOC_FORMAT` no está validado contra la página real.** Pendiente del usuario: validarlo en su navegador, probar el marcador en Chrome para Android y el envío al BSC200S, y enviar la solicitud TFG a Wikiloc ([wikiloc-solicitud-acceso.md](wikiloc-solicitud-acceso.md), versión TFG). Si Wikiloc la deniega, se quita la descarga del GPX por el marcador y se vuelve a la descarga manual.
+
+## Preparado el 2026-11-11: calidad de rutas e integración (sin publicar)
+
+Rama `codex/integracion-rutas` (worktree `C:	estTrain-integracion`) = `codex/rutas-calidad` + `codex/fuentes-externas`, terminadas e integradas por Claude. Sin commit.
+- Lados distintos entre opciones, desnivel tenido en cuenta al parar la búsqueda y avisos honestos de distancia, desnivel y lado repetido.
+- Puertos: Overpass por rectángulo y carretera más próxima; la IA elige `puertoId` con nombre, cota y distancia; una vuelta de ida y vuelta (más del 15 % de retroceso) no se atribuye al puerto.
+- Biblioteca: las rutas importadas (GPX de Wikiloc incluido) se priorizan y sirven de esqueleto recalculado con ORS; «Basada en» solo si la ruta recorre ese esqueleto.
+- Mediciones con ORS real y conclusiones en `docs/diagnostico-rutas-2026-11-11.md`: `round_trip` no mejora con más puntuación; la palanca real es la biblioteca.
+- Al publicar hay que redesplegar `ai-routes` y `route-sources` (esquema con `biblioteca` y `puertos`). No hay migraciones nuevas.
+
+## Preparado el 2026-11-11: fuentes externas (sin publicar)
+
+Worktree **`C:\testTrain-fuentes-externas`**, rama **`codex/fuentes-externas`**, desde `main` en `d346a15`. No se ha cambiado main, ni hecho commit, push o despliegue. El material de diseño sin seguimiento de la worktree principal se conserva.
+
+- **Punto 4 de Siguiente sesión:** Wikiloc por GPX aportado por el usuario, con biblioteca/IA conectadas localmente. Informe actualizado con fuentes oficiales y fecha: [fuentes-externas-2026-11-11.md](fuentes-externas-2026-11-11.md). Correo redactado **sin enviar**: [wikiloc-solicitud-acceso.md](wikiloc-solicitud-acceso.md). Marcador opcional aplazado hasta aclarar permiso de extracción de metadatos. Wikiloc automatizado sigue desactivado.
+- **PWA:** la rama antigua `codex/pwa-compartir` (`dd1d0a1`) ya es antecesora de main, fusionada en `b489fc2`; **no necesita rebase ni otra fusión**. En la nueva rama se conserva el envío al recargar, se retiran solo ficheros procesados y se permite corregir GPX/TCX entre biblioteca e historial. Los ficheros con error del importador quedan pendientes. Descarte explícito y caducidad original de 24 h. Guía Android/iOS: [pwa-compartir.md](pwa-compartir.md).
+- **Importación manual:** el input GPX/TCX de biblioteca ya estaba en main; se mantiene, se amplían tipos MIME, se aclaran los pasos desde Descargas/Archivos y se añade cobertura móvil. No crea actividades ni altera estadísticas, aunque el fichero tenga horas.
+- **IA T3:** biblioteca consultada siempre, filtro local a 15 km del primer punto, prioridad y deduplicación, máximo seis referencias. Solo id, nombre, fuente, km y desnivel en prompt/petición compartida. Autor/enlace permanecen en atribución de pantalla; GPX conserva original. El recorrido nuevo de ORS puede ser distinto: la adaptación automática de geometría al objetivo sigue pendiente.
+- **Publicación posterior:** desplegar `ai-routes` con el esquema que acepta fuente `biblioteca` **antes** del cliente actualizado. No requiere migración de base de datos. Publicación y commit requieren la autorización habitual; este lote los deja preparados.
+- **Hallazgos de proveedores:** Ride with GPS API v1 pública, sin buscador geográfico general documentado; Intervals.icu admite recorridos en eventos compartidos desde marzo de 2026; iGPSPORT sí tiene plataforma OAuth por solicitud, además de importar GPX/TCX manualmente. No asumir disponibilidad de endpoints de rutas ni acceso concedido. El informe sustituye afirmaciones antiguas absolutas «iGPSPORT no tiene API» / «Intervals no admite rutas».
+
+Verificación del lote y límites en `docs/verificaciones.md`. Prueba con Android y BSC200S reales pendiente del usuario; no se han usado tracks reales.
+
+Cierre publicado anterior: 2026-11-10 por la noche (commits y push autorizados por el usuario), con `dc11295` desplegado según aquel registro. Base local de este lote: `d346a15`; el lote nuevo no se ha publicado.
 
 ### Fusionado el 2026-11-10 por la tarde (trabajo de Codex acabado y publicado)
 
@@ -159,6 +190,7 @@ Detalle en `docs/verificaciones.md`.
 4. **Contraste con rutas conocidas y Wikiloc.** Wikiloc no tiene API y su web está detrás de Cloudflare: no se automatiza ni se elude.
    - Vía principal: compartir el GPX desde la app de Wikiloc a la PWA (Android), que lo guarda en la biblioteca. Después, el lote IA T3: la IA recorta, alarga o empalma rutas de la biblioteca hasta el objetivo, y la geometría la recalcula ORS.
    - Opcional: un marcador del navegador que, en la página de Wikiloc abierta por el usuario, guarde solo nombre, cifras y enlace. Las condiciones de Wikiloc prohíben extraer el track.
+   - Actualización 2026-11-11: hecho como «Rutas de Wikiloc cerca» (sección del principio y [wikiloc-cerca.md](wikiloc-cerca.md)). El marcador también hace la descarga oficial del GPX de una ruta, pendiente de la autorización que se pide a Wikiloc; el track nunca se extrae de la página.
    - Fuentes con acceso abierto: rutas ciclistas de OSM (ya en `findRouteReferences`). RideWithGPS tiene API con clave (por evaluar). Komoot y Outdooractive solo para socios.
 5. **Detalles menores.**
    - La miniatura de la tarjeta de ruta sigue en azul `--trace` y el mapa va en bermellón: decidir si se igualan.
@@ -170,9 +202,9 @@ Detalle en `docs/verificaciones.md`.
 
 Investigación y decisiones en `docs/conectores-actividades.md`. Fusionado en `main` y publicado el 2026-11-10: Ajustes > Conexiones permite guardar clave personal e id de Intervals.icu (incluido prefijo `i` o alias `0`), traer originales FIT/GPX/TCX por el Worker/importador actual con su informe de duplicados, y comprobar al abrir/reanudar como máximo cada 6 h. CORS permite lectura directa; no hay proxy, SQL nuevo ni claves en Supabase/backups. Configuración y seguimiento aislados por cuenta en IndexedDB. Se excluyen Strava y fuentes/dispositivos identificados como Garmin; Garmin directo queda para Personal/Starter. La app debe estar abierta. Antes de promover uso multiusuario, registrar OAuth de Intervals. Pendiente probar con una clave y dispositivo reales, y confirmar conexión nativa iGPSPORT en el móvil; no usar puentes con contraseña. El conector y el resultado de sus verificaciones se detallan en la guía y `docs/verificaciones.md`.
 
-### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10)
+### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10; revisión 2026-11-11)
 
-Implementado en la rama, sin push ni despliegue: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. No hay precaché ni modo offline. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar la instalación y los envíos desde Wikiloc/iGPSPORT en un Android real; iOS no admite `share_target`. Verificación del lote en `docs/verificaciones.md`.
+Fusionado en main por `b489fc2`: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. No hay precaché ni modo offline. La revisión sin publicar de `codex/fuentes-externas` conserva envíos al recargar, permite elegir biblioteca/historial para GPX/TCX y no consume los archivos que el importador no pudo leer. La biblioteca ya tiene selector manual como respaldo para iOS, que no admite `share_target`. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar instalación y envíos desde Wikiloc/iGPSPORT en un Android real. Verificación en `docs/verificaciones.md`.
 
 ### Lote de IA con referencias y entrenos: HECHO (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
 
@@ -194,12 +226,12 @@ Implementado en la rama, sin push ni despliegue: manifest instalable, iconos de 
   - `test:db`: 5 suites.
   - e2e en verde: `ia-entrenos`, `break-ui-ia-entrenos`, `rutas-ia`, `rutas`, `plan` y `empalmar`.
 
-### Lote de IA: Empalmar y objetivo HECHOS (`031a5c4`); referencias de biblioteca PENDIENTE
+### Lote de IA: Empalmar y objetivo HECHOS (`031a5c4`); referencias de biblioteca preparadas sin publicar
 
 Plan `docs/superpowers/plans/2026-11-10-ia-empalmes-objetivo-biblioteca.md`. El workflow se paró a propósito antes de la Task 3 (presupuesto semanal al 15 %).
 - T1 hecha: Empalmar hasta 3 tramos en el orden elegido, salidas del historial como tramo, guardar el empalme en la biblioteca y «Empalmar con…» desde la tarjeta de IA (guardado automático). e2e `empalmar`, `break-ui-empalmar` y `rutas-ia`: 17/17 en el verificador del workflow.
 - T2 hecha: el objetivo (evento más próximo; si no, el volumen vigente; solo cifras, nunca nombres) va en los prompts de plan y de empalme con `aiGoalSchema` estricto; cuota de la IA 30 por usuario y 300 globales al día, 10 globales por minuto (migración `202611100004`, aplicada en remoto el 2026-11-10). `ai-routes` redesplegada ese día.
-- T3 pendiente: referencias de la biblioteca con enlace y autor del GPX (`ReferenceRoute.author`, `referenceSite`, `libraryReferences`, `pickReferences`, fuente `biblioteca`). Relanzar con `Workflow({ name: 'develop-phase', args: { plan, ui: true, maxFixRounds: 1, model: 'fable', tasks: [{ n: 3, agent: 'cycling-routes-engineer' }] } })`.
+- T3 implementada el 2026-11-11 en `codex/fuentes-externas`: referencias de biblioteca con enlace y autor del GPX (`ReferenceRoute.author`, `referenceSite`, `libraryReferences`, `pickReferences`, fuente `biblioteca`), prioridad local y campos permitidos en prompt/cliente compartido. Pendientes commit/fusión autorizados y publicación coordinada de `ai-routes` y frontend. No relanzar el workflow sobre esta tarea sin revisar primero estos cambios.
 - Verificado antes del commit: `tsc`, `vitest` (98 ficheros), `test:db` (6 suites), `build`. No se repitió el e2e tras la T2.
 - En el móvil, pendiente: con un evento en Objetivos, que el «motivo» de una ruta con IA y la recomendación de Empalmar citen el objetivo.
 
@@ -228,7 +260,7 @@ Decisiones del usuario que mandan: zona tras el login («al menos el pueblo»); 
 
 ### Hoja de ruta
 
-Amigos, Retos, Garmin Starter, PWA para compartir, escritorio, conector opcional de intervals.icu (iGPSPORT no tiene API: se comparte por la PWA o se puentea con intervals.icu) y sincronización de salidas con Supabase.
+Amigos, Retos, Garmin Starter, comprobación física de la PWA, conector opcional de Intervals.icu y sincronización de salidas con Supabase. iGPSPORT admite GPX/TCX en su app y ofrece plataforma OAuth por solicitud; sus endpoints de rutas y la conexión nativa con Intervals deben confirmarse por separado (informe de fuentes del 2026-11-11).
 
 ### Pendiente técnico
 

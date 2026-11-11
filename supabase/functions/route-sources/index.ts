@@ -38,6 +38,7 @@ Deno.serve(request => {
       if (error) throw new Error('rate_limit');
       return data === true;
     },
-    fetch: timedFetch,
+    // Overpass público puede tardar más de 10 s en cola; la función ya corta todo a los 30 s.
+    fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(25_000)]) }),
   });
 });

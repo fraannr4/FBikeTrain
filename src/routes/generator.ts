@@ -4,7 +4,8 @@ import { newRoadPct } from '../metrics/grid';
 import { difficulty, type Difficulty, type UserReference } from '../metrics/reference';
 import { scoreCandidate, type Target } from '../metrics/score';
 import { analyzeRoute, rejectReason, type RejectReason, type RouteCandidate } from './analyze';
-import { fetchRoundTrip, OrsError, type OrsAccess } from './ors';
+import { fetchPathFeature, fetchRoundTrip, OrsError, type OrsAccess } from './ors';
+import { visitsWaypoints, type RouteIntent } from './intent';
 import { geometryQuality } from './quality';
 import { routeSide } from './side';
 
@@ -35,10 +36,14 @@ const FALLBACK_OVER = 0.1;
 const DEDUPE_DISTANCE_M = 100;
 const DEDUPE_GAIN_M = 10;
 const MAX_SEED_BASE = 10000;
+/** Fracción máxima de retroceso admitida en una vuelta dirigida por un puerto o una referencia. */
+export const MAX_INTENT_BACKTRACK = 0.15;
 
-export type GenerateRequest = { start: LatLng; target: Target; count?: number; seeds?: number };
+export type GenerateRequest = { start: LatLng; target: Target; count?: number; seeds?: number; usedSides?: readonly number[]; intents?: RouteIntent[] };
 
 export type GeneratedRoute = RouteCandidate & {
+  /** Referencia efectivamente recorrida; no basta con que la IA la haya mencionado. */
+  intentId?: string;
   newPct: number;
   score: number;
   difficulty: Difficulty | null;
@@ -63,6 +68,7 @@ export type GenerateDeps = {
   seedBase?: number;
   signal?: AbortSignal;
   fetchRoundTrip?: typeof fetchRoundTrip;
+  fetchPath?: typeof fetchPathFeature;
 };
 
 /**
@@ -94,8 +100,18 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
     let candidate: RouteCandidate;
     const lengthM = aimM / median(factors, INITIAL_ROAD_FACTOR);
     try {
-      const f = await fetchOne(deps.apiKey, { start: req.start, lengthM, points: ROUND_TRIP_POINTS, seed, signal: deps.signal });
+      // Reservar al menos un intento tradicional si la referencia no es transitable.
+      const intent = i < Math.min(req.intents?.length ?? 0, Math.max(1, seeds - 1)) ? req.intents?.[i] : undefined;
+      const f = intent
+        ? await (deps.fetchPath ?? fetchPathFeature)(deps.apiKey, intent.waypoints, deps.signal)
+        : await fetchOne(deps.apiKey, { start: req.start, lengthM, points: ROUND_TRIP_POINTS, seed, signal: deps.signal });
+      if (intent && !visitsWaypoints(f.geometry.coordinates, intent.waypoints)) continue;
       candidate = analyzeRoute(f, seed);
+      if (intent) Object.assign(candidate, { intentId: intent.id });
+      // Una ruta dirigida no puede presentarse como carretera validada sin datos de firme.
+      if (intent && (!f.properties.extras.surface?.summary.length || !f.properties.extras.waytypes?.summary.length || candidate.unknownSurfacePct > 20)) continue;
+      // Subir y bajar por la misma carretera no es una vuelta por el puerto ni por la referencia: se descarta y se busca otra.
+      if (intent && geometryQuality(candidate.coords).backtrackM > candidate.distanceM * MAX_INTENT_BACKTRACK) continue;
     } catch (e) {
       if (e instanceof OrsError && e.kind === 'no_route') continue;
       // Un fallo suelto del motor (HTTP 5xx) no corta la búsqueda: se prueba la semilla siguiente.
@@ -106,7 +122,7 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
     }
     received++;
     // Cuánto se pasa ORS de lo pedido: corrige la longitud de las siguientes.
-    if (candidate.distanceM > 0) factors.push(candidate.distanceM / lengthM);
+    if (candidate.distanceM > 0 && !(candidate as GeneratedRoute).intentId) factors.push(candidate.distanceM / lengthM);
 
     const reason = rejectReason(candidate, req.target.distanceM);
     if (reason) {
@@ -119,13 +135,19 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
     if (rated.warning) awkward.push(rated);
     else accepted.push(rated);
     // Basta con `count` vueltas limpias y distintas hacia lados distintos: dos al mismo lado no paran la búsqueda.
-    if (new Set(dedupe(accepted).map((r) => routeSide(r.coords, req.start))).size >= count) break;
+    const good = dedupe(accepted, req.start).filter(r => !(req.usedSides ?? []).includes(routeSide(r.coords, req.start)) && fitsGain(r, req.target));
+    if (new Set(good.map((r) => routeSide(r.coords, req.start))).size >= count) break;
   }
 
   if (received === 0 && lastError) throw lastError;
   // Respaldo acotado: conserva candidatas utilizables con aviso, nunca autopistas ni mucha pista.
   if (accepted.length === 0) accepted.push(...awkward, ...fallback(near, req.target, deps));
-  const routes = diverse(dedupe(accepted.sort((a, b) => b.score - a.score)), req.start).slice(0, count);
+  const routes = diverse(dedupe(accepted.sort((a, b) => b.score - a.score), req.start), req.start, req.usedSides).slice(0, count).map(r => {
+    const warnings = [r.warning];
+    if ((req.usedSides ?? []).includes(routeSide(r.coords, req.start))) warnings.push('Esta propuesta va hacia el mismo lado que otra; no se ha encontrado una alternativa mejor dentro del límite.');
+    if (!fitsGain(r, req.target)) warnings.push(`El desnivel es ${Math.round(r.elevGainM)} m frente a los ${Math.round(req.target.elevGainM!)} m pedidos.`);
+    return { ...r, ...(warnings.some(Boolean) ? { warning: warnings.filter(Boolean).join(' ') } : {}) };
+  });
   return { routes, rejected, requestsUsed, stoppedBy };
 }
 
@@ -133,8 +155,8 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
  * Primero la mejor vuelta de cada lado del inicio, de más a menos puntuación; después el resto.
  * Así cinco propuestas son cinco zonas distintas, no la misma vuelta más larga o más corta.
  */
-function diverse(sorted: GeneratedRoute[], start: LatLng): GeneratedRoute[] {
-  const seen = new Set<number>();
+function diverse(sorted: GeneratedRoute[], start: LatLng, usedSides: readonly number[] = []): GeneratedRoute[] {
+  const seen = new Set<number>(usedSides);
   const first: GeneratedRoute[] = [];
   const rest: GeneratedRoute[] = [];
   for (const r of sorted) {
@@ -143,6 +165,10 @@ function diverse(sorted: GeneratedRoute[], start: LatLng): GeneratedRoute[] {
     else { seen.add(side); first.push(r); }
   }
   return [...first, ...rest];
+}
+
+function fitsGain(c: RouteCandidate, target: Target): boolean {
+  return target.elevGainM === null || Math.abs(c.elevGainM - target.elevGainM) <= Math.max(100, target.elevGainM * 0.2);
 }
 
 function median(xs: number[], fallback: number): number {
@@ -180,7 +206,7 @@ function rate(c: RouteCandidate, target: Target, deps: GenerateDeps): GeneratedR
   return {
     ...c,
     newPct,
-    score: Math.max(0, scoreCandidate({ distanceM: c.distanceM, elevGainM: c.elevGainM, newPct }, target) - quality.penalty),
+    score: Math.max(0, scoreCandidate({ distanceM: c.distanceM, elevGainM: c.elevGainM, newPct }, target) - quality.penalty - Math.min(0.3, c.mainRoadPct / 100)),
     ...(quality.penalty > 0 ? { warning: 'Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir.' } : {}),
     difficulty: ref ? difficulty(c, ref) : null,
     estTimeS: ref && ref.avgSpeedMs > 0 ? c.distanceM / ref.avgSpeedMs : null,
@@ -188,10 +214,10 @@ function rate(c: RouteCandidate, target: Target, deps: GenerateDeps): GeneratedR
 }
 
 /** Deja la primera de cada grupo de vueltas iguales; con la lista ordenada, la de más puntuación. */
-function dedupe(routes: GeneratedRoute[]): GeneratedRoute[] {
+function dedupe(routes: GeneratedRoute[], start: LatLng): GeneratedRoute[] {
   const seen = new Set<string>();
   return routes.filter((r) => {
-    const key = `${Math.round(r.distanceM / DEDUPE_DISTANCE_M)}:${Math.round(r.elevGainM / DEDUPE_GAIN_M)}`;
+    const key = `${routeSide(r.coords, start)}:${Math.round(r.distanceM / DEDUPE_DISTANCE_M)}:${Math.round(r.elevGainM / DEDUPE_GAIN_M)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -4,7 +4,7 @@ import {
   parseReferenceRoute, analyzeReferenceRoutePoints, importReferenceRoute, listReferenceRoutes,
   getReferenceRoute, saveReferenceRoute, deleteReferenceRoute, trimReferenceRoute,
   reverseReferenceRoute, changeReferenceRouteStart, restoreReferenceRoute,
-  replaceReferenceRoutePoints, referenceRouteToGpx, saveGeneratedRoute, saveSplicedRoute, type ReferenceRoute,
+  replaceReferenceRoutePoints, referenceRouteToGpx, saveGeneratedRoute, saveSplicedRoute, referenceSite, type ReferenceRoute,
 } from '../src/routes/library';
 
 const points = [
@@ -22,6 +22,27 @@ function route(): ReferenceRoute {
 
 describe('biblioteca de rutas de referencia', () => {
   beforeEach(async () => { await Promise.all(db.tables.map(table => table.clear())); });
+  it('lee enlace y autor del GPX, priorizando el enlace indicado por el usuario', () => {
+    const linked = xml.replace('<gpx>', '<gpx><metadata><link href="https://es.wikiloc.com/rutas-ciclismo/sintetica-1234"/><author><name>Autora sintética</name></author></metadata>');
+    expect(parseReferenceRoute(linked, 'ruta.gpx')).toMatchObject({ sourceUrl: 'https://es.wikiloc.com/rutas-ciclismo/sintetica-1234', author: 'Autora sintética' });
+    expect(parseReferenceRoute(linked, 'ruta.gpx', 'https://example.org/ruta').sourceUrl).toBe('https://example.org/ruta');
+  });
+  it('ignora enlaces incrustados peligrosos y recorta el autor sin perder el recorrido', () => {
+    const linked = xml.replace('<gpx>', `<gpx><metadata><link href="javascript:alert(1)"/><link href="https://user:secret@example.org/ruta"/><author><name>${'a'.repeat(150)}</name></author></metadata>`).replace('<trk>', '<trk><link href="https://example.org/ruta"/>');
+    const parsed = parseReferenceRoute(linked, 'ruta.gpx');
+    expect(parsed.sourceUrl).toBe('https://example.org/ruta');
+    expect(parsed.author).toHaveLength(120);
+    expect(parsed.points).toEqual(points);
+    expect(parseReferenceRoute(xml.replace('<trk>', '<trk><src>Fuente sintética</src>'), 'ruta.gpx').author).toBe('Fuente sintética');
+  });
+  it('clasifica el origen sin confundir dominios que se parecen a Wikiloc', () => {
+    expect(referenceSite('https://www.wikiloc.com/x')).toBe('wikiloc');
+    expect(referenceSite('https://es.wikiloc.com/x')).toBe('wikiloc');
+    expect(referenceSite('https://evilwikiloc.com/x')).toBe('otro');
+    expect(referenceSite('https://wikiloc.com.ejemplo.org/x')).toBe('otro');
+    expect(referenceSite('https://example.org')).toBe('otro');
+    expect(referenceSite(undefined)).toBeNull();
+  });
   it('lee GPX sin horas, conserva origen y no inventa duración', () => {
     const parsed = parseReferenceRoute(xml, 'ruta.gpx', 'https://www.wikiloc.com/trail/example');
     expect(parsed.name).toBe('Ruta & costa');

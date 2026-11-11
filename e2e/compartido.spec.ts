@@ -53,6 +53,50 @@ test('Ajustes ofrece el aviso de instalación disponible y lo consume una sola v
   await expect(button).toBeDisabled();
 });
 
+test('recargar antes de importar conserva el GPX y permite guardarlo como ruta aunque incluya horas', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const id = await seed(page, [{ name: 'ruta-con-horas.gpx', content: activityXml }]);
+  await page.goto(`#/compartido?envio=${id}`);
+  await expect(page.getByRole('heading', { name: '1 fichero recibido' })).toBeVisible();
+  await page.reload();
+  const destination = page.getByRole('combobox', { name: 'Guardar ruta-con-horas.gpx como' });
+  await expect(destination).toHaveValue('activity');
+  await destination.selectOption('route');
+  await page.getByRole('button', { name: 'Importar ficheros' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 ruta guardada' })).toBeVisible();
+  await page.getByRole('link', { name: 'Ir a la biblioteca', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Salida sintética/ })).toBeVisible();
+  await page.goto(`#/compartido?envio=${id}`);
+  await page.reload();
+  await expect(page.getByText(/No hay ficheros pendientes/)).toBeVisible();
+});
+
+test('descartar borra un envío no admitido sin importar nada', async ({ page }) => {
+  await page.goto('/');
+  const id = await seed(page, [{ name: 'documento.txt', content: 'synthetic' }]);
+  await page.goto(`#/compartido?envio=${id}`);
+  await page.getByRole('button', { name: 'Descartar envío' }).click();
+  await page.reload();
+  await expect(page.getByText(/No hay ficheros pendientes/)).toBeVisible();
+});
+
+test('una actividad no legible queda pendiente tras recargar y permite corregir el destino', async ({ page }) => {
+  await page.goto('/');
+  const id = await seed(page, [{ name: 'referencia-sin-horas.gpx', content: routeXml }]);
+  await page.goto(`#/compartido?envio=${id}`);
+  const destination = page.getByRole('combobox', { name: 'Guardar referencia-sin-horas.gpx como' });
+  await destination.selectOption('activity');
+  await page.getByRole('button', { name: 'Importar ficheros' }).click();
+  await expect(page.getByRole('heading', { name: 'Nada nuevo', exact: true })).toBeVisible();
+  await expect(page.getByText('Hay puntos del GPX sin hora', { exact: true }).first()).toBeVisible();
+  expect(await page.evaluate(async id => !!await (await caches.open('fbiketrain-shares-v1')).match(new URL(`shared-inbox/${id}`, location.href.split('#')[0])), id)).toBe(true);
+  await page.reload();
+  await expect(destination).toHaveValue('route');
+  await page.getByRole('button', { name: 'Importar ficheros' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 ruta guardada' })).toBeVisible();
+});
+
 test('el envío permanece guardado hasta entrar y se recupera aunque OAuth pierda el hash', async ({ browser }) => {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -87,11 +131,11 @@ test('el SW recibe POST multipart y redirige 303 sin cachear la app', async ({ p
 });
 
 for (const theme of ['light', 'dark']) {
-  for (const width of [360, 390, 430]) {
+  for (const width of [360, 390, 412, 430, 844]) {
     for (const scenario of ['uno', 'tres', 'no-admitido']) {
       test(`compartido ${theme} ${width} ${scenario}`, async ({ page }) => {
         mkdirSync('test-results/pwa-compartir', { recursive: true });
-        await page.setViewportSize({ width, height: width === 360 ? 780 : width === 390 ? 844 : 932 });
+        await page.setViewportSize({ width, height: width === 844 ? 390 : width === 360 ? 780 : width === 390 ? 844 : width === 412 ? 915 : 932 });
         await page.addInitScript(theme => localStorage.setItem('fbt-theme', theme), theme);
         await page.goto('/');
         const files = scenario === 'uno' ? [{ name: 'ruta-wikiloc-sintetica.gpx', content: routeXml }] : scenario === 'tres' ? [{ name: 'ruta.gpx', content: routeXml }, { name: 'salida.gpx', content: activityXml }, { name: 'dispositivo.fit', content: 'synthetic' }] : [{ name: 'documento-no-admitido.txt', content: 'synthetic' }];

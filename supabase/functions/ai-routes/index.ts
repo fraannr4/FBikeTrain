@@ -22,7 +22,7 @@ async function complete(input: SharedAiRequest, signal: AbortSignal): Promise<un
     : input.operation === 'explain' ? ExplanationSchema
     : input.operation === 'workouts' ? WorkoutWeekSchema
     : spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]);
-  const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm, input.referencias, input.objetivo)
+  const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm, input.referencias, input.objetivo, input.puertos)
     : input.operation === 'explain' ? buildExplainMessages(input.summary, input.facts)
     : input.operation === 'workouts' ? buildWorkoutMessages(input.summary, input)
     : buildSpliceMessages(input.facts, input.objetivo);

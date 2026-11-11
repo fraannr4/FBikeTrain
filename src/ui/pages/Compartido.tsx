@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import type { ImportReport } from '../../import/importService';
 import { importReferenceRoute } from '../../routes/library';
-import { releaseSharedFiles, sharedDestination, takeSharedFiles, type SharedDestination } from '../../pwa/sharedFiles';
+import { readSharedFiles, savePendingSharedFiles, sharedDestination, type SharedDestination } from '../../pwa/sharedFiles';
 import { useImporter } from '../importer';
 import { Page } from '../components/Page';
 import { ImportReportView } from '../components/ImportReportView';
@@ -31,7 +31,7 @@ export function Compartido() {
       return;
     }
     if (!id) { setItems([]); return; }
-    void takeSharedFiles(id).then(files => Promise.all(files.map(async file => {
+    void readSharedFiles(id).then(files => Promise.all(files.map(async file => {
       try { return { file, destination: await sharedDestination(file) }; }
       catch (e) { return { file, error: message(e) }; }
     }))).then(result => { if (live) setItems(result); }).catch(e => {
@@ -44,24 +44,38 @@ export function Compartido() {
     if (!items || busy) return;
     setBusy(true); setError('');
     const next = items.map(item => ({ ...item }));
+    const acknowledge = () => id ? savePendingSharedFiles(id, next.filter(item => !item.saved).map(item => item.file)) : Promise.resolve();
     try {
-      for (const item of next.filter(item => item.destination === 'route' && !item.saved && !item.error)) {
-        try { await importReferenceRoute(item.file); item.saved = true; }
+      for (const item of next.filter(item => item.destination === 'route' && !item.saved)) {
+        try { await importReferenceRoute(item.file); item.saved = true; item.error = undefined; }
         catch (e) { item.error = message(e); }
+        if (item.saved) await acknowledge();
       }
-      const activities = next.filter(item => item.destination === 'activity' && !item.saved && !item.error);
+      const activities = next.filter(item => item.destination === 'activity' && !item.saved);
       if (activities.length) {
-        setReport(await importer(activities.map(item => item.file), () => {}));
-        activities.forEach(item => { item.saved = true; });
+        const imported = await importer(activities.map(item => item.file), () => {});
+        setReport(imported);
+        activities.forEach(item => {
+          const skipped = imported.skipped.find(entry => entry.file === item.file.name);
+          item.saved = !skipped;
+          item.error = skipped?.reason;
+        });
+        await acknowledge();
       }
-      setDone(true);
-      if (id) releaseSharedFiles(id);
+      const completed = next.every(item => !item.destination || item.saved);
+      if (completed && id) await savePendingSharedFiles(id, []);
+      setDone(completed);
     } catch (e) { setError(`La importación se ha interrumpido: ${message(e)}. Puedes reintentar; las salidas no se duplican.`); }
     finally { setItems(next); setBusy(false); }
   }
   const routes = items?.filter(item => item.destination === 'route').length ?? 0;
   const activities = items?.filter(item => item.destination === 'activity').length ?? 0;
   const savedRoutes = items?.filter(item => item.destination === 'route' && item.saved).length ?? 0;
+  async function discard() {
+    if (!id || busy) return;
+    try { await savePendingSharedFiles(id, []); setItems([]); setDone(false); setError(''); }
+    catch { setError('No se ha podido descartar el envío. Inténtalo de nuevo.'); }
+  }
   return <Page title="Ficheros compartidos" back="/mas" variant="narrow" className="page--compartido"
     lead="Recibe rutas y salidas desde otras apps. Los ficheros se leen aquí, en tu teléfono.">
     {error && <p className="banner banner--error" role="alert">{error}</p>}
@@ -71,11 +85,22 @@ export function Compartido() {
       <ul className="shared-list">{items.map((item, index) => <li className="card shared-file" key={index}>
         <strong>{item.file.name}</strong>
         <span className={item.error ? 'shared-error' : ''}>{item.error ?? (item.destination === 'route' ? item.saved ? 'Guardado en la biblioteca' : 'Ruta · Biblioteca de rutas' : item.saved ? 'Procesado · Consulta el informe' : 'Actividad · Historial de salidas')}</span>
+        {item.destination && !item.saved && !/\.fit$/i.test(item.file.name) && <label className="field">
+          <span className="field-label">Guardar {item.file.name} como</span>
+          <select className="input" disabled={busy} value={item.destination} onChange={event => {
+            const destination = event.target.value as SharedDestination;
+            setItems(rows => rows?.map((row, i) => i === index ? { ...row, destination, error: undefined } : row) ?? null);
+          }}>
+            <option value="route">Ruta de referencia · Biblioteca</option>
+            <option value="activity">Actividad realizada · Historial</option>
+          </select>
+        </label>}
       </li>)}</ul>
-      {!done && <p className="run-sub">Las rutas se guardan como referencia. Las actividades se importan con la comprobación habitual de duplicados.</p>}
-      {!done && items.some(item => item.destination && !item.error && !item.saved) && <button className="btn btn--primary btn--block" disabled={busy} onClick={() => void start()}>Importar ficheros</button>}
+      {!done && <p className="run-sub">Si el GPX viene de Wikiloc para preparar una ruta, elige Biblioteca aunque incluya horas. El historial es para tus salidas realizadas. El envío se conserva hasta procesarlo o descartarlo, durante un máximo de 24 horas.</p>}
+      {!done && items.some(item => item.destination && !item.saved) && <button className="btn btn--primary btn--block" disabled={busy} onClick={() => void start()}>Importar ficheros</button>}
+      {!done && <button className="btn btn--ghost btn--block" disabled={busy} onClick={() => void discard()}>Descartar envío</button>}
     </section>}
-    {items?.length === 0 && !error && <p className="banner">No hay ficheros pendientes. El envío puede haber caducado o ya se ha abierto. Vuelve a compartir el archivo desde la otra app.</p>}
+    {items?.length === 0 && !error && <p className="banner">No hay ficheros pendientes. El envío puede haber caducado, haberse procesado o descartado. Vuelve a compartir el archivo desde la otra app.</p>}
     {done && <p role="status">{savedRoutes > 0 ? `${savedRoutes} ${savedRoutes === 1 ? 'ruta guardada' : 'rutas guardadas'} en la biblioteca. ` : ''}Envío procesado.</p>}
     {report && <ImportReportView report={report} />}
     {!busy && items !== null && <div className="shared-actions">

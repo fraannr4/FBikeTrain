@@ -29,6 +29,8 @@ const NAMES: Record<string, string> = {
   '/rutas': 'Rutas',
   '/rutas/ia': 'Rutas con IA',
   '/rutas/biblioteca': 'Biblioteca de rutas',
+  '/rutas/wikiloc': 'Rutas de Wikiloc cerca',
+  '/rutas/wikiloc/adaptar': 'Adaptar ruta de Wikiloc',
   '/plan': 'Plan',
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',

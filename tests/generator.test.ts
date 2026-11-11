@@ -78,6 +78,76 @@ function run(req: Partial<GenerateRequest>, ors: ReturnType<typeof fakeOrs>, ext
 }
 
 describe('generateRoutes', () => {
+  it('recalcula el esqueleto completo con ORS y atribuye solo los puntos realmente visitados', async () => {
+    const f = feature({ distanceM: 30000 });
+    // Un track detallado sintético, no una línea con saltos de varios kilómetros.
+    f.geometry.coordinates = Array.from({ length: 301 }, (_, i) => [START.lng, START.lat + i * 100 / M_PER_DEG_LAT, 600]);
+    const via = { lat: f.geometry.coordinates[150][1], lng: START.lng };
+    const fetchPath = vi.fn().mockResolvedValue(f);
+    const fetchRoundTrip = fakeOrs(() => feature({ distanceM: 30000 }));
+    const res = await generateRoutes({ start: START, target: TARGET, count: 1, seeds: 2, intents: [{ id: 'ref1', kind: 'library', waypoints: [START, via] }] },
+      { apiKey: 'test', reference: null, visited: new Set(), fetchPath, fetchRoundTrip });
+    expect(fetchPath).toHaveBeenCalledTimes(1);
+    expect(fetchRoundTrip).not.toHaveBeenCalled();
+    expect(res.requestsUsed).toBe(1);
+    expect(res.routes[0].intentId).toBe('ref1');
+    expect(res.routes[0].coords).toEqual(f.geometry.coordinates);
+  });
+
+  it('una vuelta dirigida que sube y baja por la misma carretera no se atribuye al puerto', async () => {
+    const f = feature({ distanceM: 30000 });
+    // Ida 15 km al norte y vuelta por el mismo eje: todo el regreso es retroceso.
+    const out = Array.from({ length: 151 }, (_, i): [number, number, number] => [START.lng, START.lat + i * 100 / M_PER_DEG_LAT, 600]);
+    f.geometry.coordinates = [...out, ...out.slice(0, -1).reverse()];
+    const via = { lat: out[150][1], lng: START.lng };
+    const fetchPath = vi.fn().mockResolvedValue(f);
+    const fetchRoundTrip = fakeOrs(() => feature({ distanceM: 30000 }));
+    const res = await generateRoutes({ start: START, target: TARGET, count: 1, seeds: 2, intents: [{ id: 'pass1', kind: 'pass', waypoints: [START, via, START] }] },
+      { apiKey: 'test', reference: null, visited: new Set(), fetchPath, fetchRoundTrip });
+    expect(fetchPath).toHaveBeenCalledTimes(1);
+    expect(fetchRoundTrip).toHaveBeenCalledTimes(1);
+    expect(res.routes[0].intentId).toBeUndefined();
+  });
+
+  it('un esqueleto fuera de carretera consume intento y deja un round_trip sin atribución falsa', async () => {
+    const fetchPath = vi.fn().mockResolvedValue(feature({ distanceM: 30000 }));
+    const fetchRoundTrip = fakeOrs(() => feature({ distanceM: 30000 }));
+    const res = await generateRoutes({ start: START, target: TARGET, count: 1, seeds: 2, intents: [{ id: 'ref1', kind: 'library', waypoints: [START, { lat: 0, lng: 0 }] }] },
+      { apiKey: 'test', reference: null, visited: new Set(), fetchPath, fetchRoundTrip });
+    expect(res.requestsUsed).toBe(2);
+    expect(fetchRoundTrip).toHaveBeenCalledTimes(1);
+    expect(res.routes[0].intentId).toBeUndefined();
+  });
+
+  it('continúa buscando cuando el lado ya fue usado por otra propuesta', async () => {
+    const ors = fakeOrs(seed => feature({ distanceM: 30000, side: seed === 0 ? 0 : 4 }));
+    const res = await run({ count: 1, seeds: 2, usedSides: [0] }, ors);
+    expect(res.requestsUsed).toBe(2);
+    expect(res.routes[0].seed).toBe(1);
+  });
+
+  it('avisa si dentro del presupuesto solo existe el mismo lado', async () => {
+    const res = await run({ count: 1, seeds: 2, usedSides: [0] }, fakeOrs(() => feature({ distanceM: 30000 })));
+    expect(res.requestsUsed).toBe(2);
+    expect(res.routes[0].warning).toMatch(/mismo lado/i);
+  });
+
+  it('compara el desnivel de todos los intentos asignados cuando el primero no se ajusta', async () => {
+    const ors = fakeOrs(seed => feature({ distanceM: 30000, gainM: seed === 0 ? 900 : 310 }));
+    const res = await run({ count: 1, seeds: 2, target: { ...TARGET, elevGainM: 300 } }, ors);
+    expect(res.routes[0].seed).toBe(1);
+  });
+
+  it('prefiere menos vías principales entre dos candidatas similares', async () => {
+    const ors = fakeOrs(seed => {
+      const f = feature({ distanceM: 30000, side: 0 });
+      f.properties.extras.waytypes.summary = [{ value: 1, distance: seed === 0 ? 5700 : 300, amount: seed === 0 ? 19 : 1 }];
+      return f;
+    });
+    const res = await run({ count: 1, seeds: 2, usedSides: [0] }, ors);
+    expect(res.routes[0].seed).toBe(1);
+  });
+
   it('stops as soon as enough distinct routes have arrived', async () => {
     const ors = fakeOrs(seed => feature({ distanceM: 30000 + seed * 500, side: seed }));
     const res = await run({ count: 2 }, ors);
@@ -135,7 +205,7 @@ describe('generateRoutes', () => {
     expect(res.routes[0].warning).toContain('0,5 km');
     expect(res.routes[0].warning).toContain('ida y vuelta');
   });
-  it('requests seeds sequentially with points 4 and corrects the length ORS overshoots', async () => {
+  it('pide siempre cuatro puntos, sin consultas en paralelo, y corrige la longitud que ORS excede', async () => {
     let inFlight = 0;
     let maxInFlight = 0;
     const ors = vi.fn<typeof fetchRoundTrip>(async () => {

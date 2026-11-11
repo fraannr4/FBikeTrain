@@ -53,7 +53,7 @@ describe('buildPlanMessages', () => {
   it('system prompt fixes the rules', () => {
     const sys = systemText(buildPlanMessages(summary, answers, 61.5));
     expect(sys).toContain('entre un 5 y un 15 %');
-    expect(sys).toContain('de 3 a 5 opciones');
+    expect(sys).toContain('Propón 3 opciones distintas');
     expect(sys).toContain('Responde solo con JSON');
     expect(sys).toContain('No trazas rutas');
   });
@@ -78,11 +78,17 @@ describe('buildPlanMessages', () => {
     const referencias: AiReference[] = [{ id: 'ref1', nombre: 'Vuelta sintética', fuente: 'osm', distanciaKm: 52.4, desnivelM: null }];
     expect(userJson(buildPlanMessages(summary, answers, 60, referencias)).referencias).toEqual(referencias);
   });
+  it('drops extra reference fields at the prompt boundary', () => {
+    const ref = { id: 'ref1', nombre: 'Ruta de biblioteca', fuente: 'biblioteca', distanciaKm: 45, desnivelM: 500, url: 'https://example.org/route', author: 'Autor', lat: 41.2, points: [{ lat: 41.2, lng: 2.7 }] } as AiReference;
+    expect(userJson(buildPlanMessages(summary, answers, 60, [ref])).referencias).toEqual([{ id: 'ref1', nombre: 'Ruta de biblioteca', fuente: 'biblioteca', distanciaKm: 45, desnivelM: 500 }]);
+  });
 
-  it('system prompt lets an option rely on a reference within 15 % and forbids other figures', () => {
+  it('system prompt prioritises library references, allows mountain passes by id and forbids other figures', () => {
     const sys = systemText(buildPlanMessages(summary, answers, 60));
     expect(sys).toContain('referenciaId');
-    expect(sys).toContain('±15 %');
+    expect(sys).toContain('Prioriza referencias de la biblioteca');
+    expect(sys).toContain('puertoId');
+    expect(sys).toContain('no inventes puertos');
     expect(sys).toContain('nunca copies cifras distintas de las recibidas');
   });
 });

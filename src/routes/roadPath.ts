@@ -2,7 +2,7 @@ import type { LatLng } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { fetchRoadFeature, type OrsAccess } from './ors';
 import { buildOrsBody } from './shared/orsService';
-import { ROAD_FILTER, UNPAVED_SURFACES } from './analyze';
+import { ROAD_FILTER, UNPAVED_SURFACES, usesMotorway } from './analyze';
 
 export type RoadPoint = LatLng & { ele?: number };
 /** El punto solicitado debe estar cerca de la carretera devuelta; no fabricar enlaces lejanos. */
@@ -23,6 +23,7 @@ export async function fetchRoadPath(access: OrsAccess, waypoints: LatLng[], sign
       throw new Error('El motor no ha dado datos suficientes del firme y del tipo de vía para esta conexión.');
     }
   }
+  if (extras.waycategory && usesMotorway(extras.waycategory)) throw new Error('La conexión pasa por autopista. Prueba otro punto.');
   const unpaved = extras.surface.summary.filter(s => UNPAVED_SURFACES.has(s.value)).reduce((n,s) => n + s.distance, 0);
   const track = extras.waytypes.summary.filter(s => s.value === 5).reduce((n,s) => n + s.distance, 0);
   const mainRoad = extras.waytypes.summary.filter(s => s.value === 1).reduce((n,s) => n + s.amount, 0);

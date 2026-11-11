@@ -16,9 +16,11 @@ import type { Settings } from '../src/domain/types';
 import type { UserReference } from '../src/metrics/reference';
 import type { GeneratedRoute, generateRoutes, GenerateResult } from '../src/routes/generator';
 import { OrsError } from '../src/routes/ors';
+import { routeSide } from '../src/routes/side';
 import { createSharedAiPlanner } from '../src/ai/sharedClient';
 import type { RouteSourceInvoker } from '../src/routes/sources/client';
 import type { RouteReference } from '../src/routes/sources/schema';
+import { parseReferenceRoute } from '../src/routes/library';
 
 const fixture = (name: string): unknown => JSON.parse(readFileSync(`tests/fixtures/llm/${name}`, 'utf8'));
 
@@ -130,6 +132,42 @@ function deps(chat: typeof chatJson, generate: typeof generateRoutes) {
   return { llm: LLM, orsKey: 'ors-key', visited: new Set<string>(), chat, generate };
 }
 const input = (a: Answers = answers) => ({ start: START, answers: a, reference: ref, summary });
+
+it('pasa al generador los lados usados por opciones anteriores sin exceder seis consultas', async () => {
+  const { chat } = fakeChat(validPlan, { explicaciones: [] });
+  const generate = fakeGenerate(() => ({ ...result([route()]), requestsUsed: 2 }));
+  await runAiRoutes(input(), deps(chat, generate));
+  expect(generate.mock.calls[0][0].usedSides).toEqual([]);
+  expect(generate.mock.calls[1][0].usedSides).toEqual([routeSide(route().coords, START)]);
+  expect(generate.mock.calls[2][0].usedSides).toEqual([routeSide(route().coords, START)]);
+  expect(generate.mock.calls.reduce((n, [req]) => n + (req.seeds ?? 0), 0)).toBeLessThanOrEqual(6);
+});
+
+it('usa la biblioteca sin servidor y atribuye solo el esqueleto que ORS ha recorrido', async () => {
+  const stored = { ...parseReferenceRoute(`<gpx version="1.1"><trk><name>Vuelta biblioteca</name><trkseg><trkpt lat="${START.lat}" lon="${START.lng}"><ele>100</ele></trkpt><trkpt lat="${START.lat + 0.01}" lon="${START.lng}"><ele>120</ele></trkpt><trkpt lat="${START.lat}" lon="${START.lng}"><ele>100</ele></trkpt></trkseg></trk></gpx>`, 'sintetica.gpx'), id: 'lib1', createdAt: 1, updatedAt: 1 };
+  const { fn, chat } = fakeChat(plan(option({ referenciaId: 'ref1' }), option(), option()), { explicaciones: [] });
+  const generate = vi.fn<typeof generateRoutes>(async req => result([route({ intentId: req.intents?.[0]?.id })]));
+  const out = await runAiRoutes(input(), { ...deps(chat, generate), library: async () => [stored] });
+  const payload = JSON.parse(fn.mock.calls[0][1].messages[1].content);
+  expect(payload.referencias[0]).toMatchObject({ id: 'ref1', nombre: 'Vuelta biblioteca', fuente: 'biblioteca' });
+  expect(Object.keys(payload.referencias[0]).sort()).toEqual(['desnivelM', 'distanciaKm', 'fuente', 'id', 'nombre']);
+  expect(generate.mock.calls[0][0].intents?.[0].kind).toBe('library');
+  expect(out.kind === 'routes' && out.routes[0].basadaEn).toEqual({ nombre: 'Vuelta biblioteca', fuente: 'biblioteca' });
+});
+
+it('la IA elige puerto por id sin coordenadas y el generador recibe los puntos locales', async () => {
+  const pass = { id: 'osm-pass-1', name: 'Coll sintético', lat: START.lat + 0.18, lng: START.lng, ele: 600, distanceM: 20000,
+    approach: { lat: START.lat + 0.179, lng: START.lng }, departure: { lat: START.lat + 0.181, lng: START.lng } };
+  const { fn, chat } = fakeChat(plan(option({ dimension: 'desnivel', puertoId: 'pass1', desnivelM: 550 }), option(), option()), { explicaciones: [] });
+  const generate = vi.fn<typeof generateRoutes>(async req => result([route({ intentId: req.intents?.[0]?.id })]));
+  const out = await runAiRoutes(input({ ...answers, focus: 'subidas' }), { ...deps(chat, generate), passes: async () => [pass] });
+  const sent = JSON.parse(fn.mock.calls[0][1].messages[1].content);
+  expect(sent.puertos).toEqual([{ id: 'pass1', nombre: 'Coll sintético', cotaM: 600, distanciaKm: 20 }]);
+  expect(generate.mock.calls[0][0].intents?.[0]).toMatchObject({ id: 'pass1', kind: 'pass' });
+  expect(generate.mock.calls[0][0].intents?.[0].waypoints[2]).toEqual({ lat: pass.lat, lng: pass.lng });
+  expect(out.kind === 'routes' && out.routes[0].puerto).toEqual({ nombre: 'Coll sintético', cotaM: 600 });
+  expect(out.kind === 'routes' && out.routes[1].puerto).toBeUndefined();
+});
 
 describe('planWithRetry', () => {
   it('valid plan on first try calls chat once', async () => {
@@ -528,12 +566,12 @@ describe('runAiRoutes con rutas conocidas cerca del inicio', () => {
     for (const banned of ['openstreetmap', 'Autor ficticio', '41.0', '2.51', String(START.lat)]) expect(sent).not.toContain(banned);
   });
 
-  it('la opción basada en una referencia la cita con su nombre, fuente y enlace', async () => {
+  it('una referencia externa sin esqueleto no se atribuye a una vuelta aleatoria', async () => {
     const { chat } = fakeChat(withRef('ref1'), { explicaciones: [] });
     const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), sources: sources([known(1)]) });
 
     if (out.kind !== 'routes') throw new Error('se esperaban rutas');
-    expect(out.routes[0].basadaEn).toEqual({ nombre: 'Vuelta sintética 1', fuente: 'osm', url: 'https://www.openstreetmap.org/relation/900001' });
+    expect(out.routes[0].basadaEn).toBeUndefined();
     expect(out.routes[1].basadaEn).toBeUndefined();
   });
 

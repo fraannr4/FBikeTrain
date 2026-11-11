@@ -28,6 +28,13 @@ describe('conexiones por carretera', () => {
     await expect(fetchRoadPath('key', [start, end], undefined, response([]))).rejects.toThrow();
     await expect(fetchRoadPath('key', [start, end], undefined, response([[3, 42, 0], [3.01, 42, 0]]))).rejects.toThrow();
   });
+  it('rechaza una conexión que pasa por autopista', async () => {
+    const f = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ features: [{ geometry: { type: 'LineString', coordinates: [[2.5, 41, 0], [2.501, 41.001, 0]] }, properties: { extras: {
+      surface: { summary: [{ value: 3, distance: 200, amount: 100 }], values: [] }, waytypes: { summary: [{ value: 3, distance: 200, amount: 100 }], values: [] }, steepness: { summary: [], values: [] },
+      waycategory: { summary: [{ value: 1, distance: 200, amount: 100 }], values: [[0, 1, 1]] },
+    } } }] }), { status: 200 }));
+    await expect(fetchRoadPath('key', [start, end], undefined, f)).rejects.toThrow(/autopista/);
+  });
   it('no rellena con cero la altura ausente', async () => {
     const path = await fetchRoadPath('key', [start, end], undefined, response([[2.5, 41], [2.501, 41.001]]));
     expect(path[0]).toEqual(start);

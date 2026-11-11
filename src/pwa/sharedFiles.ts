@@ -49,21 +49,24 @@ export async function readSharedFiles(id: string, storage: CacheStorage = caches
   }
   const data = await response.formData();
   const files = data.getAll('files').filter((value): value is File => typeof value !== 'string');
-  await cache.delete(key);
   return files;
 }
 
-// StrictMode monta dos veces los efectos: cada envío se consume una sola vez.
-const deliveries = new Map<string, Promise<File[]>>();
-export function takeSharedFiles(id: string): Promise<File[]> {
-  let delivery = deliveries.get(id);
-  if (!delivery) {
-    delivery = readSharedFiles(id).catch(error => { deliveries.delete(id); throw error; });
-    deliveries.set(id, delivery);
-  }
-  return delivery;
+/** Acuse después de guardar, nunca al leer: una recarga conserva lo pendiente. */
+export async function savePendingSharedFiles(id: string, files: File[], storage: CacheStorage = caches): Promise<void> {
+  const key = sharedCacheKey(id);
+  const cache = await storage.open(SHARE_CACHE);
+  if (!files.length) { await cache.delete(key); return; }
+  const previous = await cache.match(key);
+  // No resucitar envíos caducados ni extender su vida con cada reintento.
+  const at = Number(previous?.headers.get('X-Shared-At') ?? 0);
+  if (at < Date.now() - 86400000) { await cache.delete(key); return; }
+  const data = new FormData();
+  files.forEach(file => data.append('files', file, file.name));
+  const response = new Response(data);
+  response.headers.set('X-Shared-At', String(at));
+  await cache.put(key, response);
 }
-export function releaseSharedFiles(id: string): void { deliveries.delete(id); }
 
 const PENDING = 'fbt-pending-share';
 export function rememberSharedLocation(): void {
