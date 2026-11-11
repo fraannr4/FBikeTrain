@@ -1,6 +1,49 @@
 # Estado del proyecto FBikeTrain
 
-## Preparado el 2026-11-11: Rutas de Wikiloc cerca y adaptación (sin publicar)
+## Retomar aquí (2026-11-11, tarde)
+
+**Publicado hoy en `main`:**
+- `b93ce11`: conector de Intervals.icu endurecido. La clave se guarda cifrada por cuenta y hay un bloqueo de sincronización por cuenta. Se siguen filtrando Strava y Garmin. El usuario lo ha probado con su clave y su id `i794435`: funciona y entra iGPSPORT.
+- `ab89a3a` (merge de `e892b51`): Rutas de Wikiloc cerca y adaptación, marcador «→ FBikeTrain» (`public/wikiloc-marcador.html`), calidad de rutas y fuentes externas. GitHub Pages desplegado. Desplegadas las Edge Functions `route-sources` y `ai-routes`; no hay migraciones nuevas.
+- Antes de publicar se corrigieron los hallazgos de la revisión de interfaz (break-ui):
+  - `.btn.btn--wrap`: `kit.css` imponía `nowrap`.
+  - Cifras con punto de miles («1.200»).
+  - Km con un decimal por debajo de 10 km.
+  - Estado de 0 rutas recibidas y concordancia de «1 ruta recibida».
+  - Espera más larga en `tests/wikilocAdaptar.test.tsx`.
+- Verificación sobre `main`: `tsc` sin errores, vitest 124 ficheros y 1580/1580. Los e2e de Wikiloc, break-ui-wikiloc, rutas, rutas-ia, fuentes-externas y biblioteca-calidad dan 44/44; el desborde de biblioteca-calidad ya no se reproduce.
+
+**Abierto (menor, UI de Wikiloc):**
+- Con 50 rutas, la recomendación de la IA queda muy abajo.
+- El foco no va al primer campo con error.
+- Falta avisar al lector de pantalla de que se abre una pestaña nueva.
+
+**Pendiente del usuario:**
+1. Probar Wikiloc en Chrome para Android. El formato del lector (`WIKILOC_FORMAT`, `src/bookmarklet/wikilocReader.ts`) y la descarga del GPX están hechos con fixtures sintéticos. Hay que validarlos contra la página real y ajustarlos con el usuario delante.
+2. Enviar el correo de autorización del TFG (`docs/wikiloc-solicitud-acceso.md`).
+3. Regenerar la API key de Intervals; se usó en la sesión para comprobar la API.
+
+**Strava → Intervals → app: cerrado (comprobado el 2026-11-11 con la cuenta del usuario).** Con Strava vinculado en Intervals, la API devuelve 8 actividades con `source: STRAVA` como stub. Solo traen `id`, `start_date_local`, `icu_athlete_id` y `_note: "STRAVA activities are not available via the API"`. `/activity/{id}/file` responde 422. Vías válidas:
+- el histórico, con la exportación «Descargar tu cuenta» de Strava;
+- lo nuevo, con iGPSPORT → Intervals (`OAUTH_CLIENT`), que ya funciona;
+- Garmin, con el conector directo.
+
+**Siguiente: Garmin directo.** Codex se quedó sin cuota a medias en `C:	estTrain-garmin-intervals`, rama `codex/garmin-intervals`, desde `b93ce11`, sin commit. Ya retiró el puente Garmin vía Intervals. Dejó a medias:
+- OAuth2 PKCE;
+- `supabase/functions/garmin/` y `src/connections/garminServer/`;
+- la migración `202611110001_garmin_connect.sql`, con tokens y RLS;
+- `garminClient`, `garminSync` y `GarminProvider`;
+- la UI `GarminConnection`, la fuente «Garmin» en las salidas y la página `#/privacidad` (contacto `fbiketrain@gmail.com`);
+- los documentos `docs/garmin-directo.md` y el plan `docs/superpowers/plans/2026-11-11-garmin-directo.md`.
+
+Lo que dice la documentación oficial de Garmin, según Codex:
+- La API es gratuita, pero exige aprobación del Developer Program: Garmin da el client id y el secret al aprobar.
+- Starter solo funciona con notificaciones push, para usuarios limitados y sin histórico.
+- El backfill y el ping/pull son de Enterprise.
+- La autenticación de las notificaciones no está documentada públicamente.
+
+
+## 2026-11-11: Rutas de Wikiloc cerca y adaptación (publicado en `ab89a3a`)
 
 Misma rama `codex/integracion-rutas`, sin commit. Plan: `docs/superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md`. Operativa, límites, instalación del marcador y cómo ajustar `WIKILOC_FORMAT`: [wikiloc-cerca.md](wikiloc-cerca.md).
 - `#/rutas/wikiloc`: el usuario pide distancia (y desnivel opcional); «Buscar en Wikiloc» abre el mapa de ciclismo de carretera alrededor del inicio. La lista que trae el marcador se ordena por lo pedido (`rankForTarget`, de 0,5× a 1,6×); el nivel solo etiqueta y desempata. La IA elige de 3 a 5 con la operación `plan` y solo ve nombre, fuente, km y desnivel.
@@ -9,7 +52,7 @@ Misma rama `codex/integracion-rutas`, sin commit. Plan: `docs/superpowers/plans/
 - Base Dexie de la cuenta: versión 5 con la tabla `wikilocNearby`; la lista y la ruta recibida caducan a los 7 días. Sin cambios en Supabase ni migraciones de servidor.
 - **`WIKILOC_FORMAT` no está validado contra la página real.** Pendiente del usuario: validarlo en su navegador, probar el marcador en Chrome para Android y el envío al BSC200S, y enviar la solicitud TFG a Wikiloc ([wikiloc-solicitud-acceso.md](wikiloc-solicitud-acceso.md), versión TFG). Si Wikiloc la deniega, se quita la descarga del GPX por el marcador y se vuelve a la descarga manual.
 
-## Preparado el 2026-11-11: calidad de rutas e integración (sin publicar)
+## 2026-11-11: calidad de rutas e integración (publicado en `ab89a3a`)
 
 Rama `codex/integracion-rutas` (worktree `C:	estTrain-integracion`) = `codex/rutas-calidad` + `codex/fuentes-externas`, terminadas e integradas por Claude. Sin commit.
 - Lados distintos entre opciones, desnivel tenido en cuenta al parar la búsqueda y avisos honestos de distancia, desnivel y lado repetido.
@@ -18,7 +61,7 @@ Rama `codex/integracion-rutas` (worktree `C:	estTrain-integracion`) = `codex/rut
 - Mediciones con ORS real y conclusiones en `docs/diagnostico-rutas-2026-11-11.md`: `round_trip` no mejora con más puntuación; la palanca real es la biblioteca.
 - Al publicar hay que redesplegar `ai-routes` y `route-sources` (esquema con `biblioteca` y `puertos`). No hay migraciones nuevas.
 
-## Preparado el 2026-11-11: fuentes externas (sin publicar)
+## 2026-11-11: fuentes externas (publicado en `ab89a3a`)
 
 Worktree **`C:\testTrain-fuentes-externas`**, rama **`codex/fuentes-externas`**, desde `main` en `d346a15`. No se ha cambiado main, ni hecho commit, push o despliegue. El material de diseño sin seguimiento de la worktree principal se conserva.
 

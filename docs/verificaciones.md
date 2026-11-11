@@ -1,5 +1,12 @@
 # Verificaciones (tarea 1, F0)
 
+
+## Publicación y comprobaciones con cuenta real, 2026-11-11 (tarde)
+
+- Intervals.icu en la app publicada (`b93ce11`): el usuario guarda la clave y el id `i794435` y sincroniza. **Funciona.**
+- Strava vinculado a Intervals: `GET /api/v1/athlete/0/activities?oldest=2026-08-01&newest=2026-11-11` da **200** con 9 actividades: 8 con `source: STRAVA` y 1 con `OAUTH_CLIENT` (iGPSPORT). Las de Strava solo traen `id`, `start_date_local`, `icu_athlete_id` y `_note: "STRAVA activities are not available via the API"`. `GET /activity/{id}` también da el stub, y `GET /activity/{id}/file` da **422**. Conclusión: la vía Strava → Intervals → app no es posible. La clave no se guardó en ningún fichero.
+- `main` en `ab89a3a`: `npx tsc --noEmit` sin errores, `npx vitest run` con **124 ficheros y 1.580/1.580 PASS**. `PLAYWRIGHT_PORT=4391 npx playwright test` de wikiloc-cerca, break-ui-wikiloc, rutas, rutas-ia, fuentes-externas y biblioteca-calidad: **44/44 PASS**. GitHub Pages: run 43051853716, success. `wikiloc-marcador.html` responde 200. Edge Functions `route-sources` y `ai-routes`: «Deployed Functions».
+
 ## Rutas de Wikiloc cerca y adaptación, 2026-11-11 — `codex/integracion-rutas`
 
 - Worktree `C:\testTrain-integracion`, sin commit, push ni despliegue, y sin cambios en Supabase. Plan `docs/superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md` (tareas 1 a 5); operativa y límites en `docs/wikiloc-cerca.md`.
