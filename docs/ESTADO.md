@@ -21,21 +21,28 @@ Pantalla `#/rutas/catalogo` («Rutas de tu catálogo»). Los enlaces `#/rutas/wi
 - **Wikiloc:** «Buscar en Wikiloc» abre una pestaña del usuario y «Subir el GPX descargado» lo adapta al momento. La app no accede nunca a wikiloc.com.
 - **Retirado:** el marcador (`src/bookmarklet`, `public/wikiloc-marcador.html`, `build:bookmarklet`), las pantallas recibir y adaptar, y `wikilocAdvisor`. Las filas antiguas `nearby` y `track` se borran al abrir el catálogo.
 - No hay cambios en Edge Functions ni migraciones.
-- **Verificación:** `tsc` limpio, vitest 118 ficheros y 1477/1477, build correcto, e2e `catalogo.spec.ts` 4/4 (claro y oscuro, a 360 y 430 px, sin desborde; capturas en `test-results/catalogo/`).
+- **Verificación (con Ride with GPS):** `tsc` limpio, vitest 120 ficheros y 1490/1490, e2e `rwgps.spec.ts` 2/2; build correcto, e2e `catalogo.spec.ts` 4/4 (claro y oscuro, a 360 y 430 px, sin desborde; capturas en `test-results/catalogo/`).
 
 **Pendiente del usuario:**
 1. Pegar la URL de Wikiloc con sus filtros (km, bici de carretera). Ahora se usa el mapa `map.do`, con un rectángulo de 8 km y `act=29`.
 2. Probar la precarga real desde su cuenta: Overpass, Open-Meteo y ORS. Contar cuántas rutas salen alrededor de Caldes de Montbui.
 3. Subir de golpe sus GPX de Wikiloc (ZIP) y probar las 3 propuestas en el móvil y el envío al BSC200S.
 
-**Ride with GPS (sin integrar):**
-- Worktree `C:/testTrain/.claude/worktrees/agent-ab9142e79a053664c`, rama `worktree-agent-ab9142e79a053664c`, sin commit.
-- Hay un lector por enlace con la API v1 oficial (`src/routes/sources/ridewithgps.ts`, `docs/ridewithgps.md`, 7 pruebas).
-- La API exige una clave y un token del usuario. No hay búsqueda por zona y el CORS no está documentado.
-- Pendiente:
-  - que el usuario cree el API client;
-  - probar CORS;
-  - conectarlo al catálogo, con un campo «Enlace de Ride with GPS».
+**Ride with GPS (publicado, mismo día):** en el catálogo, sección «Rutas de Ride with GPS».
+- Solo usa la API v1 oficial. El CORS está abierto: comprobado con un preflight el 2026-11-11.
+- **Conectar:** la clave de API se crea en ridewithgps.com/api/api_clients.
+  - El correo y la contraseña van solo a `POST /api/v1/auth_tokens.json`.
+  - Se guardan la clave y el token en `meta` (`rwgps:credentials`), fuera de Ajustes y de la copia de seguridad. La contraseña no se guarda nunca.
+- **Añadir al catálogo:** se pegan muchos enlaces de rutas o colecciones, o se añade la «colección fijada».
+  - Se descarga cada ruta (`/routes/{id}.json`, `track_points`) con 150 como máximo por vez.
+  - Se guarda con `catalog.kind = 'rwgps'` y ref `rwgps-<id>`, y entra en las 3 propuestas como el resto.
+- «Buscar en Ride with GPS» abre `ridewithgps.com/find` en una pestaña del usuario. La API no tiene búsqueda por zona y no se hace scraping: robots.txt bloquea `/routes/*.json` y los GPX de la web.
+- **Código:**
+  - `src/routes/sources/ridewithgps.ts` (lector de rutas) y `rwgpsImport.ts` (token, enlaces, colecciones y lote);
+  - `rwgpsCredentials.ts`;
+  - pruebas `tests/ridewithgps.test.ts` y `tests/rwgpsImport.test.ts`, y e2e `e2e/rwgps.spec.ts` (360 y 430 px);
+  - nota en `docs/ridewithgps.md`.
+- **Pendiente del usuario:** crear el API client, conectar y pegar los enlaces de rutas cercanas que le dio Claude Cowork.
 
 **Siguiente: Garmin directo** (ver «Retomar aquí, tarde» más abajo).
 
