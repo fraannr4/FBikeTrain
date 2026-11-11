@@ -5,7 +5,7 @@ import { test, expect, type Page, TEST_DATABASE, AUTH_KEY, TEST_SESSION, TEST_US
 test.setTimeout(90_000);
 const NOW = new Date('2026-01-10T12:00:00Z');
 const KEY = 'synthetic-intervals-key';
-const activity = (id = 'i1', day = '2026-01-09') => ({ id, source: 'UPLOAD', file_type: 'fit', type: 'Ride', start_date_local: `${day}T09:00:00`, start_date: `${day}T08:00:00Z` });
+const activity = (id = 'i1', day = '2026-01-09') => ({ id, source: 'OAUTH_CLIENT', device_name: 'IGPSPORT 202', file_type: 'fit', type: 'Ride', start_date_local: `${day}T09:00:00`, start_date: `${day}T08:00:00Z` });
 const encoder = new Encoder();
 const start = Date.parse('2026-01-09T08:00:00Z');
 const at = (seconds: number) => new Date(start + seconds * 1000);
@@ -18,6 +18,7 @@ async function open(page: Page) {
   await page.clock.setFixedTime(NOW);
   await page.goto('#/ajustes?abrir=conexiones');
   await expect(page.getByLabel('Athlete id de Intervals.icu')).toBeEnabled();
+  await expect(page.getByText('Conecta tu dispositivo directamente a Intervals.icu, no a través de Strava.', { exact: false })).toBeVisible();
 }
 async function save(page: Page, automatic = true) {
   await page.getByLabel('Athlete id de Intervals.icu').fill('i42');
@@ -53,11 +54,11 @@ test('a un toque importa FIT por Worker, informa duplicados, protege la clave y 
   const calls = await api(page, { rows: [activity('i1'), activity('i2')] });
   await open(page); await save(page, false);
   await expect(page.getByLabel('Clave de API de Intervals.icu')).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: 'Traer salidas nuevas' }).click();
+  await page.getByRole('button', { name: 'Sincronizar ahora' }).click();
   await expect(page.getByText('1 salida nueva', { exact: true })).toBeVisible();
   await expect(page.getByText('1 ya estaba')).toBeVisible();
   expect(calls.files()).toBe(2);
-  await page.getByRole('button', { name: 'Traer salidas nuevas' }).click();
+  await page.getByRole('button', { name: 'Sincronizar ahora' }).click();
   await expect(page.getByText('Ya lo tenías todo', { exact: true })).toBeVisible();
   expect(calls.files()).toBe(2);
   await page.getByRole('button', { name: 'Desconectar Intervals.icu' }).click();
@@ -67,14 +68,11 @@ test('a un toque importa FIT por Worker, informa duplicados, protege la clave y 
   await expect(page.locator('a[href^="#/historial/"]').first()).toBeVisible();
 });
 
-test('reintenta un original fallido aunque después haya llegado una salida nueva', async ({ page }) => {
-  let status = 500;
-  const calls = await api(page, { fileStatus: () => status });
+test('recupera un error temporal del original mediante backoff', async ({ page }) => {
+  let attempts = 0;
+  const calls = await api(page, { fileStatus: () => ++attempts === 1 ? 500 : 200 });
   await open(page); await save(page, false);
-  await page.getByRole('button', { name: 'Traer salidas nuevas' }).click();
-  await expect(page.getByText(/HTTP 500/).first()).toBeVisible();
-  status = 200;
-  await page.getByRole('button', { name: 'Traer salidas nuevas' }).click();
+  await page.getByRole('button', { name: 'Sincronizar ahora' }).click();
   await expect(page.getByText('1 salida nueva', { exact: true })).toBeVisible();
   expect(calls.files()).toBe(2);
 });
@@ -91,12 +89,15 @@ test('al abrir actualiza Inicio y no vuelve a consultar antes de seis horas', as
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeAttached();
   await page.goto('#/ajustes?abrir=conexiones');
-  await expect(page.getByRole('button', { name: 'Traer salidas nuevas' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeEnabled();
   expect(calls.lists()).toBe(count);
   await page.clock.setFixedTime(new Date(NOW.getTime() + 6 * 3600_000));
-  await page.reload();
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
   await expect.poll(calls.lists).toBeGreaterThan(count);
-  await expect(page.getByRole('button', { name: 'Traer salidas nuevas' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeEnabled();
   expect(calls.files()).toBe(1);
 });
 
@@ -104,13 +105,13 @@ test('respeta 429 y habilita el botón al vencer Retry-After sin recargar', asyn
   await page.clock.install({ time: NOW });
   const calls = await api(page, { status: 429, retry: '60' });
   await open(page); await save(page, false);
-  await page.getByRole('button', { name: 'Traer salidas nuevas' }).click();
+  await page.getByRole('button', { name: 'Sincronizar ahora' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'limitado las peticiones' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Traer salidas nuevas' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeDisabled();
   expect(calls.lists()).toBe(1);
   await page.clock.setFixedTime(new Date(NOW.getTime() + 61_000));
   await page.clock.fastForward(61_000);
-  await expect(page.getByRole('button', { name: 'Traer salidas nuevas' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeEnabled();
 });
 
 test('borrar todo detiene una descarga automática y elimina la clave también de memoria', async ({ page }) => {
@@ -147,6 +148,28 @@ test('otra cuenta de FBikeTrain no ve la clave ni consulta Intervals', async ({ 
   expect(calls.lists()).toBe(0);
 });
 
+test('una clave local dañada se puede restablecer sin bloquear la configuración', async ({ page }) => {
+  await open(page); await save(page, false);
+  await page.evaluate(name => new Promise<void>((resolve, reject) => {
+    const request = indexedDB.open(name);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const transaction = database.transaction('meta', 'readwrite');
+      transaction.objectStore('meta').put({ key: 'intervals:credential-key', value: null });
+      transaction.oncomplete = () => { database.close(); resolve(); };
+      transaction.onerror = () => { database.close(); reject(transaction.error); };
+    };
+  }), TEST_DATABASE);
+  await page.reload();
+  const reset = page.getByRole('button', { name: 'Restablecer conexión local' });
+  await expect(reset).toBeEnabled();
+  await reset.click();
+  await expect(page.getByLabel('Clave de API de Intervals.icu')).toBeEnabled();
+  await expect(page.getByLabel('Clave de API de Intervals.icu')).toHaveValue('');
+  await expect(reset).not.toBeVisible();
+});
+
 for (const theme of ['dark', 'light']) {
   for (const [width, height] of [[360, 780], [390, 844], [412, 915], [430, 932], [844, 390]]) {
     test(`conexiones móvil ${theme} ${width}x${height}`, async ({ page }) => {
@@ -154,13 +177,21 @@ for (const theme of ['dark', 'light']) {
       await page.setViewportSize({ width, height });
       await page.addInitScript(theme => localStorage.setItem('fbt-theme', theme), theme);
       await open(page);
+      await expect(page.getByLabel('Athlete id de Intervals.icu')).toHaveValue('0');
+      const settingsLink = page.getByRole('link', { name: 'Abrir ajustes de Intervals.icu' });
+      await expect(settingsLink).toHaveAttribute('href', 'https://intervals.icu/settings');
+      await expect(page.locator('.connection-steps')).toHaveCSS('list-style-type', 'decimal');
+      expect((await settingsLink.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.locator('#conexiones').evaluate(el => el.scrollIntoView({ block: 'start' }));
       await page.screenshot({ path: `test-results/conexiones/${theme}-${width}x${height}-configurar.png` });
       await save(page, false);
-      await expect(page.getByRole('button', { name: 'Traer salidas nuevas' })).toBeEnabled();
+      await page.getByText('Cambiar conexión y sincronización', { exact: true }).click();
+      await expect(page.getByLabel('Clave de API de Intervals.icu')).toHaveValue('');
+      await page.getByText('Cambiar conexión y sincronización', { exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Sincronizar ahora' })).toBeEnabled();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      for (const name of ['Traer salidas nuevas', 'Desconectar Intervals.icu']) {
+      for (const name of ['Sincronizar ahora', 'Desconectar Intervals.icu']) {
         const box = await page.getByRole('button', { name }).boundingBox();
         expect(box?.height).toBeGreaterThanOrEqual(44);
         expect(box!.width).toBeLessThanOrEqual(width);

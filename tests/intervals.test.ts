@@ -224,3 +224,39 @@ it('does not run concurrent synchronizations and uses a nonblocking cross-tab lo
   expect(await syncIntervals(db, importer, false, signal(), fetcher)).toBeUndefined();
   release(); await first;
 });
+
+it('imports the verified iGPSPORT OAUTH_CLIENT payload as an uncompressed original FIT', async () => {
+  await saveConnection(db, { ...connection, athleteId: '0' });
+  const payload = { ...row(), source: 'OAUTH_CLIENT', device_name: 'IGPSPORT 202', file_type: 'fit', type: 'Ride' };
+  const bytes = readFileSync('tests/fixtures/ride.fit');
+  const fetcher = vi.fn(async (url: string) => url.includes('/activities?')
+    ? json([payload]) : new Response(bytes, { headers: { 'content-type': 'application/octet-stream', 'access-control-allow-origin': '*' } }));
+  const result = await syncIntervals(db, importer, false, signal(), fetcher);
+  expect(result).toMatchObject({ excluded: 0, pending: 0, report: { added: 1, skipped: [] } });
+  expect(fetcher.mock.calls[0][0]).toContain('/athlete/0/activities?');
+  expect(fetcher.mock.calls.some(([url]) => url.endsWith('/activity/i1/file'))).toBe(true);
+  expect(await db.activities.count()).toBe(1);
+  fetcher.mockClear();
+  await syncIntervals(db, importer, false, signal(), fetcher);
+  expect(fetcher.mock.calls.filter(([url]) => url.endsWith('/file'))).toHaveLength(0);
+});
+
+it('uses only own completed ids, including ids that match Object prototype properties', async () => {
+  await saveConnection(db, connection);
+  const fetcher = vi.fn(async (url: string) => url.includes('/activities?') ? json([row('constructor')]) : new Response(ride));
+  expect(await syncIntervals(db, importer, false, signal(), fetcher)).toMatchObject({ report: { added: 1 } });
+  expect((await loadSyncState(db)).completed?.constructor).toBe('2026-01-04');
+});
+
+it('starts at 30 days without real history and catches late uploads within the seven-day overlap', async () => {
+  await saveConnection(db, connection);
+  const fetcher = vi.fn(async (url: string) => url.includes('/activities?') ? json([]) : new Response(ride));
+  await syncIntervals(db, importer, false, signal(), fetcher);
+  expect(fetcher.mock.calls[0][0]).toContain('oldest=2025-12-11');
+  expect((await loadSyncState(db)).oldest).toBe('2026-01-03');
+  now += 2 * 86_400_000;
+  fetcher.mockImplementation(async (url: string) => url.includes('/activities?') ? json([row()]) : new Response(ride));
+  const result = await syncIntervals(db, importer, false, signal(), fetcher);
+  expect(result).toMatchObject({ report: { added: 1 } });
+  expect((await loadSyncState(db)).oldest).toBe('2026-01-05');
+});

@@ -2,13 +2,14 @@ import type { CyclingDb } from '../db/db';
 import type { ImportReport } from '../import/importService';
 import type { Importer } from '../ui/importer';
 import { localDay } from '../metrics/calendar';
-import { createIntervalsClient, IntervalsError, validateCredentials, type IntervalsCredentials, type IntervalsFetch } from './intervalsClient';
+import { createIntervalsClient, IntervalsError, type IntervalsFetch } from './intervalsClient';
+import { resolveIntervalsConnection } from './intervalsCredentials';
+import { withConnectionLock } from './connectionLock';
+export { CONNECTION_KEY, loadConnection, saveConnection, type IntervalsConnection } from './intervalsCredentials';
 
-export const CONNECTION_KEY = 'intervals:connection';
 export const SYNC_KEY = 'intervals:sync';
 export const SIX_HOURS = 6 * 60 * 60 * 1000;
 const DAY = 86_400_000;
-export type IntervalsConnection = IntervalsCredentials & { autoSync: boolean };
 export type SyncResult = { report: ImportReport; excluded: number; pending: number; at: number };
 export type SyncState = {
   oldest?: string;
@@ -20,20 +21,8 @@ export type SyncState = {
   error?: string;
 };
 export const emptyReport = (): ImportReport => ({ added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 });
-export async function loadConnection(database: CyclingDb): Promise<IntervalsConnection | undefined> {
-  return (await database.meta.get(CONNECTION_KEY))?.value as IntervalsConnection | undefined;
-}
 export async function loadSyncState(database: CyclingDb): Promise<SyncState> {
   return (await database.meta.get(SYNC_KEY))?.value as SyncState | undefined ?? {};
-}
-export async function saveConnection(database: CyclingDb, input?: IntervalsConnection): Promise<void> {
-  const connection = input ? { ...validateCredentials(input), autoSync: input.autoSync } : undefined;
-  await database.transaction('rw', database.meta, async () => {
-    const previous = await loadConnection(database);
-    if (!connection) await database.meta.delete(CONNECTION_KEY);
-    else await database.meta.put({ key: CONNECTION_KEY, value: connection });
-    if (!connection || previous?.athleteId !== connection.athleteId || previous?.apiKey !== connection.apiKey) await database.meta.delete(SYNC_KEY);
-  });
 }
 
 function mergeReport(total: ImportReport, part: ImportReport) {
@@ -41,21 +30,18 @@ function mergeReport(total: ImportReport, part: ImportReport) {
   total.notCycling += part.notCycling; total.tooShort += part.tooShort; total.withCadence += part.withCadence;
   total.skipped.push(...part.skipped); total.noGps.push(...part.noGps);
 }
-const active = new Set<string>();
 
 /** Una reserva persistida evita repetir el intento automático incluso si falla o se recarga. */
 export async function syncIntervals(database: CyclingDb, importer: Importer, automatic: boolean, signal: AbortSignal, fetcher: IntervalsFetch = fetch): Promise<SyncResult | undefined> {
-  if (active.has(database.name)) return;
-  active.add(database.name);
   const run = async (): Promise<SyncResult | undefined> => {
     signal.throwIfAborted();
-    const connection = await loadConnection(database);
+    const connection = await resolveIntervalsConnection(database);
     if (!connection || (automatic && !connection.autoSync)) return;
     let state = await loadSyncState(database);
     const now = Date.now();
     if (state.retryAt && state.retryAt > now) {
       if (automatic) return;
-      throw new IntervalsError('La cuota de Intervals.icu aún no se ha restablecido. Prueba más tarde.', state.retryAt);
+      throw new IntervalsError('Intervals.icu está en pausa por cuota o un fallo temporal. Prueba más tarde.', state.retryAt);
     }
     if (automatic && state.lastAttemptAt && now - state.lastAttemptAt < SIX_HOURS) return;
     signal.throwIfAborted();
@@ -69,7 +55,7 @@ export async function syncIntervals(database: CyclingDb, importer: Importer, aut
     let excluded = 0;
     let pending = 0;
     try {
-      const client = createIntervalsClient(connection, signal, fetcher);
+      const client = createIntervalsClient(connection.provider, signal, fetcher);
       const latest = await database.activities.orderBy('startTime').reverse().filter(a => !a.id.startsWith('demo-') && a.startTime <= now).first();
       // API con días locales: solape para zonas horarias y cargas retrasadas. Nunca se usa importedAt.
       const initial = localDay(latest ? latest.startTime - 2 * DAY : now - 30 * DAY);
@@ -77,7 +63,7 @@ export async function syncIntervals(database: CyclingDb, importer: Importer, aut
       state.oldest = oldest;
       await persist();
       const today = localDay(now);
-      const completed = { ...state.completed };
+      const completed: Record<string, string> = Object.assign(Object.create(null), state.completed);
       let retryOldest: string | undefined;
       // Ventanas pequeñas sin `limit`: no truncar una lista descendente y saltarse las antiguas.
       for (let window = 0; oldest <= today; window++) {
@@ -91,7 +77,7 @@ export async function syncIntervals(database: CyclingDb, importer: Importer, aut
         for (const activity of activities.sort((a, b) => (a.start_date_local ?? '').localeCompare(b.start_date_local ?? ''))) {
           signal.throwIfAborted();
           if (activity.source === 'STRAVA' || activity.source === 'GARMIN_CONNECT' || /garmin/i.test(activity.device_name ?? '') || !activity.start_date_local) { excluded++; continue; }
-          if (completed[activity.id]) continue;
+          if (Object.prototype.hasOwnProperty.call(completed, activity.id)) continue;
           const day = activity.start_date_local.slice(0, 10);
           // No saltar metadatos inválidos avanzando el cursor.
           if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < oldest || day > newest) throw new IntervalsError('Intervals.icu devolvió una fecha fuera del periodo solicitado.');
@@ -120,7 +106,7 @@ export async function syncIntervals(database: CyclingDb, importer: Importer, aut
         if (windowFailed) retryOldest ??= oldest;
         if (newest === today) {
           const overlap = localDay(now - 7 * DAY);
-          state.oldest = retryOldest ?? (oldest > overlap ? oldest : overlap);
+          state.oldest = retryOldest ?? overlap;
           break;
         }
         const next = new Date(`${newest}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + 1);
@@ -142,10 +128,5 @@ export async function syncIntervals(database: CyclingDb, importer: Importer, aut
       throw safe;
     }
   };
-  try {
-    // Entre pestañas; el Set cubre los navegadores sin Web Locks y el mismo documento.
-    return await (typeof navigator !== 'undefined' && navigator.locks
-      ? navigator.locks.request(`fbiketrain-intervals-${database.name}`, { ifAvailable: true }, lock => lock ? run() : undefined)
-      : run());
-  } finally { active.delete(database.name); }
+  return withConnectionLock(database, run);
 }

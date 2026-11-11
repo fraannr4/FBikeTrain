@@ -1,6 +1,6 @@
 # Conectores de actividades
 
-Investigación: 2026-11-10. Fuentes oficiales enlazadas junto a cada conclusión. «No publicado» significa que no hay una garantía pública comprobada; no equivale a gratuito, ilimitado o compatible con CORS. No se han usado credenciales ni actividades reales.
+Investigación: 2026-11-10; revisión: 2026-11-11. Fuentes oficiales enlazadas junto a cada conclusión. «No publicado» significa que no hay una garantía pública comprobada; no equivale a gratuito, ilimitado o compatible con CORS. El agente solo usa fixtures sintéticos; la evidencia autenticada del 2026-11-11 la ha facilitado el usuario, sin compartir su clave ni sus tracks.
 
 ## Decisión antes de implementar
 
@@ -76,10 +76,49 @@ Una web estática solo comprueba nuevas salidas mientras está abierta; no se pr
 
 ## Uso de la implementación local
 
-En **Más → Ajustes → Conexiones**, pega el athlete id completo (o `0`) y la clave personal, elige si quieres la comprobación automática y pulsa **Guardar conexión**. Después, **Traer salidas nuevas**. La configuración se pliega y puedes volver a abrirla en «Cambiar conexión y sincronización». El informe es `ImportReportView`, también usado por la importación manual.
+En **Más → Ajustes → Conexiones**, pega el athlete id completo (o `0`) y la clave personal, elige si quieres la comprobación automática y pulsa **Guardar conexión**. Después, **Sincronizar ahora**. La configuración se pliega y puedes volver a abrirla en «Cambiar conexión y sincronización». El informe es `ImportReportView`, también usado por la importación manual.
 
-El seguimiento se guarda en `db.meta`, separado de `Settings`: no sale ni siquiera en backups con «incluir claves». El cambio de clave/id reinicia el seguimiento; desconectar elimina clave y seguimiento, conservando salidas. Borrar todos los datos cancela primero la sincronización y limpia también su estado de memoria.
+Las credenciales cifradas y el seguimiento se guardan en `db.meta`, separados de `Settings`: no salen ni siquiera en backups con «incluir claves». El cambio de clave/id reinicia el seguimiento; desconectar elimina clave, CryptoKey y seguimiento, conservando salidas. Borrar todos los datos cancela primero la sincronización y limpia también su estado de memoria.
 
 Se reservan los intentos automáticos antes de la red; fallar o recargar no elude las seis horas. Las ventanas son de 30 días, sin `limit`, con solape de siete días tras completarse. En el primer enlace se incluyen dos días antes de la última salida real para cubrir diferencias horarias. Los originales completados no se descargan de nuevo; los errores se reintentan sin duplicar lo ya guardado. Un archivo pendiente no bloquea ventanas posteriores; las actividades manuales sin original se excluyen. Se respetan `Retry-After`, bloqueo entre pestañas, cancelación, 30 s por petición y 20 MB por archivo. No hay cambios SQL ni despliegue de funciones.
 
-Pendiente de comprobación por el usuario: una descarga autenticada con su clave, la conexión oficial iGPSPORT si aparece en su app y las condiciones concretas concedidas por Garmin. Las pruebas automatizadas usan FIT/GPX sintéticos, nunca su ZIP ni actividades reales.
+La descarga autenticada y la llegada de iGPSPORT quedan confirmadas por el usuario el 2026-11-11 (detalle abajo). Queda comprobar el uso diario en su móvil físico tras integrar estos cambios y las condiciones concretas concedidas por Garmin. Las pruebas automatizadas usan FIT/GPX sintéticos, nunca su ZIP ni actividades reales.
+
+## Revisión para uso diario — 2026-11-11
+
+Trabajo local en `codex/conectividad-revision`, sin commit, push ni despliegue.
+
+### Contrato comprobado y filtro
+
+El usuario ha comprobado `GET /api/v1/athlete/0/activities?oldest=&newest=` con respuesta 200. iGPSPORT llega con `source: "OAUTH_CLIENT"`, `device_name: "IGPSPORT 202"`, `file_type: "fit"`, `type: "Ride"`. Ese payload se admite; `OAUTH_CLIENT` identifica la integración que lo subió y no equivale a Strava ni Garmin. La regresión usa exactamente esos cuatro valores y un FIT sintético por el importador real. Strava y Garmin se siguen excluyendo por las reglas existentes.
+
+El original de `/api/v1/activity/{id}/file` se recibió como `application/octet-stream`, sin comprimir, con `Access-Control-Allow-Origin: *`. El cliente comprueba los bytes gzip y admite ambos formatos, sin depender de `Content-Disposition`. No se reenvían archivos ni coordenadas a IA.
+
+### Incremental y duplicados
+
+- Se propone y conserva un primer rango de **30 días** sin historial: evita descargar años de archivos al configurar desde el móvil. Con historial, comienza dos días antes de la última salida real, nunca por `importedAt`; los datos demo y fechas futuras no amplían ese rango. Para histórico anterior, usar archivos.
+- Consultas inclusivas de hasta 30 días locales, sin `limit`. Tras completarse, cursor en hoy menos siete días. Se corrigió un bug que usaba el comienzo de la última ventana y podía reducir ese solape a un día. Las ventanas con errores permanecen pendientes aunque se hayan importado ventanas posteriores.
+- Se recuerda cada id completado dentro del rango revisable; un mismo original no se descarga otra vez. El importador conserva su segundo descarte por inicio/distancia para archivos manuales o dos ids distintos de la misma salida. Se corrigió también la comprobación de ids para no confundir propiedades de `Object` con ids completados.
+- Los duplicados y descartes definitivos completan el id. Los archivos ilegibles quedan pendientes. Una actividad ya completada no se actualiza si luego cambia en Intervals; borrados remotos y cargas con más de siete días de retraso no se reconcilian automáticamente.
+
+### Red y disparadores
+
+429 y 5xx: máximo tres intentos por petición, esperas de 1 y 2 segundos o el `Retry-After` mayor (segundos o fecha HTTP). Una espera superior a cinco segundos detiene el lote y guarda `retryAt`; al agotar reintentos se impone además una pausa de al menos 60 segundos. Se evita continuar descargando otros archivos ante un fallo de servicio. Cancelación aborta tanto red como backoff. 401/403 nunca se reintentan; los errores no muestran cuerpos remotos ni secretos.
+
+`Retry-After` solo es legible si Intervals lo expone mediante CORS; si no, se aplica el backoff predeterminado. El CORS de una descarga 200 no demuestra esa exposición en errores. Las reservas automáticas siguen limitadas a seis horas, incluso al recargar tras un fallo. **Sincronizar ahora** permite comprobar antes, respetando la pausa del proveedor. Al abrir, `visibilitychange` al volver visible y `pageshow` usan la misma ruta de sincronización y bloqueo de concurrencia. App cerrada: no sincroniza.
+
+Guardar, cambiar y desconectar usan el mismo bloqueo que sincronizar: una operación concurrente informa de que hay que esperar y no cambia la conexión a mitad de descarga. Provider reserva también el trabajo antes de iniciar el cifrado; borrar todo espera su finalización. Web Locks coordina pestañas; sin esa API, la reserva en memoria solo coordina operaciones del mismo documento.
+
+### Clave local y OAuth futuro
+
+`intervalsCredentials.ts` resuelve las credenciales por base IndexedDB de cuenta. Guarda API key cifrada con AES-GCM de 256 bits e IV aleatorio, junto a una `CryptoKey` no exportable. Clave y cifrado se escriben atómicamente; el nombre de la base autentica el cifrado. La configuración anterior en texto se migra al leer sin reiniciar el seguimiento. Sin WebCrypto o si falla el descifrado no se usa texto plano como alternativa. Desconectar elimina ciphertext, CryptoKey y seguimiento; conserva las salidas. Nada de esto se incluye en backups ni se envía a Supabase.
+
+Esto evita la clave legible en un volcado de los valores de configuración y su exportación mediante `exportKey`. **No protege contra XSS, extensiones maliciosas, un usuario con la sesión abierta ni una copia íntegra del perfil del navegador**: el mismo origen puede solicitar el descifrado con la CryptoKey. No sustituye el cifrado del dispositivo. Borrar los datos del navegador exige volver a conectar.
+
+`intervalsSync` solo obtiene `{ provider, autoSync }`. El cliente pide `provider.authorization(signal)` en cada petición. Sustituir Basic por Bearer corresponde al proveedor, sin modificar ventanas, duplicados o importación. No se implementa OAuth en este lote. Pasos y requisitos comprobados: [Preparación OAuth](intervals-oauth.md).
+
+### Uso móvil
+
+Más → Ajustes → Conexiones ofrece un botón **Abrir ajustes de Intervals.icu**, pasos numerados, athlete id `0` preseleccionado y aviso visible de conectar el dispositivo directamente a Intervals, **no a través de Strava**. Tras guardar, la acción principal es **Sincronizar ahora**, junto a la última sincronización completa y el último intento. La clave guardada no se reinserta en el campo del formulario; dejarlo vacío la conserva. La recuperación de almacenamiento permite restablecer solo la conexión local sin borrar salidas.
+
+Pruebas y capturas: [Verificaciones del lote](verificaciones.md). La emulación no sustituye la comprobación en el móvil físico.

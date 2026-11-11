@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { db } from '../db/db';
 import { useImporter } from '../ui/importer';
 import { useToast } from '../ui/components/Toast';
+import { IntervalsError } from './intervalsClient';
 import { loadConnection, loadSyncState, saveConnection, syncIntervals, type IntervalsConnection, type SyncState } from './intervalsSync';
 
 type Connections = {
@@ -56,8 +57,8 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
         if (result.pending) toast('Hay salidas pendientes de importar. Revisa Conexiones.', { tone: 'error' });
         else if (result.report.added) toast(`${result.report.added} ${result.report.added === 1 ? 'salida nueva' : 'salidas nuevas'} de Intervals.icu`, { tone: 'good' });
       }
-    } catch {
-      if (!ctrl.signal.aborted) toast('No se pudo completar la conexión. Revisa Ajustes > Conexiones.', { tone: 'error' });
+    } catch (error) {
+      if (!ctrl.signal.aborted) toast(error instanceof IntervalsError ? error.message : 'No se pudo completar la conexión. Revisa Ajustes > Conexiones.', { tone: 'error' });
     } finally {
       try {
         if (mounted.current) await refresh().catch(() => setStorageError(true));
@@ -87,8 +88,20 @@ export function ConnectionsProvider({ children }: { children: ReactNode }) {
   }, [refresh, run]);
   const save = async (config?: IntervalsConnection) => {
     if (controller.current) throw new Error('Espera a que termine la sincronización.');
-    await saveConnection(db, config);
-    await refresh();
+    // Reservar antes de WebCrypto: reanudar, guardar o borrar todo debe esperar también al guardado.
+    const ctrl = new AbortController();
+    controller.current = ctrl;
+    let finish!: () => void;
+    settled.current = new Promise<void>(resolve => { finish = resolve; });
+    setBusy(true);
+    try {
+      await saveConnection(db, config);
+      await refresh();
+    } finally {
+      if (controller.current === ctrl) controller.current = undefined;
+      if (mounted.current) setBusy(false);
+      finish();
+    }
   };
   const stop = async () => { controller.current?.abort(); await settled.current; };
   return <Context.Provider value={{ connection, state, busy, ready, storageError, revision, save, sync: () => run(false), cancel: () => controller.current?.abort(), stop, refresh }}>{children}</Context.Provider>;

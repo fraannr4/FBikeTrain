@@ -6,3 +6,8 @@
 .connection-options { border-block: 1px solid var(--line); }
 .connection-options > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-weight: 600; }
 .connection-options > .activity-connection { padding-block: 12px 16px; }
+.connection-steps { display: grid; gap: 10px; margin: 0; padding-left: 24px; list-style: decimal; }
+.connection-steps li { padding-left: 4px; overflow-wrap: anywhere; }
+.connection-steps li::marker { color: var(--acc-dist); font-weight: 700; }
+.connection-status { display: grid; gap: 6px; padding: 12px; background: var(--surface-2); border-radius: 8px; font-size: 14px; color: var(--ink-2); }
+.activity-connection > .btn { min-height: 44px; white-space: normal; }

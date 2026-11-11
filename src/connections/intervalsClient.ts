@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
 export type IntervalsCredentials = { athleteId: string; apiKey: string };
+/** OAuth puede obtener/refrescar Authorization sin cambiar el sincronizador. */
+export type IntervalsCredentialProvider = { athleteId: string; authorization: (signal: AbortSignal) => Promise<string> };
+export function createApiKeyCredentialProvider(input: IntervalsCredentials): IntervalsCredentialProvider {
+  const { athleteId, apiKey } = validateCredentials(input);
+  return { athleteId, authorization: async signal => { signal.throwIfAborted(); return `Basic ${btoa(`API_KEY:${apiKey}`)}`; } };
+}
 export type IntervalsFetch = (url: string, options: RequestInit) => Promise<Response>;
 const activitySchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]{1,100}$/),
@@ -47,36 +53,45 @@ async function readBytes(response: Response, max: number): Promise<Uint8Array<Ar
   return bytes;
 }
 
-export function createIntervalsClient(credentials: IntervalsCredentials, signal: AbortSignal, fetcher: IntervalsFetch = fetch) {
-  const { athleteId, apiKey } = validateCredentials(credentials);
+export function createIntervalsClient(credentials: IntervalsCredentials | IntervalsCredentialProvider, signal: AbortSignal, fetcher: IntervalsFetch = fetch) {
+  const provider = 'authorization' in credentials ? credentials : createApiKeyCredentialProvider(credentials);
+  const { athleteId } = provider;
+  if (!/^i?\d{1,20}$/.test(athleteId)) throw new IntervalsError('El identificador de Intervals.icu no es válido.');
   // URL fija, sin credenciales en query, sin cookies, redirecciones ni contenido remoto en errores.
   let lastRequestAt = 0;
-  async function request(path: string, maxBytes: number): Promise<Uint8Array> {
+  async function wait(delay: number): Promise<void> {
     signal.throwIfAborted();
-    const delay = Math.max(0, 150 - (Date.now() - lastRequestAt));
-    if (delay) await new Promise<void>((resolve, reject) => {
+    if (delay > 0) await new Promise<void>((resolve, reject) => {
       const abort = () => { clearTimeout(timer); reject(signal.reason); };
       const timer = setTimeout(() => { signal.removeEventListener('abort', abort); resolve(); }, delay);
       signal.addEventListener('abort', abort, { once: true });
     });
+    signal.throwIfAborted();
+  }
+  async function attempt(path: string, maxBytes: number): Promise<Uint8Array> {
+    await wait(Math.max(0, 150 - (Date.now() - lastRequestAt)));
     signal.throwIfAborted();
     const controller = new AbortController();
     const abort = () => controller.abort(signal.reason);
     signal.addEventListener('abort', abort, { once: true });
     const timer = setTimeout(() => controller.abort(), 30_000);
     try {
+      const authorization = await provider.authorization(controller.signal);
+      controller.signal.throwIfAborted();
       lastRequestAt = Date.now();
       const response = await fetcher(`https://intervals.icu/api/v1/${path}`, {
-        headers: { Authorization: `Basic ${btoa(`API_KEY:${apiKey}`)}` },
+        headers: { Authorization: authorization },
         credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal,
       });
-      if (response.status === 429) {
+      if (response.status === 429 || response.status >= 500) {
         const retry = response.headers.get('retry-after');
         const seconds = Number(retry);
-        const retryAt = retry && Number.isFinite(seconds)
-          ? Date.now() + Math.max(60, seconds) * 1000
-          : Math.max(Date.now() + 60_000, Date.parse(retry ?? '') || 0);
-        throw new IntervalsError('Intervals.icu ha limitado las peticiones. Espera antes de volver a intentarlo.', retryAt);
+        const parsed = retry && /^\d+(\.\d+)?$/.test(retry.trim()) && Number.isFinite(seconds)
+          ? Date.now() + Math.max(0, seconds) * 1000
+          : Date.parse(retry ?? '');
+        // Libera el cuerpo antes de reintentar. No se muestran respuestas remotas.
+        await response.body?.cancel().catch(() => {});
+        throw new RetryableIntervalsError(response.status, Number.isFinite(parsed) ? Math.max(Date.now(), parsed) : undefined);
       }
       if (response.status === 401) throw new IntervalsError('La clave de Intervals.icu no es válida o ha caducado.');
       if (response.status === 403) throw new IntervalsError('Intervals.icu no permite acceder a estos datos. Revisa los permisos y la fuente de los datos.');
@@ -87,6 +102,20 @@ export function createIntervalsClient(credentials: IntervalsCredentials, signal:
       if (error instanceof IntervalsError) throw error;
       throw new IntervalsError('No se pudo contactar con Intervals.icu. Revisa la conexión y los permisos del navegador (CORS).');
     } finally { clearTimeout(timer); signal.removeEventListener('abort', abort); }
+  }
+  async function request(path: string, maxBytes: number): Promise<Uint8Array> {
+    for (let attemptNumber = 0; ; attemptNumber++) {
+      try { return await attempt(path, maxBytes); }
+      catch (error) {
+        if (!(error instanceof RetryableIntervalsError)) throw error;
+        const delay = Math.max(1000 * 2 ** attemptNumber, (error.retryAt ?? 0) - Date.now());
+        // Máximo dos reintentos y 5 s por espera. Esperas largas se guardan en SyncState.
+        if (attemptNumber >= 2 || delay > 5000) {
+          throw new IntervalsError(error.message, Math.max(error.retryAt ?? 0, Date.now() + (attemptNumber >= 2 ? 60_000 : delay)));
+        }
+        await wait(delay);
+      }
+    }
   }
   return {
     async activities(oldest: string, newest: string): Promise<IntervalsActivity[]> {
@@ -104,4 +133,12 @@ export function createIntervalsClient(credentials: IntervalsCredentials, signal:
       return new File([new Uint8Array(bytes)], `intervals-${activity.id}.${extension}`, { type: 'application/octet-stream' });
     },
   };
+}
+
+class RetryableIntervalsError extends IntervalsError {
+  constructor(status: number, retryAt?: number) {
+    super(status === 429
+      ? 'Intervals.icu ha limitado las peticiones. Espera antes de volver a intentarlo.'
+      : 'Intervals.icu no está disponible temporalmente. Vuelve a intentarlo más tarde.', retryAt);
+  }
 }

@@ -1,6 +1,10 @@
 import 'fake-indexeddb/auto';
+import { webcrypto } from 'node:crypto';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
+
+// WebCrypto real para cifrado de credenciales; jsdom solo aporta getRandomValues.
+if (!globalThis.crypto?.subtle) Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
 
 // Espera de findBy* y waitFor: 1 s por defecto se queda corto con la máquina cargada.
 configure({ asyncUtilTimeout: 5000 });

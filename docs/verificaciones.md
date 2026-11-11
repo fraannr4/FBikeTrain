@@ -241,3 +241,28 @@ Síntoma: «Ha fallado algo inesperado al preparar las rutas» en Rutas, Rutas c
 - Regresión completa: `npx playwright test --workers=2 --timeout=90000 --retries=1`, salida **0**: **121 correctos y 4 intermitentes que pasan al reintentarse** (125 casos en total, 20,2 min). Dos casos de Inicio fallaron al cerrar el contexto con `ENOSPC: no space left on device`; dos de Subidas agotaron la espera de 15 s de un elemento. No se han cambiado esas aserciones. Los 22 casos nuevos de PWA pasan sin reintento. La suite no fue una pasada sin incidencias.
 - Incidencias de entorno: el primer arranque de Playwright agotó los 180 s mientras compilaba. La primera pasada unitaria con build/navegador simultáneos tuvo un timeout en «guided questions in order»; la pasada completa final, sin esas cargas simultáneas, está en verde. La prueba de rendimiento de Inicio también pasó al ejecutarse sin Vitest en paralelo. No se cambiaron sus aserciones ni límites.
 - Pendiente real: instalar y compartir archivos desde Wikiloc/iGPSPORT en un Android físico tras publicar los cambios. No se ha probado un dispositivo real ni se ha hecho push o despliegue. iOS no admite `share_target`. Guía, criterio de clasificación y límites de conservación en `docs/pwa-compartir.md`.
+
+## 2026-11-11 — Revisión de conectividad (`codex/conectividad-revision`)
+
+Worktree `C:\testTrain-conectividad-revision`, creada desde `main` (`d346a15`). Sin commit, push ni despliegue.
+
+**Evidencia real facilitada por el usuario, no ejecutada por el agente:** lista de actividades 200; iGPSPORT con `source=OAUTH_CLIENT`, `device_name=IGPSPORT 202`, `file_type=fit`, `type=Ride`; original `/activity/{id}/file` como FIT sin gzip (`application/octet-stream`), CORS `*`. Las actividades que llegan desde Strava no se devuelven. El agente no recibe ni usa la clave real ni tracks privados.
+
+**TDD y hallazgos:**
+
+- El filtro ya admitía iGPSPORT. Nueva regresión con los cuatro campos exactos y el FIT sintético de fixtures, mediante el importador real; segunda consulta no descarga otra vez el id.
+- Prueba roja de carga retrasada: el cursor al terminar varias ventanas quedaba en el último día, perdiendo el solape. Corregido a hoy menos siete días. Primera lectura sin historial: 30 días; con historial: última salida real menos dos días. Duplicados por id y por inicio/distancia del importador, pendientes y ventanas posteriores cubiertos.
+- Corregida confusión entre ids y propiedades heredadas de `Object` (regresión con `constructor`).
+- Pruebas rojas/verdes para provider de autorización, backoff 429/5xx, Retry-After segundos/fecha, no retry 401/403 y cancelación durante espera. Esperas largas guardan pausa y detienen el lote.
+- AES-GCM y CryptoKey no exportable comprobados con WebCrypto real en Vitest: recarga, migración de texto antiguo sin perder cursor, fallo de descifrado, desconexión y ausencia de alternativa plaintext. Sigue comprobado el aislamiento por cuenta y que el backup no exporta la clave. El cifrado no protege contra XSS ni acceso completo al perfil del navegador.
+- Dos revisiones independientes detectaron recuperación bloqueada con credencial dañada y carrera entre guardar/desconectar y sincronizar. Corregidas con botón de restablecimiento, bloqueo compartido y reserva de guardado antes de WebCrypto; regresiones rojas/verdes. Revisión posterior sin problemas mayores pendientes.
+- Provider probado al abrir, en visibilitychange visible/oculto y pageshow, eventos simultáneos, desmontaje y cancelación. Una petición manual muestra el error castellano seguro. El guardado bloquea reanudación/segundo guardado y `stop()` espera su finalización.
+- UX con pasos, botón a los ajustes oficiales, alias `0`, aviso de conexión directa sin Strava, última sincronización y «Sincronizar ahora». La clave guardada no se vuelve a insertar en el DOM.
+
+**Verificación final:** resultados de Vitest completo y e2e se incorporan al cerrar la ejecución en esta worktree. `npx tsc --noEmit` y `npm run build` han terminado con salida 0. Bundle `index-PnHa26bT.js`, 1.232,91 kB (383,33 kB gzip); se conservan avisos previos de tamaño, importación de demo y anotaciones de zod. Los seis archivos unitarios afectados contienen 49 casos; las pasadas dirigidas están en verde.
+
+El primer arranque del e2e agotó los 180 segundos del `webServer` durante el build, sin ejecutar casos. Se generó el build por separado y se sirve en el puerto exclusivo 4183 para evitar reutilizar una preview de otra worktree. La máquina tenía otras verificaciones en paralelo; no se alteraron tiempos de prueba ni aserciones para ocultarlo.
+
+**Límites:** sin OAuth, SQL, Edge Functions ni servicios nuevos. Preparación comprobada contra fuentes oficiales en `docs/intervals-oauth.md`, incluidos registro, callback, tokens y webhooks. La sincronización requiere app abierta; no reconcilia borrados remotos ni ediciones de originales ya completados y no recupera automáticamente cargas anteriores al solape. Retry-After exige exposición CORS; sin ella aplica backoff predeterminado. Sin Web Locks solo se coordina el mismo documento. Pendiente comprobar el flujo diario, retorno desde iGPSPORT y persistencia de almacenamiento en el móvil físico después de integrar/publicar con autorización.
+
+Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Intervals y guiar conexión móvil`.
