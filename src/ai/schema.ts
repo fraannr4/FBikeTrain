@@ -17,6 +17,7 @@ export const RoutePlanSchema = z.strictObject({
         motivo: z.string().min(1).max(300),
         /** Id de la referencia en la que se basa; uno desconocido lo ignora el código. */
         referenciaId: z.string().max(20).nullable().optional(),
+        puertoId: z.string().regex(/^pass[1-6]$/).nullable().optional(),
       }),
     )
     .min(3)

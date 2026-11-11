@@ -23,9 +23,10 @@ import type { UserReference } from '../../metrics/reference';
 import type { Target } from '../../metrics/score';
 import { gpxFileName } from '../../routes/gpx';
 import { loadVisitedCells } from '../../routes/history';
+import { SEARCH_REQUEST_BUDGET } from '../../routes/generator';
+import { listReferenceRoutes } from '../../routes/library';
 import { ORS_DAILY_LIMIT, OrsError } from '../../routes/ors';
 import { chooseOrsAccess, sessionToken, SHARED_ORS_LIMITS, sharedOrsEnabled } from '../../routes/orsProxy';
-import { routeSourcesEnabled } from '../../routes/sources/client';
 import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { AiNeverList, AiRoutesCarousel, AiSeesList, AI_NEVER, aiShown, type ShownRoute } from '../components/AiRoutes';
@@ -84,7 +85,7 @@ import { useReducedMotion } from '../theme/motion';
 const TITLE = 'Rutas con IA';
 const FORM_ID = 'ia-manual-form';
 /** Una búsqueda con IA: de 3 a 5 opciones, con 3 semillas cada una (`runAiRoutes`). */
-const ORS_PER_SEARCH = 15;
+const ORS_PER_SEARCH = SEARCH_REQUEST_BUDGET;
 /** Fallos de la IA que se arreglan en Ajustes: la clave rechazada o sin modelo. */
 const KEY_CAUSES: ReadonlySet<LlmErrorKind> = new Set(['unauthorized', 'no_model']);
 const UNEXPECTED = 'Ha fallado algo inesperado al preparar las rutas. Vuelve a probar en un momento.';
@@ -127,7 +128,7 @@ export function RutasIa() {
   const account = useAccount();
   const sharedMode = SHARED_AI_ENABLED && account !== null;
   const sharedOrs = sharedOrsEnabled() && account !== null;
-  const knownRoutes = routeSourcesEnabled() && account !== null;
+  const knownRoutes = true; // La biblioteca local se consulta también sin servidor de fuentes.
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -333,7 +334,7 @@ export function RutasIa() {
       } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions, goal },
+        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions, goal, library: listReferenceRoutes, climbs: ctx.climbs },
       );
       if (!live()) return;
       if (res.kind === 'routes') {

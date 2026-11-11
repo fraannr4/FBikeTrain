@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type { ClimbEffort, Goal, PlannedWorkout, RouteSig, Settings, StoredActivity, TrackPoint } from '../domain/types';
 import type { ReferenceRoute } from '../routes/library';
+import type { WikilocRow } from '../routes/wikilocNearby';
 
 export type SettingsRow = { key: 'app'; value: Settings };
 export type MetaRow = { key: string; value: unknown };
@@ -19,6 +20,7 @@ export class CyclingDb extends Dexie {
   calendar!: Table<PlannedWorkout, string>;
   goals!: Table<Goal, string>;
   referenceRoutes!: Table<ReferenceRoute, string>;
+  wikilocNearby!: Table<WikilocRow, string>;
 
   constructor(name = 'ciclismo') {
     super(name);
@@ -38,6 +40,9 @@ export class CyclingDb extends Dexie {
     });
     this.version(4).stores({
       referenceRoutes: 'id, updatedAt',
+    });
+    this.version(5).stores({
+      wikilocNearby: 'key',
     });
   }
 }

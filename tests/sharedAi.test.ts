@@ -85,6 +85,24 @@ describe('IA compartida: límites y privacidad', () => {
     expect((await handleSharedAi(request({ ...plan, referencias }), deps)).status).toBe(200);
     expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ referencias }), expect.any(AbortSignal));
   });
+  it('acepta referencias de biblioteca y puertos sin datos de ubicación', async () => {
+    const deps = mock();
+    const referencias = [{ id: 'ref1', nombre: 'Ruta sintética', fuente: 'biblioteca', distanciaKm: 70, desnivelM: 500 }];
+    const puertos = [{ id: 'pass1', nombre: 'Collado sintético', cotaM: 650, distanciaKm: 22 }, { id: 'pass2', nombre: 'Subida conocida', cotaM: null, distanciaKm: 18 }];
+    expect((await handleSharedAi(request({ ...plan, referencias, puertos }), deps)).status).toBe(200);
+    expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ referencias, puertos }), expect.any(AbortSignal));
+  });
+  it.each([
+    [{ id: 'pass1', nombre: 'Collado', cotaM: 650, distanciaKm: 22, lat: 41 }],
+    [{ id: 'pass1', nombre: 'Collado', cotaM: 650, distanciaKm: 41 }],
+    [{ id: 'pass1', nombre: 'Collado', cotaM: 12001, distanciaKm: 22 }],
+    [{ id: 'pass7', nombre: 'Collado', cotaM: 650, distanciaKm: 22 }],
+    [1, 2].map(() => ({ id: 'pass1', nombre: 'Collado', cotaM: 650, distanciaKm: 22 })),
+  ])('rechaza puertos inválidos antes de consumir cuota', async (...puertos) => {
+    const deps = mock();
+    expect((await handleSharedAi(request({ ...plan, puertos }), deps)).status).toBe(400);
+    expect(deps.consumeQuota).not.toHaveBeenCalled();
+  });
   it.each([
     ['campos extra', [{ id: 'ref1', nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null, url: 'https://www.openstreetmap.org/relation/1' }]],
     ['coordenadas', [{ id: 'ref1', nombre: 'Vuelta', fuente: 'osm', distanciaKm: 40, desnivelM: null, lat: 41, lon: 2 }]],

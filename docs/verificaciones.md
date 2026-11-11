@@ -1,5 +1,16 @@
 # Verificaciones (tarea 1, F0)
 
+## Rutas de Wikiloc cerca y adaptación, 2026-11-11 — `codex/integracion-rutas`
+
+- Worktree `C:\testTrain-integracion`, sin commit, push ni despliegue, y sin cambios en Supabase. Plan `docs/superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md` (tareas 1 a 5); operativa y límites en `docs/wikiloc-cerca.md`.
+- No se ha accedido a wikiloc.com. Todos los fixtures son sintéticos: HTML y JSON de lista, mapa y ficha, GPX y rutas con ids, nombres y autores inventados. Ni HTML, respuestas, tracks ni claves reales. El e2e intercepta `https://*.wikiloc.com/**` y sirve páginas propias.
+- `npx vitest run` de los 13 ficheros de la funcionalidad (`wikilocNearby`, `wikilocStore`, `adaptRoute`, `adaptedRouteLibrary`, `wikilocReader`, `trackDownload`, `bookmarklet`, `bookmarkletInstallPage`, `sendGpx`, `wikilocAdvisor`, `wikilocCerca`, `wikilocRecibir` y `wikilocAdaptar`): **161/161 PASS**.
+- Suite completa `npx vitest run --maxWorkers=2 --minWorkers=1`: **119 ficheros, 1.551/1.551 PASS**.
+- `npx tsc --noEmit`: salida 0.
+- `PLAYWRIGHT_PORT=4183 npx playwright test e2e/wikiloc-cerca.spec.ts --workers=2`: **4/4 PASS** (360 y 430 px, claro y oscuro): lista, recomendación de la IA, adaptación y envío. Comprueba que el cuerpo enviado a la IA no lleva enlaces de wikiloc.com, autores, ids de ruta, coordenadas ni las de Casa, y que no hay desbordamiento horizontal. El build previo de Playwright regenera `public/wikiloc-marcador.html` y conserva los avisos ya conocidos de zod, importación mixta de demo y bundle grande.
+- **Sin validar contra la página real:** `WIKILOC_FORMAT` (selectores de tarjetas, respuesta de `find.do?event=map`, enlace de «Descargar» y señales de Premium o sesión) es un supuesto. Lo valida el usuario en su navegador con su sesión, sin guardar HTML real en el repositorio.
+- Pendiente real del usuario: instalar el marcador y lanzarlo en Chrome para Android en el teléfono; comprobar que la descarga da el GPX (original o reducido) y no pide confirmación; enviar el GPX adaptado a la app de iGPSPORT y al BSC200S; enviar la solicitud TFG de `docs/wikiloc-solicitud-acceso.md` y anotar aquí la respuesta.
+
 ## Mapa de rutas, 2026-11-10 — `codex/mapa-rutas`
 
 - Worktree `C:\testTrain-mapa-rutas`, base `650a510`, sin commit/push. Diagnóstico y límites en `docs/superpowers/plans/2026-11-10-mapa-rutas.md`.

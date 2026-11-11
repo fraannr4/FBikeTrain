@@ -1,0 +1,1107 @@
+{
+  "before": {
+    "date": "2026-11-11T07:49:13.126Z",
+    "start": "Granollers (punto público)",
+    "seeds": [
+      1100,
+      2200,
+      3300
+    ],
+    "cases": [
+      {
+        "km": 40,
+        "gain": 200,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 32.63,
+            "ascentM": 591,
+            "mainRoadPct": 2.33,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -18.43,
+            "ascentErrorM": 391,
+            "ascentErrorPct": 195.35,
+            "side": 5,
+            "warning": "Incluye 2,3 km de pista o sin asfaltar."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": 375,
+            "ascentErrorPct": 187.45,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 40,
+        "gain": 600,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 32.63,
+            "ascentM": 591,
+            "mainRoadPct": 2.33,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -18.43,
+            "ascentErrorM": -9,
+            "ascentErrorPct": -1.55,
+            "side": 5,
+            "warning": "Incluye 2,3 km de pista o sin asfaltar."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": -25,
+            "ascentErrorPct": -4.18,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 60,
+        "gain": 300,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 57.57,
+            "ascentM": 878,
+            "mainRoadPct": 4.89,
+            "backtrackM": 2120,
+            "localLoops": 1,
+            "distanceErrorPct": -4.05,
+            "ascentErrorM": 578,
+            "ascentErrorPct": 192.53,
+            "side": 5,
+            "warning": "Incluye 1,4 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          },
+          {
+            "option": 2,
+            "seed": 2200,
+            "km": 61.64,
+            "ascentM": 1261,
+            "mainRoadPct": 19.48,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": 2.74,
+            "ascentErrorM": 961,
+            "ascentErrorPct": 320.33,
+            "side": 4,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 57.58,
+            "ascentM": 1224,
+            "mainRoadPct": 1.71,
+            "backtrackM": 220,
+            "localLoops": 1,
+            "distanceErrorPct": -4.03,
+            "ascentErrorM": 924,
+            "ascentErrorPct": 307.9,
+            "side": 5,
+            "warning": "Incluye 0,6 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 1
+      },
+      {
+        "km": 60,
+        "gain": 900,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 57.57,
+            "ascentM": 878,
+            "mainRoadPct": 4.89,
+            "backtrackM": 2120,
+            "localLoops": 1,
+            "distanceErrorPct": -4.05,
+            "ascentErrorM": -22,
+            "ascentErrorPct": -2.49,
+            "side": 5,
+            "warning": "Incluye 1,4 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          },
+          {
+            "option": 2,
+            "seed": 2200,
+            "km": 61.64,
+            "ascentM": 1261,
+            "mainRoadPct": 19.48,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": 2.74,
+            "ascentErrorM": 361,
+            "ascentErrorPct": 40.11,
+            "side": 4,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 57.58,
+            "ascentM": 1224,
+            "mainRoadPct": 1.71,
+            "backtrackM": 220,
+            "localLoops": 1,
+            "distanceErrorPct": -4.03,
+            "ascentErrorM": 324,
+            "ascentErrorPct": 35.97,
+            "side": 5,
+            "warning": "Incluye 0,6 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 1
+      },
+      {
+        "km": 90,
+        "gain": 450,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "pistas"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 85.36,
+            "ascentM": 1688,
+            "mainRoadPct": 3.72,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": -5.16,
+            "ascentErrorM": 1238,
+            "ascentErrorPct": 275.2,
+            "side": 3,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 1,
+        "repeatedSides": 0
+      },
+      {
+        "km": 90,
+        "gain": 1350,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "pistas"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 85.36,
+            "ascentM": 1688,
+            "mainRoadPct": 3.72,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": -5.16,
+            "ascentErrorM": 338,
+            "ascentErrorPct": 25.07,
+            "side": 3,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 1,
+        "repeatedSides": 0
+      }
+    ]
+  },
+  "after_points_alternos": {
+    "date": "2026-11-11T08:38:17.599Z",
+    "start": "Granollers (punto público)",
+    "seeds": [
+      1100,
+      2200,
+      3300
+    ],
+    "cases": [
+      {
+        "km": 40,
+        "gain": 200,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "longitud"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 29.11,
+            "ascentM": 465,
+            "mainRoadPct": 7.04,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -27.23,
+            "ascentErrorM": 265,
+            "ascentErrorPct": 132.45,
+            "side": 4,
+            "warning": "Sale de 29,1 km frente a los 40 km pedidos. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 465 m frente a los 200 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": 375,
+            "ascentErrorPct": 187.45,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 575 m frente a los 200 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 40,
+        "gain": 600,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "longitud"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 29.11,
+            "ascentM": 465,
+            "mainRoadPct": 7.04,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -27.23,
+            "ascentErrorM": -135,
+            "ascentErrorPct": -22.52,
+            "side": 4,
+            "warning": "Sale de 29,1 km frente a los 40 km pedidos. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 465 m frente a los 600 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": -25,
+            "ascentErrorPct": -4.18,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 60,
+        "gain": 300,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          }
+        ],
+        "routes": [
+          {
+            "option": 2,
+            "seed": 2201,
+            "km": 50.53,
+            "ascentM": 1064,
+            "mainRoadPct": 0,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -15.79,
+            "ascentErrorM": 764,
+            "ascentErrorPct": 254.7,
+            "side": 0,
+            "warning": "Incluye 2,1 km de pista o sin asfaltar. El desnivel es 1064 m frente a los 300 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 51.46,
+            "ascentM": 1191,
+            "mainRoadPct": 1.52,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -14.24,
+            "ascentErrorM": 891,
+            "ascentErrorPct": 296.9,
+            "side": 2,
+            "warning": "El desnivel es 1191 m frente a los 300 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 60,
+        "gain": 900,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          }
+        ],
+        "routes": [
+          {
+            "option": 2,
+            "seed": 2201,
+            "km": 50.53,
+            "ascentM": 1064,
+            "mainRoadPct": 0,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -15.79,
+            "ascentErrorM": 164,
+            "ascentErrorPct": 18.23,
+            "side": 0,
+            "warning": "Incluye 2,1 km de pista o sin asfaltar."
+          },
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 51.46,
+            "ascentM": 1191,
+            "mainRoadPct": 1.52,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -14.24,
+            "ascentErrorM": 291,
+            "ascentErrorPct": 32.3,
+            "side": 2,
+            "warning": "El desnivel es 1191 m frente a los 900 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 90,
+        "gain": 450,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "longitud"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 60.93,
+            "ascentM": 1266,
+            "mainRoadPct": 15.97,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -32.3,
+            "ascentErrorM": 816,
+            "ascentErrorPct": 181.22,
+            "side": 4,
+            "warning": "Sale de 60,9 km frente a los 90 km pedidos. El desnivel es 1266 m frente a los 450 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 71.14,
+            "ascentM": 1277,
+            "mainRoadPct": 16.95,
+            "backtrackM": 940,
+            "localLoops": 1,
+            "distanceErrorPct": -20.96,
+            "ascentErrorM": 827,
+            "ascentErrorPct": 183.82,
+            "side": 2,
+            "warning": "Sale de 71,1 km frente a los 90 km pedidos. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 1277 m frente a los 450 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 90,
+        "gain": 1350,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "longitud"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 60.93,
+            "ascentM": 1266,
+            "mainRoadPct": 15.97,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -32.3,
+            "ascentErrorM": -84,
+            "ascentErrorPct": -6.26,
+            "side": 4,
+            "warning": "Sale de 60,9 km frente a los 90 km pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 71.14,
+            "ascentM": 1277,
+            "mainRoadPct": 16.95,
+            "backtrackM": 940,
+            "localLoops": 1,
+            "distanceErrorPct": -20.96,
+            "ascentErrorM": -73,
+            "ascentErrorPct": -5.39,
+            "side": 2,
+            "warning": "Sale de 71,1 km frente a los 90 km pedidos. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      }
+    ]
+  },
+  "after": {
+    "date": "2026-11-11T08:42:46.748Z",
+    "start": "Granollers (punto público)",
+    "seeds": [
+      1100,
+      2200,
+      3300
+    ],
+    "cases": [
+      {
+        "km": 40,
+        "gain": 200,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 32.63,
+            "ascentM": 591,
+            "mainRoadPct": 2.33,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -18.43,
+            "ascentErrorM": 391,
+            "ascentErrorPct": 195.35,
+            "side": 5,
+            "warning": "Incluye 2,3 km de pista o sin asfaltar. El desnivel es 591 m frente a los 200 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": 375,
+            "ascentErrorPct": 187.45,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 575 m frente a los 200 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 40,
+        "gain": 600,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2200,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3301,
+            "reason": "longitud"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 32.63,
+            "ascentM": 591,
+            "mainRoadPct": 2.33,
+            "backtrackM": 0,
+            "localLoops": 0,
+            "distanceErrorPct": -18.43,
+            "ascentErrorM": -9,
+            "ascentErrorPct": -1.55,
+            "side": 5,
+            "warning": "Incluye 2,3 km de pista o sin asfaltar."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 37.46,
+            "ascentM": 575,
+            "mainRoadPct": 14.41,
+            "backtrackM": 0,
+            "localLoops": 1,
+            "distanceErrorPct": -6.34,
+            "ascentErrorM": -25,
+            "ascentErrorPct": -4.18,
+            "side": 6,
+            "warning": "Incluye 1 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 0
+      },
+      {
+        "km": 60,
+        "gain": 300,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 57.57,
+            "ascentM": 878,
+            "mainRoadPct": 4.89,
+            "backtrackM": 2120,
+            "localLoops": 1,
+            "distanceErrorPct": -4.05,
+            "ascentErrorM": 578,
+            "ascentErrorPct": 192.53,
+            "side": 5,
+            "warning": "Incluye 1,4 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 878 m frente a los 300 m pedidos."
+          },
+          {
+            "option": 2,
+            "seed": 2200,
+            "km": 61.64,
+            "ascentM": 1261,
+            "mainRoadPct": 19.48,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": 2.74,
+            "ascentErrorM": 961,
+            "ascentErrorPct": 320.33,
+            "side": 4,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 1261 m frente a los 300 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 57.58,
+            "ascentM": 1224,
+            "mainRoadPct": 1.71,
+            "backtrackM": 220,
+            "localLoops": 1,
+            "distanceErrorPct": -4.03,
+            "ascentErrorM": 924,
+            "ascentErrorPct": 307.9,
+            "side": 5,
+            "warning": "Incluye 0,6 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. Esta propuesta va hacia el mismo lado que otra; no se ha encontrado una alternativa mejor dentro del límite. El desnivel es 1224 m frente a los 300 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 1
+      },
+      {
+        "km": 60,
+        "gain": 900,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 1101,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "pistas"
+          },
+          {
+            "seed": 3301,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 1,
+            "seed": 1101,
+            "km": 57.57,
+            "ascentM": 878,
+            "mainRoadPct": 4.89,
+            "backtrackM": 2120,
+            "localLoops": 1,
+            "distanceErrorPct": -4.05,
+            "ascentErrorM": -22,
+            "ascentErrorPct": -2.49,
+            "side": 5,
+            "warning": "Incluye 1,4 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir."
+          },
+          {
+            "option": 2,
+            "seed": 2200,
+            "km": 61.64,
+            "ascentM": 1261,
+            "mainRoadPct": 19.48,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": 2.74,
+            "ascentErrorM": 361,
+            "ascentErrorPct": 40.11,
+            "side": 4,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 1261 m frente a los 900 m pedidos."
+          },
+          {
+            "option": 3,
+            "seed": 3300,
+            "km": 57.58,
+            "ascentM": 1224,
+            "mainRoadPct": 1.71,
+            "backtrackM": 220,
+            "localLoops": 1,
+            "distanceErrorPct": -4.03,
+            "ascentErrorM": 324,
+            "ascentErrorPct": 35.97,
+            "side": 5,
+            "warning": "Incluye 0,6 km de pista o sin asfaltar. Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. Esta propuesta va hacia el mismo lado que otra; no se ha encontrado una alternativa mejor dentro del límite. El desnivel es 1224 m frente a los 900 m pedidos."
+          }
+        ],
+        "distinctSides": 2,
+        "repeatedSides": 1
+      },
+      {
+        "km": 90,
+        "gain": 450,
+        "label": "llano",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "pistas"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 85.36,
+            "ascentM": 1688,
+            "mainRoadPct": 3.72,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": -5.16,
+            "ascentErrorM": 1238,
+            "ascentErrorPct": 275.2,
+            "side": 3,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 1688 m frente a los 450 m pedidos."
+          }
+        ],
+        "distinctSides": 1,
+        "repeatedSides": 0
+      },
+      {
+        "km": 90,
+        "gain": 1350,
+        "label": "desnivel",
+        "requests": 6,
+        "rejected": [
+          {
+            "seed": 1100,
+            "reason": "pistas"
+          },
+          {
+            "seed": 1101,
+            "reason": "pistas"
+          },
+          {
+            "seed": 2201,
+            "reason": "sin asfaltar"
+          },
+          {
+            "seed": 3300,
+            "reason": "sin asfaltar"
+          }
+        ],
+        "routes": [
+          {
+            "option": 3,
+            "seed": 3301,
+            "km": 85.36,
+            "ascentM": 1688,
+            "mainRoadPct": 3.72,
+            "backtrackM": 0,
+            "localLoops": 2,
+            "distanceErrorPct": -5.16,
+            "ascentErrorM": 338,
+            "ascentErrorPct": 25.07,
+            "side": 3,
+            "warning": "Posibles tramos de ida y vuelta o pequeños bucles locales. Revisa el recorrido antes de salir. El desnivel es 1688 m frente a los 1350 m pedidos."
+          }
+        ],
+        "distinctSides": 1,
+        "repeatedSides": 0
+      }
+    ]
+  }
+}

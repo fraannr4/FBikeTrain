@@ -4,6 +4,7 @@ import { LlmError } from './llm';
 import { goalFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
 import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
 import type { SharedAiPlanner } from './routePlanner';
+import type { AiPass } from './contracts';
 
 /** Activar solo cuando función y cuota estén desplegadas y verificadas. No habilita un plan de pago. */
 export const SHARED_AI_ENABLED = import.meta.env.VITE_SHARED_AI_ENABLED === 'true';
@@ -49,11 +50,12 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
 export function createSharedAiPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedAiPlanner {
   const request = sharedRequest(getToken, fetchImpl);
   return {
-    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = [], objetivo: AiGoal | null = null) => {
+    plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = [], objetivo: AiGoal | null = null, puertos: AiPass[] = []) => {
       const refs = referencias.map(r => ({ id: r.id, nombre: r.nombre, fuente: r.fuente, distanciaKm: r.distanciaKm, desnivelM: r.desnivelM }));
       const data = await request({
         operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm,
         ...(refs.length ? { referencias: refs } : {}), ...(objetivo ? { objetivo: goalFields(objetivo) } : {}),
+        ...(puertos.length ? { puertos: puertos.map(p => ({ id: p.id, nombre: p.nombre, cotaM: p.cotaM, distanciaKm: p.distanciaKm })) } : {}),
       }, signal);
       const parsed = RoutePlanSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('other', 'El servicio no ha devuelto objetivos válidos. Ajusta la ruta manualmente.');

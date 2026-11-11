@@ -1,4 +1,5 @@
-import { pickReferences, MAX_AI_REFERENCES } from '../src/ai/references';
+import { pickReferences, libraryReferences, MAX_AI_REFERENCES } from '../src/ai/references';
+import { parseReferenceRoute, type ReferenceRoute } from '../src/routes/library';
 import type { RouteReference } from '../src/routes/sources/schema';
 
 /** Referencias sintéticas: nombres y enlaces inventados, geometría en el mar (lat 41.0, lng 2.5). */
@@ -8,7 +9,7 @@ function reference(i: number, o: Partial<RouteReference> = {}): RouteReference {
     url: `https://www.openstreetmap.org/relation/90000${i}`,
     author: `Autor ficticio ${i}`,
     name: `Vuelta sintética ${i}`,
-    distanceM: 40_000 + i * 1000,
+    distanceM: 20_000 + i * 5000,
     ascentM: 500 + i * 10,
     geometry: { type: 'MultiLineString', coordinates: [[[2.5, 41.0], [2.51, 41.01]]] },
     fetchedAt: '2026-11-09T12:00:00.000Z',
@@ -55,12 +56,43 @@ describe('pickReferences', () => {
   it('cada id lleva a su referencia original, con su enlace', () => {
     const refs = [reference(1, { distanceM: 90_000 }), reference(2)];
     const { forAi, byId } = pickReferences(refs, 50);
-    expect(forAi.map((r) => r.id)).toEqual(['ref2']);
-    expect(byId.get('ref2')).toBe(refs[1]);
+    expect(forAi.map((r) => r.id)).toEqual(['ref1']);
+    expect(byId.get('ref1')).toBe(refs[1]);
   });
 
   it('acorta los nombres largos a 80 caracteres', () => {
     const { forAi } = pickReferences([reference(1, { name: 'x'.repeat(300) })], 100);
     expect(forAi[0].nombre).toHaveLength(80);
+  });
+});
+
+describe('referencias de la biblioteca', () => {
+  function local(id: string, offset = 0, sourceUrl?: string): ReferenceRoute {
+    const parsed = parseReferenceRoute(`<gpx><trk><name>${id}</name><trkseg><trkpt lat="${41 + offset}" lon="2.5"><ele>10</ele></trkpt><trkpt lat="${41.001 + offset}" lon="2.501"><ele>20</ele></trkpt></trkseg></trk></gpx>`, 'sintetica.gpx', sourceUrl);
+    return { ...parsed, id, author: 'Autora sintética', createdAt: 0, updatedAt: 0 };
+  }
+  it('filtra por cercanía y conserva el esqueleto solo en el mapa local', () => {
+    const nearby = local('Cerca', 0, 'https://es.wikiloc.com/rutas-ciclismo/sintetica-1234');
+    const refs = libraryReferences([nearby, local('Lejos', 1)], { lat: 41, lng: 2.5 }, 15_000);
+    expect(refs).toHaveLength(1);
+    expect(refs[0]).toMatchObject({ source: 'wikiloc', libraryId: 'Cerca', author: 'Autora sintética', points: nearby.points });
+    const { forAi, byId } = pickReferences(refs, 50);
+    expect(Object.keys(forAi[0]).sort()).toEqual(['desnivelM', 'distanciaKm', 'fuente', 'id', 'nombre']);
+    expect(byId.get(forAi[0].id)?.libraryId).toBe('Cerca');
+    expect(JSON.stringify(forAi)).not.toMatch(/author|points|https|lat|lng|libraryId/);
+  });
+  it('prioriza biblioteca, elimina duplicados y permite recortar una referencia larga', () => {
+    const library = libraryReferences([local('Larga')], { lat: 41, lng: 2.5 }, 15_000);
+    library[0].distanceM = 100_000;
+    const refs = [reference(1, { name: ' larga ', distanceM: 40_000 }), ...library, reference(2, { distanceM: 45_000 }), reference(3, { distanceM: 45_100 })];
+    const { forAi } = pickReferences(refs, 50);
+    expect(forAi.map(r => r.nombre)).toEqual(['Larga', 'Vuelta sintética 2']);
+    expect(forAi[0].fuente).toBe('biblioteca');
+    expect(forAi[0].distanciaKm).toBe(100);
+  });
+  it('mantiene ids acotados aunque haya muchas rutas descartadas', () => {
+    const distant = Array.from({ length: 20 }, (_, i) => reference(i, { distanceM: 150_000 }));
+    const library = libraryReferences([local('Cerca')], { lat: 41, lng: 2.5 }, 15_000);
+    expect(pickReferences([...distant, ...library], 50).forAi[0].id).toBe('ref1');
   });
 });

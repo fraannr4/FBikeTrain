@@ -238,7 +238,7 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
       render(<AccountContext.Provider value={account}><App /></AccountContext.Provider>);
       await answerAll();
       const card = screen.getByRole('region', { name: 'Lo que verá la IA' });
-      expect(within(card).getByText(/rutas públicas conocidas/)).toBeInTheDocument();
+      expect(within(card).getByText(/rutas conocidas y de tu biblioteca/)).toBeInTheDocument();
     } finally {
       vi.unstubAllEnvs();
     }
@@ -334,6 +334,17 @@ describe('Rutas con IA', { timeout: 20_000 }, () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     expect(within(screen.getByRole('article', { name: /Opción 2/ })).queryByText(/Basada en/)).not.toBeInTheDocument();
+  });
+  it('muestra biblioteca sin enlace y conserva autor en una referencia Wikiloc', async () => {
+    await seed();
+    await ask({ kind: 'routes', routes: [
+      aiRoute(0, { basadaEn: { nombre: 'Vuelta de biblioteca', fuente: 'biblioteca' } }),
+      aiRoute(1, { basadaEn: { nombre: 'Ruta con autor', fuente: 'wikiloc', autor: 'Autora sintética', url: 'https://es.wikiloc.com/rutas-ciclismo/sintetica-1234' } }),
+    ], warnings: [] });
+    const first = await screen.findByRole('article', { name: /Opción 1/ });
+    expect(within(first).getByText('Basada en: Vuelta de biblioteca (tu biblioteca)')).toBeInTheDocument();
+    expect(within(first).queryByRole('link', { name: /Basada en/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Basada en: Ruta con autor (Wikiloc, Autora sintética)' })).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('passes the route sources of the account to the planner', async () => {

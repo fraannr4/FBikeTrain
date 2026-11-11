@@ -1,5 +1,15 @@
 # Fuentes de rutas de referencia
 
+## Actualización del 2026-11-11
+
+Informe vigente de proveedores, fuentes oficiales consultadas y recomendación: [fuentes-externas-2026-11-11.md](fuentes-externas-2026-11-11.md). Borrador **sin enviar**: [wikiloc-solicitud-acceso.md](wikiloc-solicitud-acceso.md). Lo que sigue conserva el diseño técnico y la verificación histórica de noviembre de 2026; los apartados que dicen «sin desplegar» describen aquella entrega, no el estado actual de main (ver `ESTADO.md`).
+
+La vía principal de Wikiloc es **GPX aportado por el usuario**, mediante Android/PWA o selector manual en la biblioteca (también iOS). No se habilita el adaptador automatizado. La nueva rama `codex/fuentes-externas` conecta esa biblioteca con la IA: prioridad a referencias próximas, máximo seis tras filtrar/deduplicar; al modelo solo nombre, fuente, km y desnivel, más identificador local. Autor y enlace quedan en la interfaz. La fuente `biblioteca` exige desplegar el esquema actualizado de `ai-routes` junto al cliente; no se ha desplegado en este encargo.
+
+Las propuestas de IA siguen generándose con ORS usando sus cifras: citar un GPX no hace que ORS reproduzca su geometría. Las herramientas de biblioteca y Empalmar sí utilizan el track local. No se implementa aún adaptación automática de sus tramos al objetivo.
+
+Revisión de PWA: `codex/pwa-compartir` ya era antecesora de main, fusionada en `b489fc2`; no hay fusión/rebase pendientes. En la nueva rama se corrigen conservación del envío y elección de destino. Guía actualizada: [pwa-compartir.md](pwa-compartir.md).
+
 Fecha: **2026-11-09**. Rama `codex/fuentes-rutas`. Módulo sin UI; no se han hecho commit, push, migraciones remotas ni despliegue.
 
 ## Contrato y uso

@@ -1,16 +1,22 @@
-import type { LatLng, Settings } from '../domain/types';
+import type { ClimbEffort, LatLng, Settings } from '../domain/types';
+import { getTrack } from '../db/repo';
+import type { AiPass } from './contracts';
+import { haversineM } from '../import/summary';
 import { upliftPct, type UserReference } from '../metrics/reference';
 import type { Target } from '../metrics/score';
 import { generateRoutes, SEARCH_REQUEST_BUDGET, type GeneratedRoute } from '../routes/generator';
 import { OrsError, type OrsAccess } from '../routes/ors';
-import { findRouteReferences, routeSourcesEnabled, type RouteSourceInvoker } from '../routes/sources/client';
-import type { RouteReference } from '../routes/sources/schema';
+import { findMountainPasses, findRouteReferences, routeSourcesEnabled, type RouteSourceInvoker } from '../routes/sources/client';
+import { listReferenceRoutes, type ReferenceRoute } from '../routes/library';
+import { historyPasses, type LocalPass } from '../routes/historyPasses';
+import { libraryIntent, passIntent, type RouteIntent } from '../routes/intent';
+import { routeSide } from '../routes/side';
 import { formatDeltaPct, formatKm, formatMeters } from '../ui/format';
 import { abortError } from './abort';
 import type { LevelSummary } from './levelSummary';
 import { chatJson, LlmError, type LlmErrorKind } from './llm';
 import { buildExplainMessages, buildPlanMessages, type AiGoal, type AiReference, type Answers, type ChatMessage, type RouteFacts } from './prompts';
-import { pickReferences } from './references';
+import { libraryReferences, pickReferences, type KnownRoute } from './references';
 import { ExplanationSchema, RoutePlanSchema, toStrictJsonSchema, type RoutePlan } from './schema';
 
 /**
@@ -45,6 +51,7 @@ export type PlannedTarget = {
   limitadoPorTiempo: boolean;
   /** Referencia en la que dice basarse la IA; se comprueba contra las enviadas. */
   referenciaId: string | null;
+  puertoId?: string | null;
 };
 
 export type AiRoute = GeneratedRoute & {
@@ -55,7 +62,8 @@ export type AiRoute = GeneratedRoute & {
   /** La distancia la ha recortado el tiempo disponible. */
   limitadoPorTiempo: boolean;
   /** Ruta conocida en la que se basa la opción, con su enlace original. */
-  basadaEn?: { nombre: string; fuente: RouteReference['source']; url: string };
+  basadaEn?: { nombre: string; fuente: KnownRoute['source']; url?: string; autor?: string };
+  puerto?: { nombre: string; cotaM: number | null };
 };
 
 export type AiRoutesResult =
@@ -66,7 +74,7 @@ type ChatRequest<T> = Parameters<typeof chatJson<T>>[1];
 type Outcome<T> = { ok: true; data: T } | { ok: false; error: LlmError };
 
 export type SharedAiPlanner = {
-  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias?: AiReference[], objetivo?: AiGoal | null) => Promise<RoutePlan>;
+  plan: (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias?: AiReference[], objetivo?: AiGoal | null, puertos?: AiPass[]) => Promise<RoutePlan>;
   explain: (summary: LevelSummary, facts: RouteFacts[], signal?: AbortSignal) => Promise<{ explicaciones: { id: string; texto: string }[] }>;
 };
 
@@ -102,11 +110,12 @@ export async function planWithRetry(
   signal?: AbortSignal,
   referencias: AiReference[] = [],
   objetivo: AiGoal | null = null,
+  puertos: AiPass[] = [],
 ): Promise<{ ok: true; plan: RoutePlan } | { ok: false; error: LlmError }> {
   const out = await chatWithRetry(
     cfg,
     {
-      messages: buildPlanMessages(summary, answers, maxDistanciaKm, referencias, objetivo),
+      messages: buildPlanMessages(summary, answers, maxDistanciaKm, referencias, objetivo, puertos),
       schemaName: 'plan_rutas',
       jsonSchema: toStrictJsonSchema(RoutePlanSchema),
       schema: RoutePlanSchema,
@@ -157,11 +166,11 @@ export function targetsFromPlan(plan: RoutePlan, ref: UserReference, answers: An
   return plan.opciones.map((o) => {
     const referenciaId = o.referenciaId ?? null;
     if (o.dimension === 'distancia') {
-      return plannedTarget(o.titulo, o.dimension, clamp(o.distanciaKm * 1000, ref.avgDistanceM), o.desnivelM, ref, answers, referenciaId);
+      return { ...plannedTarget(o.titulo, o.dimension, clamp(o.distanciaKm * 1000, ref.avgDistanceM), o.desnivelM, ref, answers, referenciaId), ...(o.puertoId ? { puertoId: o.puertoId } : {}) };
     }
     const wantedGain = o.desnivelM ?? ref.avgElevGainM * (1 + o.subidaPct / 100);
     const elevGainM = Math.round(clamp(wantedGain, ref.avgElevGainM));
-    return plannedTarget(o.titulo, o.dimension, o.distanciaKm * 1000, elevGainM, ref, answers, referenciaId);
+    return { ...plannedTarget(o.titulo, o.dimension, o.distanciaKm * 1000, elevGainM, ref, answers, referenciaId), ...(o.puertoId ? { puertoId: o.puertoId } : {}) };
   });
 }
 
@@ -252,6 +261,10 @@ export async function runAiRoutes(
     sources?: RouteSourceInvoker;
     /** Objetivo vigente del usuario (`aiGoal`), solo cifras; sin él, el plan no lo menciona. */
     goal?: AiGoal | null;
+    library?: () => Promise<ReferenceRoute[]>;
+    climbs?: ClimbEffort[];
+    track?: typeof getTrack;
+    passes?: (start: LatLng, signal?: AbortSignal) => Promise<LocalPass[]>;
   },
 ): Promise<AiRoutesResult> {
   const { start, answers, reference: ref, summary } = input;
@@ -265,7 +278,7 @@ export async function runAiRoutes(
   const warnings: string[] = [];
 
   // Rutas conocidas cerca del inicio. Las coordenadas van solo a nuestra función, nunca a la IA.
-  let known: RouteReference[] = [];
+  let known: KnownRoute[] = [];
   if (deps.sources && routeSourcesEnabled()) {
     try {
       known = await findRouteReferences({ lat: start.lat, lon: start.lng, radiusM: SOURCES_RADIUS_M }, deps.sources, signal);
@@ -274,7 +287,30 @@ export async function runAiRoutes(
       warnings.push(SOURCES_DOWN);
     }
   }
+  try {
+    const local = await (deps.library ?? listReferenceRoutes)();
+    if (signal?.aborted) throw abortError();
+    known = [...libraryReferences(local, start, SOURCES_RADIUS_M), ...known];
+  } catch {
+    if (signal?.aborted) throw abortError();
+    warnings.push('No se ha podido consultar tu biblioteca; se buscarán vueltas nuevas.');
+  }
   const { forAi: referencias, byId: referencesById } = pickReferences(known, maxKm);
+  let passes: LocalPass[] = [];
+  if (answers.focus !== 'fondo') {
+    try {
+      passes = await historyPasses(start, deps.climbs ?? [], deps.track ?? getTrack, signal);
+      const osm = deps.passes ? await deps.passes(start, signal)
+        : deps.sources && routeSourcesEnabled() ? await findMountainPasses(start, deps.sources, signal) : [];
+      for (const p of osm) if (!passes.some(knownPass => haversineM(p.lat, p.lng, knownPass.lat, knownPass.lng) < 300)) passes.push(p);
+    } catch {
+      if (signal?.aborted) throw abortError();
+      warnings.push('No se han podido consultar todos los puertos; se conserva el historial disponible.');
+    }
+  }
+  passes = passes.filter(p => p.distanceM >= 15_000 && p.distanceM <= 40_000 && p.distanceM * 2 <= maxKm * 1000 && passIntent(p.id, start, p)).slice(0, 6);
+  const passesById = new Map(passes.map((p, i) => [`pass${i + 1}`, p]));
+  const puertos: AiPass[] = [...passesById].map(([id, p]) => ({ id, nombre: p.name.slice(0, 80), cotaM: p.ele, distanciaKm: round1(p.distanceM / 1000) }));
 
   // El servicio común caído o sin red no es el límite: con clave personal, se sigue con ella. Con 429, no.
   const personal = !!deps.llm && deps.llm.apiKey.trim() !== '' && deps.llm.model.trim() !== '';
@@ -282,15 +318,15 @@ export async function runAiRoutes(
   let planned: Awaited<ReturnType<typeof planWithRetry>>;
   let shared = deps.shared;
   if (shared) {
-    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal, referencias, objetivo) }; }
+    try { planned = { ok: true, plan: await shared.plan(summary, answers, maxKm, signal, referencias, objetivo, puertos) }; }
     catch (error) {
       if (!(error instanceof LlmError)) throw error;
       if (usePersonal(error)) {
         shared = undefined;
-        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo);
+        planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo, puertos);
       } else planned = { ok: false, error };
     }
-  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo);
+  } else planned = await planWithRetry(deps.llm, summary, answers, maxKm, chat, signal, referencias, objetivo, puertos);
   if (!planned.ok) {
     const message = planned.error.kind === 'invalid_json' ? FALLBACK_INVALID : planned.error.message;
     return { kind: 'fallback', message, cause: planned.error.kind, suggested: suggestedTarget(ref, answers) };
@@ -300,15 +336,28 @@ export async function runAiRoutes(
   const found: Found[] = [];
   const targets = targetsFromPlan(planned.plan, ref, answers);
   let remaining = SEARCH_REQUEST_BUDGET;
+  const usedSides = new Set<number>();
   for (const [index, p] of targets.entries()) {
     if (signal?.aborted) throw abortError();
     if (remaining <= 0) break;
     // Repartir el presupuesto deja al menos un intento a las opciones siguientes.
     const seeds = Math.min(ORS_SEEDS, Math.max(1, Math.floor(remaining / (targets.length - index))));
+    const intents: RouteIntent[] = [];
+    const pass = p.puertoId ? passesById.get(p.puertoId) : undefined;
+    if (pass && p.puertoId) {
+      const intent = passIntent(p.puertoId, start, pass);
+      if (intent) intents.push(intent);
+    }
+    const base = p.referenciaId ? referencesById.get(p.referenciaId) : undefined;
+    if (base?.points && p.referenciaId) {
+      const extension = [...referencesById.values()].find(r => r.libraryId && r.libraryId !== base.libraryId && r.points);
+      const intent = libraryIntent(p.referenciaId, start, p.target.distanceM, base.points, extension?.points);
+      if (intent) intents.push(intent);
+    }
     let res;
     try {
       res = await generate(
-        { start, target: p.target, count: ORS_COUNT, seeds },
+        { start, target: p.target, count: ORS_COUNT, seeds, usedSides: [...usedSides], ...(intents.length ? { intents } : {}) },
         { apiKey: deps.orsKey, reference: ref, visited: deps.visited, signal },
       );
     } catch (e) {
@@ -319,6 +368,7 @@ export async function runAiRoutes(
     remaining -= res.requestsUsed;
     const [route] = res.routes;
     if (route) {
+      usedSides.add(routeSide(route.coords, start));
       const dim = p.dimension === 'distancia' ? 'distance' : 'elevation';
       found.push({ route, planned: p, uplift: upliftPct(route, ref, dim) });
     } else if (!res.stoppedBy) {
@@ -360,7 +410,8 @@ export async function runAiRoutes(
     const f = facts[i];
     const texto = texts.get(f.id);
     // Un id que no se ha enviado se ignora.
-    const basada = p.referenciaId === null ? undefined : referencesById.get(p.referenciaId);
+    const basada = route.intentId ? referencesById.get(route.intentId) : undefined;
+    const puerto = route.intentId ? passesById.get(route.intentId) : undefined;
     return {
       ...route,
       titulo: p.titulo,
@@ -368,7 +419,8 @@ export async function runAiRoutes(
       upliftPct: uplift,
       limitadoPorTiempo: p.limitadoPorTiempo,
       explicacion: texto && citesFigures(texto, f) ? texto : templateExplanation(f),
-      ...(basada ? { basadaEn: { nombre: basada.name, fuente: basada.source, url: basada.url } } : {}),
+      ...(basada ? { basadaEn: { nombre: basada.name, fuente: basada.source, ...(basada.url ? { url: basada.url } : {}), ...(basada.author ? { autor: basada.author } : {}) } } : {}),
+      ...(puerto ? { puerto: { nombre: puerto.name, cotaM: puerto.ele } } : {}),
     };
   });
   return { kind: 'routes', routes, warnings };

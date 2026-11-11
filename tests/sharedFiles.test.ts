@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readSharedFiles, sharedCacheKey, sharedDestination, SHARE_CACHE } from '../src/pwa/sharedFiles';
+import { readSharedFiles, savePendingSharedFiles, sharedCacheKey, sharedDestination, SHARE_CACHE } from '../src/pwa/sharedFiles';
 
 const gpx = (inside: string) => `<gpx><metadata><time>2026-01-01T00:00:00Z</time></metadata><trk><trkseg>${inside}</trkseg></trk></gpx>`;
 describe('destino de ficheros compartidos', () => {
@@ -32,11 +32,11 @@ describe('destino de ficheros compartidos', () => {
 
 describe('bandeja temporal Cache API', () => {
   function storage(response?: { headers: Headers; formData: () => Promise<FormData> }) {
-    const cache = { match: vi.fn().mockResolvedValue(response), delete: vi.fn().mockResolvedValue(true) };
+    const cache = { match: vi.fn().mockResolvedValue(response), delete: vi.fn().mockResolvedValue(true), put: vi.fn().mockResolvedValue(undefined) };
     const mock = { open: vi.fn().mockResolvedValue(cache) };
     return { cache, mock, api: mock as unknown as CacheStorage };
   }
-  it('reconstruye varios ficheros y elimina solo la entrada leída', async () => {
+  it('reconstruye varios ficheros y conserva el envío para una recarga antes de importar', async () => {
     const data = new FormData();
     data.append('files', new File(['synthetic'], 'ruta.gpx'));
     data.append('files', new File(['synthetic'], 'salida.fit'));
@@ -46,8 +46,28 @@ describe('bandeja temporal Cache API', () => {
     expect(files.map(file => file.name)).toEqual(['ruta.gpx', 'salida.fit']);
     expect(await files[0].text()).toBe('synthetic');
     expect(mock.open).toHaveBeenCalledWith(SHARE_CACHE);
-    expect(cache.delete).toHaveBeenCalledOnce();
-    expect(cache.delete).toHaveBeenCalledWith(sharedCacheKey('synthetic-1'));
+    expect(cache.delete).not.toHaveBeenCalled();
+    expect((await readSharedFiles('synthetic-1', api)).map(file => file.name)).toEqual(['ruta.gpx', 'salida.fit']);
+  });
+  it('guarda solo los ficheros pendientes conservando la caducidad original', async () => {
+    const at = String(Date.now() - 1000);
+    const { api, cache } = storage({ headers: new Headers({ 'X-Shared-At': at }), formData: async () => new FormData() });
+    // Response de Node no reconoce FormData de jsdom; el multipart real se prueba en Playwright.
+    const responseConstructor = vi.spyOn(globalThis, 'Response').mockImplementation(body => ({ headers: new Headers(), formData: async () => body }) as Response);
+    try { await savePendingSharedFiles('partial', [new File(['synthetic'], 'pendiente.gpx')], api); }
+    finally { responseConstructor.mockRestore(); }
+    expect(cache.put).toHaveBeenCalledOnce();
+    const [key, response] = cache.put.mock.calls[0] as [string, Response];
+    expect(key).toBe(sharedCacheKey('partial'));
+    expect(response.headers.get('X-Shared-At')).toBe(at);
+    expect(((await response.formData()).get('files') as File).name).toBe('pendiente.gpx');
+    expect(cache.delete).not.toHaveBeenCalled();
+  });
+  it('borra solo el envío procesado o descartado expresamente', async () => {
+    const { api, cache } = storage();
+    await savePendingSharedFiles('completed', [], api);
+    expect(cache.delete).toHaveBeenCalledWith(sharedCacheKey('completed'));
+    expect(cache.put).not.toHaveBeenCalled();
   });
   it('envío ausente o ya consumido devuelve lista vacía', async () => {
     const { api, cache } = storage();

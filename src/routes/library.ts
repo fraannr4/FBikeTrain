@@ -4,6 +4,7 @@ import type { Coord3 } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { child, descendants, parseXml, text, toNumber } from '../import/xml';
 import { toGpx } from './gpx';
+import { isWikilocUrl } from './wikilocLimits';
 
 /** Recorridos de referencia: no son actividades realizadas y no contienen tiempos ni sensores. */
 export type RoutePoint = { lat: number; lng: number; ele?: number };
@@ -22,6 +23,7 @@ export type ReferenceRoute = {
   format: 'gpx' | 'tcx';
   sourceFileName: string;
   sourceUrl?: string;
+  author?: string;
   originalXml: string;
   originalPoints: RoutePoint[];
   points: RoutePoint[];
@@ -82,6 +84,29 @@ function sourceLink(value: string | undefined): string | undefined {
   return url.href;
 }
 
+export function referenceSite(value: string | undefined): 'wikiloc' | 'otro' | null {
+  if (!value) return null;
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === 'wikiloc.com' || host.endsWith('.wikiloc.com') ? 'wikiloc' : 'otro';
+  } catch { return null; }
+}
+
+/** Los metadatos incrustados no deben impedir importar un track válido. */
+function embeddedLink(containers: (Element | undefined)[]): string | undefined {
+  for (const container of containers) {
+    if (!container) continue;
+    for (let node = container.firstChild; node; node = node.nextSibling) {
+      if (node.nodeType !== node.ELEMENT_NODE || (node as Element).localName !== 'link') continue;
+      try {
+        const value = sourceLink((node as Element).getAttribute('href') ?? undefined);
+        if (value) return value;
+      } catch { /* Se prueba el siguiente enlace HTTP válido. */ }
+    }
+  }
+  return undefined;
+}
+
 function numberField(value: string | null | undefined, field: string): number {
   const number = toNumber(value);
   if (number === undefined) throw new RouteLibraryError(`La ruta contiene ${field} ausente o no válido.`);
@@ -109,6 +134,8 @@ export function parseReferenceRoute(xml: string, fileName: string, url?: string)
   let format: ReferenceRoute['format'];
   let name: string | undefined;
   let points: RoutePoint[];
+  let embeddedUrl: string | undefined;
+  let author: string | undefined;
   if (root?.localName === 'gpx') {
     format = 'gpx';
     const tracks = descendants(root, 'trk');
@@ -116,6 +143,10 @@ export function parseReferenceRoute(xml: string, fileName: string, url?: string)
     if (routes.length > 0) throw new RouteLibraryError('El GPX contiene una ruta de waypoints; exporta un track detallado o recalcula el recorrido por carretera antes de importarlo.');
     if (tracks.length !== 1) throw new RouteLibraryError('Selecciona un GPX con un solo track.');
     const container = tracks[0];
+    const metadata = child(root, 'metadata');
+    const authorElement = metadata && child(metadata, 'author');
+    author = (text(authorElement && child(authorElement, 'name'))?.trim() || text(child(container, 'src'))?.trim())?.slice(0, 120);
+    embeddedUrl = embeddedLink([metadata, container]);
     name = text(child(container, 'name'));
     const raw = oneTrack(descendants(container, 'trkseg').map(segment => descendants(segment, 'trkpt')));
     if (raw.length > MAX_REFERENCE_POINTS) throw new RouteLibraryError('La ruta supera el límite de 50.000 puntos.');
@@ -133,10 +164,10 @@ export function parseReferenceRoute(xml: string, fileName: string, url?: string)
       return { lat: numberField(text(position && child(position, 'LatitudeDegrees')), 'latitud'), lng: numberField(text(position && child(position, 'LongitudeDegrees')), 'longitud'), ...elevation(text(child(point, 'AltitudeMeters'))) };
     });
   } else throw new RouteLibraryError('El fichero no es un GPX o TCX de rutas.');
-  const sourceUrl = sourceLink(url);
+  const sourceUrl = sourceLink(url) ?? embeddedUrl;
   return {
     name: (name?.trim() || fileName.replace(/\.(gpx|tcx)$/i, '') || 'Ruta importada').slice(0, 120), format, sourceFileName: fileName,
-    ...(sourceUrl ? { sourceUrl } : {}), originalXml: xml, originalPoints: copy(points), points,
+    ...(sourceUrl ? { sourceUrl } : {}), ...(author ? { author } : {}), originalXml: xml, originalPoints: copy(points), points,
     summary: analyzeReferenceRoutePoints(points),
   };
 }
@@ -171,6 +202,29 @@ export async function saveSplicedRoute(name: string, points: RoutePoint[]): Prom
   const route: ReferenceRoute = {
     id: crypto.randomUUID(), name: routeName, format: 'gpx', sourceFileName: 'empalme.gpx',
     originalXml: routePointsToGpx(routeName, points), originalPoints: copy(points), points: copy(points), summary, createdAt: now, updatedAt: now,
+  };
+  await db.referenceRoutes.add(route);
+  return route;
+}
+
+/**
+ * Guarda una ruta de Wikiloc adaptada: el trazado adaptado como actual y el GPX recibido como original,
+ * con el autor y el enlace a la ficha. «Volver al trazado original» devuelve la ruta de Wikiloc.
+ */
+export async function saveAdaptedRoute(
+  original: ParsedReferenceRoute,
+  points: RoutePoint[],
+  meta: { name: string; sourceUrl: string; author: string | null },
+): Promise<ReferenceRoute> {
+  if (!isWikilocUrl(meta.sourceUrl)) throw new RouteLibraryError('El enlace de la ruta no es de wikiloc.com.');
+  const summary = analyzeReferenceRoutePoints(points);
+  const author = meta.author?.trim().slice(0, 120);
+  const now = Date.now();
+  const route: ReferenceRoute = {
+    id: crypto.randomUUID(), name: meta.name.trim().slice(0, 120) || original.name, format: original.format,
+    sourceFileName: original.sourceFileName, sourceUrl: meta.sourceUrl, ...(author ? { author } : {}),
+    originalXml: original.originalXml, originalPoints: copy(original.originalPoints), points: copy(points), summary,
+    createdAt: now, updatedAt: now,
   };
   await db.referenceRoutes.add(route);
   return route;

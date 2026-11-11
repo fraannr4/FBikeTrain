@@ -21,8 +21,12 @@ const spliceFactSchema = z.strictObject({
   viasPrincipalesPct: finite(100), conectorKm: finite(2000), solapeKm: finite(2000), retrocesoKm: finite(2000), alternativa: z.boolean(),
 });
 const referenceSchema = z.strictObject({
-  id: z.string().regex(/^ref([1-9]|10)$/), nombre: z.string().trim().min(1).max(80), fuente: z.enum(['wikiloc', 'osm']),
+  id: z.string().regex(/^ref([1-9]|10)$/), nombre: z.string().trim().min(1).max(80), fuente: z.enum(['wikiloc', 'osm', 'biblioteca']),
   distanciaKm: finite(2000), desnivelM: finite(200_000).nullable(),
+});
+const passSchema = z.strictObject({
+  id: z.string().regex(/^pass[1-6]$/), nombre: z.string().trim().min(1).max(80),
+  cotaM: finite(12_000).nullable(), distanciaKm: finite(40),
 });
 const dayIndex = z.number().int().min(0).max(6);
 const uniqueDays = (min: number) => z.array(dayIndex).min(min).max(7).refine(days => new Set(days).size === days.length);
@@ -39,6 +43,7 @@ export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
     answers: z.strictObject({ focus: z.enum(['fondo', 'subidas', 'mixto']), minutes: z.number().int().min(10).max(1440), explore: z.enum(['repetir', 'descubrir']), notes: z.literal('').default('') }),
     maxDistanciaKm: z.number().finite().min(0).max(200),
     referencias: z.array(referenceSchema).max(6).refine(refs => new Set(refs.map(ref => ref.id)).size === refs.length).optional(),
+    puertos: z.array(passSchema).max(6).refine(passes => new Set(passes.map(pass => pass.id)).size === passes.length).optional(),
     objetivo: aiGoalSchema.nullable().optional(),
   }),
   z.strictObject({ operation: z.literal('explain'), summary: summarySchema, facts: z.array(factSchema).min(1).max(5).refine(facts => new Set(facts.map(fact => fact.id)).size === facts.length) }),

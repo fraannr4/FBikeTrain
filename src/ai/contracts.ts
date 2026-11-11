@@ -29,10 +29,12 @@ export type SpliceFacts = {
 export type AiReference = {
   id: string;
   nombre: string;
-  fuente: 'wikiloc' | 'osm';
+  fuente: 'wikiloc' | 'osm' | 'biblioteca';
   distanciaKm: number;
   desnivelM: number | null;
 };
+/** Puerto elegido a partir de datos resumidos. Su posición permanece en el cliente. */
+export type AiPass = { id: string; nombre: string; cotaM: number | null; distanciaKm: number };
 export type Focus = 'fondo' | 'subidas' | 'mixto';
 export type Answers = { focus: Focus; minutes: number; explore: 'repetir' | 'descubrir'; notes: string };
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };

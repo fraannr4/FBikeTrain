@@ -98,6 +98,8 @@ img, svg, canvas { max-width: 100%; }
   font: 600 14.5px / 1 var(--font-ui);
   white-space: nowrap;
 }
+/* Botón con texto ajeno (nombres, autores): parte líneas en vez de desbordar en el móvil. */
+.btn.btn--wrap { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; padding-block: var(--s-2); max-width: 100%; text-align: center; }
 .btn-primary { background: var(--action); color: var(--on-action); }
 .btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--ink); }
 .btn[disabled], .btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }

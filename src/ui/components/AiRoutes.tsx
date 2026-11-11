@@ -11,7 +11,7 @@ import { Carousel } from './Carousel';
 /** Una ruta lista para pintar y exportar. */
 export type ShownRoute = { card: RouteCardData; coords: Coord3[]; file: string };
 
-const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap' } as const;
+const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap', biblioteca: 'tu biblioteca' } as const;
 
 /** Tarjeta de cada propuesta: el título de la IA, su explicación y cuánto cambia frente a tu referencia (sube o baja). */
 export function aiShown(routes: AiRoute[]): ShownRoute[] {
@@ -19,7 +19,8 @@ export function aiShown(routes: AiRoute[]): ShownRoute[] {
     const card = toCardData(r, r.titulo);
     const notes = [...(card.notes ?? []), { icon: r.upliftPct >= 0 ? TrendingUp : TrendingDown, text: `${formatDeltaPct(r.upliftPct)} frente a tu referencia en ${r.dimension}` }];
     if (r.limitadoPorTiempo) notes.push({ icon: Clock, text: 'Limitada por tu tiempo disponible' });
-    const basedOn = r.basadaEn ? { label: `Basada en: ${r.basadaEn.nombre} (${SOURCE_LABEL[r.basadaEn.fuente]})`, url: r.basadaEn.url } : undefined;
+    if (r.puerto) notes.push({ icon: TrendingUp, text: `Por ${r.puerto.nombre}${r.puerto.cotaM === null ? '' : ` · cota ${formatMeters(r.puerto.cotaM)}`}` });
+    const basedOn = r.basadaEn ? { label: `Basada en: ${r.basadaEn.nombre} (${SOURCE_LABEL[r.basadaEn.fuente]}${r.basadaEn.autor ? `, ${r.basadaEn.autor}` : ''})`, url: r.basadaEn.url } : undefined;
     return { card: { ...card, why: r.explicacion, notes, basedOn }, coords: r.coords, file: gpxFileName(r) };
   });
 }
@@ -109,10 +110,11 @@ export function AiSeesList({ summary, knownRoutes = false }: { summary: LevelSum
         <li>
           <Check className="ic" aria-hidden="true" />
           <span>
-            El nombre, la fuente, los km y el desnivel de rutas públicas conocidas cerca, <b>sin enlaces ni coordenadas</b>
+            El nombre, la fuente, los km y el desnivel de rutas conocidas y de tu biblioteca, <b>sin enlaces ni coordenadas</b>
           </span>
         </li>
       ) : null}
+      <li><Check className="ic" aria-hidden="true" /><span>Los nombres, cotas y distancias de puertos y subidas cercanos, sin coordenadas</span></li>
     </ul>
   );
 }

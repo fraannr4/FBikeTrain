@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && npm run build:bookmarklet && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:db": "node scripts/test-account-sql.mjs"
+    "test:db": "node scripts/test-account-sql.mjs",
+    "build:bookmarklet": "node scripts/build-bookmarklet.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

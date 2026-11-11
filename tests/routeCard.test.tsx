@@ -16,6 +16,11 @@ const ramp = Array.from({ length: 201 }, (_, i) => {
 });
 
 describe('RouteCard', () => {
+  it('muestra una referencia de biblioteca sin fabricar un enlace', () => {
+    renderCard(<RouteCard route={{ ...bestRoute, basedOn: { label: 'Basada en: Vuelta sintética (tu biblioteca)' } }} variant="best" />);
+    expect(screen.getByText('Basada en: Vuelta sintética (tu biblioteca)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Basada en/ })).not.toBeInTheDocument();
+  });
   it('best variant shows La que mejor encaja', () => {
     const { container } = renderCard(<RouteCard route={bestRoute} variant="best" />);
     expect(screen.getByText('La que mejor encaja')).toBeInTheDocument();
