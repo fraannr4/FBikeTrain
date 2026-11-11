@@ -297,3 +297,12 @@ Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Int
   - el centro que sale a Overpass va redondeado a 2 decimales;
   - no sale la coordenada exacta de Casa.
 - Pendiente con datos reales: la precarga desde la cuenta del usuario y la prueba en Android con el BSC200S.
+
+## 2026-11-11 (noche): Ride with GPS en el catálogo
+
+- Preflight real con `curl -X OPTIONS https://ridewithgps.com/api/v1/routes/1.json` (Origin GitHub Pages): 200, con `access-control-allow-origin: *` y las cabeceras `x-rwgps-*` permitidas. Sin clave, `GET` responde 401 con CORS.
+- `npx tsc --noEmit`: limpio.
+- vitest: 120 ficheros, 1490/1490.
+- Build: correcto.
+- e2e `rwgps.spec.ts` 2/2 y `catalogo.spec.ts` 4/4, a 360 y 430 px sin desborde. La contraseña no queda en IndexedDB ni en localStorage.
+- Pendiente con la cuenta real del usuario: crear el token, importar las rutas y probar las propuestas.

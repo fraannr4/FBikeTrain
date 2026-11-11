@@ -26,6 +26,7 @@ function originLabel(url: string): string {
     const host = new URL(url).hostname;
     if (host === 'www.openstreetmap.org') return 'Ver en OpenStreetMap';
     if (host === 'wikiloc.com' || host.endsWith('.wikiloc.com')) return 'Ver en Wikiloc';
+    if (host === 'ridewithgps.com' || host === 'www.ridewithgps.com') return 'Ver en Ride with GPS';
   } catch { /* enlace guardado no válido: texto genérico */ }
   return 'Ver el origen';
 }

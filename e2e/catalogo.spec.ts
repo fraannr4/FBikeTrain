@@ -74,7 +74,7 @@ for (const theme of ['light', 'dark'] as const) {
 
       // 1. Precarga desde la app: el centro sale redondeado a 2 decimales.
       await page.getByRole('button', { name: 'Cargar rutas de OpenStreetMap' }).click();
-      await expect(page.getByText('4 rutas: 4 de OpenStreetMap, 0 a puertos y 0 tuyas.')).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText('4 rutas: 4 de OpenStreetMap, 0 a puertos, 0 de Ride with GPS y 0 tuyas.')).toBeVisible({ timeout: 20_000 });
       expect(sent[0]).toContain(`around:15000,${Number(HOME.lat.toFixed(2))},${Number(HOME.lng.toFixed(2))}`);
       expect(sent.join('')).not.toContain(String(HOME.lat));
 

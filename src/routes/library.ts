@@ -27,8 +27,8 @@ export type ReferenceRoute = {
   originalPoints: RoutePoint[];
   points: RoutePoint[];
   summary: ReferenceRouteSummary;
-  /** Rutas del catálogo precargado: OpenStreetMap o subida a un puerto. `ref` evita duplicarlas al recargar. */
-  catalog?: { kind: 'osm' | 'puerto'; ref: string; tipo: 'carretera' | 'btt' | 'puerto' };
+  /** Rutas del catálogo precargado: OpenStreetMap, subida a un puerto o Ride with GPS. `ref` evita duplicarlas al recargar. */
+  catalog?: { kind: 'osm' | 'puerto' | 'rwgps'; ref: string; tipo: 'carretera' | 'btt' | 'puerto' };
   /** `dem`: la altitud viene del modelo de terreno, no del track; el desnivel es una estimación. */
   elevation?: 'dem';
   createdAt: number;

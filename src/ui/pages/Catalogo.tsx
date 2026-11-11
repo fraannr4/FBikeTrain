@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { isAbort } from '../../ai/abort';
 import { useAccount } from '../../auth/AccountBoundary';
@@ -8,9 +8,14 @@ import { loadOsmCatalog, type CatalogProgress } from '../../routes/catalog/load'
 import { OsmCatalogError } from '../../routes/catalog/osm';
 import { recommendFromCatalog, type Proposal, type RecommendUpdate } from '../../routes/catalog/recommend';
 import {
-  importReferenceRoutes, listReferenceRoutes, parseReferenceRoute, RouteLibraryError, type ParsedReferenceRoute, type ReferenceRoute,
+  importReferenceRoutes, listReferenceRoutes, parseReferenceRoute, saveCatalogRoutes, RouteLibraryError, type ParsedReferenceRoute, type ReferenceRoute,
 } from '../../routes/library';
 import { OrsError } from '../../routes/ors';
+import { RwgpsError } from '../../routes/sources/ridewithgps';
+import { clearRwgpsCredentials, loadRwgpsCredentials, saveRwgpsCredentials } from '../../routes/sources/rwgpsCredentials';
+import {
+  createRwgpsToken, fetchRwgpsRoutes, parseRwgpsLinks, RWGPS_API_CLIENTS_URL, RWGPS_FIND_URL, RWGPS_UNAUTHORIZED, type RwgpsLink,
+} from '../../routes/sources/rwgpsImport';
 import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
 import { isWikilocUrl } from '../../routes/wikilocLimits';
 import { clearLegacyWikilocRows, loadWikilocRequest, saveWikilocRequest, wikilocSearchUrl } from '../../routes/wikilocNearby';
@@ -81,11 +86,17 @@ export function Catalogo() {
   const [loading, setLoading] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [upload, setUpload] = useState<UploadState | null>(null);
+  const [rwgps, setRwgps] = useState<{ apiKey: string; authToken: string } | null>(null);
+  const [rwgpsForm, setRwgpsForm] = useState({ apiKey: '', email: '', password: '' });
+  const [rwgpsLinks, setRwgpsLinks] = useState('');
+  const [rwgpsBusy, setRwgpsBusy] = useState<string | null>(null);
+  const [rwgpsError, setRwgpsError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let alive = true;
     setLoadFailed(false);
+    void loadRwgpsCredentials().then((c) => alive && setRwgps(c)).catch(() => undefined);
     void clearLegacyWikilocRows().catch(() => undefined);
     Promise.all([loadSettings(), listReferenceRoutes(), loadWikilocRequest()])
       .then(([s, list, request]) => {
@@ -120,13 +131,14 @@ export function Catalogo() {
   const gainError = gainOk ? undefined : GAIN_ERROR;
   const hasKey = !!settings && ((sharedOrsEnabled() && account !== null) || settings.ors.apiKey.trim() !== '');
   const ors = useMemo(() => (settings ? chooseOrsAccess(settings.ors.apiKey, account) : null), [settings, account]);
-  const busy = loading !== null || importing || search?.state === 'running' || upload?.state === 'adapting';
+  const busy = loading !== null || importing || rwgpsBusy !== null || search?.state === 'running' || upload?.state === 'adapting';
 
   const counts = useMemo(() => {
     const list = routes ?? [];
     const osm = list.filter((r) => r.catalog?.kind === 'osm').length;
     const passes = list.filter((r) => r.catalog?.kind === 'puerto').length;
-    return { total: list.length, osm, passes, own: list.length - osm - passes };
+    const rwgpsCount = list.filter((r) => r.catalog?.kind === 'rwgps').length;
+    return { total: list.length, osm, passes, rwgps: rwgpsCount, own: list.length - osm - passes - rwgpsCount };
   }, [routes]);
 
   const refreshRoutes = async () => setRoutes(await listReferenceRoutes());
@@ -185,6 +197,7 @@ export function Catalogo() {
     abort.current = null;
     setSearch((s) => (s?.state === 'running' ? { state: 'done', proposals: s.proposals, candidates: 0, rejected: 0 } : s));
     setLoading(null);
+    setRwgpsBusy(null);
   };
 
   const preload = async () => {
@@ -263,6 +276,79 @@ export function Catalogo() {
       const message = err instanceof RouteLibraryError || err instanceof OrsError || err instanceof RangeError ? err.message : 'El fichero no es un GPX o TCX válido.';
       setUpload({ state: 'error', message });
     }
+  };
+
+  const connectRwgps = async (e: FormEvent) => {
+    e.preventDefault();
+    if (rwgpsBusy) return;
+    setRwgpsBusy('Conectando con Ride with GPS…');
+    setRwgpsError(null);
+    try {
+      const authToken = await createRwgpsToken(rwgpsForm.apiKey, rwgpsForm.email, rwgpsForm.password);
+      const credentials = { apiKey: rwgpsForm.apiKey.trim(), authToken };
+      await saveRwgpsCredentials(credentials);
+      setRwgps(credentials);
+      setRwgpsForm({ apiKey: '', email: '', password: '' });
+      toast('Ride with GPS conectado', { tone: 'good' });
+    } catch (err) {
+      setRwgpsError(err instanceof RwgpsError ? err.message : UNEXPECTED);
+    } finally {
+      setRwgpsForm((f) => ({ ...f, password: '' }));
+      setRwgpsBusy(null);
+    }
+  };
+
+  const disconnectRwgps = async () => {
+    await clearRwgpsCredentials().catch(() => undefined);
+    setRwgps(null);
+    toast('Ride with GPS desconectado', { tone: 'info' });
+  };
+
+  /** Descarga por la API de Ride with GPS las rutas enlazadas y las guarda en el catálogo. */
+  const importRwgps = async (links: RwgpsLink[]) => {
+    if (!rwgps || busy || links.length === 0) return;
+    const controller = newController();
+    setRwgpsError(null);
+    setRwgpsBusy('Leyendo Ride with GPS…');
+    try {
+      const { routes: found, failed } = await fetchRwgpsRoutes(links, rwgps, {
+        signal: controller.signal,
+        onProgress: (p) => !controller.signal.aborted && setRwgpsBusy(`Descargando rutas de Ride with GPS: ${formatCount(p.done + 1)} de ${formatCount(p.total)}…`),
+      });
+      if (found.length) {
+        await saveCatalogRoutes(found.map((r) => ({
+          name: r.name, points: r.points, sourceUrl: r.sourceUrl, author: `${r.author} en Ride with GPS`,
+          catalog: { kind: 'rwgps' as const, ref: `rwgps-${r.id}`, tipo: 'carretera' as const },
+        })));
+        await refreshRoutes();
+        setRwgpsLinks('');
+      }
+      toast(`${routesWord(found.length)} de Ride with GPS en el catálogo.`, { tone: found.length ? 'good' : 'info' });
+      if (failed.length) {
+        const first = failed.slice(0, 3).map((f) => `${f.ref} (${f.message})`).join('; ');
+        setRwgpsError(`${failed.length === 1 ? '1 sin importar' : `${formatCount(failed.length)} sin importar`}: ${first}${failed.length > 3 ? '…' : ''}`);
+      }
+    } catch (err) {
+      if (isAbort(err) || controller.signal.aborted) return;
+      if (err instanceof RwgpsError && err.message === RWGPS_UNAUTHORIZED) {
+        await clearRwgpsCredentials().catch(() => undefined);
+        setRwgps(null);
+      }
+      setRwgpsError(err instanceof RwgpsError ? err.message : UNEXPECTED);
+    } finally {
+      if (abort.current === controller) abort.current = null;
+      setRwgpsBusy(null);
+    }
+  };
+
+  const importRwgpsText = () => {
+    const { links, invalid } = parseRwgpsLinks(rwgpsLinks);
+    if (links.length === 0) {
+      setRwgpsError('Pega enlaces de rutas (ridewithgps.com/routes/…) o de colecciones (ridewithgps.com/collections/…).');
+      return;
+    }
+    if (invalid.length) toast(`${invalid.length === 1 ? '1 texto no es un enlace' : `${formatCount(invalid.length)} textos no son enlaces`} de Ride with GPS: se ignora${invalid.length === 1 ? '' : 'n'}.`, { tone: 'info' });
+    void importRwgps(links);
   };
 
   const saveHome = async (p: LatLng) => {
@@ -391,7 +477,7 @@ export function Catalogo() {
           <p className="cat-count">
             {counts.total === 0
               ? 'Aún no hay rutas.'
-              : `${routesWord(counts.total)}: ${formatCount(counts.osm)} de OpenStreetMap, ${formatCount(counts.passes)} a puertos y ${formatCount(counts.own)} tuyas.`}
+              : `${routesWord(counts.total)}: ${formatCount(counts.osm)} de OpenStreetMap, ${formatCount(counts.passes)} a puertos, ${formatCount(counts.rwgps)} de Ride with GPS y ${formatCount(counts.own)} tuyas.`}
           </p>
           {loading ? (
             <div className="cat-status" role="status">
@@ -444,6 +530,80 @@ export function Catalogo() {
           ) : upload?.state === 'error' ? (
             <p className="library-error" role="alert">
               {upload.message}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+      {ready ? (
+        <section className="section card library-panel" aria-labelledby="cat-rwgps">
+          <h2 className="card-title" id="cat-rwgps">
+            Rutas de Ride with GPS
+          </h2>
+          <a className="btn btn--secondary btn--block btn--wrap" href={RWGPS_FIND_URL} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="ic" aria-hidden="true" />
+            Buscar en Ride with GPS
+            <span className="sr-only"> (se abre en otra pestaña)</span>
+          </a>
+          {rwgps ? (
+            <>
+              <div className="cat-field">
+                <label className="cat-label" htmlFor="cat-rwgps-links">
+                  Enlaces de rutas o colecciones
+                </label>
+                <textarea
+                  id="cat-rwgps-links"
+                  className="cat-links"
+                  rows={4}
+                  placeholder="https://ridewithgps.com/routes/…"
+                  value={rwgpsLinks}
+                  disabled={busy}
+                  onChange={(e) => setRwgpsLinks(e.target.value)}
+                />
+              </div>
+              <button type="button" className="btn btn--primary btn--block btn--wrap" disabled={busy || !rwgpsLinks.trim()} onClick={importRwgpsText}>
+                <Upload className="ic" aria-hidden="true" />
+                Añadir al catálogo
+              </button>
+              <button type="button" className="btn btn--secondary btn--block btn--wrap" disabled={busy} onClick={() => void importRwgps([{ kind: 'collection', id: 'pinned' }])}>
+                <Route className="ic" aria-hidden="true" />
+                Añadir mi colección fijada
+              </button>
+              <p className="help">
+                Pega muchos enlaces a la vez, uno por línea, o el de una colección. Se descargan con tu cuenta por la API oficial y se adaptan como el resto del catálogo.
+              </p>
+              <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => void disconnectRwgps()}>
+                Desconectar Ride with GPS
+              </button>
+            </>
+          ) : (
+            <form className="cat-rwgps-form" onSubmit={(e) => void connectRwgps(e)}>
+              <p className="help">
+                Conecta tu cuenta para descargar rutas por la API oficial. Crea una clave en{' '}
+                <a href={RWGPS_API_CLIENTS_URL} target="_blank" rel="noopener noreferrer">
+                  API clients de Ride with GPS<span className="sr-only"> (se abre en otra pestaña)</span>
+                </a>
+                . La contraseña solo se envía a Ride with GPS y no se guarda.
+              </p>
+              <Field label="Clave de API" autoComplete="off" value={rwgpsForm.apiKey} disabled={busy} onChange={(e) => setRwgpsForm((f) => ({ ...f, apiKey: e.target.value }))} />
+              <Field label="Correo de Ride with GPS" type="email" autoComplete="username" value={rwgpsForm.email} disabled={busy} onChange={(e) => setRwgpsForm((f) => ({ ...f, email: e.target.value }))} />
+              <Field label="Contraseña de Ride with GPS" type="password" autoComplete="current-password" value={rwgpsForm.password} disabled={busy} onChange={(e) => setRwgpsForm((f) => ({ ...f, password: e.target.value }))} />
+              <button type="submit" className="btn btn--primary btn--block" disabled={busy || !rwgpsForm.apiKey.trim() || !rwgpsForm.email.trim() || !rwgpsForm.password}>
+                Conectar Ride with GPS
+              </button>
+            </form>
+          )}
+          {rwgpsBusy ? (
+            <div className="cat-status" role="status">
+              <CyclingLoader compact />
+              <p>{rwgpsBusy}</p>
+              <button type="button" className="btn btn--ghost" onClick={cancel}>
+                Parar
+              </button>
+            </div>
+          ) : null}
+          {rwgpsError ? (
+            <p className="library-error" role="alert">
+              {rwgpsError}
             </p>
           ) : null}
         </section>

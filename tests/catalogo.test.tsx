@@ -42,7 +42,7 @@ describe('Rutas de tu catálogo', () => {
     window.location.hash = '#/rutas/catalogo';
     render(<App />);
     const user = userEvent.setup();
-    expect(await screen.findByText(/4 rutas: 4 de OpenStreetMap, 0 a puertos y 0 tuyas\./, undefined, { timeout: 5000 })).toBeInTheDocument();
+    expect(await screen.findByText(/4 rutas: 4 de OpenStreetMap, 0 a puertos, 0 de Ride with GPS y 0 tuyas./, undefined, { timeout: 5000 })).toBeInTheDocument();
     await user.type(screen.getByLabelText('Distancia'), '60');
     await user.type(screen.getByLabelText('Desnivel (opcional)'), '600');
     await user.click(screen.getByRole('button', { name: 'Proponer 3 rutas' }));
