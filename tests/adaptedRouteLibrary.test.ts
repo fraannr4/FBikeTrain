@@ -28,9 +28,11 @@ it('guarda la ruta adaptada con su autor y su enlace, y conserva el GPX de Wikil
   expect(restoreReferenceRoute(stored!).points).toEqual(original.points);
 });
 
-it('sin autor no inventa uno y rechaza un enlace que no es de Wikiloc', async () => {
+it('sin autor no inventa uno y rechaza un enlace que no es HTTP', async () => {
   const original = parseReferenceRoute(GPX, 'wikiloc-1001.gpx');
   const saved = await saveAdaptedRoute(original, ADAPTED, { name: 'Vuelta', sourceUrl: 'https://es.wikiloc.com/x-1001', author: null });
   expect(saved.author).toBeUndefined();
-  await expect(saveAdaptedRoute(original, ADAPTED, { name: 'Vuelta', sourceUrl: 'https://wikiloc.com.evil.io/x', author: null })).rejects.toThrow();
+  await expect(saveAdaptedRoute(original, ADAPTED, { name: 'Vuelta', sourceUrl: 'javascript:alert(1)', author: null })).rejects.toThrow();
+  const bare = await saveAdaptedRoute(original, ADAPTED, { name: 'Sin enlace' });
+  expect(bare.sourceUrl).toBeUndefined();
 });

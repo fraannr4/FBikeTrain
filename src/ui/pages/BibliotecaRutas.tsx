@@ -7,7 +7,7 @@ import { haversineM } from '../../import/summary';
 import { applyRoadEdit, type RoadEdit } from '../../routes/libraryEdit';
 import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
 import {
-  importReferenceRoute, listReferenceRoutes, saveReferenceRoute, deleteReferenceRoute,
+  importReferenceRoute, importReferenceRoutes, listReferenceRoutes, saveReferenceRoute, deleteReferenceRoute,
   trimReferenceRoute, reverseReferenceRoute, restoreReferenceRoute, changeReferenceRouteStart,
   referenceRouteToGpx, referenceSite, type ReferenceRoute,
 } from '../../routes/library';
@@ -98,9 +98,21 @@ export function BibliotecaRutas() {
     try { edit(operation(draft)); } catch (e) { setError(failure(e)); }
   }
   async function imported(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; e.target.value = '';
+    const files = Array.from(e.target.files ?? []); e.target.value = '';
+    const file = files[0];
     if (!file || busy || dirty) return;
     setBusy(true); setError(''); setNotice('');
+    if (files.length > 1 || /\.zip$/i.test(file.name)) {
+      try {
+        const { imported: added, failed } = await importReferenceRoutes(files);
+        if (!alive.current) return;
+        setRoutes(rows => [...added, ...rows]);
+        setNotice(`${added.length === 1 ? '1 ruta importada' : `${formatCount(added.length)} rutas importadas`}. No se ha añadido ninguna salida al historial.`);
+        if (failed.length) setError(`${failed.length === 1 ? '1 fichero no se ha importado' : `${formatCount(failed.length)} ficheros no se han importado`}: ${failed.slice(0, 5).map(f => `${f.name} (${f.message})`).join('; ')}${failed.length > 5 ? '…' : ''}`);
+      } catch (err) { if (alive.current) setError(failure(err)); }
+      finally { if (alive.current) setBusy(false); }
+      return;
+    }
     try {
       const route = await importReferenceRoute(file, sourceUrl);
       if (!alive.current) return;
@@ -158,8 +170,8 @@ export function BibliotecaRutas() {
       <h2 className="card-title">Tu fichero, como punto de partida</h2>
       <p className="help">En Wikiloc, descarga la ruta como archivo GPX y elígelo aquí desde Archivos o Descargas. También funciona en iPhone. Añadir una ruta no cambia tus estadísticas.</p>
       <Field label="Enlace de origen (opcional)" type="url" maxLength={2000} placeholder="https://…" value={sourceUrl} disabled={busy || dirty || loading} onChange={e => setSourceUrl(e.target.value)} help="Solo guardamos la referencia: el enlace no descarga el recorrido automáticamente." />
-      <label className="btn btn--primary btn--block"><Upload className="ic" aria-hidden="true" />Elegir GPX o TCX<input className="sr-only" type="file" accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml" aria-label="Elegir GPX o TCX" disabled={busy || dirty || loading} onChange={imported} /></label>
-      <p className="help">Hasta 10 MB y 50.000 puntos. Un único recorrido continuo. Tus rutas se guardan en este dispositivo; exporta el GPX para conservar una copia.</p>
+      <label className="btn btn--primary btn--block"><Upload className="ic" aria-hidden="true" />Elegir GPX, TCX o ZIP<input className="sr-only" type="file" multiple accept=".gpx,.tcx,.zip,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml,application/zip" aria-label="Elegir GPX, TCX o ZIP" disabled={busy || dirty || loading} onChange={imported} /></label>
+      <p className="help">Puedes elegir varios a la vez o un ZIP con muchos: hasta 200 rutas por vez. Cada ruta, hasta 10 MB y 50.000 puntos, con un único recorrido continuo. Tus rutas se guardan en este dispositivo; exporta el GPX para conservar una copia.</p>
     </section>
     {error && <p className="library-error" role="alert">{error} {loading ? null : <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setLoadAttempt(n => n + 1)}>Volver a leer la biblioteca</button>}</p>}
     {notice && <p className="library-notice" role="status">{notice}</p>}

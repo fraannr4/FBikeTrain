@@ -4,7 +4,6 @@ import type { Coord3 } from '../domain/types';
 import { haversineM } from '../import/summary';
 import { child, descendants, parseXml, text, toNumber } from '../import/xml';
 import { toGpx } from './gpx';
-import { isWikilocUrl } from './wikilocLimits';
 
 /** Recorridos de referencia: no son actividades realizadas y no contienen tiempos ni sensores. */
 export type RoutePoint = { lat: number; lng: number; ele?: number };
@@ -28,6 +27,10 @@ export type ReferenceRoute = {
   originalPoints: RoutePoint[];
   points: RoutePoint[];
   summary: ReferenceRouteSummary;
+  /** Rutas del catálogo precargado: OpenStreetMap o subida a un puerto. `ref` evita duplicarlas al recargar. */
+  catalog?: { kind: 'osm' | 'puerto'; ref: string; tipo: 'carretera' | 'btt' | 'puerto' };
+  /** `dem`: la altitud viene del modelo de terreno, no del track; el desnivel es una estimación. */
+  elevation?: 'dem';
   createdAt: number;
   updatedAt: number;
 };
@@ -181,6 +184,86 @@ export async function importReferenceRoute(file: File, url?: string): Promise<Re
   return route;
 }
 
+export type BatchImportResult = { imported: ReferenceRoute[]; failed: { name: string; message: string }[] };
+/** Como mucho, ficheros por lote y tamaño de un ZIP. */
+export const MAX_BATCH_FILES = 200;
+export const MAX_ZIP_BYTES = 50 * 1024 * 1024;
+const ROUTE_FILE = /\.(gpx|tcx)$/i;
+const message = (e: unknown) => (e instanceof RouteLibraryError ? e.message : 'El fichero no se ha podido leer.');
+
+/**
+ * Importa de una vez varios GPX/TCX o ZIP con GPX/TCX dentro. Un fichero que falla no detiene los demás:
+ * cada error queda con su nombre. Las carpetas del ZIP y los ficheros de sistema (`__MACOSX`, ocultos) se ignoran.
+ */
+export async function importReferenceRoutes(files: File[]): Promise<BatchImportResult> {
+  const entries: { name: string; read: () => Promise<string>; size: number }[] = [];
+  const failed: BatchImportResult['failed'] = [];
+  for (const file of files) {
+    if (/\.zip$/i.test(file.name)) {
+      if (file.size > MAX_ZIP_BYTES) {
+        failed.push({ name: file.name, message: 'El ZIP supera el límite de 50 MB.' });
+        continue;
+      }
+      try {
+        const { default: JSZip } = await import('jszip');
+        const zip = await JSZip.loadAsync(file);
+        zip.forEach((path, entry) => {
+          const base = path.split('/').pop() ?? path;
+          if (entry.dir || path.startsWith('__MACOSX/') || base.startsWith('.') || !ROUTE_FILE.test(base)) return;
+          entries.push({ name: base, read: () => entry.async('string'), size: 0 });
+        });
+      } catch {
+        failed.push({ name: file.name, message: 'El ZIP no se ha podido abrir.' });
+      }
+    } else if (ROUTE_FILE.test(file.name)) entries.push({ name: file.name, read: () => file.text(), size: file.size });
+    else failed.push({ name: file.name, message: 'Solo se admiten GPX, TCX o ZIP.' });
+  }
+  if (entries.length > MAX_BATCH_FILES) {
+    for (const extra of entries.splice(MAX_BATCH_FILES)) failed.push({ name: extra.name, message: `Se importan ${MAX_BATCH_FILES} rutas por vez como máximo.` });
+  }
+  const imported: ReferenceRoute[] = [];
+  for (const entry of entries) {
+    try {
+      if (entry.size > MAX_REFERENCE_FILE_BYTES) throw new RouteLibraryError('El fichero supera el límite de 10 MB.');
+      const parsed = parseReferenceRoute(await entry.read(), entry.name);
+      const now = Date.now();
+      imported.push({ ...parsed, id: crypto.randomUUID(), createdAt: now, updatedAt: now });
+    } catch (e) {
+      failed.push({ name: entry.name, message: message(e) });
+    }
+  }
+  if (imported.length > 0) await db.referenceRoutes.bulkAdd(imported);
+  return { imported, failed };
+}
+
+export type CatalogRouteInput = {
+  name: string;
+  points: RoutePoint[];
+  sourceUrl: string;
+  author: string;
+  catalog: NonNullable<ReferenceRoute['catalog']>;
+  elevation?: 'dem';
+};
+
+/** Guarda o sustituye (por `catalog.ref`) una ruta del catálogo. Conserva el id y la fecha de alta. */
+export async function saveCatalogRoutes(inputs: CatalogRouteInput[]): Promise<ReferenceRoute[]> {
+  const existing = new Map((await db.referenceRoutes.toArray()).filter((r) => r.catalog).map((r) => [r.catalog!.ref, r]));
+  const now = Date.now();
+  const routes = inputs.map((input): ReferenceRoute => {
+    const name = input.name.trim().slice(0, 120) || 'Ruta del catálogo';
+    const points = copy(input.points);
+    const previous = existing.get(input.catalog.ref);
+    return {
+      id: previous?.id ?? crypto.randomUUID(), name, format: 'gpx', sourceFileName: `${input.catalog.ref}.gpx`,
+      sourceUrl: input.sourceUrl, author: input.author, originalXml: routePointsToGpx(name, points), originalPoints: copy(points), points,
+      summary: analyzeReferenceRoutePoints(points), catalog: { ...input.catalog }, ...(input.elevation ? { elevation: input.elevation } : {}),
+      createdAt: previous?.createdAt ?? now, updatedAt: now,
+    };
+  });
+  await db.referenceRoutes.bulkPut(routes);
+  return routes;
+}
+
 /** Guarda una ruta generada (Rutas o Rutas con IA) con su GPX exportado como original, para empalmarla. */
 export async function saveGeneratedRoute(name: string, coords: Coord3[], fileName: string): Promise<ReferenceRoute> {
   const points = coords.map(([lng, lat, ele]) => ({ lat, lng, ele }));
@@ -211,20 +294,24 @@ export async function saveSplicedRoute(name: string, points: RoutePoint[]): Prom
  * Guarda una ruta de Wikiloc adaptada: el trazado adaptado como actual y el GPX recibido como original,
  * con el autor y el enlace a la ficha. «Volver al trazado original» devuelve la ruta de Wikiloc.
  */
+/**
+ * Guarda una ruta adaptada (catálogo, OpenStreetMap o un GPX subido) con el original para restaurarlo.
+ * El enlace de origen y el autor se conservan para la atribución.
+ */
 export async function saveAdaptedRoute(
   original: ParsedReferenceRoute,
   points: RoutePoint[],
-  meta: { name: string; sourceUrl: string; author: string | null },
+  meta: { name: string; sourceUrl?: string; author?: string | null; elevation?: 'dem' },
 ): Promise<ReferenceRoute> {
-  if (!isWikilocUrl(meta.sourceUrl)) throw new RouteLibraryError('El enlace de la ruta no es de wikiloc.com.');
+  const sourceUrl = sourceLink(meta.sourceUrl);
   const summary = analyzeReferenceRoutePoints(points);
   const author = meta.author?.trim().slice(0, 120);
   const now = Date.now();
   const route: ReferenceRoute = {
     id: crypto.randomUUID(), name: meta.name.trim().slice(0, 120) || original.name, format: original.format,
-    sourceFileName: original.sourceFileName, sourceUrl: meta.sourceUrl, ...(author ? { author } : {}),
+    sourceFileName: original.sourceFileName, ...(sourceUrl ? { sourceUrl } : {}), ...(author ? { author } : {}),
     originalXml: original.originalXml, originalPoints: copy(original.originalPoints), points: copy(points), summary,
-    createdAt: now, updatedAt: now,
+    ...(meta.elevation ? { elevation: meta.elevation } : {}), createdAt: now, updatedAt: now,
   };
   await db.referenceRoutes.add(route);
   return route;

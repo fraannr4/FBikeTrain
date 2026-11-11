@@ -10,7 +10,7 @@ import { fetchRoundTrip, OrsError, type OrsAccess, type OrsFeature } from './ors
 import { geometryQuality } from './quality';
 import { fetchRoadPath } from './roadPath';
 import { SPLICE } from './splice';
-import { EXTEND_BELOW_PCT, TRIM_ABOVE_PCT } from './wikilocNearby';
+import { EXTEND_BELOW_PCT, TRIM_ABOVE_PCT } from './rank';
 
 /**
  * Adaptación de una ruta ajena (un GPX de Wikiloc) a lo que pide el usuario: salir de su inicio y

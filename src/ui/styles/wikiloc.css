@@ -1,17 +1,20 @@
-/* Rutas de Wikiloc cerca y su adaptación. Estructura provisional con los tokens de la app: el rediseño va aparte. */
+/* Rutas de tu catálogo: propuestas adaptadas, carga del catálogo y Wikiloc. Tokens de la app. */
 .wk-figures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.wk-list{display:grid;gap:12px;margin:0;padding:0;list-style:none}
-.wk-card{display:grid;gap:8px;justify-items:start;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);min-width:0;overflow-wrap:anywhere}
 .wk-name{margin:0;font-size:var(--fs-title);line-height:1.3}
 .wk-meta{margin:0;font-size:var(--fs-sm);color:var(--ink-2)}
 .wk-why{margin:0;line-height:1.5}
-.wk-card .btn{justify-self:stretch}
-.wk-discarded{display:grid;gap:8px;margin:0;padding-left:1.25rem;overflow-wrap:anywhere}
-.wk-ai-busy{display:grid;gap:12px}
-.wk-ai-busy p,.wk-recipe{margin:0}
 .wk-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 .wk-warnings{display:grid;gap:6px;margin:0;padding-left:1.25rem;color:var(--ink-2);overflow-wrap:anywhere}
-@media(max-width:380px){.wk-figures{grid-template-columns:minmax(0,1fr)}.wk-card{padding:14px}}
-/* «Desde el inicio de la ruta» no cabe en una línea a 360 px: el texto pasa a dos en vez de cortarse. */
-.seg.wk-salida button span{white-space:normal;text-align:center;line-height:1.2}
 .wk-map{height:clamp(240px,62vw,380px);border-radius:var(--r-md);overflow:hidden}
+.page--catalogo .section-title{margin:0 0 12px}
+.cat-list{display:grid;gap:16px}
+.cat-card{display:grid;gap:12px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);min-width:0;overflow-wrap:anywhere}
+.cat-origin{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-height:44px;color:var(--ink-2);font-size:var(--fs-sm)}
+.cat-origin .ic{flex:none}
+.cat-author{flex-basis:100%;color:var(--ink-3,var(--ink-2))}
+.cat-actions{display:grid;gap:8px}
+.cat-status{display:grid;gap:8px;justify-items:start}
+.cat-status p,.cat-count{margin:0}
+.cat-count{font-variant-numeric:tabular-nums}
+.btn.is-disabled{opacity:.55;pointer-events:none}
+@media(max-width:380px){.wk-figures{grid-template-columns:minmax(0,1fr)}.cat-card{padding:14px}}

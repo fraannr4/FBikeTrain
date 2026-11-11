@@ -284,3 +284,16 @@ El primer arranque del e2e agotó los 180 segundos del `webServer` durante el bu
 **Límites:** sin OAuth, SQL, Edge Functions ni servicios nuevos. Preparación comprobada contra fuentes oficiales en `docs/intervals-oauth.md`, incluidos registro, callback, tokens y webhooks. La sincronización requiere app abierta; no reconcilia borrados remotos ni ediciones de originales ya completados y no recupera automáticamente cargas anteriores al solape. Retry-After exige exposición CORS; sin ella aplica backoff predeterminado. Sin Web Locks solo se coordina el mismo documento. Pendiente comprobar el flujo diario, retorno desde iGPSPORT y persistencia de almacenamiento en el móvil físico después de integrar/publicar con autorización.
 
 Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Intervals y guiar conexión móvil`.
+
+
+## 2026-11-11 (noche): catálogo de rutas
+
+- Datos sintéticos; Overpass, Open-Meteo y ORS interceptados.
+- `npx tsc --noEmit`: sin errores.
+- `npx vitest run`: 118 ficheros, 1477/1477.
+- `npm run build`: correcto.
+- `npx playwright test e2e/catalogo.spec.ts`: 4/4, en claro y oscuro, a 360 y 430 px, sin desborde horizontal.
+- Comprobado en el e2e:
+  - el centro que sale a Overpass va redondeado a 2 decimales;
+  - no sale la coordenada exacta de Casa.
+- Pendiente con datos reales: la precarga desde la cuenta del usuario y la prueba en Android con el BSC200S.

@@ -1,5 +1,44 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-11, noche)
+
+**Publicado: catálogo de rutas, que sustituye a Wikiloc cerca y al marcador.** Plan: `docs/superpowers/plans/2026-11-11-catalogo-rutas.md`.
+
+Pantalla `#/rutas/catalogo` («Rutas de tu catálogo»). Los enlaces `#/rutas/wikiloc*` redirigen allí.
+- **Precarga desde la app:**
+  - Overpass directo desde el navegador, con el centro redondeado a 0,01°.
+  - Relaciones `route=bicycle` y `route=mtb` a menos de 15 km. Se encadenan los tramos (huecos ≤ 300 m), se descarta lo que mide menos de 5 km y se guardan 95 como máximo.
+  - Altitud estimada con Open-Meteo (`elevation: 'dem'`, «Desnivel estimado ≈»).
+  - Subidas a los 5 puertos más cercanos (15-30 km), en circuito ORS.
+  - Volver a cargar sustituye por `catalog.ref`, sin duplicar.
+  - Todo se guarda solo en la biblioteca de la cuenta (IndexedDB).
+- **Importación por lotes:** varios GPX/TCX o un ZIP, hasta 200 por vez (`importReferenceRoutes`), también en la Biblioteca.
+- **Recomendación:**
+  - `rankForTarget`, ahora genérico en `src/routes/rank.ts`, ordena por los km y el desnivel pedidos, sin nivel, entre las rutas a menos de 15 km.
+  - `adaptRoute` adapta las candidatas de una en una («mi-inicio»), 8 intentos como máximo, hasta 3 válidas y distintas (solape < 70 %).
+  - Ante `rate_minute` del ORS compartido espera 60 s, como mucho 2 veces.
+  - Cada propuesta se puede «Enviar al iGPSPORT» o «Guardar en la biblioteca».
+- **Wikiloc:** «Buscar en Wikiloc» abre una pestaña del usuario y «Subir el GPX descargado» lo adapta al momento. La app no accede nunca a wikiloc.com.
+- **Retirado:** el marcador (`src/bookmarklet`, `public/wikiloc-marcador.html`, `build:bookmarklet`), las pantallas recibir y adaptar, y `wikilocAdvisor`. Las filas antiguas `nearby` y `track` se borran al abrir el catálogo.
+- No hay cambios en Edge Functions ni migraciones.
+- **Verificación:** `tsc` limpio, vitest 118 ficheros y 1477/1477, build correcto, e2e `catalogo.spec.ts` 4/4 (claro y oscuro, a 360 y 430 px, sin desborde; capturas en `test-results/catalogo/`).
+
+**Pendiente del usuario:**
+1. Pegar la URL de Wikiloc con sus filtros (km, bici de carretera). Ahora se usa el mapa `map.do`, con un rectángulo de 8 km y `act=29`.
+2. Probar la precarga real desde su cuenta: Overpass, Open-Meteo y ORS. Contar cuántas rutas salen alrededor de Caldes de Montbui.
+3. Subir de golpe sus GPX de Wikiloc (ZIP) y probar las 3 propuestas en el móvil y el envío al BSC200S.
+
+**Ride with GPS (sin integrar):**
+- Worktree `C:	estTrain\.claude\worktreesgent-ab9142e79a053664c`, rama `worktree-agent-ab9142e79a053664c`, sin commit.
+- Hay un lector por enlace con la API v1 oficial (`src/routes/sources/ridewithgps.ts`, `docs/ridewithgps.md`, 7 pruebas).
+- La API exige una clave y un token del usuario. No hay búsqueda por zona y el CORS no está documentado.
+- Pendiente:
+  - que el usuario cree el API client;
+  - probar CORS;
+  - conectarlo al catálogo, con un campo «Enlace de Ride with GPS».
+
+**Siguiente: Garmin directo** (ver «Retomar aquí, tarde» más abajo).
+
 ## Retomar aquí (2026-11-11, tarde)
 
 **Publicado hoy en `main`:**
