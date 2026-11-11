@@ -1,3 +1,5 @@
+> **Retirado el 2026-11-11 por la noche.** El marcador y la lista recibida se han sustituido por el catálogo de rutas (`#/rutas/catalogo`). Ver `docs/superpowers/plans/2026-11-11-catalogo-rutas.md`. Este documento se conserva como histórico.
+
 # Rutas de Wikiloc cerca
 
 Preparado el 2026-11-11 en la rama `codex/integracion-rutas`. **Sin publicar.** Plan: [2026-11-11-wikiloc-cerca-adaptar.md](superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md).

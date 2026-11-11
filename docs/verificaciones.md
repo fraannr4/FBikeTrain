@@ -1,5 +1,12 @@
 # Verificaciones (tarea 1, F0)
 
+
+## Publicación y comprobaciones con cuenta real, 2026-11-11 (tarde)
+
+- Intervals.icu en la app publicada (`b93ce11`): el usuario guarda la clave y el id `i794435` y sincroniza. **Funciona.**
+- Strava vinculado a Intervals: `GET /api/v1/athlete/0/activities?oldest=2026-08-01&newest=2026-11-11` da **200** con 9 actividades: 8 con `source: STRAVA` y 1 con `OAUTH_CLIENT` (iGPSPORT). Las de Strava solo traen `id`, `start_date_local`, `icu_athlete_id` y `_note: "STRAVA activities are not available via the API"`. `GET /activity/{id}` también da el stub, y `GET /activity/{id}/file` da **422**. Conclusión: la vía Strava → Intervals → app no es posible. La clave no se guardó en ningún fichero.
+- `main` en `ab89a3a`: `npx tsc --noEmit` sin errores, `npx vitest run` con **124 ficheros y 1.580/1.580 PASS**. `PLAYWRIGHT_PORT=4391 npx playwright test` de wikiloc-cerca, break-ui-wikiloc, rutas, rutas-ia, fuentes-externas y biblioteca-calidad: **44/44 PASS**. GitHub Pages: run 43051853716, success. `wikiloc-marcador.html` responde 200. Edge Functions `route-sources` y `ai-routes`: «Deployed Functions».
+
 ## Rutas de Wikiloc cerca y adaptación, 2026-11-11 — `codex/integracion-rutas`
 
 - Worktree `C:\testTrain-integracion`, sin commit, push ni despliegue, y sin cambios en Supabase. Plan `docs/superpowers/plans/2026-11-11-wikiloc-cerca-adaptar.md` (tareas 1 a 5); operativa y límites en `docs/wikiloc-cerca.md`.
@@ -277,3 +284,16 @@ El primer arranque del e2e agotó los 180 segundos del `webServer` durante el bu
 **Límites:** sin OAuth, SQL, Edge Functions ni servicios nuevos. Preparación comprobada contra fuentes oficiales en `docs/intervals-oauth.md`, incluidos registro, callback, tokens y webhooks. La sincronización requiere app abierta; no reconcilia borrados remotos ni ediciones de originales ya completados y no recupera automáticamente cargas anteriores al solape. Retry-After exige exposición CORS; sin ella aplica backoff predeterminado. Sin Web Locks solo se coordina el mismo documento. Pendiente comprobar el flujo diario, retorno desde iGPSPORT y persistencia de almacenamiento en el móvil físico después de integrar/publicar con autorización.
 
 Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Intervals y guiar conexión móvil`.
+
+
+## 2026-11-11 (noche): catálogo de rutas
+
+- Datos sintéticos; Overpass, Open-Meteo y ORS interceptados.
+- `npx tsc --noEmit`: sin errores.
+- `npx vitest run`: 118 ficheros, 1477/1477.
+- `npm run build`: correcto.
+- `npx playwright test e2e/catalogo.spec.ts`: 4/4, en claro y oscuro, a 360 y 430 px, sin desborde horizontal.
+- Comprobado en el e2e:
+  - el centro que sale a Overpass va redondeado a 2 decimales;
+  - no sale la coordenada exacta de Casa.
+- Pendiente con datos reales: la precarga desde la cuenta del usuario y la prueba en Android con el BSC200S.

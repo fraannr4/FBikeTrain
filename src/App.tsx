@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { HashRouter, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './ui/shell/AppShell';
 import { Inicio } from './ui/pages/Inicio';
 import { Importar } from './ui/pages/Importar';
@@ -16,9 +16,7 @@ import { Mas } from './ui/pages/Mas';
 import { Perfil } from './ui/pages/Perfil';
 import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 import { Empalmar } from './ui/pages/Empalmar';
-import { WikilocCerca } from './ui/pages/WikilocCerca';
-import { WikilocRecibir } from './ui/pages/WikilocRecibir';
-import { WikilocAdaptar } from './ui/pages/WikilocAdaptar';
+import { Catalogo } from './ui/pages/Catalogo';
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -51,9 +49,9 @@ export function App() {
           <Route path="/rutas/ia" element={<RutasIa />} />
           <Route path="/rutas/biblioteca" element={<BibliotecaRutas />} />
           <Route path="/rutas/empalmar" element={<Empalmar />} />
-          <Route path="/rutas/wikiloc" element={<WikilocCerca />} />
-          <Route path="/rutas/wikiloc/recibir" element={<WikilocRecibir />} />
-          <Route path="/rutas/wikiloc/adaptar" element={<WikilocAdaptar />} />
+          <Route path="/rutas/catalogo" element={<Catalogo />} />
+          {/* Enlaces antiguos del marcador de Wikiloc, ya retirado. */}
+          <Route path="/rutas/wikiloc/*" element={<Navigate to="/rutas/catalogo" replace />} />
           <Route path="/plan" element={<Calendario />} />
           <Route path="/plan/objetivos" element={<Objetivos />} />
           <Route path="/mas" element={<Mas />} />
