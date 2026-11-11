@@ -29,7 +29,7 @@ Pantalla `#/rutas/catalogo` («Rutas de tu catálogo»). Los enlaces `#/rutas/wi
 3. Subir de golpe sus GPX de Wikiloc (ZIP) y probar las 3 propuestas en el móvil y el envío al BSC200S.
 
 **Ride with GPS (sin integrar):**
-- Worktree `C:	estTrain\.claude\worktreesgent-ab9142e79a053664c`, rama `worktree-agent-ab9142e79a053664c`, sin commit.
+- Worktree `C:/testTrain/.claude/worktrees/agent-ab9142e79a053664c`, rama `worktree-agent-ab9142e79a053664c`, sin commit.
 - Hay un lector por enlace con la API v1 oficial (`src/routes/sources/ridewithgps.ts`, `docs/ridewithgps.md`, 7 pruebas).
 - La API exige una clave y un token del usuario. No hay búsqueda por zona y el CORS no está documentado.
 - Pendiente:
