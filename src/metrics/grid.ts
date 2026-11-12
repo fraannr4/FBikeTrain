@@ -69,3 +69,27 @@ export function newRoadPct(coords: Coord3[], visited: ReadonlySet<string>): numb
   const fresh = samples.filter((c) => !visited.has(c)).length;
   return (fresh / samples.length) * 100;
 }
+
+export type CellCount = { count: number; at: { lat: number; lng: number } };
+
+/**
+ * Salidas distintas que pisan cada celda (`count`) y el primer punto real del track en ella (`at`,
+ * sobre la carretera, no el centro de la celda). Solo cuentan los puntos con GPS; una salida que
+ * cruza la celda varias veces suma una.
+ */
+export function buildCellCounts(tracks: Iterable<TrackPoint[]>): Map<string, CellCount> {
+  const cells = new Map<string, CellCount>();
+  for (const track of tracks) {
+    const seen = new Set<string>();
+    for (const p of track) {
+      if (!hasGps(p)) continue;
+      const key = cellKey(p.lat, p.lng);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const cell = cells.get(key);
+      if (cell) cell.count++;
+      else cells.set(key, { count: 1, at: { lat: p.lat, lng: p.lng } });
+    }
+  }
+  return cells;
+}

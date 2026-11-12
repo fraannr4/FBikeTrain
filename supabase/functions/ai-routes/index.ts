@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { handleSharedAi, SharedAiRateLimit, type SharedAiRequest } from '../../../src/ai/shared/service.ts';
-import { buildPlanMessages, buildExplainMessages, buildSpliceMessages, buildWorkoutMessages } from '../../../src/ai/prompts.ts';
-import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, toStrictJsonSchema, WorkoutWeekSchema } from '../../../src/ai/schema.ts';
+import { buildPlanMessages, buildExplainMessages, buildSpliceMessages, buildWaypointMessages, buildWorkoutMessages } from '../../../src/ai/prompts.ts';
+import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, toStrictJsonSchema, WaypointCombosSchema, WorkoutWeekSchema } from '../../../src/ai/schema.ts';
 
 const GROQ_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'openai/gpt-oss-20b';
@@ -21,12 +21,14 @@ async function complete(input: SharedAiRequest, signal: AbortSignal): Promise<un
   const schema = input.operation === 'plan' ? RoutePlanSchema
     : input.operation === 'explain' ? ExplanationSchema
     : input.operation === 'workouts' ? WorkoutWeekSchema
+    : input.operation === 'waypoints' ? WaypointCombosSchema
     : spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]);
   const messages = input.operation === 'plan' ? buildPlanMessages(input.summary, input.answers, input.maxDistanciaKm, input.referencias, input.objetivo, input.puertos)
     : input.operation === 'explain' ? buildExplainMessages(input.summary, input.facts)
     : input.operation === 'workouts' ? buildWorkoutMessages(input.summary, input)
+    : input.operation === 'waypoints' ? buildWaypointMessages(input.objetivo, input.puntos)
     : buildSpliceMessages(input.facts, input.objetivo);
-  const schemaName = { plan: 'plan_rutas', explain: 'explicacion_rutas', splice: 'empalme_rutas', workouts: 'entrenos_semana' }[input.operation];
+  const schemaName = { plan: 'plan_rutas', explain: 'explicacion_rutas', splice: 'empalme_rutas', workouts: 'entrenos_semana', waypoints: 'combinaciones_puntos' }[input.operation];
   const response = await fetch(GROQ_ENDPOINT, {
     method: 'POST', headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' }, signal,
     body: JSON.stringify({ model: MODEL, messages, temperature: 0.3, max_completion_tokens: MAX_OUTPUT_TOKENS,
@@ -69,6 +71,8 @@ Deno.serve(request => handleSharedAi(request, {
   validateOutput: (input, output) => {
     if (input.operation === 'plan') return RoutePlanSchema.safeParse(output).success;
     if (input.operation === 'workouts') return WorkoutWeekSchema.safeParse(output).success;
+    // Forma solamente: los ids desconocidos los descarta el navegador, que completa con sus combinaciones.
+    if (input.operation === 'waypoints') return WaypointCombosSchema.safeParse(output).success;
     if (input.operation === 'splice') return spliceAdviceSchema(input.facts.map(fact => fact.id) as [string, ...string[]]).safeParse(output).success;
     const parsed = ExplanationSchema.safeParse(output);
     if (!parsed.success || parsed.data.explicaciones.length !== input.facts.length) return false;

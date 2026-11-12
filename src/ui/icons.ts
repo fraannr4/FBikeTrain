@@ -60,6 +60,7 @@ export {
   RotateCw,
   Route,
   Search,
+  Share2,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,

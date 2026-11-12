@@ -1,0 +1,9 @@
+/* «Una ruta de Explore»: enlaces recibidos o pegados y rutas de una colección. Tokens de la app. */
+.page--compartida .section-title{margin:0 0 12px}
+.cmp-received{display:inline-flex;align-items:center;gap:6px;margin:0;color:var(--ink-2);font-size:var(--fs-sm)}
+.cmp-links{width:100%;min-width:0;min-height:88px;resize:vertical;overflow-wrap:anywhere}
+.cmp-choices{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.cmp-choice{display:grid;gap:8px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);min-width:0}
+.cmp-choice-name{overflow-wrap:anywhere;line-height:1.4}
+.cmp-choice-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+@media(min-width:400px){.cmp-choice{grid-template-columns:minmax(0,1fr) auto;align-items:center}}

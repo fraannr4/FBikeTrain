@@ -21,8 +21,8 @@ function circuit(km: number, deg: number, n: number) {
   });
 }
 
-/** Índice sintético: 8 circuitos de unos 60 km, uno por dirección. */
-const INDEX = [0, 45, 90, 135, 180, 225, 270, 315].map((deg, i) => ({ id: String(500 + i), km: 58 + i * 0.5, deg }));
+/** Índice sintético: 6 circuitos de unos 60 km separados 60° (Rutas cerca exige al menos 45° entre propuestas). */
+const INDEX = [0, 60, 120, 180, 240, 300].map((deg, i) => ({ id: String(500 + i), km: 58 + i * 0.5, deg }));
 const NAME = (id: string) => `Ruta sintética de Ride with GPS con un nombre bastante largo ${id}`;
 
 const noOverflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
@@ -64,15 +64,15 @@ for (const width of [360, 430]) {
     mkdirSync(dir, { recursive: true });
     await page.setViewportSize({ width, height: 860 });
     const { bodies, direct } = await setup(page);
-    await page.goto('#/rutas/catalogo');
+    await page.goto('#/rutas/cerca');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Rutas de Ride with GPS' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Rutas cerca' })).toBeVisible();
     await expect(page.getByLabel('Distancia')).toBeVisible();
     // Lo retirado: precarga de OpenStreetMap, importación por lotes y pegado de enlaces.
     await expect(page.getByRole('button', { name: /OpenStreetMap/ })).toHaveCount(0);
     await expect(page.getByLabel('Importar GPX, TCX o ZIP')).toHaveCount(0);
     await expect(page.getByLabel('Enlaces de rutas o colecciones')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /Buscar en Wikiloc/ })).toBeVisible();
+    await expect(page.getByText('¿Buscas en Wikiloc?')).toBeVisible();
     // Solo se busca cuando se pide.
     expect(bodies).toEqual([]);
     expect(await noOverflow(page)).toBe(true);
@@ -82,7 +82,7 @@ for (const width of [360, 430]) {
     await page.getByRole('button', { name: 'Proponer rutas' }).click();
     const cards = page.getByRole('article');
     await expect(cards).toHaveCount(6, { timeout: 60_000 });
-    await expect(page.getByRole('button', { name: 'Parar' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
 
     expect(bodies[0]).toEqual({ op: 'nearby', lat: Number(HOME.lat.toFixed(2)), lng: Number(HOME.lng.toFixed(2)), radiusKm: 5, distanceKm: 60 });
     expect(bodies.filter((b) => b.op === 'nearby')).toHaveLength(3);

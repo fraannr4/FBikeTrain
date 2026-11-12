@@ -180,3 +180,30 @@ describe('IA compartida: objetivo del usuario', () => {
     expect(sharedAiRequestSchema.safeParse({ ...splice, objetivo }).success).toBe(false);
   });
 });
+
+describe('IA compartida: combinaciones de puntos de paso', () => {
+  const punto = (i: number) => ({ id: `w${i}`, tipo: 'puerto', nombre: `Collado sintético ${i}`, cotaM: 650, distanciaKm: 14.2, direccion: 'noreste', interes: 2 });
+  const waypoints = { operation: 'waypoints', objetivo: { distanciaKm: 60, desnivelM: 800 }, puntos: [punto(1), { ...punto(2), tipo: 'habitual', cotaM: null, interes: 2 }] };
+
+  it('acepta objetivo y puntos con nombres y cifras y los pasa al proveedor', async () => {
+    const deps = mock();
+    expect((await handleSharedAi(request(waypoints), deps)).status).toBe(200);
+    expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ puntos: waypoints.puntos }), expect.any(AbortSignal));
+    expect(sharedAiRequestSchema.safeParse({ ...waypoints, objetivo: { distanciaKm: 60, desnivelM: null } }).success).toBe(true);
+  });
+
+  it.each([
+    ['25 puntos', { ...waypoints, puntos: Array.from({ length: 25 }, (_, i) => punto(i + 1)) }],
+    ['un campo lat', { ...waypoints, puntos: [{ ...punto(1), lat: 41.1234 }] }],
+    ['coordenadas en el objetivo', { ...waypoints, objetivo: { distanciaKm: 60, desnivelM: 800, inicio: { lat: 41, lng: 2 } } }],
+    ['ids repetidos', { ...waypoints, puntos: [punto(1), punto(1)] }],
+    ['un id que no es wN', { ...waypoints, puntos: [{ ...punto(1), id: 'osm-pass-1' }] }],
+    ['una dirección libre', { ...waypoints, puntos: [{ ...punto(1), direccion: 'Calle Mayor 1' }] }],
+    ['un tipo desconocido', { ...waypoints, puntos: [{ ...punto(1), tipo: 'casa' }] }],
+    ['sin puntos', { ...waypoints, puntos: [] }],
+  ])('rechaza (400) una petición con %s antes de consumir cuota', async (_name, body) => {
+    const deps = mock();
+    expect((await handleSharedAi(request(body), deps)).status).toBe(400);
+    expect(deps.consumeQuota).not.toHaveBeenCalled();
+  });
+});

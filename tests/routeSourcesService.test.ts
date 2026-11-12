@@ -225,3 +225,29 @@ describe('transporte conservador Wikiloc', () => {
     expect((await pending).status).toBe(502); expect(deps.writeCache).not.toHaveBeenCalled(); expect(deps.fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('route-sources: puntos de paso', () => {
+  const wp = { lat: 0, lon: 0, radiusM: 30_000, source: 'osm', kind: 'waypoints' };
+  const village = { type: 'node', id: 5, lat: 0.1, lon: 0, tags: { place: 'village', name: 'Pueblo inventado' } };
+  const road = { type: 'way', id: 6, nodes: [7, 8], tags: { highway: 'tertiary' }, geometry: [{ lat: 0.1, lon: 0.001 }, { lat: 0.11, lon: 0.001 }] };
+  const withData = () => { const deps = mock(); deps.fetch = vi.fn().mockImplementation(async () => Response.json({ elements: [village, road] })); return deps; };
+  it('cachea con clave v1:waypoints y 7 días', async () => {
+    const deps = withData();
+    const response = await handleRouteSources(request(wp), deps);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toHaveLength(1);
+    const row = vi.mocked(deps.writeCache).mock.calls[0][0];
+    expect(row.cache_key.startsWith('v1:waypoints:')).toBe(true);
+    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(CACHE_TTL_MS);
+  });
+  it('ignora una caché que no valida con osmWaypointsSchema', async () => {
+    const deps = withData();
+    deps.readCache = vi.fn().mockResolvedValue({ payload: [{ broken: true }], fetched_at: at, expires_at: new Date(now + CACHE_TTL_MS).toISOString() });
+    expect((await handleRouteSources(request(wp), deps)).status).toBe(200);
+    expect(deps.fetch).toHaveBeenCalledTimes(1);
+  });
+  it('rechaza radios fuera de 8-35 km y campos extra', async () => {
+    expect((await handleRouteSources(request({ ...wp, radiusM: 40_000 }), mock())).status).toBe(400);
+    expect((await handleRouteSources(request({ ...wp, track: [] }), mock())).status).toBe(400);
+  });
+});

@@ -31,6 +31,13 @@ const passSchema = z.strictObject({
   id: z.string().regex(/^pass[1-6]$/), nombre: z.string().trim().min(1).max(80),
   cotaM: finite(12_000).nullable(), distanciaKm: finite(40),
 });
+// Puntos de paso para combinar: nombre y cifras con un id propio (w1..w24); nunca coordenadas.
+const waypointSchema = z.strictObject({
+  id: z.string().regex(/^w([1-9]|1\d|2[0-4])$/), tipo: z.enum(['puerto', 'cima', 'pueblo', 'habitual']),
+  nombre: z.string().trim().min(1).max(60), cotaM: finite(12_000).nullable(), distanciaKm: finite(100),
+  direccion: z.enum(DIRECCIONES), interes: z.number().int().min(0).max(3),
+});
+const waypointGoalSchema = z.strictObject({ distanciaKm: finite(1000), desnivelM: finite(20_000).nullable() });
 const dayIndex = z.number().int().min(0).max(6);
 const uniqueDays = (min: number) => z.array(dayIndex).min(min).max(7).refine(days => new Set(days).size === days.length);
 const weekGoalSchema = z.strictObject({
@@ -56,6 +63,8 @@ export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
   // Como en `plan`, las notas libres no salen del navegador por el servicio común.
   z.strictObject({ operation: z.literal('workouts'), summary: summarySchema, objetivo: weekGoalSchema.nullable(),
     ocupados: uniqueDays(0), disponibles: uniqueDays(1), notas: z.literal('').default('') }),
+  z.strictObject({ operation: z.literal('waypoints'), objetivo: waypointGoalSchema,
+    puntos: z.array(waypointSchema).min(1).max(24).refine(points => new Set(points.map(point => point.id)).size === points.length) }),
 ]);
 export type SharedAiRequest = z.infer<typeof sharedAiRequestSchema>;
 export type SharedAiDependencies = {

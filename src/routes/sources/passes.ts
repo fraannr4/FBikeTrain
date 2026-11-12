@@ -47,7 +47,7 @@ const element = z.object({
 const payload = z.object({ elements: z.array(element).max(30_000), remark: z.string().optional() });
 type Element = z.infer<typeof element>;
 
-function suitableRoad(way: Element): boolean {
+export function suitablePavedRoad(way: Element): boolean {
   const tags = way.tags;
   return !!tags && ['primary', 'secondary', 'tertiary', 'unclassified', 'residential', 'service', 'living_street'].includes(tags.highway)
     && !['no', 'private'].includes(tags.bicycle ?? '')
@@ -92,7 +92,7 @@ export function parsePasses(raw: unknown, input: PassSearch): MountainPass[] {
   const search = passSearchSchema.parse(input);
   const parsed = payload.safeParse(raw);
   if (!parsed.success || parsed.data.remark) throw new RouteSourceError('invalid_response');
-  const roads = parsed.data.elements.filter(way => way.type === 'way' && suitableRoad(way));
+  const roads = parsed.data.elements.filter(way => way.type === 'way' && suitablePavedRoad(way));
   const result: MountainPass[] = [];
   const seen = new Set<number>();
   for (const node of parsed.data.elements) {

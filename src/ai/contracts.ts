@@ -67,3 +67,17 @@ export type AiGoal =
   | { tipo: 'volumen'; diasRestantes: number; distanciaRestanteKm: number | null; desnivelRestanteM: number | null };
 /** Lo que se pide para proponer la semana. Los días son índices desde hoy (0 hoy, 6 dentro de 6 días). */
 export type WeekInput = { objetivo: WeekGoal | null; ocupados: number[]; disponibles: number[]; notas: string };
+/** Punto de paso tal como lo ve la IA: nombre y cifras, nunca coordenadas ni la entrada o salida del historial. */
+export type AiWaypoint = {
+  id: string;
+  tipo: 'puerto' | 'cima' | 'pueblo' | 'habitual';
+  nombre: string;
+  cotaM: number | null;
+  distanciaKm: number;
+  direccion: Direccion;
+  interes: number;
+};
+/** Combinación propuesta por la IA: ids de la lista recibida, en orden de paso. */
+export type AiCombo = { puntos: string[]; direccion: Direccion; titulo: string };
+/** Objetivo de la vuelta para combinar puntos: solo cifras. */
+export type AiWaypointGoal = { distanciaKm: number; desnivelM: number | null };

@@ -16,7 +16,8 @@ import { Mas } from './ui/pages/Mas';
 import { Perfil } from './ui/pages/Perfil';
 import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 import { Empalmar } from './ui/pages/Empalmar';
-import { Catalogo } from './ui/pages/Catalogo';
+import { RutasCerca } from './ui/pages/RutasCerca';
+import { RutaCompartida } from './ui/pages/RutaCompartida';
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -49,9 +50,11 @@ export function App() {
           <Route path="/rutas/ia" element={<RutasIa />} />
           <Route path="/rutas/biblioteca" element={<BibliotecaRutas />} />
           <Route path="/rutas/empalmar" element={<Empalmar />} />
-          <Route path="/rutas/catalogo" element={<Catalogo />} />
-          {/* Enlaces antiguos del marcador de Wikiloc, ya retirado. */}
-          <Route path="/rutas/wikiloc/*" element={<Navigate to="/rutas/catalogo" replace />} />
+          <Route path="/rutas/cerca" element={<RutasCerca />} />
+          {/* Enlaces antiguos: el catálogo de Ride with GPS y el marcador de Wikiloc, ya retirados. */}
+          <Route path="/rutas/catalogo" element={<Navigate to="/rutas/cerca" replace />} />
+          <Route path="/rutas/wikiloc/*" element={<Navigate to="/rutas/cerca" replace />} />
+          <Route path="/rutas/compartida" element={<RutaCompartida />} />
           <Route path="/plan" element={<Calendario />} />
           <Route path="/plan/objetivos" element={<Objetivos />} />
           <Route path="/mas" element={<Mas />} />

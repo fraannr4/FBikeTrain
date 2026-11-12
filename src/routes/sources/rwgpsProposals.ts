@@ -1,10 +1,11 @@
-import type { LatLng } from '../../domain/types';
-import { haversineM } from '../../import/summary';
-import { adaptCandidates, overlap, OVERLAP_LIMIT, type AdaptCandidate, type Proposal, type RecommendDeps, type RecommendTarget, type RecommendUpdate, type Rejected } from '../catalog/recommend';
+import { adaptCandidates, type AdaptCandidate, type Proposal, type RecommendDeps, type RecommendTarget, type RecommendUpdate, type Rejected } from '../catalog/recommend';
 import { analyzeReferenceRoutePoints, routePointsToGpx, type ReferenceRoute } from '../library';
+import { angleGap, bearingDeg, routeBearing, sameRoute } from '../diversity';
 import { rankForTarget } from '../rank';
 import { RwgpsError } from './ridewithgps';
 import { fetchRwgpsNearby, fetchRwgpsRoute, type RwgpsAccess, type RwgpsNearbyRoute } from './rwgpsImport';
+
+export { bearingDeg, routeBearing };
 
 /**
  * Propuestas desde la colección común de Ride with GPS: se buscan las rutas que pasan por la zona,
@@ -33,28 +34,6 @@ export type RwgpsProposalResult = {
   radiusKm: number;
 };
 
-/** Rumbo de `from` a `to`, en grados: 0 norte, 90 este. */
-export function bearingDeg(from: LatLng, to: LatLng): number {
-  const rad = Math.PI / 180;
-  const y = Math.sin((to.lng - from.lng) * rad) * Math.cos(to.lat * rad);
-  const x = Math.cos(from.lat * rad) * Math.sin(to.lat * rad) - Math.sin(from.lat * rad) * Math.cos(to.lat * rad) * Math.cos((to.lng - from.lng) * rad);
-  return ((Math.atan2(y, x) / rad) + 360) % 360;
-}
-
-/** Hacia dónde va una ruta: el rumbo desde el inicio a su punto más lejano. */
-export function routeBearing(line: LatLng[], start: LatLng): number {
-  let far = line[0];
-  let farM = -1;
-  for (const p of line) {
-    const d = haversineM(start.lat, start.lng, p.lat, p.lng);
-    if (d > farM) { farM = d; far = p; }
-  }
-  return bearingDeg(start, far);
-}
-
-const angleGap = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
-const sameRoute = (a: LatLng[], b: LatLng[]) => Math.max(overlap(a, b), overlap(b, a)) > OVERLAP_LIMIT;
-
 type Ranked = { route: RwgpsNearbyRoute; motivo: string; bearing: number };
 
 /**
@@ -73,7 +52,7 @@ function diverseOrder(ranked: Ranked[]): Ranked[] {
   return chosen;
 }
 
-function toReferenceRoute(r: Awaited<ReturnType<typeof fetchRwgpsRoute>>): ReferenceRoute {
+export function toReferenceRoute(r: Awaited<ReturnType<typeof fetchRwgpsRoute>>): ReferenceRoute {
   const now = Date.now();
   const ref = `rwgps-${r.id}`;
   return {

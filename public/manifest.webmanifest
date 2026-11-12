@@ -17,6 +17,9 @@
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
       "files": [{ "name": "files", "accept": [".gpx", ".tcx", ".fit", "application/gpx+xml", "application/vnd.garmin.tcx+xml", "application/vnd.ant.fit", "application/octet-stream", "application/xml", "text/xml"] }]
     }
   }

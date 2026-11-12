@@ -2,11 +2,13 @@ import { z } from 'zod';
 import { routeSearchSchema, routeReferencesSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema.ts';
 import { loadOverpass, loadWikiloc, readLimited, sourceTransport } from './providers.ts';
 import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } from './limits.ts';
+import { loadWaypoints, normalizeWaypointSearch, osmWaypointsSchema, waypointSearchSchema } from './waypoints.ts';
 import { loadMountainPasses, mountainPassesSchema, normalizePassSearch, passSearchSchema } from './passes.ts';
 
 const requestSchema = z.union([
   routeSearchSchema.extend({ source: z.enum(['wikiloc', 'osm']).default('wikiloc') }),
   passSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('passes') }),
+  waypointSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('waypoints') }),
 ]);
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export type SourceCacheRow = { payload: unknown; fetched_at: string; expires_at: string };
@@ -20,11 +22,17 @@ export type RouteSourceDependencies = {
   fetch: typeof fetch;
   now?: () => number;
 };
-export async function sourceCacheKey(source: string, search: RouteSearch, kind: 'routes' | 'passes' = 'routes'): Promise<string> {
+type SearchKind = 'routes' | 'passes' | 'waypoints';
+const NORMALIZERS: Record<SearchKind, (search: RouteSearch) => RouteSearch> = {
+  routes: normalizeRouteSearch, passes: normalizePassSearch, waypoints: normalizeWaypointSearch,
+};
+const KEY_PREFIXES: Record<SearchKind, string> = { routes: 'v2', passes: 'v1:passes', waypoints: 'v1:waypoints' };
+
+export async function sourceCacheKey(source: string, search: RouteSearch, kind: SearchKind = 'routes'): Promise<string> {
   // No almacena el punto de consulta legible en la clave de caché.
-  const normalized = kind === 'passes' ? normalizePassSearch(search) : normalizeRouteSearch(search);
+  const normalized = NORMALIZERS[kind](search);
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([source, normalized.lat, normalized.lon, normalized.radiusM])));
-  return `${kind === 'passes' ? 'v1:passes' : 'v2'}:${source}:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
+  return `${KEY_PREFIXES[kind]}:${source}:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
 }
 export async function handleRouteSources(request: Request, deps: RouteSourceDependencies): Promise<Response> {
   const origin = request.headers.get('origin');
@@ -54,7 +62,9 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
   if (input.source === 'wikiloc' && (!deps.wikilocAuthorized || !deps.wikilocSearchTemplate)) return fail(503, 'wikiloc_authorization_required');
   const { source, lat, lon, radiusM } = input;
   const passes = 'kind' in input && input.kind === 'passes';
-  const search = passes ? normalizePassSearch({ lat, lon, radiusM }) : normalizeRouteSearch({ lat, lon, radiusM });
+  const waypoints = 'kind' in input && input.kind === 'waypoints';
+  const kind: SearchKind = passes ? 'passes' : waypoints ? 'waypoints' : 'routes';
+  const search = NORMALIZERS[kind]({ lat, lon, radiusM });
   const now = deps.now ?? Date.now;
   const controller = new AbortController();
   const signal = controller.signal;
@@ -67,7 +77,7 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     const quota = await deps.consumeQuota(userId);
     signal.throwIfAborted();
     if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
-    const key = await sourceCacheKey(source, search, passes ? 'passes' : 'routes');
+    const key = await sourceCacheKey(source, search, kind);
     const cached = await deps.readCache(key);
     signal.throwIfAborted();
     if (cached && Date.parse(cached.expires_at) > now() && Date.parse(cached.fetched_at) <= now()
@@ -76,7 +86,11 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
       if (cachedPasses?.success && cachedPasses.data.every(pass => pass.distanceM <= search.radiusM)) {
         return Response.json({ data: cachedPasses.data }, { headers });
       }
-      const parsed = !passes ? routeReferencesSchema.safeParse(cached.payload) : null;
+      const cachedWaypoints = waypoints ? osmWaypointsSchema.safeParse(cached.payload) : null;
+      if (cachedWaypoints?.success && cachedWaypoints.data.every(w => w.distanceM <= search.radiusM)) {
+        return Response.json({ data: cachedWaypoints.data }, { headers });
+      }
+      const parsed = !passes && !waypoints ? routeReferencesSchema.safeParse(cached.payload) : null;
       if (parsed?.success && parsed.data.every(route => route.source === input.source && Date.parse(route.fetchedAt) === Date.parse(cached.fetched_at)
         && (!route.geometry || route.geometry.coordinates.reduce((n, line) => n + line.length, 0) <= MAX_REFERENCE_POINTS))) {
         return Response.json({ data: parsed.data }, { headers });
@@ -85,8 +99,8 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     signal.throwIfAborted();
     const fetchedAt = new Date(now()).toISOString();
     const transport = sourceTransport(source, { fetch: deps.fetch, claim: deps.claim, signal });
-    if (passes) {
-      const data = await loadMountainPasses(search, transport);
+    if (passes || waypoints) {
+      const data = passes ? await loadMountainPasses(search, transport) : await loadWaypoints(search, transport);
       signal.throwIfAborted();
       await deps.writeCache({ cache_key: key, source: 'osm', payload: data, fetched_at: fetchedAt, expires_at: new Date(Date.parse(fetchedAt) + CACHE_TTL_MS).toISOString() });
       signal.throwIfAborted();

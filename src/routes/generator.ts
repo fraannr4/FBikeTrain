@@ -28,6 +28,8 @@ export const DEFAULT_COUNT = 5;
 /** Presupuesto de una operación completa; deja margen bajo las 8 consultas/minuto compartidas. */
 export const SEARCH_REQUEST_BUDGET = 6;
 export const DEFAULT_SEEDS = SEARCH_REQUEST_BUDGET;
+/** Techo de `budget`: el de una búsqueda completa de «Rutas cerca» (`NEARBY_ORS_BUDGET`). */
+export const MAX_GENERATE_BUDGET = 14;
 /** Último recurso: vueltas descartadas que se enseñan con aviso si ninguna pasa el filtro. */
 const FALLBACK_MAX_OFFROAD_M = 3000;
 const FALLBACK_UNDER = 0.4;
@@ -39,7 +41,11 @@ const MAX_SEED_BASE = 10000;
 /** Fracción máxima de retroceso admitida en una vuelta dirigida por un puerto o una referencia. */
 export const MAX_INTENT_BACKTRACK = 0.15;
 
-export type GenerateRequest = { start: LatLng; target: Target; count?: number; seeds?: number; usedSides?: readonly number[]; intents?: RouteIntent[] };
+export type GenerateRequest = {
+  start: LatLng; target: Target; count?: number; seeds?: number; usedSides?: readonly number[]; intents?: RouteIntent[];
+  /** Consultas a ORS que puede gastar; por defecto `SEARCH_REQUEST_BUDGET`, nunca más de `MAX_GENERATE_BUDGET`. */
+  budget?: number;
+};
 
 export type GeneratedRoute = RouteCandidate & {
   /** Referencia efectivamente recorrida; no basta con que la IA la haya mencionado. */
@@ -77,7 +83,8 @@ export type GenerateDeps = {
  * llegado ninguna candidata; si ya ha llegado alguna, corta la búsqueda y se devuelve en `stoppedBy`.
  */
 export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): Promise<GenerateResult> {
-  const seeds = Math.max(0, Math.min(req.seeds ?? DEFAULT_SEEDS, SEARCH_REQUEST_BUDGET));
+  const budget = Math.max(0, Math.min(req.budget ?? SEARCH_REQUEST_BUDGET, MAX_GENERATE_BUDGET));
+  const seeds = Math.max(0, Math.min(req.seeds ?? budget, budget));
   const count = req.count ?? DEFAULT_COUNT;
   const seedBase = deps.seedBase ?? Math.floor(Math.random() * MAX_SEED_BASE);
   const fetchOne = deps.fetchRoundTrip ?? fetchRoundTrip;
@@ -130,7 +137,7 @@ export async function generateRoutes(req: GenerateRequest, deps: GenerateDeps): 
       if (reason !== 'autopista') near.push({ candidate, reason });
       continue;
     }
-    const rated = rate(candidate, req.target, deps);
+    const rated = rateCandidate(candidate, req.target, deps);
     // Las puntas y lazos no pueden llenar el cupo de rutas buenas ni detener la búsqueda pronto.
     if (rated.warning) awkward.push(rated);
     else accepted.push(rated);
@@ -194,12 +201,13 @@ function fallback(near: { candidate: RouteCandidate; reason: RejectReason }[], t
     .filter(({ candidate: c }) => c.unpavedM + c.trackM <= FALLBACK_MAX_OFFROAD_M && c.distanceM >= t * (1 - FALLBACK_UNDER) && c.distanceM <= t * (1 + FALLBACK_OVER))
     .sort((a, b) => a.candidate.unpavedM + a.candidate.trackM - (b.candidate.unpavedM + b.candidate.trackM))
     .map(({ candidate, reason }) => {
-      const rated = rate(candidate, target, deps);
+      const rated = rateCandidate(candidate, target, deps);
       return { ...rated, warning: [warningFor(candidate, reason, t), rated.warning].filter(Boolean).join(' ') };
     });
 }
 
-function rate(c: RouteCandidate, target: Target, deps: GenerateDeps): GeneratedRoute {
+/** Puntuación, carretera nueva, dificultad y tiempo de una candidata; aviso si tiene retrocesos o lazos. */
+export function rateCandidate(c: RouteCandidate, target: Target, deps: Pick<GenerateDeps, 'reference' | 'visited'>): GeneratedRoute {
   const newPct = newRoadPct(c.coords, deps.visited);
   const ref = deps.reference;
   const quality = geometryQuality(c.coords);

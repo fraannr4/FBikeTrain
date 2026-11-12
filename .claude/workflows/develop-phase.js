@@ -15,6 +15,7 @@ const A = args || {}
 const PLAN = A.plan
 const TASKS = A.tasks || []
 const MAX_FIX = A.maxFixRounds == null ? 2 : A.maxFixRounds
+// args.reviewers (opcional): 'plan' para un solo revisor (cycling-reviewer).
 // args.model (opcional): modelo para todos los agentes del lote, por ejemplo 'fable' o 'sonnet'.
 const agentM = (prompt, opts) => agent(prompt, A.model ? { ...opts, model: A.model } : opts)
 if (!PLAN || !TASKS.length) throw new Error('Faltan args: { plan, tasks: [{ n, agent }] }')
@@ -79,7 +80,7 @@ const qualityReview = (t, impl) => `Revisa la calidad del código de la Task ${t
 Mira solo estos ficheros: ${impl.files.join(', ')}.
 Severidades: blocker, major o minor. Devuelve approved=true si no hay blocker ni major.`
 
-const verifyPrompt = t => `Verifica la Task ${t.n} del plan ${PLAN}: ejecuta npx vitest run, npx tsc --noEmit, npm run build si hay package.json con script build, y el comando de verificación propio de la tarea. Devuelve passed y la parte decisiva de la salida (máximo 40 líneas).`
+const verifyPrompt = t => `Verifica la Task ${t.n} del plan ${PLAN}: ejecuta el comando de verificación propio de la tarea (vitest de sus ficheros y, si los hay, los de los módulos que toca, y la spec de Playwright que pida con PLAYWRIGHT_PORT=4517) y npx tsc --noEmit. La suite completa (npx vitest run) y npm run build se pasan una vez en la verificación final del lote; no los ejecutes aquí. Devuelve passed y la parte decisiva de la salida (máximo 40 líneas).`
 
 const results = []
 for (const t of TASKS) {
@@ -95,7 +96,8 @@ for (const t of TASKS) {
   for (let round = 0; ; round++) {
     const reviews = await parallel([
       () => agentM(specReview(t, impl), { label: `T${t.n} plan`, phase: 'Revisar', agentType: 'cycling-reviewer', schema: REVIEW }),
-      () => agentM(qualityReview(t, impl), { label: `T${t.n} calidad`, phase: 'Revisar', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
+      // args.reviewers: 'plan' deja solo el revisor del plan (lotes ligeros).
+      ...(A.reviewers === 'plan' ? [] : [() => agentM(qualityReview(t, impl), { label: `T${t.n} calidad`, phase: 'Revisar', agentType: 'feature-dev:code-reviewer', schema: REVIEW })]),
     ])
     open = reviews.filter(Boolean).flatMap(r => r.issues.filter(i => i.severity !== 'minor'))
     if (!open.length || round >= MAX_FIX) break
@@ -118,9 +120,9 @@ phase('Cierre')
 const touched = [...new Set(results.flatMap(r => r.files || []))]
 let simplify = null, finalVerify = null, finalReview = null, uiCheck = null
 if (results.length && results.every(r => r.status === 'ok')) {
-  simplify = await agentM(`Simplifica sin cambiar comportamiento estos ficheros recién escritos: ${touched.join(', ')}. Después ejecuta npx vitest run y npx tsc --noEmit; si algo falla, deshaz tu cambio.`, { label: 'simplificar', phase: 'Cierre', agentType: 'code-simplifier:code-simplifier' })
+  simplify = await agentM(`Simplifica sin cambiar comportamiento estos ficheros recién escritos: ${touched.join(', ')}. Después ejecuta npx tsc --noEmit y los tests vitest de los ficheros que hayas cambiado; si algo falla, deshaz tu cambio.`, { label: 'simplificar', phase: 'Cierre', agentType: 'code-simplifier:code-simplifier' })
   const tail = [
-    () => agentM(`Verificación final del lote (tareas ${done.join(', ')} del plan ${PLAN}): npx vitest run, npx tsc --noEmit, npm run build. Devuelve passed y la salida decisiva.`, { label: 'verificación final', phase: 'Cierre', agentType: 'cycling-qa', schema: VERIFY }),
+    () => agentM(`Verificación final del lote (tareas ${done.join(', ')} del plan ${PLAN}): npx vitest run (sin otros procesos en marcha; un test de jsdom que falla por timeout se repite solo antes de darlo por fallo), npx tsc --noEmit, npm run build. Devuelve passed y la salida decisiva.`, { label: 'verificación final', phase: 'Cierre', agentType: 'cycling-qa', schema: VERIFY }),
     () => agentM(`Revisión global de los cambios del lote (tareas ${done.join(', ')} del plan ${PLAN}). Ficheros: ${touched.join(', ')}. Busca problemas entre tareas: interfaces que no encajan, duplicación, seguridad. Devuelve approved=true si no hay blocker ni major.`, { label: 'revisión global', phase: 'Cierre', agentType: 'feature-dev:code-reviewer', schema: REVIEW }),
   ]
   if (A.ui) tail.push(() => agentM(`Revisa las pantallas tocadas en el lote con break-ui (datos extremos) y web-design-guidelines. Solo informa de lo que rompe el uso; lo visual queda para el plan de rediseño. Ficheros: ${touched.join(', ')}.`, { label: 'revisión UI', phase: 'Cierre', agentType: 'cycling-qa', schema: REVIEW }))

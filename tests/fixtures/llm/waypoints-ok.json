@@ -1,0 +1,20 @@
+{
+  "object": "chat.completion",
+  "created": 1793952010,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"combinaciones\":[{\"puntos\":[\"w1\",\"w2\"],\"direccion\":\"noreste\",\"titulo\":\"Por el Coll Sintético y la Cima Norte\"},{\"puntos\":[\"w3\"],\"direccion\":\"sur\",\"titulo\":\"Subida al Puerto Sur\"}]}",
+        "reasoning": "Elijo los puertos y cimas de más interés en direcciones distintas."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 820, "completion_tokens": 140, "total_tokens": 960 },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

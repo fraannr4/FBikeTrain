@@ -1,6 +1,53 @@
 # Estado del proyecto FBikeTrain
 
-## Retomar aquí (2026-11-12, tarde): rutas de Ride with GPS por zona
+## Retomar aquí (2026-11-13): «Rutas cerca», rutas de Strava y Explore publicados
+
+- **Fase A, motor propio y pantalla «Rutas cerca»** (`#/rutas/cerca`; `#/rutas/catalogo` redirige). Plan: `docs/superpowers/plans/2026-11-12-rutas-cerca-motor.md`, tareas 1 a 6.
+  - Puntos de paso: OSM (`kind: 'waypoints'` en `route-sources`: puertos, cimas con carretera asfaltada y pueblos, con `interes` de 0 a 3) e historial local (subidas habituales y tramos repetidos 3 o más veces).
+  - Combinaciones: la IA compartida (operación `waypoints` de `ai-routes`, solo nombres y cifras); si falla, `codeCombos`.
+  - Orquestador `src/routes/nearby.ts`: rutas reales de Ride with GPS primero, después el motor y, si faltan, `round_trip`. Filtros: ±10 % de km, ±25 % de desnivel, asfalto, rumbos separados ≥ 45° y solape < 70 %. Como mucho 14 consultas a ORS.
+- **Fase B, carpeta `routes/` de la exportación de Strava:** las rutas van a la biblioteca con `origin: { kind: 'strava' }` y se descartan duplicados por geometría. Plan: `2026-11-12-strava-routes.md`.
+- **Fase D, compartir desde Explore:**
+  - `rwgpsExploreUrl` abre Explore con los filtros puestos (botón en «Rutas cerca»);
+  - el `share_target` acepta también enlaces;
+  - pantalla nueva `#/rutas/compartida`, que adapta una ruta o colección de Ride with GPS al inicio.
+
+  Plan: `2026-11-12-explore-compartir.md`.
+- **Verificación:** tsc limpio. vitest completo: 131/132 ficheros; el único fallo, `aiWeekSheet`, fue un timeout por carga y pasa solo. Build correcto. e2e `rutas-cerca`, `compartida`, `import` y `rutas`: 25/25.
+- **Pendiente del usuario:**
+  - prueba real desde Caldes (60 km, y 60 km con 800 m: 5 o más rutas cada una) y contraste con las 5 mejores rutas de Wikiloc;
+  - `routes/` con el archivo real de Strava;
+  - «Compartir → FBikeTrain» en Android.
+- **Abierto:** ¿«Rutas cerca» debe respetar `VITE_SHARED_AI_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED`? Hoy usa los servicios siempre que hay sesión.
+- **En curso, sin publicar:** Zona, buscador y Amigos, y Retos, en el worktree `.claude/worktrees/agent-a3ec01869c0b3e2d7`, con las migraciones `202611130001` y `202611130002` sin aplicar.
+
+## Anterior (2026-11-12, noche): decisiones para «Rutas cerca»
+
+Sesión de investigación y decisiones, sin código. `main` = `463af22`.
+
+**Investigación (con datos reales):** no hay ninguna fuente legal y gratuita que busque por zona rutas de carretera publicadas por otros ciclistas.
+- Ride with GPS: la OpenAPI oficial (`/api/v1/openapi.yaml`, 34 rutas) no busca por zona ni por palabra. Solo lee rutas o colecciones públicas por id y lista lo propio de la cuenta (por nombre, km y desnivel, nunca por lugar). Explore (110.246 resultados cerca de Caldes) solo existe en la web, usa un servicio interno y contesta 418 a peticiones automáticas: automatizarlo sería scraping, descartado.
+- Strava: desde el 2026-09-01, Explore Segments exige Extended Access; la API de rutas solo da las propias.
+- Komoot (solo socios), Wikiloc (sin API, Cloudflare), Bikemap (GPX de pago), Garmin y Plotaroute (sin búsqueda): descartados.
+- Generalitat, Diputació e ICGC: no publican rutas de carretera en GPX abierto.
+- OSM a 30 km de Caldes: 342 relaciones ciclistas, casi todas tramos de red o vías verdes, casi sin vueltas de carretera. 10 subidas CIMA (El Farell desde Caldes, Collformic, Estenalles, Tagamanent, Turó de l'Home, Montserrat, Santa Fe…) y 118 collados con nombre a 35 km (muchos en pista). Trazas GPS públicas: unas 10 salidas de carretera reales en 20×13 km, insuficiente.
+
+**Decisiones aprobadas (grilling 2026-11-12):**
+1. Pantalla «Rutas cerca» en lugar de `#/rutas/catalogo`, con el mismo formulario: km, desnivel opcional, salida Casa / Aquí / Mapa.
+2. Orden: primero las rutas reales que encajan (comunidad, rutas de Strava del usuario, índice de Ride with GPS), adaptadas al inicio. El motor propio completa hasta 5 o más en direcciones libres. Cada tarjeta dice de dónde sale.
+3. Motor propio: ORS `directions` por puntos de paso, no `round_trip` aleatorio. Puntos de paso: subidas CIMA asfaltadas y collados OSM; los tramos y subidas más repetidos del historial (solo en local); pueblos en carreteras secundarias y terciarias. La IA combina los puntos por dirección solo con cifras y nombres, nunca coordenadas ni «Casa». Si la IA falla, los combina el código.
+4. Explore de Ride with GPS a mano: un botón abre Explore con los filtros puestos. La ruta llega por «Compartir → FBikeTrain» (`share_target` de la PWA en `public/manifest.webmanifest`) o pegando enlaces, y se lee por id con la API. Propuesto, pendiente de confirmar: sembrar `rwgps_route_index` con colecciones PÚBLICAS de la zona (clubes, tiendas como «Great Rides Barcelona», embajadores); el usuario manda los enlaces una vez desde su navegador.
+5. Exportación de Strava: leer también la carpeta `routes/` (hoy solo `activities.csv` y `activities/`).
+6. Índice de comunidad con vueltas de carretera compartidas y recortadas: sin el primer y el último km ni nada a menos de 1 km de Casa; línea de 300 puntos como máximo, más km y desnivel; sin nombre, fecha ni usuario. Consentimiento RGPD: pregunta clara al importar, botones Sí y No, nada marcado; se cambia y se borra lo compartido en Ajustes (el usuario pidió primero «activado por defecto» y aceptó la pregunta explícita tras explicarle el riesgo).
+7. Fases, cada una con su lote de develop-phase y su commit: **A** motor propio y pantalla «Rutas cerca»; **D** Explore por compartir y pegar, y siembra de colecciones; **B** `routes/` de Strava; **C** índice de comunidad.
+8. Prueba de aceptación en el móvil real desde Caldes: 60 km, y 60 km con unos 800 m, dan cada una 5 o más rutas automáticas con rumbos separados ≥ 45°, solape < 70 %, todo asfalto, distancia ±10 % y desnivel ±25 % cuando se pide. Una ruta compartida desde Explore se adapta al inicio. Validado a 360 y 430 px.
+9. Descartado: scraping de Explore, Komoot, Wikiloc automático, Bikemap, Strava Explore Segments y trazas GPS de OSM.
+
+**Pendientes:** correo a developers@ridewithgps.com pidiendo un endpoint de búsqueda (redactado; lo envía el usuario desde la cuenta de FBikeTrain): comprobar si han contestado. Ramas fusionadas que se pueden borrar: `claude/catalogo-rutas`, `claude/rwgps`, `claude/rwgps-compartido`, `claude/rwgps-zona`.
+
+**Siguiente:** plan de la fase A en `docs/superpowers/plans/2026-11-12-rutas-cerca-motor.md`.
+
+## Anterior (2026-11-12, tarde): rutas de Ride with GPS por zona
 
 - **Pantalla `#/rutas/catalogo`, ahora «Rutas de Ride with GPS»:** solo el generador (km, desnivel opcional, salida Casa/Aquí/Mapa, botón «Proponer rutas», nunca automático) y Wikiloc («Buscar en Wikiloc» + «Subir el GPX descargado»). Se retiraron la precarga OSM, los puertos, la importación GPX/ZIP y el pegado de enlaces (`catalog/load.ts` y `dem.ts` borrados).
 - **Propuestas:** `src/routes/sources/rwgpsProposals.ts`. Pide `nearby` con radio 5 → 15 → 30 km hasta tener 10 candidatas, ordena por km y desnivel, y elige al menos 5 (hasta 6) con rumbos separados ≥ 45° (luego 25°) y solape < 0,7. Cada una se adapta para salir y volver al inicio (`adaptRoute`), con reservas si falla, 12 intentos como máximo.

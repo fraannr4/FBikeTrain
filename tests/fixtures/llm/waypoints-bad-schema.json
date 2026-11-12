@@ -1,0 +1,20 @@
+{
+  "object": "chat.completion",
+  "created": 1793952010,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"combinaciones\":[{\"puntos\":[\"w1\",\"w2\",\"w3\",\"w4\"],\"direccion\":\"este\",\"titulo\":\"Cuatro puntos\"}]}",
+        "reasoning": "Encadeno todos los puntos."
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": { "prompt_tokens": 820, "completion_tokens": 60, "total_tokens": 880 },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": { "id": "req_synthetic" }
+}

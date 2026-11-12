@@ -1,17 +1,24 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { isAbort } from '../../ai/abort';
+import { createSharedWaypointPlanner } from '../../ai/sharedClient';
 import { useAccount } from '../../auth/AccountBoundary';
+import { listActivities, listClimbEfforts } from '../../db/repo';
 import type { LatLng, Settings } from '../../domain/types';
+import { computeReference } from '../../metrics/reference';
 import { adaptRoute, type AdaptedRoute } from '../../routes/adapt';
-import type { Proposal } from '../../routes/catalog/recommend';
+import { loadVisitedCells } from '../../routes/history';
+import { historyWaypoints } from '../../routes/historyWaypoints';
 import { parseReferenceRoute, RouteLibraryError, type ParsedReferenceRoute } from '../../routes/library';
+import { proposeNearbyRoutes, type NearbyCard as NearbyCardData, type NearbyUpdate } from '../../routes/nearby';
 import { OrsError } from '../../routes/ors';
+import { chooseOrsAccess, sessionToken, sharedOrsEnabled } from '../../routes/orsProxy';
+import { findWaypoints } from '../../routes/sources/client';
 import { RwgpsError } from '../../routes/sources/ridewithgps';
 import { clearLegacyRwgpsCredentials } from '../../routes/sources/rwgpsCredentials';
 import type { RwgpsAccess } from '../../routes/sources/rwgpsImport';
-import { MIN_PROPOSALS, proposeRwgpsRoutes, type RwgpsProposalResult, type RwgpsProposalUpdate } from '../../routes/sources/rwgpsProposals';
-import { chooseOrsAccess, sessionToken, sharedOrsEnabled } from '../../routes/orsProxy';
+import { MIN_PROPOSALS } from '../../routes/sources/rwgpsProposals';
+import { rwgpsExploreUrl } from '../../routes/sources/rwgpsExplore';
 import { isWikilocUrl } from '../../routes/wikilocLimits';
 import { clearLegacyWikilocRows, loadWikilocRequest, saveWikilocRequest, wikilocSearchUrl } from '../../routes/wikilocNearby';
 import { loadSettings, saveSettings } from '../../settings/settings';
@@ -21,19 +28,22 @@ import { Page } from '../components/Page';
 import { StateView } from '../components/StateView';
 import { useToast } from '../components/Toast';
 import { formatCount } from '../format';
-import { CircleAlert, ExternalLink, KeyRound, RefreshCw, Route, SlidersHorizontal, Upload } from '../icons';
+import { ChevronDown, CircleAlert, ExternalLink, Info, KeyRound, RefreshCw, Route, SlidersHorizontal, Upload } from '../icons';
+import { NearbyCard } from '../routes/NearbyCard';
 import { ProposalCard } from '../routes/ProposalCard';
+import { referenceRange } from '../routes/routeView';
 import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
 import '../styles/library.css';
 import '../styles/wikiloc.css';
 
-const DISTANCE_ID = 'cat-distancia';
+const DISTANCE_ID = 'cerca-distancia';
 const MIN_KM = 5;
 const MAX_KM = 300;
 const MAX_GAIN_M = 20_000;
 const DISTANCE_ERROR = `Escribe la distancia en km, entre ${formatCount(MIN_KM)} y ${formatCount(MAX_KM)}.`;
 const GAIN_ERROR = `El desnivel va en metros, entre 0 y ${formatCount(MAX_GAIN_M)}.`;
 const UNEXPECTED = 'Ha fallado algo inesperado. Vuelve a probar.';
+const FIRST_STATUS = 'Leyendo tu historial…';
 
 /** Cifra escrita con coma o punto; `null` si está vacía o no es un número. */
 function parseFigure(text: string): number | null {
@@ -45,38 +55,41 @@ function parseFigure(text: string): number | null {
 }
 
 const samePoint = (a: LatLng | null, b: LatLng) => !!a && a.lat === b.lat && a.lng === b.lng;
+const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${formatCount(n)} ${many}`);
+const waitingText = (s: number) => `Esperando ${formatCount(s)} s por el límite de consultas del motor de rutas…`;
 
-function statusText(u: RwgpsProposalUpdate, ready: number): string {
-  if (u.kind === 'searching') return `Buscando rutas de Ride with GPS a menos de ${formatCount(u.radiusKm)} km de tu inicio…`;
-  if (u.kind === 'trying') return `Adaptando «${u.name}» (${u.attempt} de ${u.total})…`;
-  if (u.kind === 'waiting') return `El motor de rutas admite pocas consultas por minuto. Sigo en ${u.seconds} s…`;
-  return `${ready === 1 ? '1 lista' : `${formatCount(ready)} listas`}. Buscando la siguiente…`;
+/** Qué está haciendo la búsqueda; `null` si la actualización no cambia el texto. */
+function statusText(u: NearbyUpdate, realReady: number): string | null {
+  switch (u.kind) {
+    case 'searching':
+      return `Buscando rutas reales a ${formatCount(u.radiusKm)} km de tu inicio…`;
+    case 'trying':
+      return `Adaptando «${u.name}» (${u.attempt} de ${u.total})…`;
+    case 'proposal':
+      return `${plural(realReady, 'ruta real lista', 'rutas reales listas')}. Buscando más…`;
+    case 'waypoints':
+      return u.count > 0 ? `${plural(u.count, 'punto de paso', 'puntos de paso')} en la zona. Combinándolos…` : 'Sin puntos de paso en la zona. Probando vueltas circulares…';
+    case 'engine':
+      return `Probando ${formatCount(u.tried)} de ${formatCount(u.budget)}…`;
+    default:
+      return null;
+  }
 }
 
-/** Qué decir cuando la búsqueda acaba con menos de 5 propuestas. */
-function shortfallText(r: RwgpsProposalResult): string {
-  if (r.nearby === 0) {
-    return 'Aún no hay rutas de Ride with GPS a menos de 30 km de tu inicio. Salen de la colección común de FBikeTrain, que crece con el tiempo: vuelve a probar más adelante o elige otro inicio.';
-  }
-  if (r.candidates === 0) {
-    return `Hay ${r.nearby === 1 ? '1 ruta' : `${formatCount(r.nearby)} rutas`} cerca, pero ninguna tiene una distancia parecida a la pedida. Prueba otra distancia.`;
-  }
-  const n = r.proposals.length;
-  return `${n === 0 ? 'Ninguna' : `Solo ${n}`} de las ${formatCount(r.candidates)} candidatas se ha podido adaptar bien. Prueba otra distancia u otro inicio.`;
-}
+const cardKey = (c: NearbyCardData) => (c.kind === 'real' ? c.proposal.route.id : `${c.combo}-${c.route.id}`);
 
 type Search =
-  | { state: 'running'; status: string; proposals: Proposal[] }
-  | { state: 'done'; proposals: Proposal[]; result: RwgpsProposalResult | null }
-  | { state: 'error'; message: string; proposals: Proposal[] };
+  | { state: 'running'; start: LatLng; status: string; cards: NearbyCardData[] }
+  | { state: 'done'; start: LatLng; cards: NearbyCardData[]; warnings: string[] }
+  | { state: 'error'; start: LatLng; message: string; cards: NearbyCardData[] };
 type UploadState = { state: 'adapting'; name: string } | { state: 'ready'; original: ParsedReferenceRoute; adapted: AdaptedRoute } | { state: 'error'; message: string };
 
 /**
- * «Rutas de Ride with GPS»: solo cuando el usuario lo pide, busca en la colección común las rutas de la
- * distancia pedida que pasan cerca de su inicio, elige al menos 5 en direcciones distintas y las adapta
- * para salir y volver a él. La app nunca accede a wikiloc.com: «Buscar en Wikiloc» abre una pestaña del usuario.
+ * «Rutas cerca»: solo cuando el usuario lo pide, propone al menos 5 vueltas de carretera desde su inicio,
+ * primero las rutas reales de la colección común y después las del motor, que encadena puertos, cimas,
+ * pueblos y tramos habituales. La app nunca accede a wikiloc.com: «Buscar en Wikiloc» abre una pestaña del usuario.
  */
-export function Catalogo() {
+export function RutasCerca() {
   const account = useAccount();
   const toast = useToast();
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -88,6 +101,8 @@ export function Catalogo() {
   const [points, setPoints] = useState<PickedPoints>({ aqui: null, mapa: null });
   const [checked, setChecked] = useState(false);
   const [search, setSearch] = useState<Search | null>(null);
+  /** Segundos que faltan de la espera por el límite por minuto; `null` si no se espera. */
+  const [waitLeft, setWaitLeft] = useState<number | null>(null);
   const [upload, setUpload] = useState<UploadState | null>(null);
   const abort = useRef<AbortController | null>(null);
 
@@ -118,6 +133,13 @@ export function Catalogo() {
 
   useEffect(() => () => abort.current?.abort(), []);
 
+  // Cuenta atrás de la espera: baja de segundo en segundo hasta 0.
+  useEffect(() => {
+    if (waitLeft === null || waitLeft <= 0) return;
+    const t = setTimeout(() => setWaitLeft((s) => (s === null ? null : Math.max(0, s - 1))), 1000);
+    return () => clearTimeout(t);
+  }, [waitLeft]);
+
   const home = settings?.home ?? null;
   const start = startPoint(kind, home, points);
   const distance = parseFigure(distanceText);
@@ -129,6 +151,7 @@ export function Catalogo() {
   const hasKey = !!settings && ((sharedOrsEnabled() && account !== null) || settings.ors.apiKey.trim() !== '');
   const ors = useMemo(() => (settings ? chooseOrsAccess(settings.ors.apiKey, account) : null), [settings, account]);
   const rwgps = useMemo<RwgpsAccess | null>(() => (account ? { getToken: sessionToken(account.client) } : null), [account]);
+  const ai = useMemo(() => (account ? createSharedWaypointPlanner(sessionToken(account.client)) : null), [account]);
   const busy = search?.state === 'running' || upload?.state === 'adapting';
 
   /** Comprueba la petición y la guarda. `null` si falta algo, y lo dice. */
@@ -155,32 +178,60 @@ export function Catalogo() {
   };
 
   const propose = async () => {
-    if (busy || !ors || !rwgps || !hasKey) return;
+    if (busy || !ors || !rwgps || !account || !hasKey) return;
     const req = await request();
     if (!req) return;
     const controller = newController();
-    const shown: Proposal[] = [];
-    setSearch({ state: 'running', status: 'Buscando rutas de Ride with GPS…', proposals: [] });
-    const onUpdate = (u: RwgpsProposalUpdate) => {
-      if (controller.signal.aborted) return;
-      if (u.kind === 'proposal') shown.push(u.proposal);
-      setSearch({ state: 'running', status: statusText(u, shown.length), proposals: [...shown] });
+    const { signal } = controller;
+    const accepted: NearbyCardData[] = [];
+    let realReady = 0;
+    let status = FIRST_STATUS;
+    setWaitLeft(null);
+    setSearch({ state: 'running', start: req.start, status, cards: [] });
+    const onUpdate = (u: NearbyUpdate) => {
+      if (signal.aborted) return;
+      if (u.kind === 'card') accepted.push(u.card);
+      else if (u.kind === 'waiting') setWaitLeft(u.seconds);
+      else {
+        if (u.kind === 'proposal') realReady++;
+        status = statusText(u, realReady) ?? status;
+        setWaitLeft(null);
+      }
+      setSearch({ state: 'running', start: req.start, status, cards: [...accepted] });
     };
     try {
-      const result = await proposeRwgpsRoutes(req, { rwgps, ors, signal: controller.signal, onUpdate });
-      if (!controller.signal.aborted) setSearch({ state: 'done', proposals: result.proposals, result });
+      // El historial (referencia, celdas visitadas y subidas) no sale nunca del navegador.
+      const now = Date.now();
+      const [visited, acts, climbs] = await Promise.all([
+        loadVisitedCells().catch(() => new Set<string>()),
+        listActivities(referenceRange(now)).catch(() => []),
+        listClimbEfforts().catch(() => []),
+      ]);
+      signal.throwIfAborted();
+      const functions = account.client.functions;
+      const result = await proposeNearbyRoutes(req, {
+        ors, rwgps, signal, onUpdate, ai,
+        reference: computeReference(acts, now),
+        visited,
+        findWaypoints: (from, radiusM, s) => findWaypoints(from, radiusM, functions, s),
+        historyWaypoints: (from, band, s) => historyWaypoints(from, band, { climbs, signal: s }),
+      });
+      if (!signal.aborted) setSearch({ state: 'done', start: req.start, cards: result.cards, warnings: result.warnings });
     } catch (e) {
-      if (isAbort(e) || controller.signal.aborted) return;
-      setSearch({ state: 'error', message: e instanceof OrsError || e instanceof RwgpsError ? e.message : UNEXPECTED, proposals: [...shown] });
+      if (isAbort(e) || signal.aborted) return;
+      setSearch({ state: 'error', start: req.start, message: e instanceof OrsError || e instanceof RwgpsError ? e.message : UNEXPECTED, cards: [...accepted] });
     } finally {
       if (abort.current === controller) abort.current = null;
+      if (!signal.aborted) setWaitLeft(null);
     }
   };
 
+  /** Corta al momento y deja las tarjetas ya aceptadas. */
   const cancel = () => {
     abort.current?.abort();
     abort.current = null;
-    setSearch((s) => (s?.state === 'running' ? { state: 'done', proposals: s.proposals, result: null } : s));
+    setWaitLeft(null);
+    setSearch((s) => (s?.state === 'running' ? { state: 'done', start: s.start, cards: s.cards, warnings: [] } : s));
   };
 
   // La pestaña se abre en el mismo gesto del usuario: si no, el navegador la bloquea.
@@ -192,6 +243,21 @@ export function Catalogo() {
     }
     const url = wikilocSearchUrl(centre);
     if (isWikilocUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Explore de Ride with GPS con zona, km y desnivel puestos. Solo se abre: la app nunca lo consulta.
+  const openExplore = () => {
+    const centre = start ?? home;
+    if (!centre) {
+      toast('Elige primero tu inicio.', { tone: 'error' });
+      return;
+    }
+    if (distance === null || !Number.isFinite(distance) || distance <= 0) {
+      toast('Escribe primero los km.', { tone: 'error' });
+      return;
+    }
+    const elevGainM = gain !== null && Number.isFinite(gain) && gain > 0 ? gain : null;
+    window.open(rwgpsExploreUrl({ start: centre, distanceKm: distance, elevGainM }), '_blank', 'noopener,noreferrer');
   };
 
   const adaptUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -229,14 +295,15 @@ export function Catalogo() {
     }
   };
 
+  const warnings = search?.state === 'done' ? search.warnings : [];
   return (
     <Page
-      title="Rutas de Ride with GPS"
+      title="Rutas cerca"
       back="/rutas"
       variant="narrow"
-      className="page--wikiloc page--catalogo"
+      className="page--wikiloc page--cerca"
       busy={!settings && !loadFailed}
-      lead="Pide km y desnivel: te propongo al menos 5 rutas de Ride with GPS en direcciones distintas, adaptadas para salir y volver a tu inicio."
+      lead="Al menos 5 vueltas de carretera desde donde salgas: primero rutas reales de la zona y después las del motor."
     >
       {loadFailed ? (
         <section className="section card">
@@ -257,10 +324,7 @@ export function Catalogo() {
       ) : null}
 
       {settings ? (
-        <section className="section card library-panel" aria-labelledby="cat-hoy">
-          <h2 className="card-title" id="cat-hoy">
-            ¿Qué quieres hacer hoy?
-          </h2>
+        <section className="section card library-panel" aria-label="Qué quieres hacer hoy">
           <div className="wk-figures">
             <Field id={DISTANCE_ID} label="Distancia" inputMode="decimal" suffix="km" required value={distanceText} error={distanceError} onChange={(e) => setDistanceText(e.target.value)} />
             <Field label="Desnivel (opcional)" inputMode="numeric" suffix="m" value={gainText} error={gainError} onChange={(e) => setGainText(e.target.value)} />
@@ -273,14 +337,14 @@ export function Catalogo() {
             onPick={(k, p) => setPoints((ps) => ({ ...ps, [k]: p }))}
             onSaveHome={(p) => void saveHome(p)}
           />
-          {!rwgps ? (
-            <p className="help">Inicia sesión para buscar rutas de Ride with GPS: las lee la cuenta común de FBikeTrain.</p>
+          {!account ? (
+            <p className="help">Inicia sesión para buscar rutas cerca: usan la colección común y los servicios de FBikeTrain.</p>
           ) : !hasKey ? (
             <StateView
               icon={KeyRound}
               level={3}
               title="Falta tu clave de rutas"
-              text="Para unir cada ruta con tu inicio hace falta OpenRouteService. Pega tu clave en Ajustes."
+              text="Para calcular las vueltas hace falta OpenRouteService. Pega tu clave en Ajustes."
               action={
                 <Link className="btn btn--secondary" to="/ajustes?abrir=claves">
                   <SlidersHorizontal className="ic" aria-hidden="true" />
@@ -298,67 +362,99 @@ export function Catalogo() {
       ) : null}
 
       {search ? (
-        <section className="section" aria-labelledby="cat-propuestas">
-          <h2 className="section-title" id="cat-propuestas">
+        <section className="section" aria-labelledby="cerca-propuestas">
+          <h2 className="section-title" id="cerca-propuestas">
             Propuestas
           </h2>
           <div className="cat-list">
-            {search.proposals.map((p) => (
-              <ProposalCard
-                key={p.route.id}
-                source={{ name: p.route.name, original: p.route, sourceUrl: p.route.sourceUrl, author: p.route.author }}
-                adapted={p.adapted}
-                why={p.motivo}
-              />
+            {search.cards.map((c) => (
+              <NearbyCard key={cardKey(c)} card={c} start={search.start} />
             ))}
           </div>
           {search.state === 'running' ? (
-            <div className="card library-panel cat-status" role="status">
+            <div className="card library-panel cat-status" role="status" aria-label="Progreso de la búsqueda">
               <CyclingLoader compact />
-              <p>{search.status}</p>
-              <button type="button" className="btn btn--ghost" onClick={cancel}>
-                Parar
+              <p>{waitLeft !== null ? waitingText(waitLeft) : search.status}</p>
+              <button type="button" className="btn btn--secondary" onClick={cancel}>
+                Cancelar
               </button>
             </div>
-          ) : search.state === 'error' ? (
+          ) : null}
+          {search.state === 'error' ? (
             <p className="library-error" role="alert">
               {search.message}
             </p>
-          ) : search.result && search.proposals.length < MIN_PROPOSALS ? (
-            <p className="help" role="status">
-              {shortfallText(search.result)}
-            </p>
+          ) : null}
+          {warnings.length > 0 ? (
+            <section className="card nb-notice" aria-label="Avisos de la búsqueda">
+              <StateView
+                icon={Info}
+                title={search.cards.length < MIN_PROPOSALS ? 'Menos vueltas de las buscadas' : 'Para tener en cuenta'}
+                text={warnings.map((w) => (
+                  <span key={w} className="nb-warning">
+                    {w}
+                  </span>
+                ))}
+              />
+            </section>
           ) : null}
         </section>
       ) : null}
 
       {settings ? (
-        <section className="section card library-panel" aria-labelledby="cat-wikiloc">
-          <h2 className="card-title" id="cat-wikiloc">
-            Una ruta de Wikiloc
-          </h2>
-          <button type="button" className="btn btn--secondary btn--block btn--wrap" onClick={openWikiloc}>
-            <ExternalLink className="ic" aria-hidden="true" />
-            Buscar en Wikiloc
-            <span className="sr-only"> (se abre en otra pestaña)</span>
-          </button>
-          <label className={`btn btn--secondary btn--block btn--wrap${busy || !hasKey ? ' is-disabled' : ''}`}>
-            <Upload className="ic" aria-hidden="true" />
-            Subir el GPX descargado
-            <input className="sr-only" type="file" accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml" aria-label="Subir el GPX descargado" disabled={busy || !hasKey} onChange={(e) => void adaptUpload(e)} />
-          </label>
-          <p className="help">Se abre Wikiloc alrededor de tu inicio con bici de carretera. Descarga allí el GPX y súbelo: se adapta a tu distancia y sale de tu inicio.</p>
-          {upload?.state === 'adapting' ? (
-            <div className="cat-status" role="status">
-              <CyclingLoader compact />
-              <p>Adaptando «{upload.name}»…</p>
-            </div>
-          ) : upload?.state === 'error' ? (
-            <p className="library-error" role="alert">
-              {upload.message}
-            </p>
-          ) : null}
-        </section>
+        <details className="section disclosure nb-wikiloc">
+          <summary>
+            <ExternalLink className="ic nb-wikiloc-ic" aria-hidden="true" />
+            <span className="nb-wikiloc-t">¿Buscas en Ride with GPS Explore?</span>
+            <ChevronDown className="chev" aria-hidden="true" />
+          </summary>
+          <div className="disclosure-body">
+            <button type="button" className="btn btn--secondary btn--block btn--wrap" onClick={openExplore}>
+              <ExternalLink className="ic" aria-hidden="true" />
+              Abrir Explore con tus filtros
+              <span className="sr-only"> (se abre en otra pestaña)</span>
+            </button>
+            <Link className="btn btn--secondary btn--block btn--wrap" to="/rutas/compartida">
+              <Route className="ic" aria-hidden="true" />
+              Pegar el enlace de una ruta
+            </Link>
+            <p className="help">Explore se abre alrededor de tu inicio, con tus km, tu desnivel y solo asfalto. Elige una ruta, compártela con FBikeTrain o copia su enlace: se adapta para salir y volver a tu inicio.</p>
+          </div>
+        </details>
+      ) : null}
+
+      {settings ? (
+        <details className="section disclosure nb-wikiloc">
+          <summary>
+            <ExternalLink className="ic nb-wikiloc-ic" aria-hidden="true" />
+            <span className="nb-wikiloc-t">¿Buscas en Wikiloc?</span>
+            <ChevronDown className="chev" aria-hidden="true" />
+          </summary>
+          <div className="disclosure-body">
+            <button type="button" className="btn btn--secondary btn--block btn--wrap" onClick={openWikiloc}>
+              <ExternalLink className="ic" aria-hidden="true" />
+              Buscar en Wikiloc
+              <span className="sr-only"> (se abre en otra pestaña)</span>
+            </button>
+            <label className={`btn btn--secondary btn--block btn--wrap${busy || !hasKey ? ' is-disabled' : ''}`}>
+              <Upload className="ic" aria-hidden="true" />
+              Subir el GPX descargado
+              <input className="sr-only" type="file" accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml" aria-label="Subir el GPX descargado" disabled={busy || !hasKey} onChange={(e) => void adaptUpload(e)} />
+            </label>
+            <p className="help">Se abre Wikiloc alrededor de tu inicio con bici de carretera. Descarga allí el GPX y súbelo: se adapta a tu distancia y sale de tu inicio.</p>
+            {upload?.state === 'adapting' ? (
+              <div className="cat-status" role="status">
+                <CyclingLoader compact />
+                <p>Adaptando «{upload.name}»…</p>
+              </div>
+            ) : null}
+            {upload?.state === 'error' ? (
+              <p className="library-error" role="alert">
+                {upload.message}
+              </p>
+            ) : null}
+          </div>
+        </details>
       ) : null}
       {upload?.state === 'ready' ? (
         <section className="section" aria-label="Ruta subida">

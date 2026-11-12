@@ -5,7 +5,8 @@ import { EARTH_RADIUS_M } from '../src/import/summary';
 import { buildVisitedCells } from '../src/metrics/grid';
 import { difficulty, type UserReference } from '../src/metrics/reference';
 import type { Target } from '../src/metrics/score';
-import { AIM_FRACTION, INITIAL_ROAD_FACTOR, SEARCH_REQUEST_BUDGET, generateRoutes, type GenerateRequest } from '../src/routes/generator';
+import { analyzeRoute } from '../src/routes/analyze';
+import { AIM_FRACTION, INITIAL_ROAD_FACTOR, MAX_GENERATE_BUDGET, SEARCH_REQUEST_BUDGET, generateRoutes, rateCandidate, type GenerateRequest } from '../src/routes/generator';
 import { loadVisitedCells } from '../src/routes/history';
 import { OrsError, type fetchRoundTrip, type OrsFeature } from '../src/routes/ors';
 
@@ -357,6 +358,25 @@ describe('generateRoutes', () => {
     expect(ors).toHaveBeenCalledTimes(3);
     expect(res.routes.map((r) => r.seed)).toEqual([0, 2]);
     expect(res.stoppedBy).toBeNull();
+  });
+
+  it('un presupuesto explícito amplía las semillas y nunca pasa de 14 consultas', async () => {
+    const ten = fakeOrs(() => noRoute());
+    expect((await run({ budget: 10, seeds: 100 }, ten)).requestsUsed).toBe(10);
+    expect(ten).toHaveBeenCalledTimes(10);
+    const huge = fakeOrs(() => noRoute());
+    expect((await run({ budget: 40 }, huge)).requestsUsed).toBe(MAX_GENERATE_BUDGET);
+    expect(MAX_GENERATE_BUDGET).toBe(14);
+    const none = fakeOrs(() => noRoute());
+    expect((await run({ budget: 0 }, none)).requestsUsed).toBe(0);
+  });
+
+  it('rateCandidate puntúa una candidata con la carretera nueva y la referencia', () => {
+    const c = analyzeRoute(feature({ distanceM: 30000 }), 0);
+    const rated = rateCandidate(c, TARGET, { reference, visited: new Set() });
+    expect(rated.newPct).toBe(100);
+    expect(rated.score).toBeGreaterThan(0.9);
+    expect(rated.estTimeS).toBeCloseTo(30000 / reference.avgSpeedMs);
   });
 
   it('difficulty and time null without reference', async () => {

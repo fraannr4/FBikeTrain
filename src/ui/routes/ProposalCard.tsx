@@ -31,8 +31,11 @@ function originLabel(url: string): string {
   return 'Ver el origen';
 }
 
-/** Una ruta adaptada lista para llevarse: mapa, cifras, avisos, «Enviar al iGPSPORT» y «Guardar en la biblioteca». */
-export function ProposalCard({ source, adapted, why, headingLevel = 3 }: { source: ProposalSource; adapted: AdaptedRoute; why?: string; headingLevel?: 2 | 3 }) {
+/**
+ * Una ruta adaptada lista para llevarse: mapa, cifras, avisos, «Enviar al iGPSPORT» y «Guardar en la biblioteca».
+ * `origin` es la etiqueta de origen sobre el nombre («Ride with GPS · autora»).
+ */
+export function ProposalCard({ source, adapted, why, origin, headingLevel = 3 }: { source: ProposalSource; adapted: AdaptedRoute; why?: string; origin?: string; headingLevel?: 2 | 3 }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -71,6 +74,7 @@ export function ProposalCard({ source, adapted, why, headingLevel = 3 }: { sourc
   const gain = adapted.elevGainM === null ? 'Sin altitud' : `${source.estimated ? '≈ ' : ''}${formatMeters(adapted.elevGainM)}`;
   return (
     <article className="cat-card">
+      {origin ? <p className="nb-origin">{origin}</p> : null}
       <Heading className="wk-name">{source.name}</Heading>
       {source.sourceUrl ? (
         <a className="cat-origin" href={source.sourceUrl} target="_blank" rel="noopener noreferrer">

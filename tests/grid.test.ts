@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCellCounts,
   buildVisitedCells,
   CELL_M,
   cellKey,
@@ -114,5 +115,27 @@ describe('newRoadPct', () => {
 
   it('empty route counts as 100 % new, never NaN', () => {
     expect(newRoadPct([], new Set([cellKey(O.lat, O.lng)]))).toBe(100);
+  });
+});
+
+describe('buildCellCounts', () => {
+  const REPEATS = 3;
+  const pass = (lat: number): TrackPoint[] => [{ t: 0, lat, lng: O.lng }, { t: 1, lat: lat + 1e-5, lng: O.lng }];
+
+  it('counts distinct tracks per cell', () => {
+    const counts = buildCellCounts(Array.from({ length: REPEATS }, () => pass(O.lat)));
+    expect(counts.get(cellKey(O.lat, O.lng))?.count).toBe(REPEATS);
+  });
+
+  it('counts a track that crosses the same cell twice only once there', () => {
+    const twice = [...pass(O.lat), ...pass(O.lat + 5 * LAT_STEP), ...pass(O.lat)];
+    expect(buildCellCounts([twice]).get(cellKey(O.lat, O.lng))?.count).toBe(1);
+  });
+
+  it('keeps the first real point of the cell as its location and skips points without GPS', () => {
+    const track: TrackPoint[] = [{ t: 0 }, { t: 1, lat: O.lat, lng: O.lng }, { t: 2, lat: O.lat + 1e-5, lng: O.lng }];
+    const cell = buildCellCounts([track]).get(cellKey(O.lat, O.lng));
+    expect(cell?.at).toEqual({ lat: O.lat, lng: O.lng });
+    expect(buildCellCounts([[{ t: 0 }]]).size).toBe(0);
   });
 });

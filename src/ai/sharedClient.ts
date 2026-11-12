@@ -1,8 +1,9 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
-import { goalFields, referenceFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
-import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
+import { goalFields, referenceFields, waypointFields, waypointGoalFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
+import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WaypointCombosSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
+import type { SharedWaypointPlanner } from './waypointCombos';
 import type { SharedAiPlanner } from './routePlanner';
 import type { AiPass } from './contracts';
 
@@ -34,13 +35,15 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
       if (signal?.aborted || (error instanceof DOMException && error.name === 'AbortError')) throw error;
       throw new LlmError('network', 'No se pudo conectar con el servicio común. Puedes ajustar la ruta manualmente.');
     }
-    const payload = await response.json().catch(() => null) as { data?: unknown; retryAfterS?: unknown } | null;
+    const payload = await response.json().catch(() => null) as { data?: unknown; retryAfterS?: unknown; error?: { code?: unknown } } | null;
     if (!response.ok) {
       if (response.status === 429) {
         const seconds = Number(payload?.retryAfterS ?? response.headers.get('retry-after'));
         throw new LlmError('rate_limit', 'El servicio gratuito ha alcanzado su límite. Espera antes de volver a buscar.', Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 60);
       }
       if (response.status === 503) throw new LlmError('unavailable', 'El servicio común todavía no está disponible. Puedes preparar la ruta manualmente.');
+      // El servicio ya ha validado la salida con zod: se trata como JSON no válido para que quien llama pueda reintentar una vez.
+      if (response.status === 502 && payload?.error?.code === 'invalid_response') throw new LlmError('invalid_json', 'La IA no ha devuelto un resultado válido.');
       throw new LlmError('other', response.status === 401 ? 'Tu sesión ha caducado. Vuelve a iniciar sesión.' : 'El servicio común no ha podido completar la búsqueda. Puedes preparar la ruta manualmente.');
     }
     return payload?.data;
@@ -98,6 +101,19 @@ export function createSharedWorkoutPlanner(getToken: () => Promise<string | null
       const data = await request({ operation: 'workouts', summary: numericSummary(summary), objetivo, ocupados: input.ocupados, disponibles: input.disponibles, notas: '' }, signal);
       const parsed = WorkoutWeekSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto entrenos válidos.');
+      return parsed.data;
+    },
+  };
+}
+
+/** Combinaciones de puntos de paso por el servicio común: solo el objetivo y los puntos con nombre y cifras. */
+export function createSharedWaypointPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedWaypointPlanner {
+  const request = sharedRequest(getToken, fetchImpl);
+  return {
+    combine: async (objetivo, puntos, signal) => {
+      const data = await request({ operation: 'waypoints', objetivo: waypointGoalFields(objetivo), puntos: waypointFields(puntos) }, signal);
+      const parsed = WaypointCombosSchema.safeParse(data);
+      if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto combinaciones válidas.');
       return parsed.data;
     },
   };

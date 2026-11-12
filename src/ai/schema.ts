@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DIRECCIONES } from './contracts.ts';
 
 /**
  * Objetivos que propone la IA. La IA no traza rutas: solo da la dimensión y la
@@ -63,6 +64,23 @@ export const WorkoutWeekSchema = z.strictObject({
 });
 
 export type WorkoutWeek = z.infer<typeof WorkoutWeekSchema>;
+
+/**
+ * Combinaciones de puntos de paso que propone la IA: solo ids de la lista recibida. Las carreteras
+ * las pone ORS y la dirección y las cifras las vuelve a calcular el código.
+ */
+export const WaypointCombosSchema = z.strictObject({
+  combinaciones: z
+    .array(
+      z.strictObject({
+        puntos: z.array(z.string().regex(/^w\d{1,2}$/)).min(1).max(3).refine(ids => new Set(ids).size === ids.length),
+        direccion: z.enum(DIRECCIONES),
+        titulo: z.string().min(1).max(60),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
 
 type JsonNode = Record<string, unknown>;
 
