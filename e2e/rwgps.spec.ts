@@ -5,7 +5,7 @@ import { HOME, NOW, RIDES, seed, settings } from './seed';
 // Todo es sintético: la API de Ride with GPS está interceptada; no se sale a ridewithgps.com.
 test.setTimeout(90_000);
 
-const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'x-rwgps-api-key,x-rwgps-auth-token,content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info', 'access-control-allow-methods': 'POST, OPTIONS' };
 const M_LAT = 111_320;
 const M_LNG = M_LAT * Math.cos((HOME.lat * Math.PI) / 180);
 
@@ -23,53 +23,47 @@ const noOverflow = (p: Page) => p.evaluate(() => document.documentElement.scroll
 async function setup(page: Page) {
   const context = page.context();
   const bodies: string[] = [];
+  const direct: string[] = [];
   await context.clock.setFixedTime(NOW);
   await context.route('https://*.supabase.co/**', (r) => r.abort());
   await context.route('https://api.heigit.org/**', (r) => r.abort());
-  await context.route('https://ridewithgps.com/api/v1/**', (r) => {
+  // Ride with GPS directo nunca: si la app lo intentara, la prueba falla por la cuenta de llamadas.
+  await context.route('https://ridewithgps.com/**', (r) => { direct.push(r.request().url()); return r.abort(); });
+  // Función `rwgps` compartida, simulada. En la página y después del bloqueo de supabase.co, así que gana.
+  await page.route('https://*.supabase.co/functions/v1/rwgps', (r) => {
     const req = r.request();
-    if (req.method() === 'OPTIONS') return r.fulfill({ status: 200, headers: CORS });
-    const url = new URL(req.url());
+    if (req.method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+    bodies.push(req.postData() ?? '');
     const json = (body: unknown, status = 200) => r.fulfill({ status, contentType: 'application/json', headers: CORS, body: JSON.stringify(body) });
-    if (url.pathname === '/api/v1/auth_tokens.json') {
-      bodies.push(req.postData() ?? '');
-      return json({ auth_token: { auth_token: 'token-sintetico-123' } }, 201);
-    }
-    if (url.pathname === '/api/v1/collections/55.json') return json({ collection: { name: 'Cerca de casa', routes: [{ id: 2 }, { id: 3 }] } });
-    const id = Number(/routes\/(\d+)\.json/.exec(url.pathname)?.[1]);
-    if (!id) return json({ error: 'no' }, 404);
-    return json({ route: { name: `Ruta sintética de Ride with GPS con nombre largo ${id}`, user: { name: 'Autora sintética' }, track_points: trackPoints(28 + id, id) } });
+    const ask = JSON.parse(req.postData() ?? '{}') as { kind?: string; id?: string };
+    if (ask.kind === 'collection' && ask.id === '55') return json({ data: { collection: { name: 'Cerca de casa', routes: [{ id: 2 }, { id: 3 }] } } });
+    const id = Number(ask.id);
+    if (ask.kind !== 'route' || !id) return json({ error: { code: 'not_found', message: 'x' } }, 404);
+    return json({ data: { route: { name: `Ruta sintética de Ride with GPS con nombre largo ${id}`, user: { name: 'Autora sintética' }, track_points: trackPoints(28 + id, id) } } });
   });
   await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
-  return bodies;
+  return { bodies, direct };
 }
 
 for (const width of [360, 430]) {
-  test(`Ride with GPS: conectar, pegar enlaces y proponer (${width} px)`, async ({ page }) => {
+  test(`Ride with GPS compartido: pegar enlaces y proponer (${width} px)`, async ({ page }) => {
     const dir = 'test-results/rwgps';
     mkdirSync(dir, { recursive: true });
     await page.setViewportSize({ width, height: 860 });
-    const bodies = await setup(page);
+    const { bodies, direct } = await setup(page);
     await page.goto('#/rutas/catalogo');
 
-    await page.getByLabel('Clave de API').fill('clave-sintetica');
-    await page.getByLabel('Correo de Ride with GPS').fill('ciclista@example.com');
-    await page.getByLabel('Contraseña de Ride with GPS').fill('secreta');
-    await page.getByRole('button', { name: 'Conectar Ride with GPS' }).click();
-    await expect(page.getByLabel('Enlaces de rutas o colecciones')).toBeVisible();
-    expect(JSON.parse(bodies[0])).toEqual({ user: { email: 'ciclista@example.com', password: 'secreta' } });
-    // La contraseña no queda en ningún almacenamiento del navegador.
-    const stored = await page.evaluate(async () => {
-      const dbs = await indexedDB.databases();
-      return JSON.stringify(dbs) + JSON.stringify(localStorage);
-    });
-    expect(stored).not.toContain('secreta');
-
+    // Sin formulario de conexión: la cuenta común está en el servidor.
+    await expect(page.getByLabel('Clave de API')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /colección fijada/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Buscar en Ride with GPS/ })).toBeVisible();
     await page.getByLabel('Enlaces de rutas o colecciones').fill('https://ridewithgps.com/routes/1-sintetica\nhttps://ridewithgps.com/collections/55');
     await page.getByRole('button', { name: 'Añadir al catálogo' }).click();
     await expect(page.getByText('3 rutas: 0 de OpenStreetMap, 0 a puertos, 3 de Ride with GPS y 0 tuyas.')).toBeVisible({ timeout: 20_000 });
+    expect(bodies.map((b) => JSON.parse(b))).toEqual([{ kind: 'collection', id: '55' }, { kind: 'route', id: '1' }, { kind: 'route', id: '2' }, { kind: 'route', id: '3' }]);
+    expect(direct).toEqual([]);
     expect(await noOverflow(page)).toBe(true);
-    await page.screenshot({ path: `${dir}/conectado-${width}.png`, fullPage: true });
+    await page.screenshot({ path: `${dir}/compartido-${width}.png`, fullPage: true });
 
     await page.getByLabel('Distancia').fill('30');
     await page.getByRole('button', { name: 'Proponer 3 rutas' }).click();

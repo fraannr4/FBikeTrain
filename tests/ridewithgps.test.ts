@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { RwgpsError, fetchRwgpsRoute, parseRwgpsRouteId, rwgpsRouteToLibraryInput } from '../src/routes/sources/ridewithgps';
+import { describe, expect, it } from 'vitest';
+import { RwgpsError, parseRwgpsRouteId, rwgpsRouteToLibraryInput } from '../src/routes/sources/ridewithgps';
 
 // Fixture sintético con la forma documentada en /api/v1/doc/endpoints/routes y reference/track_points.
 const fixture = {
@@ -42,30 +42,5 @@ describe('rwgpsRouteToLibraryInput', () => {
   it('rechaza respuestas sin track o con coordenadas inválidas', () => {
     expect(() => rwgpsRouteToLibraryInput({ route: { id: 1, name: 'x' } }, 'u')).toThrow(RwgpsError);
     expect(() => rwgpsRouteToLibraryInput({ route: { id: 1, name: 'x', track_points: [{ x: 0, y: 0 }, { x: 500, y: 0 }] } }, 'u')).toThrow(RwgpsError);
-  });
-});
-
-describe('fetchRwgpsRoute', () => {
-  const creds = { apiKey: 'k', authToken: 't' };
-  it('llama solo a /api/v1 con las cabeceras documentadas', async () => {
-    const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(fixture), { status: 200 }));
-    const r = await fetchRwgpsRoute('https://ridewithgps.com/routes/1234?privacy_code=abc', creds, f);
-    expect(r.points).toHaveLength(3);
-    const [url, init] = f.mock.calls[0];
-    expect(url).toBe('https://ridewithgps.com/api/v1/routes/1234.json?privacy_code=abc');
-    expect(init.headers['x-rwgps-api-key']).toBe('k');
-    expect(init.headers['x-rwgps-auth-token']).toBe('t');
-  });
-  it('traduce 401, 403, 404 y 429 a errores comprensibles', async () => {
-    for (const [status, text] of [[401, /clave|token/i], [403, /visible|permiso/i], [404, /no existe/i], [429, /límite|espera/i]] as const) {
-      const f = vi.fn().mockResolvedValue(new Response('{}', { status }));
-      await expect(fetchRwgpsRoute('https://ridewithgps.com/routes/1', creds, f)).rejects.toThrow(text);
-    }
-  });
-  it('pide credenciales y una URL válida', async () => {
-    const f = vi.fn();
-    await expect(fetchRwgpsRoute('https://ridewithgps.com/routes/1', { apiKey: '', authToken: '' }, f)).rejects.toThrow(RwgpsError);
-    await expect(fetchRwgpsRoute('https://otro.com/routes/1', creds, f)).rejects.toThrow(RwgpsError);
-    expect(f).not.toHaveBeenCalled();
   });
 });
