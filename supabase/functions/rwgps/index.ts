@@ -139,8 +139,4 @@ Deno.serve(request => handleRwgps(request, {
     return data?.last_sync_at ? new Date(data.last_sync_at) : null;
   },
   scheduleSync: () => background(runSync),
-  // Las rutas sembradas mandan: lo que lee una persona solo entra si aún no está en el índice.
-  indexRoute: (row: RwgpsIndexRow) => background(async () => {
-    await serverClient(serviceKey).from('rwgps_route_index').upsert(row, { onConflict: 'id', ignoreDuplicates: true });
-  }),
 }));

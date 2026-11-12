@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { buildIndexRow, type RwgpsIndexRow } from './rwgpsSync.ts';
+import type { RwgpsIndexRow } from './rwgpsSync.ts';
 
 /**
  * Ride with GPS compartido (función `rwgps`). HTTP portable: la clave de API y el token de la cuenta
@@ -53,8 +53,6 @@ export type RwgpsServiceDependencies = {
   lastSyncAt: () => Promise<Date | null>;
   /** Lanza la sincronización en segundo plano. No debe esperar ni lanzar. */
   scheduleSync: () => void;
-  /** Añade al índice una ruta pública leída por alguien, en segundo plano. Los fallos se ignoran. */
-  indexRoute: (row: RwgpsIndexRow) => void;
 };
 
 export const SYNC_EVERY_MS = 6 * 60 * 60 * 1000;
@@ -216,10 +214,7 @@ export async function handleRwgps(request: Request, deps: RwgpsServiceDependenci
     if (!isPublic(input.kind, json)) return fail(403, 'not_visible', 'La ruta no es pública en Ride with GPS.');
     const data = trimRwgpsResponse(input.kind, json);
     if (!data) return fail(502, 'invalid_response', 'Ride with GPS ha devuelto datos que no se entienden.');
-    if (input.kind === 'route') {
-      const row = buildIndexRow(Number(input.id), json, 'user');
-      if (row) try { deps.indexRoute(row); } catch { /* el índice es un extra: la lectura responde igual */ }
-    }
+    // Leer una ruta no la añade al índice: solo la sincronización de la cuenta común lo alimenta y lo depura.
     return Response.json({ data }, { headers: cors });
   } catch {
     if (controller.signal.aborted) return aborted();

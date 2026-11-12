@@ -18,10 +18,9 @@ function deps(over: Partial<RwgpsServiceDependencies> = {}) {
   const near = vi.fn<RwgpsServiceDependencies['near']>(async () => []);
   const lastSyncAt = vi.fn<RwgpsServiceDependencies['lastSyncAt']>(async () => new Date());
   const scheduleSync = vi.fn<RwgpsServiceDependencies['scheduleSync']>(() => {});
-  const indexRoute = vi.fn<RwgpsServiceDependencies['indexRoute']>(() => {});
   return {
-    get, consumeQuota, near, lastSyncAt, scheduleSync, indexRoute,
-    all: { enabled: true, allowedOrigins: [ORIGIN], authenticate: async (t: string) => (t === 'sesion' ? 'user-1' : null), consumeQuota, get, near, lastSyncAt, scheduleSync, indexRoute, ...over } satisfies RwgpsServiceDependencies,
+    get, consumeQuota, near, lastSyncAt, scheduleSync,
+    all: { enabled: true, allowedOrigins: [ORIGIN], authenticate: async (t: string) => (t === 'sesion' ? 'user-1' : null), consumeQuota, get, near, lastSyncAt, scheduleSync, ...over } satisfies RwgpsServiceDependencies,
   };
 }
 const post = (body: unknown, headers: Record<string, string> = {}) => new Request('https://x.supabase.co/functions/v1/rwgps', {
@@ -261,27 +260,11 @@ describe('función rwgps: rutas cerca (op nearby)', () => {
   });
 });
 
-describe('función rwgps: índice al leer una ruta pública', () => {
-  it('añade la ruta pública al índice como «user», sin datos de la cuenta', async () => {
+describe('función rwgps: leer no escribe en el índice', () => {
+  it('una lectura pública no toca el índice compartido', async () => {
     const d = deps();
-    await handleRwgps(post({ kind: 'route', id: '1' }), d.all);
-    expect(d.indexRoute).toHaveBeenCalledTimes(1);
-    const row = d.indexRoute.mock.calls[0][0];
-    expect(row).toMatchObject({ id: 1, source: 'user', name: 'Ruta sintética', author: 'Autora' });
-    expect(JSON.stringify(row)).not.toContain('autora@example.com');
-  });
-
-  it('no indexa lo privado ni las colecciones', async () => {
-    const d = deps({ get: async () => ({ status: 200, json: { route: { ...routeJson.route, visibility: 'private' } } }) });
-    await handleRwgps(post({ kind: 'route', id: '1' }), d.all);
-    expect(d.indexRoute).not.toHaveBeenCalled();
-    const c = deps({ get: async () => ({ status: 200, json: { collection: { name: 'C', visibility: 'public', routes: [{ id: 3 }] } } }) });
-    await handleRwgps(post({ kind: 'collection', id: '5' }), c.all);
-    expect(c.indexRoute).not.toHaveBeenCalled();
-  });
-
-  it('si indexar falla, la lectura responde igual', async () => {
-    const d = deps({ indexRoute: () => { throw new Error('db'); } });
     expect((await handleRwgps(post({ kind: 'route', id: '1' }), d.all)).status).toBe(200);
+    expect(d.near).not.toHaveBeenCalled();
+    expect(d.scheduleSync).not.toHaveBeenCalled();
   });
 });
