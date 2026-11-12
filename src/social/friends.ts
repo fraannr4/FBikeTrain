@@ -5,6 +5,7 @@ export type ProfileCard = {
   username: string;
   display_name: string;
   locality: string | null;
+  /** Solo en «Cerca de mí»: límite superior de la banda (5, 10, 25 o 50 km), nunca la distancia exacta. */
   distance_km: number | null;
 };
 export type FriendRow = {
@@ -26,11 +27,15 @@ const MESSAGES: Record<string, string> = {
   'Solicitud no válida': 'No puedes enviarte una solicitud a ti mismo.',
   'Solicitud no disponible': 'Esa solicitud ya no está disponible.',
   'Sesión necesaria': 'Vuelve a iniciar sesión para continuar.',
+  'Has cambiado tu zona demasiadas veces hoy. Prueba mañana.': 'Has cambiado tu zona demasiadas veces hoy. Prueba mañana.',
 };
+
+/** El mensaje para el usuario de un error del servidor, si es uno conocido. */
+export const serverMessage = (message: string): string | undefined => MESSAGES[message];
 
 async function call<T>(client: Rpc, fn: string, args?: Record<string, unknown>): Promise<T | null> {
   const { data, error } = await (args ? client.rpc(fn, args) : client.rpc(fn));
-  if (error) throw new Error(MESSAGES[error.message] ?? GENERIC);
+  if (error) throw new Error(serverMessage(error.message) ?? GENERIC);
   return data as T | null;
 }
 

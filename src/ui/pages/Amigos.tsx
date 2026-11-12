@@ -286,7 +286,7 @@ function FriendGroup({ title, rows, children }: { title: string; rows: FriendRow
 }
 
 function Person({ card, children }: { card: ProfileCard; children: ReactNode }) {
-  const where = [card.locality, card.distance_km !== null ? `a ${formatCount(card.distance_km)} km` : null].filter(Boolean).join(', ');
+  const where = [card.locality, card.distance_km !== null ? `a menos de ${formatCount(card.distance_km)} km` : null].filter(Boolean).join(', ');
   return (
     <li className="person">
       <span className="person-main">

@@ -82,15 +82,15 @@ describe('Amigos', () => {
     expect(calls(rpc, 'search_profiles_near')).toHaveLength(0);
   });
 
-  it('«Cerca de mí» con zona busca en el radio elegido y muestra la distancia', async () => {
+  it('«Cerca de mí» con zona busca en el radio elegido y muestra la banda de distancia', async () => {
     const { client, rpc } = fakeClient({
       my_area: zona('Villa Centro'),
-      search_profiles_near: () => ({ data: [{ ...ana, distance_km: 12 }] }),
+      search_profiles_near: () => ({ data: [{ ...ana, distance_km: 10 }] }),
     });
     renderWith(client);
     await vi.waitFor(() => expect(calls(rpc, 'my_area')).toHaveLength(1));
     await userEvent.setup().click(screen.getByRole('button', { name: 'Cerca de mí: 50 km' }));
-    expect(await screen.findByText('Villa Prueba, a 12 km')).toBeInTheDocument();
+    expect(await screen.findByText('Villa Prueba, a menos de 10 km')).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith('search_profiles_near', { radius_km: 50 });
   });
 

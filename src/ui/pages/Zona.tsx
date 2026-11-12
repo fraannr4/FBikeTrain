@@ -2,7 +2,7 @@ import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAccount } from '../../auth/AccountBoundary';
 import { searchPlaces, type Place } from '../../social/geocode';
-import { saveArea, skipZona } from '../../social/profileArea';
+import { AreaSaveError, SAVE_FAILED, saveArea, skipZona } from '../../social/profileArea';
 import { LoaderCircle, MapPin } from '../icons';
 import { Banner } from '../components/Banner';
 import { Field } from '../components/Field';
@@ -71,8 +71,8 @@ export function Zona() {
       await saveArea(account, chosen);
       toast('Zona guardada', { tone: 'good' });
       navigate(done, { replace: true });
-    } catch {
-      setSaveError('No se ha podido guardar tu zona. Comprueba la conexión e inténtalo de nuevo.');
+    } catch (err) {
+      setSaveError(err instanceof AreaSaveError ? err.message : SAVE_FAILED);
       setBusy(false);
     }
   }

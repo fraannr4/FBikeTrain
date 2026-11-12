@@ -50,6 +50,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611130002_retos.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/challenges.sql', import.meta.url), 'utf8'));
   console.log('PASS: retos 1 contra 1 solo entre amigos, plazo de 30 días, resultados con cifras y lectura solo para los dos.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130003_zona_privacidad.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/zona_privacidad.sql', import.meta.url), 'utf8'));
+  console.log('PASS: zona privada: distancia por bandas de 5, 10, 25 y 50 km y 3 cambios de celda como mucho en 24 h.');
 } finally {
   await db.close();
 }

@@ -24,7 +24,7 @@ async function fakeRpc(page: Page, opts: { results?: unknown[]; friends?: unknow
     if (fn === 'my_area') return json([{ locality: opts.locality === undefined ? 'Villa Centro' : opts.locality, show_area: true }]);
     if (fn === 'list_friends') return json(state.friends);
     if (fn === 'search_profiles') return json(opts.results ?? RESULTS);
-    if (fn === 'search_profiles_near') return json((opts.results ?? RESULTS).map((c, i) => ({ ...(c as object), distance_km: 8 + i * 15 })));
+    if (fn === 'search_profiles_near') return json((opts.results ?? RESULTS).map((c, i) => ({ ...(c as object), distance_km: [5, 25, 50][i % 3] })));
     if (fn === 'request_friendship') {
       state.requested.push(req.postDataJSON());
       const target = (opts.results ?? RESULTS).find((c) => (c as { id: string }).id === req.postDataJSON().target_id);
@@ -75,7 +75,7 @@ for (const width of [360, 430]) {
       await fakeRpc(page, { friends });
       await page.goto('./#/amigos');
       await page.getByRole('button', { name: 'Cerca de mí: 50 km' }).click();
-      await expect(page.getByText(/a 23 km/)).toBeVisible();
+      await expect(page.getByText(/a menos de 25 km/)).toBeVisible();
       const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(await overflow()).toBe(0);
       await page.screenshot({ path: `${SHOTS}/amigos-buscar-${tag}.png`, fullPage: true });

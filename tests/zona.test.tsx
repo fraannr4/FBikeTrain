@@ -113,6 +113,14 @@ describe('Tu zona', () => {
     expect((await loadSettings()).home).toBeNull();
   });
 
+  it('si ha cambiado la zona demasiadas veces hoy, muestra el mensaje del servidor tal cual', async () => {
+    nominatim([{ display_name: PLACE, lat: '41.6077', lon: '2.2876' }]);
+    renderZona(fakeClient({ message: 'Has cambiado tu zona demasiadas veces hoy. Prueba mañana.', code: 'ZN429' }).client);
+    await chooseVilla();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/^Has cambiado tu zona demasiadas veces hoy\. Prueba mañana\.$/);
+    expect((await loadSettings()).home).toBeNull();
+  });
+
   it('«Ahora no» deja la marca de 7 días y vuelve a Inicio', async () => {
     renderZona(fakeClient().client);
     await userEvent.setup().click(screen.getByRole('button', { name: 'Ahora no' }));
