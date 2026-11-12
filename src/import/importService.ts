@@ -2,7 +2,9 @@ import type { ParsedActivity, StoredActivity, TrackPoint } from '../domain/types
 import { analyzeActivity, saveAnalysis } from '../analysis/analysis';
 import { syncCalendar } from '../calendar/sync';
 import { listActivities, saveActivity, setLastImportAt } from '../db/repo';
-import { findActivitiesCsv, parseEntry, readArchiveEntries, readStravaArchive, type ArchiveItem } from './stravaArchive';
+import { saveStravaRoute, stravaRouteRefs } from '../routes/library';
+import { findActivitiesCsv, parseEntry, readArchiveEntries, zipEntries, type ArchiveEntries } from './stravaArchive';
+import { readArchiveRoutes } from './stravaRoutes';
 import { haversineM, isTooShort } from './summary';
 
 /**
@@ -10,6 +12,7 @@ import { haversineM, isTooShort } from './summary';
  * `tooShort`: salidas descartadas por demasiado cortas (< 200 m o < 60 s en movimiento). Ninguna de las dos es un error.
  * `noGps`: salidas añadidas sin posiciones (rodillo), con el fichero del que salen.
  * `withCadence`: salidas añadidas que traen cadencia media.
+ * `routesAdded`: rutas de `routes/` del archivo de Strava añadidas a la biblioteca (sin contar las que ya estaban).
  */
 export type ImportReport = {
   added: number;
@@ -19,6 +22,7 @@ export type ImportReport = {
   skipped: { file: string; reason: string }[];
   noGps: { file: string; startTime: number }[];
   withCadence: number;
+  routesAdded: number;
 };
 
 /**
@@ -85,7 +89,7 @@ export async function importFiles(
   files: (File | FolderFile)[],
   onProgress?: (done: number, total: number, phase: ImportPhase) => void,
 ): Promise<ImportReport> {
-  const report: ImportReport = { added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 };
+  const report: ImportReport = { added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 };
   const folder = files.filter((f): f is FolderFile => !(f instanceof File));
   const folderEntries = new Map(folder.map((f) => [f.path, () => f.file.arrayBuffer()]));
   const folderIsArchive = findActivitiesCsv(folderEntries.keys()) !== undefined;
@@ -132,12 +136,30 @@ export async function importFiles(
     if (a.totals.avgCadence !== undefined) report.withCadence++;
   };
 
-  /** Un archivo cuenta 1 en el progreso hasta que se conocen sus filas de ciclismo. */
-  const importArchive = async (name: string, read: (onProgress: (done: number, total: number) => void) => AsyncGenerator<ArchiveItem>) => {
+  /**
+   * Rutas de `routes/`: cada una se guarda al leerla, sin acumularlas. Las que ya están (misma huella) se
+   * saltan; las que no son de bici se ignoran (no son salidas). No cuentan en el progreso.
+   */
+  const importRoutes = async (entries: ArchiveEntries) => {
+    const known = await stravaRouteRefs();
+    for await (const item of readArchiveRoutes(entries)) {
+      if (!item.ok) {
+        if ('reason' in item) report.skipped.push({ file: item.file, reason: item.reason });
+      } else if (!known.has(item.ref)) {
+        await saveStravaRoute(item.route, item.ref);
+        known.add(item.ref);
+        report.routesAdded++;
+      }
+    }
+  };
+
+  /** Un archivo cuenta 1 en el progreso hasta que se conocen sus filas de ciclismo; después lee sus rutas. */
+  const importArchive = async (name: string, open: () => Promise<ArchiveEntries>) => {
     let rows = 0;
     onProgress?.(done, total, 'open');
     try {
-      for await (const item of read((_done, t) => {
+      const entries = await open();
+      for await (const item of readArchiveEntries(entries, (_done, t) => {
         if (rows === 0) total += t - 1;
         rows = t;
         tick();
@@ -146,6 +168,7 @@ export async function importFiles(
         else if ('notCycling' in item) report.notCycling++;
         else report.skipped.push({ file: item.file, reason: item.reason });
       }
+      await importRoutes(entries);
     } catch (e) {
       report.skipped.push({ file: name, reason: (e as Error).message });
     }
@@ -154,7 +177,7 @@ export async function importFiles(
 
   for (const { name, file } of loose) {
     if (isZip(name)) {
-      await importArchive(name, (p) => readStravaArchive(file, p));
+      await importArchive(name, () => zipEntries(file));
     } else {
       let parsed: ParsedActivity | undefined;
       try {
@@ -166,7 +189,7 @@ export async function importFiles(
       tick();
     }
   }
-  if (folderIsArchive) await importArchive('carpeta del archivo', (p) => readArchiveEntries(folderEntries, p));
+  if (folderIsArchive) await importArchive('carpeta del archivo', async () => folderEntries);
 
   onProgress?.(done, total, 'finish');
   await setLastImportAt(Date.now());

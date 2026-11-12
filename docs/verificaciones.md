@@ -150,6 +150,15 @@ Segundo filtro, por si el tipo del CSV es desconocido: los GPX de Strava traen `
 - GPX: `creator="StravaGPX"`, con `<type>` igual a `cycling`, `running` o `walking`.
 - FIT: cabecera `.FIT` válida (archivos de 551 KB y 39 KB).
 
+### Ficheros en `routes/` (pendiente de comprobar, 2026-11-12)
+
+Desde la fase B se leen. No se ha mirado su contenido en el archivo real; el lector supone, por documentación pública (plan `docs/superpowers/plans/2026-11-12-strava-routes.md`):
+- un GPX por ruta con nombres correlativos (`routes/1.gpx`), un solo `<trk>`/`<trkseg>`, alturas y sin horas, el nombre en `<trk><name>`;
+- `<type>` como en las actividades (`cycling`, `running`, `walking`); solo se descartan los de otro deporte;
+- `routes.csv` no se lee.
+
+Comprobar con el archivo del usuario, sin copiar filas ni tracks aquí: extensiones y nombres de `routes/`, si algún GPX trae `<rte>` en vez de `<trk>` (se rechazaría), si el nombre está en el GPX y las cabeceras de `routes.csv`. Después de importar, la pantalla debe decir «N rutas de Strava añadidas a tu biblioteca», con N igual al número de rutas de bici; al reimportar, N = 0.
+
 ## Paso 3. iGPSPORT BSC200S por USB
 
 Primer intento, 2026-11-06: el usuario conectó el dispositivo encendido y por USB, a través del dock HP USB-C. Windows no lo detectó: no apareció ninguna unidad, ningún dispositivo portátil (WPD/MTP) ni ningún dispositivo USB nuevo en el Administrador de dispositivos. El único almacenamiento USB que había era un CD virtual «GO! Suite» (VID_0EA0), que es otro aparato.

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { ImportReport } from '../../import/importService';
 import { TZ } from '../../metrics/aggregate';
 import { formatCount } from '../format';
-import { Activity, ChevronDown, CircleAlert, CircleCheck, Info, Timer, TriangleAlert, type LucideIcon } from '../icons';
+import { Activity, ChevronDown, CircleAlert, CircleCheck, Info, Route, Timer, TriangleAlert, type LucideIcon } from '../icons';
 import { Banner } from './Banner';
 
 const dayMonth = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', timeZone: TZ });
@@ -47,9 +47,9 @@ export const ImportReportView = forwardRef<HTMLHeadingElement, { report: ImportR
   { report },
   titleRef,
 ) {
-  const { added, duplicates, notCycling, tooShort, skipped, noGps, withCadence } = report;
+  const { added, duplicates, notCycling, tooShort, skipped, noGps, withCadence, routesAdded } = report;
   const nothing = added === 0;
-  const title = nothing ? (skipped.length > 0 ? 'Nada nuevo' : 'Ya lo tenías todo') : 'Importación terminada';
+  const title = nothing && routesAdded === 0 ? (skipped.length > 0 ? 'Nada nuevo' : 'Ya lo tenías todo') : 'Importación terminada';
   const StatusIcon = nothing ? Info : CircleCheck;
 
   return (
@@ -106,6 +106,15 @@ export const ImportReportView = forwardRef<HTMLHeadingElement, { report: ImportR
             text={notCycling === 1 ? 'no es de bici, descartada' : 'no son de bici, descartadas'}
             meta="Carrera, caminatas y otros deportes"
           />
+          {routesAdded > 0 ? (
+            <Line
+              icon={Route}
+              tone="quiet"
+              figure={routesAdded}
+              text={routesAdded === 1 ? 'ruta de Strava añadida a tu biblioteca' : 'rutas de Strava añadidas a tu biblioteca'}
+              meta="Están en Rutas › Biblioteca"
+            />
+          ) : null}
           <Line
             icon={CircleAlert}
             tone={skipped.length > 0 ? 'bad' : 'quiet'}

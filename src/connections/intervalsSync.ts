@@ -20,7 +20,7 @@ export type SyncState = {
   result?: SyncResult;
   error?: string;
 };
-export const emptyReport = (): ImportReport => ({ added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 });
+export const emptyReport = (): ImportReport => ({ added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 });
 export async function loadSyncState(database: CyclingDb): Promise<SyncState> {
   return (await database.meta.get(SYNC_KEY))?.value as SyncState | undefined ?? {};
 }

@@ -8,6 +8,7 @@ para no revelar ninguna ubicación real. Ningún fichero de aquí sale de un dis
 | `ride.gpx`, `ride.tcx` | Escritos a mano: 20 puntos, uno cada 10 s, altitud de 0 a 40 m. |
 | `ride.fit` | Generado con el `Encoder` de `@garmin/fitsdk` por `make-ride-fit.mjs`: el mismo recorrido, actividad de ciclismo con mensajes de lap y de sesión. Los totales de la sesión (1950,5 m, 185 s de cronómetro, 200 s totales, 41 m de desnivel) difieren a propósito de los calculados desde los puntos. |
 | `corrupt.fit` | `ride.fit` truncado a la mitad, generado por el mismo script. |
+| `stravaRoutes.ts` | Genera en memoria rutas planificadas GPX y TCX con la forma supuesta de `routes/` de Strava, sin horas. |
 
 Para regenerar los FIT: `node tests/fixtures/make-ride-fit.mjs`.
 

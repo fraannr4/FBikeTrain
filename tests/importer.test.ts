@@ -23,7 +23,7 @@ class FakeWorker {
   }
 }
 
-const report: ImportReport = { added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 };
+const report: ImportReport = { added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 };
 const file = () => new File(['x'], 'ride.gpx');
 
 describe('workerImporter', () => {

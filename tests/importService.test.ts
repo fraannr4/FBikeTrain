@@ -7,6 +7,7 @@ import { parseGpx } from '../src/import/gpx';
 import { importFiles, type ImportPhase } from '../src/import/importService';
 import { MIN_RIDE_DISTANCE_M } from '../src/import/summary';
 import type { TrackPoint } from '../src/domain/types';
+import { routeGpx } from './fixtures/stravaRoutes';
 
 // El Blob de jsdom no trae arrayBuffer(); el del navegador y el del Worker, sí.
 if (!Blob.prototype.arrayBuffer) {
@@ -66,7 +67,7 @@ describe('importFiles', () => {
 
   it('imports gpx and stores activity and track', async () => {
     const report = await importFiles([gpxFile()]);
-    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 1 });
+    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
 
     const [a] = await listActivities();
     expect(a).toMatchObject({ sport: 'cycling', source: 'gpx', name: 'Salida sintetica', startTime: START, hasTrack: true });
@@ -103,7 +104,7 @@ describe('importFiles', () => {
     // Windows etiqueta los ZIP como application/x-zip-compressed.
     const file = new File([await zip.generateAsync({ type: 'blob' })], 'export_123.zip', { type: 'application/x-zip-compressed' });
 
-    expect(await importFiles([file])).toEqual({ added: 1, duplicates: 0, notCycling: 2, tooShort: 0, skipped: [], noGps: [], withCadence: 1 });
+    expect(await importFiles([file])).toEqual({ added: 1, duplicates: 0, notCycling: 2, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
     const [a] = await listActivities();
     expect(a.name).toBe('Cabo, faro y "vuelta"');
   });
@@ -118,7 +119,7 @@ describe('importFiles', () => {
       inFolder('profile.jpg', 'jpg'),
       inFolder('bikes.csv', 'a,b'),
     ]);
-    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 1 });
+    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
     expect((await listActivities())[0]).toMatchObject({ name: 'Salida', source: 'strava-archive' });
   });
 
@@ -127,12 +128,12 @@ describe('importFiles', () => {
       { path: 'activities/1.gpx', file: gpxFile('1.gpx') },
       { path: 'activities/2.fit', file: new File([encodeFit({ totalDistance: 5000, sport: 'running', startOffsetS: 7200 })], '2.fit') },
     ]);
-    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 1 });
+    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
   });
 
   it('same ride imported again in another call is a duplicate', async () => {
     await importFiles([gpxFile()]);
-    expect(await importFiles([gpxFile()])).toEqual({ added: 0, duplicates: 1, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 });
+    expect(await importFiles([gpxFile()])).toEqual({ added: 0, duplicates: 1, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 });
   });
 
   it('different ride starting at the same time is not a duplicate', async () => {
@@ -151,13 +152,13 @@ describe('importFiles', () => {
 
   it('unknown extension reported as "formato no soportado"', async () => {
     const report = await importFiles([new File(['hola'], 'notas.txt')]);
-    expect(report).toEqual({ added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [{ file: 'notas.txt', reason: 'formato no soportado' }], noGps: [], withCadence: 0 });
+    expect(report).toEqual({ added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [{ file: 'notas.txt', reason: 'formato no soportado' }], noGps: [], withCadence: 0, routesAdded: 0 });
   });
 
   it('non-cycling loose file is counted, not reported as an error', async () => {
     const run = new File([encodeFit({ totalDistance: 5000, sport: 'running' })], 'carrera.fit');
     const report = await importFiles([run]);
-    expect(report).toEqual({ added: 0, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 0 });
+    expect(report).toEqual({ added: 0, duplicates: 0, notCycling: 1, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 });
   });
 
   it('ride under the minimum distance or moving time is discarded as too short, not as an error', async () => {
@@ -166,14 +167,14 @@ describe('importFiles', () => {
       <trkpt lat="41.000000" lon="2.500000"><time>2026-03-01T08:00:00Z</time></trkpt>
       <trkpt lat="41.000000" lon="2.500000"><time>2026-03-01T08:00:02Z</time></trkpt></trkseg></trk></gpx>`;
     const report = await importFiles([gpxFile('blip.gpx', blip), gpxFile()]);
-    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 1 });
+    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
     expect(await listActivities()).toHaveLength(1);
   });
 
   it('too short ride inside a Strava archive is counted as too short', async () => {
     const blip = new File([encodeFit({ totalDistance: MIN_RIDE_DISTANCE_M - 1, startOffsetS: 7200 })], 'x');
     const archive = await stravaZip({ 'activities/1.fit': new Uint8Array(await blip.arrayBuffer()) });
-    expect(await importFiles([archive])).toEqual({ added: 0, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 0 });
+    expect(await importFiles([archive])).toEqual({ added: 0, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 });
   });
 
   it('ride without gps counts but has no track', async () => {
@@ -274,6 +275,72 @@ describe('importFiles', () => {
   });
 });
 
+describe('importFiles: rutas de Strava (routes/)', () => {
+  /** Exportación con una salida en bici y las rutas indicadas, que no van en activities.csv. */
+  async function exportZip(routes: Record<string, string>, name = 'export_1.zip'): Promise<File> {
+    const zip = new JSZip();
+    zip.file('export_1/activities.csv', 'Activity ID,Activity Name,Activity Type,Filename\n1,Salida,Ride,activities/1.gpx');
+    zip.file('export_1/activities/1.gpx', rideGpx);
+    for (const [path, data] of Object.entries(routes)) zip.file(`export_1/${path}`, data);
+    return new File([await zip.generateAsync({ type: 'blob' })], name);
+  }
+  const stravaRoutes = async () => (await db.referenceRoutes.toArray()).filter((r) => r.origin?.kind === 'strava');
+
+  beforeEach(async () => {
+    await Promise.all([db.activities.clear(), db.tracks.clear(), db.meta.clear(), db.referenceRoutes.clear()]);
+  });
+
+  it('guarda las rutas en la biblioteca con origen Strava y las cuenta', async () => {
+    const report = await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Cabo'), 'routes/2.gpx': routeGpx('Faro', { offset: 0.1 }) })]);
+    expect(report).toMatchObject({ added: 1, routesAdded: 2, skipped: [] });
+    expect((await stravaRoutes()).map((r) => r.name).sort()).toEqual(['Cabo', 'Faro']);
+  });
+
+  it('no duplica rutas al reimportar, aunque vengan renumeradas', async () => {
+    await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Cabo'), 'routes/2.gpx': routeGpx('Faro', { offset: 0.1 }) })]);
+    const again = await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Cabo'), 'routes/2.gpx': routeGpx('Faro', { offset: 0.1 }) })]);
+    const renumbered = await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Faro', { offset: 0.1 }), 'routes/2.gpx': routeGpx('Cabo') })]);
+    expect(again.routesAdded).toBe(0);
+    expect(renumbered.routesAdded).toBe(0);
+    expect(await stravaRoutes()).toHaveLength(2);
+  });
+
+  it('una ruta repetida dentro de la misma exportación se guarda una vez', async () => {
+    const report = await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Cabo'), 'routes/2.gpx': routeGpx('Cabo copia') })]);
+    expect(report.routesAdded).toBe(1);
+  });
+
+  it('lee las rutas de una carpeta descomprimida', async () => {
+    const inFolder = (path: string, data: string) => ({ path: `export_1/${path}`, file: new File([data], path.split('/').pop()!) });
+    const report = await importFiles([
+      inFolder('activities.csv', 'Activity ID,Activity Name,Activity Type,Filename\n1,Salida,Ride,activities/1.gpx'),
+      inFolder('activities/1.gpx', rideGpx),
+      inFolder('routes/1.gpx', routeGpx('Cabo')),
+    ]);
+    expect(report).toMatchObject({ added: 1, routesAdded: 1 });
+  });
+
+  it('una ruta corrupta se anota y no impide guardar la salida ni las demás rutas', async () => {
+    const report = await importFiles([await exportZip({ 'routes/1.gpx': routeGpx('Cabo'), 'routes/3.gpx': '<gpx><trk>' })]);
+    expect(report.added).toBe(1);
+    expect(report.routesAdded).toBe(1);
+    expect(report.skipped).toEqual([{ file: 'export_1/routes/3.gpx', reason: expect.any(String) }]);
+  });
+
+  it('importa cientos de rutas', async () => {
+    const routes = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`routes/${i + 1}.gpx`, routeGpx(`Ruta ${i + 1} 🚴`, { offset: i * 0.01 })]));
+    const report = await importFiles([await exportZip(routes)]);
+    expect(report.routesAdded).toBe(300);
+    expect(await stravaRoutes()).toHaveLength(300);
+  }, 60_000);
+
+  it('una exportación sin routes/ deja el informe de siempre y la biblioteca igual', async () => {
+    const report = await importFiles([await exportZip({})]);
+    expect(report).toEqual({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 });
+    expect(await db.referenceRoutes.count()).toBe(0);
+  });
+});
+
 describe('import worker', () => {
   it('posts progress and done', async () => {
     await Promise.all([db.activities.clear(), db.tracks.clear(), db.meta.clear()]);
@@ -287,7 +354,7 @@ describe('import worker', () => {
     expect(posted).toEqual([
       { type: 'progress', done: 1, total: 1, phase: 'activities' },
       { type: 'progress', done: 1, total: 1, phase: 'finish' },
-      { type: 'done', report: { added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 1 } },
+      { type: 'done', report: { added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 1, routesAdded: 0 } },
     ]);
     spy.mockRestore();
   });

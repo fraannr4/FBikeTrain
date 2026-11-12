@@ -25,7 +25,7 @@ if (!('webkitdirectory' in HTMLInputElement.prototype)) {
   Object.defineProperty(HTMLInputElement.prototype, 'webkitdirectory', { configurable: true, writable: true, value: false });
 }
 
-const EMPTY_REPORT: ImportReport = { added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 };
+const EMPTY_REPORT: ImportReport = { added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 };
 
 const gpx = () => new File(['<gpx/>'], 'ride.gpx', { type: 'application/gpx+xml' });
 const PICK_FILES = 'Elegir el ZIP o ficheros';
@@ -79,6 +79,7 @@ describe('Importar', () => {
       skipped: [{ file: 'corrupt.fit', reason: 'fichero dañado' }],
       noGps: [],
       withCadence: 0,
+      routesAdded: 0,
     };
     const user = userEvent.setup();
     renderWith(async () => report);
@@ -94,7 +95,7 @@ describe('Importar', () => {
 
   it('formats large counts as es-ES', async () => {
     const user = userEvent.setup();
-    renderWith(async () => ({ added: 1240, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 }));
+    renderWith(async () => ({ added: 1240, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 }));
     await user.upload(screen.getByLabelText(PICK_FILES), gpx());
     expect(await screen.findByText(fullText('1240 salidas nuevas'))).toBeInTheDocument();
     expect(screen.getByText(fullText('0 ya estaban'))).toBeInTheDocument();
@@ -102,13 +103,13 @@ describe('Importar', () => {
 
   it('one too short ride is singular', async () => {
     const user = userEvent.setup();
-    renderWith(async () => ({ added: 0, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 0 }));
+    renderWith(async () => ({ added: 0, duplicates: 0, notCycling: 0, tooShort: 1, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 }));
     await user.upload(screen.getByLabelText(PICK_FILES), gpx());
     expect(await screen.findByText(fullText('1 demasiado corta, descartada'))).toBeInTheDocument();
   });
 
   it('accepts drop and file picker', async () => {
-    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 }));
+    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 }));
     const user = userEvent.setup();
     renderWith(importer);
 
@@ -128,7 +129,7 @@ describe('Importar', () => {
   });
 
   it('folder picker sends every file with its relative path', async () => {
-    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 }));
+    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 }));
     const user = userEvent.setup();
     renderWith(importer);
 
@@ -141,7 +142,7 @@ describe('Importar', () => {
   });
 
   it('dropping a folder reads it recursively', async () => {
-    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0 }));
+    const importer = vi.fn<Importer>(async () => ({ added: 1, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 }));
     renderWith(importer);
 
     const folder = dirEntry('export_1', [
@@ -251,6 +252,36 @@ describe('Importar', () => {
     renderWith(async () => ({ ...EMPTY_REPORT, added: 4, withCadence: 4 }));
     await user.upload(screen.getByLabelText(PICK_FILES), gpx());
     expect(await screen.findByText('Cadencia en las 4 salidas nuevas')).toBeInTheDocument();
+  });
+
+  it('report says how many Strava routes went to the library', async () => {
+    const user = userEvent.setup();
+    renderWith(async () => ({ ...EMPTY_REPORT, added: 2, routesAdded: 3 }));
+    await user.upload(screen.getByLabelText(PICK_FILES), gpx());
+    expect(await screen.findByText(fullText('3 rutas de Strava añadidas a tu biblioteca'))).toBeInTheDocument();
+  });
+
+  it('one Strava route is singular, and none is not mentioned', async () => {
+    const user = userEvent.setup();
+    renderWith(async () => ({ ...EMPTY_REPORT, added: 1, routesAdded: 1 }));
+    await user.upload(screen.getByLabelText(PICK_FILES), gpx());
+    expect(await screen.findByText(fullText('1 ruta de Strava añadida a tu biblioteca'))).toBeInTheDocument();
+  });
+
+  it('no Strava routes, no routes line', async () => {
+    const user = userEvent.setup();
+    renderWith(async () => ({ ...EMPTY_REPORT, added: 1 }));
+    await user.upload(screen.getByLabelText(PICK_FILES), gpx());
+    await screen.findByText(fullText('1 salida nueva'));
+    expect(screen.queryByText(/de Strava añadida/)).not.toBeInTheDocument();
+  });
+
+  it('only new routes is not "Ya lo tenías todo"', async () => {
+    const user = userEvent.setup();
+    renderWith(async () => ({ ...EMPTY_REPORT, duplicates: 5, routesAdded: 2 }));
+    await user.upload(screen.getByLabelText(PICK_FILES), gpx());
+    expect(await screen.findByText('Importación terminada')).toBeInTheDocument();
+    expect(screen.queryByText('Ya lo tenías todo')).not.toBeInTheDocument();
   });
 
   it('report with nothing new says so and offers Inicio', async () => {

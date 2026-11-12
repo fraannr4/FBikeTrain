@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import JSZip from 'jszip';
 import { gzipSync } from 'fflate';
 import { ParseError } from '../src/domain/types';
-import { readArchiveEntries, readStravaArchive, type ArchiveItem } from '../src/import/stravaArchive';
+import { readArchiveEntries, readStravaArchive, zipEntries, type ArchiveItem } from '../src/import/stravaArchive';
 
 const gpx = readFileSync('tests/fixtures/ride.gpx', 'utf8');
 const fit = new Uint8Array(readFileSync('tests/fixtures/ride.fit'));
@@ -154,5 +154,16 @@ describe('readArchiveEntries', () => {
     const items: ArchiveItem[] = [];
     for await (const item of readArchiveEntries(entries)) items.push(item);
     expect(items[0]).toMatchObject({ ok: true, file: 'activities/12.gpx' });
+  });
+});
+
+describe('zipEntries', () => {
+  it('lists the files of the zip and reads each one on demand', async () => {
+    const zip = new JSZip();
+    zip.file('export_1/activities.csv', 'csv');
+    zip.file('export_1/routes/1.gpx', '<gpx/>');
+    const entries = await zipEntries(await zip.generateAsync({ type: 'blob' }));
+    expect([...entries.keys()].sort()).toEqual(['export_1/activities.csv', 'export_1/routes/1.gpx']);
+    expect(new TextDecoder().decode(await entries.get('export_1/routes/1.gpx')!())).toBe('<gpx/>');
   });
 });

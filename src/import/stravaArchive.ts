@@ -83,19 +83,24 @@ export function findActivitiesCsv(paths: Iterable<string>): string | undefined {
 }
 
 /**
- * Lee el ZIP de «Descargar tu cuenta» de Strava. Las entradas se descomprimen de una en una.
+ * Entradas del ZIP de «Descargar tu cuenta» de Strava; cada una se descomprime al pedirla.
  * Supuesto: JSZip mantiene en memoria el ZIP comprimido (el de esta cuenta pesa 3,8 MB).
  */
-export async function* readStravaArchive(
-  zip: Blob,
-  onProgress?: (done: number, total: number) => void,
-): AsyncGenerator<ArchiveItem> {
+export async function zipEntries(zip: Blob): Promise<ArchiveEntries> {
   const archive = await JSZip.loadAsync(zip);
   const entries: ArchiveEntries = new Map();
   archive.forEach((path, entry) => {
     if (!entry.dir) entries.set(path, () => entry.async('arraybuffer'));
   });
-  yield* readArchiveEntries(entries, onProgress);
+  return entries;
+}
+
+/** Lee las actividades del ZIP de Strava. Las entradas se descomprimen de una en una. */
+export async function* readStravaArchive(
+  zip: Blob,
+  onProgress?: (done: number, total: number) => void,
+): AsyncGenerator<ArchiveItem> {
+  yield* readArchiveEntries(await zipEntries(zip), onProgress);
 }
 
 /**

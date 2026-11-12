@@ -29,6 +29,8 @@ export type ReferenceRoute = {
   summary: ReferenceRouteSummary;
   /** Rutas del catálogo precargado: OpenStreetMap, subida a un puerto o Ride with GPS. `ref` evita duplicarlas al recargar. */
   catalog?: { kind: 'osm' | 'puerto' | 'rwgps'; ref: string; tipo: 'carretera' | 'btt' | 'puerto' };
+  /** Ruta propia llegada en la exportación de Strava (`routes/`). `ref` es la huella de su geometría y evita duplicarla al reimportar. */
+  origin?: { kind: 'strava'; ref: string };
   /** `dem`: la altitud viene del modelo de terreno, no del track; el desnivel es una estimación. */
   elevation?: 'dem';
   createdAt: number;
@@ -49,6 +51,12 @@ export class RouteLibraryError extends Error {
 }
 
 const copy = (points: RoutePoint[]) => points.map(point => ({ ...point }));
+
+/** Recorta a `max` unidades UTF-16, el límite que comprueba `saveReferenceRoute`, sin partir un emoji (par sustituto). */
+export function clipRouteName(value: string, max = 120): string {
+  const clipped = value.slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(clipped) ? clipped.slice(0, -1) : clipped;
+}
 const same = (a: RoutePoint, b: RoutePoint) => a.lat === b.lat && a.lng === b.lng;
 
 export function analyzeReferenceRoutePoints(points: RoutePoint[]): ReferenceRouteSummary {
@@ -169,7 +177,7 @@ export function parseReferenceRoute(xml: string, fileName: string, url?: string)
   } else throw new RouteLibraryError('El fichero no es un GPX o TCX de rutas.');
   const sourceUrl = sourceLink(url) ?? embeddedUrl;
   return {
-    name: (name?.trim() || fileName.replace(/\.(gpx|tcx)$/i, '') || 'Ruta importada').slice(0, 120), format, sourceFileName: fileName,
+    name: clipRouteName(name?.trim() || fileName.replace(/\.(gpx|tcx)$/i, '') || 'Ruta importada'), format, sourceFileName: fileName,
     ...(sourceUrl ? { sourceUrl } : {}), ...(author ? { author } : {}), originalXml: xml, originalPoints: copy(points), points,
     summary: analyzeReferenceRoutePoints(points),
   };
@@ -313,6 +321,23 @@ export async function saveAdaptedRoute(
     originalXml: original.originalXml, originalPoints: copy(original.originalPoints), points: copy(points), summary,
     ...(meta.elevation ? { elevation: meta.elevation } : {}), createdAt: now, updatedAt: now,
   };
+  await db.referenceRoutes.add(route);
+  return route;
+}
+
+/** Huellas (`origin.ref`) de las rutas de Strava ya guardadas. */
+export async function stravaRouteRefs(): Promise<Set<string>> {
+  const refs = new Set<string>();
+  await db.referenceRoutes.each((route) => {
+    if (route.origin?.kind === 'strava') refs.add(route.origin.ref);
+  });
+  return refs;
+}
+
+/** Guarda una ruta de la exportación de Strava como ruta propia, marcada con su origen. */
+export async function saveStravaRoute(parsed: ParsedReferenceRoute, ref: string): Promise<ReferenceRoute> {
+  const now = Date.now();
+  const route: ReferenceRoute = { ...parsed, id: crypto.randomUUID(), origin: { kind: 'strava', ref }, createdAt: now, updatedAt: now };
   await db.referenceRoutes.add(route);
   return route;
 }

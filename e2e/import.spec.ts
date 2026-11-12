@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
 import { expect, test, type Page } from './accountFixture';
+import { routeGpx } from '../tests/fixtures/stravaRoutes';
 
 const RIDE_GPX = fileURLToPath(new URL('../tests/fixtures/ride.gpx', import.meta.url));
 
@@ -76,3 +77,30 @@ test('unzipped strava folder imports at once', async ({ page }) => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// Rutas planificadas de `routes/` (sintéticas, en el mar): van a la biblioteca y el informe las cuenta.
+for (const width of [360, 430]) {
+  test(`strava zip with routes/ adds them to the library (${width} px)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 860 });
+    const zip = new JSZip();
+    for (const [path, data] of Object.entries(ARCHIVE)) zip.file(`export_123/${path}`, data);
+    zip.file('export_123/routes/1.gpx', routeGpx('Vuelta al cabo 🚴 por la costa con un nombre muy largo que no cabe en una sola línea del móvil'));
+    zip.file('export_123/routes/2.gpx', routeGpx('Faro', { offset: 0.1 }));
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+
+    await page.goto('#/importar');
+    await page.getByLabel('Elegir el ZIP o ficheros').setInputFiles({ name: 'export_123.zip', mimeType: 'application/zip', buffer });
+    await expectArchiveReport(page);
+    await expect(page.getByText('2 rutas de Strava añadidas a tu biblioteca')).toBeVisible();
+    expect(await noOverflow()).toBe(true);
+    await page.screenshot({ path: `test-results/strava-routes/informe-${width}.png`, fullPage: true });
+
+    await page.goto('#/rutas/biblioteca');
+    const list = page.getByRole('region', { name: 'Tus recorridos' });
+    await expect(list.getByRole('button')).toHaveCount(2);
+    await expect(list.getByText('Faro', { exact: true })).toBeVisible();
+    expect(await noOverflow()).toBe(true);
+    await page.screenshot({ path: `test-results/strava-routes/biblioteca-${width}.png`, fullPage: true });
+  });
+}
