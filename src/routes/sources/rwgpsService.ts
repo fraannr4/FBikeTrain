@@ -10,14 +10,14 @@ import { z } from 'zod';
 export const rwgpsRequestSchema = z.strictObject({
   kind: z.enum(['route', 'collection']),
   id: z.string().regex(/^[1-9]\d{0,11}$/),
+  /** Se acepta por compatibilidad con clientes antiguos, pero no se usa: ver `isPublic`. */
   privacyCode: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
 });
 export type RwgpsRequest = z.infer<typeof rwgpsRequestSchema>;
 
 /** Única forma de construir la petición a Ride with GPS: `/api/v1/routes/{id}.json` o `/api/v1/collections/{id}.json`. */
 export function rwgpsApiPath(r: RwgpsRequest): string {
-  const query = r.privacyCode ? `?privacy_code=${encodeURIComponent(r.privacyCode)}` : '';
-  return `/api/v1/${r.kind === 'route' ? 'routes' : 'collections'}/${r.id}.json${query}`;
+  return `/api/v1/${r.kind === 'route' ? 'routes' : 'collections'}/${r.id}.json`;
 }
 
 export type RwgpsServiceDependencies = {
@@ -138,8 +138,9 @@ export async function handleRwgps(request: Request, deps: RwgpsServiceDependenci
     if (status === 429) return fail(429, 'provider_busy', 'Ride with GPS limita las peticiones ahora.', 60);
     if (status === 401) return fail(503, 'unavailable', 'Ride with GPS no está disponible ahora.');
     if (status !== 200) return fail(502, 'provider_error', 'Ride with GPS no ha respondido bien.');
-    // El token común también abre lo privado de la cuenta común: sin privacy_code, solo lo público.
-    if (!input.privacyCode && !isPublic(input.kind, json)) return fail(403, 'not_visible', 'La ruta no es pública en Ride with GPS.');
+    // El token común abre lo privado de la cuenta común con cualquier privacy_code, y la API no devuelve
+    // el código para comprobarlo: solo sale lo público.
+    if (!isPublic(input.kind, json)) return fail(403, 'not_visible', 'La ruta no es pública en Ride with GPS.');
     const data = trimRwgpsResponse(input.kind, json);
     if (!data) return fail(502, 'invalid_response', 'Ride with GPS ha devuelto datos que no se entienden.');
     return Response.json({ data }, { headers: cors });

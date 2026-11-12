@@ -13,10 +13,10 @@ Documentación: https://ridewithgps.com/api/v1/doc (OpenAPI: https://ridewithgps
 
 ## Implementado (2026-11-12): cuenta común en el servidor
 
-- Edge Function `rwgps` (`supabase/functions/rwgps`, handler `src/routes/sources/rwgpsService.ts`). Lista cerrada: solo `GET /api/v1/routes/{id}.json` y `/api/v1/collections/{id}.json`, con `privacy_code` opcional. JWT de la app (sin sesiones anónimas) y cuota diaria (300 por usuario, 3.000 en total). Sin `privacy_code`, solo devuelve rutas y colecciones con `visibility: public`: el token común abre también lo privado de la cuenta común.
+- Edge Function `rwgps` (`supabase/functions/rwgps`, handler `src/routes/sources/rwgpsService.ts`). Lista cerrada: solo `GET /api/v1/routes/{id}.json` y `/api/v1/collections/{id}.json`, con `privacy_code` opcional. JWT de la app (sin sesiones anónimas) y cuota diaria (300 por usuario, 3.000 en total). Solo devuelve rutas y colecciones con `visibility: public`: el token común abre lo privado de la cuenta común con cualquier `privacy_code` y la API no devuelve el código para comprobarlo, así que `privacy_code` se ignora.
 - Secrets (Dashboard → Edge Functions → Secrets): `RWGPS_API_KEY` y `RWGPS_AUTH_TOKEN`, o `RWGPS_EMAIL` + `RWGPS_PASSWORD`. Nunca llegan al navegador ni a la base; la respuesta solo lleva nombre, autor y puntos.
 - `src/routes/sources/rwgpsImport.ts`: `parseRwgpsLinks`, `fetchRwgpsCollection` y `fetchRwgpsRoutes` (lote de 150 como máximo) llaman a la función.
-- La colección fijada ya no se ofrece: sería la de la cuenta común. Solo colecciones públicas o con `privacy_code`.
+- La colección fijada ya no se ofrece: sería la de la cuenta común. Solo rutas y colecciones públicas.
 - El CORS de la API v1 está abierto (2026-11-11), pero el navegador ya no la llama.
 
 ## Pendiente del usuario

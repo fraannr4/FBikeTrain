@@ -50,7 +50,7 @@ describe('fetchRwgpsRoutes por la función compartida', () => {
     expect(result.failed).toEqual([{ ref: 'Ruta 3', message: 'No existe en Ride with GPS.' }]);
     expect(calls.every((c) => /\/functions\/v1\/rwgps$/.test(c.url) && c.auth === 'Bearer sesion-sintetica')).toBe(true);
     expect(calls[0].body).toEqual({ kind: 'collection', id: '77' });
-    expect(calls[1].body).toEqual({ kind: 'route', id: '1', privacyCode: 'abc' });
+    expect(calls[1].body).toEqual({ kind: 'route', id: '1' });
   });
 
   it('sin sesión no llama', async () => {

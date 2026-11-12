@@ -26,7 +26,8 @@ const post = (body: unknown, headers: Record<string, string> = {}) => new Reques
 describe('rwgpsApiPath', () => {
   it('solo construye las dos lecturas permitidas', () => {
     expect(rwgpsApiPath({ kind: 'route', id: '12' })).toBe('/api/v1/routes/12.json');
-    expect(rwgpsApiPath({ kind: 'collection', id: '7', privacyCode: 'a_b-C' })).toBe('/api/v1/collections/7.json?privacy_code=a_b-C');
+    // privacy_code no se reenvía: la cuenta común no puede comprobarlo.
+    expect(rwgpsApiPath({ kind: 'collection', id: '7', privacyCode: 'a_b-C' })).toBe('/api/v1/collections/7.json');
   });
 });
 
@@ -114,19 +115,19 @@ describe('función rwgps', () => {
     expect((await res.json()).error.code).toBe(code);
   });
 
-  it.each([['private'], ['followers_only'], [undefined]])('sin privacy_code, una ruta con visibility %s es 403 y no se devuelve', async visibility => {
+  it.each([['private'], ['followers_only'], [undefined]])('una ruta con visibility %s es 403 y no se devuelve', async visibility => {
     const d = deps({ get: async () => ({ status: 200, json: { route: { ...routeJson.route, visibility } } }) });
     const res = await handleRwgps(post({ kind: 'route', id: '1' }), d.all);
     expect(res.status).toBe(403);
     expect(await res.text()).not.toContain('track_points');
   });
 
-  it('con privacy_code se devuelve aunque no sea pública', async () => {
+  it('un privacy_code cualquiera no abre lo privado de la cuenta común', async () => {
     const d = deps({ get: async () => ({ status: 200, json: { route: { ...routeJson.route, visibility: 'private' } } }) });
-    expect((await handleRwgps(post({ kind: 'route', id: '1', privacyCode: 'abc' }), d.all)).status).toBe(200);
+    expect((await handleRwgps(post({ kind: 'route', id: '1', privacyCode: 'inventado' }), d.all)).status).toBe(403);
   });
 
-  it('una colección privada sin privacy_code es 403', async () => {
+  it('una colección privada es 403', async () => {
     const d = deps({ get: async () => ({ status: 200, json: { collection: { name: 'Mía', visibility: 'private', routes: [{ id: 3 }] } } }) });
     expect((await handleRwgps(post({ kind: 'collection', id: '5' }), d.all)).status).toBe(403);
   });

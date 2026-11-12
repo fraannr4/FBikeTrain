@@ -26,7 +26,7 @@ const MSG = {
   unreachable: 'No se pudo conectar con el servicio de Ride with GPS. Revisa la conexión y vuelve a probar.',
   unavailable: 'Ride with GPS no está disponible ahora. Prueba más tarde.',
   busy: 'Ride with GPS limita las peticiones: espera unos minutos y vuelve a probar.',
-  private: 'No es pública en Ride with GPS (o falta el privacy_code en el enlace).',
+  private: 'No es pública en Ride with GPS: solo se pueden traer rutas y colecciones públicas.',
   missing: 'No existe en Ride with GPS.',
   invalid: 'Ride with GPS no ha devuelto datos válidos.',
 };
@@ -104,11 +104,11 @@ export function parseRwgpsLinks(text: string): { links: RwgpsLink[]; invalid: st
 
 const withCode = (code?: string) => (code ? `?privacy_code=${encodeURIComponent(code)}` : '');
 
-/** Ids de las rutas de una colección pública (o con su privacy_code). */
+/** Ids de las rutas de una colección pública. */
 export async function fetchRwgpsCollection(
-  id: string, access: RwgpsAccess, privacyCode?: string, signal?: AbortSignal,
+  id: string, access: RwgpsAccess, signal?: AbortSignal,
 ): Promise<{ name: string; routeIds: string[] }> {
-  const parsed = collectionSchema.safeParse(await callShared({ kind: 'collection', id, ...(privacyCode ? { privacyCode } : {}) }, access, signal));
+  const parsed = collectionSchema.safeParse(await callShared({ kind: 'collection', id }, access, signal));
   if (!parsed.success) throw new RwgpsError('Ride with GPS devolvió una colección que no se entiende.');
   return { name: parsed.data.collection.name?.trim() || 'Colección', routeIds: (parsed.data.collection.routes ?? []).map((r) => String(r.id)) };
 }
@@ -139,7 +139,7 @@ export async function fetchRwgpsRoutes(
       continue;
     }
     try {
-      const collection = await fetchRwgpsCollection(link.id, access, link.privacyCode, opts.signal);
+      const collection = await fetchRwgpsCollection(link.id, access, opts.signal);
       collection.routeIds.forEach((id) => push(id));
     } catch (e) {
       if (opts.signal?.aborted || (e instanceof RwgpsError && e.fatal)) throw e;
@@ -152,7 +152,7 @@ export async function fetchRwgpsRoutes(
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ done: i, total: queue.length });
     try {
-      const json = await callShared({ kind: 'route', id: item.id, ...(item.privacyCode ? { privacyCode: item.privacyCode } : {}) }, access, opts.signal);
+      const json = await callShared({ kind: 'route', id: item.id }, access, opts.signal);
       const url = `https://ridewithgps.com/routes/${item.id}${withCode(item.privacyCode)}`;
       routes.push({ ...rwgpsRouteToLibraryInput(json, url), id: item.id });
     } catch (e) {

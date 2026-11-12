@@ -6,7 +6,7 @@
 - Función `supabase/functions/rwgps` + handler portable `src/routes/sources/rwgpsService.ts`.
   - Entrada: `POST { kind: 'route' | 'collection', id, privacyCode? }` con el JWT de la app. El servidor construye la URL: solo `GET /api/v1/routes/{id}.json` y `/api/v1/collections/{id}.json`, sin redirecciones.
   - Devuelve solo nombre, autor y `track_points` (x, y, e), o el nombre e ids de una colección. Nunca la clave, el token ni otros datos de la cuenta.
-  - Sin `privacy_code`, solo lo que tenga `visibility: public` (lo privado de la cuenta común no sale). Sesiones anónimas: 401.
+  - Solo lo que tenga `visibility: public`; `privacy_code` se ignora (con el token común abriría lo privado de la cuenta común). Sesiones anónimas: 401.
   - Cuota `consume_shared_rwgps_quota` (migración `202611120001`): 300 lecturas al día por usuario y 3.000 en total.
 - Secrets del proyecto: `RWGPS_API_KEY`, y `RWGPS_AUTH_TOKEN` o bien `RWGPS_EMAIL` + `RWGPS_PASSWORD` (el token se pide en memoria y se renueva tras un 401). Sin ellos la función responde 503.
 - Cliente: `fetchRwgpsRoutes(links, { getToken })` llama a la función. Sesión, cuota, saturación o servicio caído paran el lote (`RwgpsError.fatal`); una ruta privada o inexistente, no.
