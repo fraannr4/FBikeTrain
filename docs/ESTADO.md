@@ -1,6 +1,18 @@
 # Estado del proyecto FBikeTrain
 
-## Retomar aquí (2026-11-11, noche)
+## Retomar aquí (2026-11-12)
+
+**Ride with GPS compartido para todos los usuarios.** Ya no hay formulario de conexión por usuario: la Edge Function `rwgps` lee la API v1 con la cuenta común de FBikeTrain.
+- Función `supabase/functions/rwgps` + handler portable `src/routes/sources/rwgpsService.ts`.
+  - Entrada: `POST { kind: 'route' | 'collection', id, privacyCode? }` con el JWT de la app. El servidor construye la URL: solo `GET /api/v1/routes/{id}.json` y `/api/v1/collections/{id}.json`, sin redirecciones.
+  - Devuelve solo nombre, autor y `track_points` (x, y, e), o el nombre e ids de una colección. Nunca la clave, el token ni otros datos de la cuenta.
+  - Cuota `consume_shared_rwgps_quota` (migración `202611120001`): 300 lecturas al día por usuario y 3.000 en total.
+- Secrets del proyecto: `RWGPS_API_KEY`, y `RWGPS_AUTH_TOKEN` o bien `RWGPS_EMAIL` + `RWGPS_PASSWORD` (el token se pide en memoria y se renueva tras un 401). Sin ellos la función responde 503.
+- Cliente: `fetchRwgpsRoutes(links, { getToken })` llama a la función. Sesión, cuota, saturación o servicio caído paran el lote (`RwgpsError.fatal`); una ruta privada o inexistente, no.
+- Catálogo: se mantienen «Buscar en Ride with GPS» y el pegado de enlaces o colecciones públicas. Se retiran la conexión, «Desconectar» y «Añadir mi colección fijada» (era de cada cuenta). Al abrir el catálogo se borran las credenciales antiguas de `meta` (`rwgps:credentials`).
+- Pruebas: `tests/rwgpsService.test.ts`, `tests/rwgpsImport.test.ts`, e2e `e2e/rwgps.spec.ts` (360 y 430 px, comprueba que el navegador nunca llama a ridewithgps.com).
+
+## Anterior (2026-11-11, noche)
 
 **Publicado: catálogo de rutas, que sustituye a Wikiloc cerca y al marcador.** Plan: `docs/superpowers/plans/2026-11-11-catalogo-rutas.md`.
 

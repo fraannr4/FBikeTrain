@@ -1,54 +1,71 @@
 import { z } from 'zod';
-import { rwgpsRouteToLibraryInput, RwgpsError, type RwgpsCredentials, type RwgpsLibraryInput } from './ridewithgps';
+import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../../auth/config';
+import { rwgpsRouteToLibraryInput, RwgpsError, type RwgpsLibraryInput } from './ridewithgps';
+import type { RwgpsRequest } from './rwgpsService';
 
 /**
- * Conexión con Ride with GPS (API v1 oficial, CORS abierto), colecciones e importación por lotes al catálogo.
- * Solo se usan endpoints documentados de /api/v1; nunca la web (robots.txt bloquea /routes/*.json y los GPX).
+ * Ride with GPS compartido: la función `rwgps` lee la API v1 oficial con la cuenta común de FBikeTrain.
+ * El navegador solo manda la sesión y el id de la ruta o colección; nunca ve la clave ni el token.
  */
 
-const API = 'https://ridewithgps.com/api/v1';
-/** Página de Ride with GPS donde el usuario crea su clave de API. */
-export const RWGPS_API_CLIENTS_URL = 'https://ridewithgps.com/api/api_clients';
-/** Buscador de rutas de Ride with GPS: se abre en una pestaña del usuario. */
+/** Buscador de rutas de Ride with GPS: se abre en una pestaña del usuario. La API no busca por zona. */
 export const RWGPS_FIND_URL = 'https://ridewithgps.com/find';
 /** Como mucho, rutas por importación: cada una es una petición a Ride with GPS. */
 export const MAX_RWGPS_IMPORT = 150;
+/** Límite por persona de `consume_shared_rwgps_quota`. */
+export const RWGPS_USER_DAY = 300;
 
-export const RWGPS_UNAUTHORIZED = 'Ride with GPS no acepta tu clave o tu token. Vuelve a conectar la cuenta.';
-const STATUS: Record<number, string> = {
-  401: RWGPS_UNAUTHORIZED,
-  403: 'La ruta no es visible para tu cuenta de Ride with GPS (privada, o falta el privacy_code en el enlace).',
-  404: 'No existe en Ride with GPS.',
-  429: 'Ride with GPS limita las peticiones: espera unos minutos y vuelve a probar.',
-};
-const statusError = (status: number) => new RwgpsError(STATUS[status] ?? `Ride with GPS respondió con el error ${status}.`);
+export type RwgpsAccess = { getToken: () => Promise<string | null>; fetch?: typeof fetch };
 
-const tokenSchema = z.object({ auth_token: z.object({ auth_token: z.string().min(8) }) });
 const collectionSchema = z.object({
   collection: z.object({ name: z.string().nullish(), routes: z.array(z.object({ id: z.number().int().positive() })).nullish() }),
 });
 
-/**
- * Pide un token con el correo y la contraseña del usuario (POST /auth_tokens.json).
- * La contraseña solo viaja a Ride with GPS y nunca se guarda.
- */
-export async function createRwgpsToken(apiKey: string, email: string, password: string, fetchImpl: typeof fetch = fetch): Promise<string> {
-  if (!apiKey.trim() || !email.trim() || !password) throw new RwgpsError('Escribe la clave de API, el correo y la contraseña de Ride with GPS.');
+const MSG = {
+  session: 'Tu sesión ha caducado. Vuelve a iniciar sesión para traer rutas de Ride with GPS.',
+  unreachable: 'No se pudo conectar con el servicio de Ride with GPS. Revisa la conexión y vuelve a probar.',
+  unavailable: 'Ride with GPS no está disponible ahora. Prueba más tarde.',
+  busy: 'Ride with GPS limita las peticiones: espera unos minutos y vuelve a probar.',
+  private: 'No es pública en Ride with GPS (o falta el privacy_code en el enlace).',
+  missing: 'No existe en Ride with GPS.',
+  invalid: 'Ride with GPS no ha devuelto datos válidos.',
+};
+
+function quotaMessage(retryAfterS: number): string {
+  const hours = Math.max(1, Math.round(retryAfterS / 3600));
+  return `Has llegado al límite de Ride with GPS (${RWGPS_USER_DAY} rutas al día por persona, o el total compartido). Se renueva en unas ${hours} h.`;
+}
+
+/** Una lectura por la función `rwgps`. Los errores marcados como `fatal` paran el lote entero. */
+async function callShared(request: RwgpsRequest, access: RwgpsAccess, signal?: AbortSignal): Promise<unknown> {
+  signal?.throwIfAborted();
+  const token = await access.getToken();
+  if (!token) throw new RwgpsError(MSG.session, true);
   let response: Response;
   try {
-    response = await fetchImpl(`${API}/auth_tokens.json`, {
+    response = await (access.fetch ?? fetch)(`${ACCOUNT_PROJECT_URL}/functions/v1/rwgps`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-rwgps-api-key': apiKey.trim() },
-      body: JSON.stringify({ user: { email: email.trim(), password } }),
+      headers: { Authorization: `Bearer ${token}`, apikey: ACCOUNT_PUBLIC_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal,
     });
-  } catch {
-    throw new RwgpsError('No se pudo contactar con Ride with GPS. Revisa la conexión.');
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    throw new RwgpsError(MSG.unreachable, true);
   }
-  if (response.status === 400 || response.status === 401) throw new RwgpsError('Ride with GPS no acepta esa clave de API, ese correo o esa contraseña.');
-  if (!response.ok) throw statusError(response.status);
-  const parsed = tokenSchema.safeParse(await response.json().catch(() => null));
-  if (!parsed.success) throw new RwgpsError('Ride with GPS no ha devuelto un token válido.');
-  return parsed.data.auth_token.auth_token;
+  const body = (await response.json().catch(() => null)) as { data?: unknown; retryAfterS?: unknown; error?: { code?: unknown } } | null;
+  if (response.ok) return body?.data ?? null;
+  if (response.status === 401) throw new RwgpsError(MSG.session, true);
+  if (response.status === 429) {
+    if (body?.error?.code !== 'quota_exceeded') throw new RwgpsError(MSG.busy, true);
+    const seconds = Number(body?.retryAfterS ?? response.headers.get('retry-after'));
+    throw new RwgpsError(quotaMessage(Number.isFinite(seconds) && seconds > 0 ? seconds : 3600), true);
+  }
+  if (response.status === 403 && body?.error?.code === 'not_visible') throw new RwgpsError(MSG.private);
+  if (response.status === 404 && body?.error?.code === 'not_found') throw new RwgpsError(MSG.missing);
+  // Un 404 o 403 sin código propio es la función sin desplegar o un origen no permitido.
+  if (response.status === 503 || response.status === 403 || response.status === 404) throw new RwgpsError(MSG.unavailable, true);
+  throw new RwgpsError(MSG.invalid);
 }
 
 export type RwgpsLink =
@@ -85,29 +102,13 @@ export function parseRwgpsLinks(text: string): { links: RwgpsLink[]; invalid: st
   return { links, invalid };
 }
 
-async function getJson(path: string, credentials: RwgpsCredentials, fetchImpl: typeof fetch, signal?: AbortSignal): Promise<unknown> {
-  let response: Response;
-  try {
-    response = await fetchImpl(`${API}${path}`, {
-      headers: { 'x-rwgps-api-key': credentials.apiKey.trim(), 'x-rwgps-auth-token': credentials.authToken.trim() },
-      signal,
-    });
-  } catch (e) {
-    if (signal?.aborted) throw e;
-    throw new RwgpsError('No se pudo contactar con Ride with GPS. Revisa la conexión.');
-  }
-  if (!response.ok) throw statusError(response.status);
-  return response.json().catch(() => null);
-}
-
 const withCode = (code?: string) => (code ? `?privacy_code=${encodeURIComponent(code)}` : '');
 
-/** Ids de las rutas de una colección, o de la colección fijada si `id` es `pinned`. */
+/** Ids de las rutas de una colección pública (o con su privacy_code). */
 export async function fetchRwgpsCollection(
-  id: string, credentials: RwgpsCredentials, privacyCode?: string, fetchImpl: typeof fetch = fetch, signal?: AbortSignal,
+  id: string, access: RwgpsAccess, privacyCode?: string, signal?: AbortSignal,
 ): Promise<{ name: string; routeIds: string[] }> {
-  const path = id === 'pinned' ? '/collections/pinned.json' : `/collections/${encodeURIComponent(id)}.json${withCode(privacyCode)}`;
-  const parsed = collectionSchema.safeParse(await getJson(path, credentials, fetchImpl, signal));
+  const parsed = collectionSchema.safeParse(await callShared({ kind: 'collection', id, ...(privacyCode ? { privacyCode } : {}) }, access, signal));
   if (!parsed.success) throw new RwgpsError('Ride with GPS devolvió una colección que no se entiende.');
   return { name: parsed.data.collection.name?.trim() || 'Colección', routeIds: (parsed.data.collection.routes ?? []).map((r) => String(r.id)) };
 }
@@ -115,15 +116,14 @@ export async function fetchRwgpsCollection(
 export type RwgpsImportResult = { routes: (RwgpsLibraryInput & { id: string })[]; failed: { ref: string; message: string }[] };
 
 /**
- * Descarga por la API cada ruta enlazada y las de cada colección, una tras otra.
- * Una ruta que falla no detiene las demás; un 401 sí, porque las credenciales no valen.
+ * Descarga por la función compartida cada ruta enlazada y las de cada colección, una tras otra.
+ * Una ruta que falla no detiene las demás; un error `fatal` (sesión, cuota, servicio caído) sí.
  */
 export async function fetchRwgpsRoutes(
   links: RwgpsLink[],
-  credentials: RwgpsCredentials,
-  opts: { fetch?: typeof fetch; signal?: AbortSignal; onProgress?: (p: { done: number; total: number }) => void } = {},
+  access: RwgpsAccess,
+  opts: { signal?: AbortSignal; onProgress?: (p: { done: number; total: number }) => void } = {},
 ): Promise<RwgpsImportResult> {
-  const fetchImpl = opts.fetch ?? fetch;
   const failed: RwgpsImportResult['failed'] = [];
   const queue: { id: string; privacyCode?: string }[] = [];
   const seen = new Set<string>();
@@ -139,11 +139,11 @@ export async function fetchRwgpsRoutes(
       continue;
     }
     try {
-      const collection = await fetchRwgpsCollection(link.id, credentials, link.privacyCode, fetchImpl, opts.signal);
+      const collection = await fetchRwgpsCollection(link.id, access, link.privacyCode, opts.signal);
       collection.routeIds.forEach((id) => push(id));
     } catch (e) {
-      if (opts.signal?.aborted || (e instanceof RwgpsError && e.message === RWGPS_UNAUTHORIZED)) throw e;
-      failed.push({ ref: link.id === 'pinned' ? 'Colección fijada' : `Colección ${link.id}`, message: e instanceof Error ? e.message : 'No se pudo leer.' });
+      if (opts.signal?.aborted || (e instanceof RwgpsError && e.fatal)) throw e;
+      failed.push({ ref: `Colección ${link.id}`, message: e instanceof Error ? e.message : 'No se pudo leer.' });
     }
   }
   for (const extra of queue.splice(MAX_RWGPS_IMPORT)) failed.push({ ref: `Ruta ${extra.id}`, message: `Se importan ${MAX_RWGPS_IMPORT} rutas por vez como máximo.` });
@@ -152,11 +152,11 @@ export async function fetchRwgpsRoutes(
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ done: i, total: queue.length });
     try {
-      const json = await getJson(`/routes/${encodeURIComponent(item.id)}.json${withCode(item.privacyCode)}`, credentials, fetchImpl, opts.signal);
+      const json = await callShared({ kind: 'route', id: item.id, ...(item.privacyCode ? { privacyCode: item.privacyCode } : {}) }, access, opts.signal);
       const url = `https://ridewithgps.com/routes/${item.id}${withCode(item.privacyCode)}`;
       routes.push({ ...rwgpsRouteToLibraryInput(json, url), id: item.id });
     } catch (e) {
-      if (opts.signal?.aborted || (e instanceof RwgpsError && e.message === RWGPS_UNAUTHORIZED)) throw e;
+      if (opts.signal?.aborted || (e instanceof RwgpsError && e.fatal)) throw e;
       failed.push({ ref: `Ruta ${item.id}`, message: e instanceof Error ? e.message : 'No se pudo leer.' });
     }
   }
