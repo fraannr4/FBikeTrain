@@ -112,5 +112,14 @@ describe('screens', () => {
     expect(screenName('/rutas/ia')).toBe('Rutas con IA');
     expect(screenName('/historial/demo-004')).toBe('Salida');
     expect(screenName('/plan/')).toBe('Plan');
+    expect(tabOf('/zona')).toBe('mas');
+    expect(tabOf('/amigos')).toBe('mas');
+    expect(screenName('/zona')).toBe('Tu zona');
+    expect(screenName('/amigos')).toBe('Amigos');
+    expect(tabOf('/retos')).toBe('mas');
+    expect(tabOf('/retos/nuevo')).toBe('mas');
+    expect(screenName('/retos')).toBe('Retos');
+    expect(screenName('/retos/nuevo')).toBe('Nuevo reto');
+    expect(screenName('/retos/abc-123')).toBe('Reto');
   });
 });

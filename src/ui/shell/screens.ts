@@ -12,12 +12,12 @@ export const TAB_ROOT: Record<TabId, string> = {
   mas: '/mas',
 };
 
-/** Pestaña a la que pertenece una ruta. Importar y Ajustes se abren desde Más. */
+/** Pestaña a la que pertenece una ruta. Importar, Ajustes, Tu zona, Amigos y Retos se abren desde Más. */
 export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/historial')) return 'historial';
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
-  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes')) return 'mas';
+  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos')) return 'mas';
   return 'inicio';
 }
 
@@ -37,6 +37,10 @@ const NAMES: Record<string, string> = {
   '/importar': 'Importar',
   '/compartido': 'Ficheros compartidos',
   '/ajustes': 'Ajustes',
+  '/zona': 'Tu zona',
+  '/amigos': 'Amigos',
+  '/retos': 'Retos',
+  '/retos/nuevo': 'Nuevo reto',
 };
 
 /** Nombre de la pantalla, para «Volver a Historial». Una salida concreta es «Salida». */
@@ -46,6 +50,7 @@ export function screenName(pathname: string): string {
   if (path.startsWith('/historial/subidas/')) return 'Subidas';
   if (path.startsWith('/historial/repetidas/')) return 'Repetidas';
   if (path.startsWith('/historial/')) return 'Salida';
+  if (path.startsWith('/retos/')) return 'Reto';
   return 'Inicio';
 }
 

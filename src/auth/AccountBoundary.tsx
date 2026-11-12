@@ -7,8 +7,9 @@ import { CyclingLoader } from '../ui/components/CyclingLoader';
 import { WelcomeScene, welcomeName } from './WelcomeScene';
 import { takeFreshSignIn } from './useFreshSignIn';
 import { restoreSharedLocation } from '../pwa/sharedFiles';
+import { zonaSkippedRecently } from '../social/profileArea';
 
-type Account = { client: SupabaseClient; user: User };
+export type Account = { client: SupabaseClient; user: User };
 export const AccountContext = createContext<Account | null>(null);
 export const useAccount = () => useContext(AccountContext);
 const reloadPage = () => window.location.reload();
@@ -42,6 +43,27 @@ function Workspace({ account, welcome, children }: { account: Account; welcome: 
     return () => { live = false; clearTimeout(deadline); };
     // Una sola consulta por escena: Workspace se monta de nuevo con cada usuario (key).
   }, [welcome, client]);
+  // Sin pueblo en el perfil, se pide una vez, tras la bienvenida y solo si se entra por Inicio:
+  // un enlace a otra pantalla (un fichero compartido) no se interrumpe. Sin red, no se pregunta.
+  const [needsZona, setNeedsZona] = useState(false);
+  useEffect(() => {
+    if (zonaSkippedRecently(Date.now())) return;
+    let live = true;
+    Promise.resolve()
+      .then(() => client.rpc('my_area'))
+      .then(({ data, error }) => {
+        const row = (Array.isArray(data) ? data[0] : data) as { locality?: string | null } | null;
+        if (live && !error && row && !row.locality) setNeedsZona(true);
+      })
+      .catch(() => { /* sin perfil o sin red: se preguntará en otro inicio */ });
+    return () => { live = false; };
+  }, [client]);
+  useEffect(() => {
+    if (!needsZona || !ready || phase !== 'app') return;
+    setNeedsZona(false);
+    const path = window.location.hash.replace(/^#/, '').split('?')[0];
+    if (path === '' || path === '/') window.location.hash = '#/zona';
+  }, [needsZona, ready, phase]);
   if (failed) return <AccountFrame><h1>No se pueden abrir tus datos</h1><p>Comprueba el espacio disponible y que el navegador permita guardar datos.</p><button className="btn btn--primary" onClick={() => window.location.reload()}>Reintentar</button></AccountFrame>;
   // La escena corre en paralelo con la apertura de la base; si al salir no está lista, queda el loader.
   const scene = phase !== 'app' && <WelcomeScene name={name} onLeave={() => setPhase('leaving')} onDone={() => setPhase('app')} />;

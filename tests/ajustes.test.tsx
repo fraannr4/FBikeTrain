@@ -206,6 +206,65 @@ describe('Ajustes', () => {
     }
   });
 
+  it('with an account, Tu zona shows the town, links to change it and toggles its visibility', async () => {
+    await saveSettings({ ...structuredClone(DEFAULT_SETTINGS), home: { lat: 41.0123, lng: 2.5432 } });
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn(() => ({ eq }));
+    const client = {
+      rpc: vi.fn().mockResolvedValue({ data: [{ locality: 'Villa Prueba, Provincia Ficticia', show_area: true }], error: null }),
+      from: vi.fn(() => ({ update })),
+    } as unknown as SupabaseClient;
+    render(
+      <AccountContext.Provider value={{ client, user: { id: 'u1' } as User }}>
+        <MemoryRouter initialEntries={['/ajustes?abrir=zona']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ToastProvider>
+            <Ajustes />
+          </ToastProvider>
+        </MemoryRouter>
+      </AccountContext.Provider>,
+    );
+    const zona = await waitFor(() => {
+      const d = document.querySelector<HTMLElement>('details#zona');
+      if (!d) throw new Error('sin sección Tu zona');
+      return d;
+    });
+    expect(await within(zona).findByRole('link', { name: 'Cambiar' })).toHaveAttribute('href', '/zona?desde=ajustes');
+    expect(zona).toHaveTextContent('Sales a rodar desde Villa Prueba, Provincia Ficticia.');
+    const visible = within(zona).getByRole('checkbox', { name: 'Mostrar mi zona a otros usuarios' });
+    expect(visible).toBeChecked();
+    await userEvent.setup().click(visible);
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ show_area: false }));
+    expect(eq).toHaveBeenCalledWith('id', 'u1');
+    expect(visible).not.toBeChecked();
+    expect(document.body.textContent).not.toMatch(/41[.,]0123|2[.,]5432/);
+  });
+
+  it('if hiding the zone fails, the switch goes back and says so', async () => {
+    const client = {
+      rpc: vi.fn().mockResolvedValue({ data: [{ locality: null, show_area: true }], error: null }),
+      from: vi.fn(() => ({ update: () => ({ eq: vi.fn().mockResolvedValue({ error: { message: 'x' } }) }) })),
+    } as unknown as SupabaseClient;
+    render(
+      <AccountContext.Provider value={{ client, user: { id: 'u1' } as User }}>
+        <MemoryRouter initialEntries={['/ajustes?abrir=zona']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ToastProvider>
+            <Ajustes />
+          </ToastProvider>
+        </MemoryRouter>
+      </AccountContext.Provider>,
+    );
+    const zona = await waitFor(() => {
+      const d = document.querySelector<HTMLElement>('details#zona');
+      if (!d) throw new Error('sin sección Tu zona');
+      return d;
+    });
+    expect(await within(zona).findByRole('link', { name: 'Indicar mi zona' })).toBeInTheDocument();
+    const visible = within(zona).getByRole('checkbox', { name: 'Mostrar mi zona a otros usuarios' });
+    await userEvent.setup().click(visible);
+    expect(await screen.findByText('No se ha podido cambiar la visibilidad de tu zona.')).toBeInTheDocument();
+    expect(visible).toBeChecked();
+  });
+
   it('theme toggle lives in Apariencia', async () => {
     renderAjustes();
     const group = await screen.findByRole('group', { name: 'Tema' });

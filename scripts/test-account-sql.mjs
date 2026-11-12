@@ -44,6 +44,12 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611120002_rwgps_route_index.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/rwgps_route_index.sql', import.meta.url), 'utf8'));
   console.log('PASS: índice de rutas de Ride with GPS: búsqueda por caja y radio, una fila de estado y permisos exclusivos del servidor.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130001_zona_buscador.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/profile_search.sql', import.meta.url), 'utf8'));
+  console.log('PASS: zona aproximada del perfil, búsqueda por nombre y cerca, y listado de amistades.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130002_retos.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/challenges.sql', import.meta.url), 'utf8'));
+  console.log('PASS: retos 1 contra 1 solo entre amigos, plazo de 30 días, resultados con cifras y lectura solo para los dos.');
 } finally {
   await db.close();
 }

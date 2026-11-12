@@ -65,6 +65,7 @@ export {
   SlidersHorizontal,
   Sparkles,
   Sun,
+  Swords,
   Table,
   Target,
   Timer,
@@ -74,6 +75,8 @@ export {
   TriangleAlert,
   Upload,
   User,
+  UserPlus,
+  Users,
   X,
 } from 'lucide-react';
 // Pulso y potencia de la última salida: solo aparecen si el fichero los trae.

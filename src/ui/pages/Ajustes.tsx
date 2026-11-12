@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useAccount } from '../../auth/AccountBoundary';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { sharedOrsEnabled } from '../../routes/orsProxy';
 import type { ProbeResult, Settings } from '../../domain/types';
 import { BackupError, exportBackup, getBackupMeta, needsBackup, restoreBackup } from '../../backup/backup';
@@ -49,6 +49,7 @@ import { InstallApp } from '../components/InstallApp';
 import { ActivityConnections } from '../components/ActivityConnections';
 import { useConnections } from '../../connections/ConnectionsProvider';
 import '../styles/conexiones.css';
+import '../styles/social.css';
 import { useTheme } from '../theme/theme';
 
 const DAY = 86_400_000;
@@ -56,7 +57,7 @@ const GROQ_URL = DEFAULT_SETTINGS.llm.baseUrl;
 const ORS_SIGNUP = 'https://openrouteservice.org/dev/#/signup';
 const GROQ_KEYS = 'https://console.groq.com/keys';
 const STORAGE_DOWN = 'el almacenamiento de este navegador no está disponible.';
-const SECTIONS = ['perfil', 'casa', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
+const SECTIONS = ['perfil', 'casa', 'zona', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
 
 function probeMessage(r: ProbeResult): string {
   if (r.ok) return 'Conexión correcta.';
@@ -404,6 +405,8 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
             </button>
           </Disclosure>
 
+          {account ? <ZonaSection account={account} defaultOpen={isOpen('zona')} /> : null}
+
           <Disclosure
             id="claves"
             name="ajustes"
@@ -553,6 +556,112 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
         }}
       />
     </>
+  );
+}
+
+type AreaState = { locality: string | null; show_area: boolean };
+
+/**
+ * Tu zona: el pueblo del perfil (lo que ven los demás si lo muestra), el enlace para cambiarlo y la
+ * visibilidad. Nunca muestra Casa: la zona es solo el pueblo y una celda aproximada.
+ */
+function ZonaSection({ account, defaultOpen }: { account: Account; defaultOpen: boolean }) {
+  const toast = useToast();
+  const [area, setArea] = useState<AreaState | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { client, user } = account;
+
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve()
+      .then(() => client.rpc('my_area'))
+      .then(({ data, error }) => {
+        if (!alive) return;
+        const row = (Array.isArray(data) ? data[0] : data) as AreaState | undefined;
+        if (error || !row) setFailed(true);
+        else setArea({ locality: row.locality ?? null, show_area: row.show_area !== false });
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [client]);
+
+  async function toggleVisible(show: boolean) {
+    if (!area || saving) return;
+    setArea({ ...area, show_area: show });
+    setSaving(true);
+    try {
+      const { error } = await client.from('profiles').update({ show_area: show }).eq('id', user.id);
+      if (error) throw error;
+      toast(show ? 'Tu zona es visible' : 'Tu zona queda oculta', { tone: 'good' });
+    } catch {
+      setArea((a) => (a ? { ...a, show_area: !show } : a));
+      toast('No se ha podido cambiar la visibilidad de tu zona.', { tone: 'error' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const locality = area?.locality ?? null;
+  return (
+    <Disclosure
+      id="zona"
+      name="ajustes"
+      icon={Navigation}
+      accent="dist"
+      title="Tu zona"
+      meta={area ? <span className="sum-name">{locality ?? 'Sin indicar'}</span> : failed ? 'No disponible' : 'Cargando…'}
+      defaultOpen={defaultOpen}
+    >
+      {failed ? (
+        <p className="status-line" data-tone="warn">
+          <TriangleAlert className="ic" aria-hidden="true" />
+          <span>No se ha podido leer tu zona. Comprueba la conexión y vuelve a abrir Ajustes.</span>
+        </p>
+      ) : area ? (
+        <>
+          <p className="zona-now help">
+            {locality ? (
+              <>
+                Sales a rodar desde <b>{locality}</b>.
+              </>
+            ) : (
+              'Aún no has indicado tu pueblo. Con él, otros ciclistas pueden encontrarte cerca.'
+            )}
+          </p>
+          <Link className="btn btn--secondary btn--block" to="/zona?desde=ajustes">
+            <MapPin className="ic" aria-hidden="true" />
+            {locality ? 'Cambiar' : 'Indicar mi zona'}
+          </Link>
+          <label className="switch-line">
+            <span className="row-main">
+              <span className="row-title" id="sw-zona">
+                Mostrar mi zona a otros usuarios
+              </span>
+              <span className="row-meta" id="sw-zona-d">
+                Sin ella, no apareces en «Cerca de mí» y tu pueblo no se ve.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              className="switch-input"
+              checked={area.show_area}
+              disabled={saving}
+              aria-labelledby="sw-zona"
+              aria-describedby="sw-zona-d"
+              onChange={(e) => void toggleVisible(e.target.checked)}
+            />
+            <span className="switch" aria-hidden="true" />
+          </label>
+        </>
+      ) : (
+        <Skeleton width="60%" />
+      )}
+    </Disclosure>
   );
 }
 

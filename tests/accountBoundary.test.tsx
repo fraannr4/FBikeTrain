@@ -102,4 +102,60 @@ describe('guardia obligatoria de cuenta', () => {
       await db.delete();
     });
   });
+
+  describe('tu zona tras el login', () => {
+    const withArea = (client: SupabaseClient, rows: unknown[]) => {
+      const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+      Object.assign(client, { rpc });
+      return rpc;
+    };
+    beforeEach(() => { window.location.hash = ''; localStorage.removeItem('fbt-zona-skip'); });
+    afterEach(() => { window.location.hash = ''; localStorage.removeItem('fbt-zona-skip'); });
+
+    it('un perfil sin pueblo lleva a Tu zona una vez', async () => {
+      const { client } = mockClient({ id: '00000000-0000-0000-0000-000000000081' });
+      const rpc = withArea(client, [{ locality: null, show_area: true }]);
+      render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+      await screen.findByText('Datos privados', {}, { timeout: 5000 });
+      await vi.waitFor(() => expect(window.location.hash).toBe('#/zona'));
+      expect(rpc).toHaveBeenCalledOnce();
+      expect(rpc).toHaveBeenCalledWith('my_area');
+      await db.delete();
+    });
+
+    it('con el pueblo ya guardado no lleva a Tu zona', async () => {
+      const { client } = mockClient({ id: '00000000-0000-0000-0000-000000000080' });
+      const rpc = withArea(client, [{ locality: 'Villa Prueba', show_area: true }]);
+      render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+      await screen.findByText('Datos privados', {}, { timeout: 5000 });
+      await vi.waitFor(() => expect(rpc).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 50));
+      expect(window.location.hash).toBe('');
+      await db.delete();
+    });
+
+    it('si se saltó hace menos de 7 días no pregunta ni consulta el perfil', async () => {
+      localStorage.setItem('fbt-zona-skip', String(Date.now() - 86_400_000));
+      const { client } = mockClient({ id: '00000000-0000-0000-0000-000000000079' });
+      const rpc = withArea(client, [{ locality: null, show_area: true }]);
+      render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+      await screen.findByText('Datos privados', {}, { timeout: 5000 });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(rpc).not.toHaveBeenCalled();
+      expect(window.location.hash).toBe('');
+      await db.delete();
+    });
+
+    it('no interrumpe un enlace a otra pantalla', async () => {
+      window.location.hash = '#/compartido';
+      const { client } = mockClient({ id: '00000000-0000-0000-0000-000000000078' });
+      const rpc = withArea(client, [{ locality: null, show_area: true }]);
+      render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+      await screen.findByText('Datos privados', {}, { timeout: 5000 });
+      await vi.waitFor(() => expect(rpc).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 50));
+      expect(window.location.hash).toBe('#/compartido');
+      await db.delete();
+    });
+  });
 });

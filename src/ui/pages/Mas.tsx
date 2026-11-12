@@ -15,10 +15,12 @@ import {
   Repeat,
   SlidersHorizontal,
   Sun,
+  Swords,
   Target,
   TriangleAlert,
   Upload,
   User,
+  Users,
 } from '../icons';
 import { Banner } from '../components/Banner';
 import { List, ListRow } from '../components/ListRow';
@@ -187,6 +189,8 @@ export function Mas() {
       ) : null}
       <List inset className={off ? 'list--off' : undefined}>
         {account && <ListRow to="/perfil" icon={User} title="Tu perfil" meta="Nombre, privacidad y cuenta" />}
+        {account && <ListRow to="/amigos" icon={Users} accent="time" title="Amigos" meta="Buscar personas y solicitudes" />}
+        {account && <ListRow to="/retos" icon={Swords} accent="elev" title="Retos" meta="Una ruta contra un amigo, en 30 días" />}
         <ListRow to="/ajustes" icon={SlidersHorizontal} title="Ajustes" meta="Nombre, Casa, claves y tema" />
         {empty ? null : (
           <ListRow to={to('/importar')} icon={Upload} accent="dist" title="Importar salidas" meta={meta(s?.import)} />

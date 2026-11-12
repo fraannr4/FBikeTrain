@@ -18,6 +18,11 @@ import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 import { Empalmar } from './ui/pages/Empalmar';
 import { RutasCerca } from './ui/pages/RutasCerca';
 import { RutaCompartida } from './ui/pages/RutaCompartida';
+import { Zona } from './ui/pages/Zona';
+import { Amigos } from './ui/pages/Amigos';
+import { Retos } from './ui/pages/Retos';
+import { NuevoReto } from './ui/pages/NuevoReto';
+import { Reto } from './ui/pages/Reto';
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -62,6 +67,11 @@ export function App() {
           <Route path="/importar" element={<Importar />} />
           <Route path="/compartido" element={<Compartido />} />
           <Route path="/ajustes" element={<Ajustes />} />
+          <Route path="/zona" element={<Zona />} />
+          <Route path="/amigos" element={<Amigos />} />
+          <Route path="/retos" element={<Retos />} />
+          <Route path="/retos/nuevo" element={<NuevoReto />} />
+          <Route path="/retos/:id" element={<Reto />} />
         </Routes>
       </AppShell>
     </HashRouter>

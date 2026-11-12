@@ -19,7 +19,12 @@
   - `routes/` con el archivo real de Strava;
   - «Compartir → FBikeTrain» en Android.
 - **Abierto:** ¿«Rutas cerca» debe respetar `VITE_SHARED_AI_ENABLED` y `VITE_ROUTE_SOURCES_ENABLED`? Hoy usa los servicios siempre que hay sesión.
-- **En curso, sin publicar:** Zona, buscador y Amigos, y Retos, en el worktree `.claude/worktrees/agent-a3ec01869c0b3e2d7`, con las migraciones `202611130001` y `202611130002` sin aplicar.
+- **Zona, buscador y Amigos** (plan `2026-11-10-zona-buscador-amigos.md`, migración `202611130001`) **y Retos** (plan `2026-11-10-retos.md`, migración `202611130002`). Publicados, con las dos migraciones aplicadas en remoto el 2026-11-12.
+  - Pantallas `#/zona`, `#/amigos`, `#/retos`, `#/retos/nuevo` y `#/retos/:id`.
+  - La zona ajena solo se lee por RPC, con permisos por columna y `my_area()`.
+  - Los retos los leen solo los dos participantes.
+  - Pendiente del usuario: probar con dos cuentas reales y anotarlo en `docs/verificaciones.md`.
+  - Abierto: `e2e/paleta.spec.ts:82` falla a 1440 px en Calendario (el sábado aparece en la tira y en el mes); no se ha comprobado si ya fallaba antes.
 
 ## Anterior (2026-11-12, noche): decisiones para «Rutas cerca»
 

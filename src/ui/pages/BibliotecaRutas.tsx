@@ -20,7 +20,7 @@ import { StartPointCanvas } from '../components/StartPointCanvas';
 import { ProfileSvg } from '../charts/ProfileSvg';
 import { reduceProfile } from '../profile';
 import { formatKm, formatMeters, formatCount } from '../format';
-import { Download, Upload } from '../icons';
+import { Download, Swords, Upload } from '../icons';
 import '../styles/library.css';
 
 const failure = (e: unknown) => e instanceof Error ? e.message : 'No se pudo completar el cambio. Inténtalo de nuevo.';
@@ -186,6 +186,7 @@ export function BibliotecaRutas() {
         <RideMap points={draft.points} label="Mapa de tu ruta de referencia" interactive />
         <ProfileSvg profile={profile} label="Perfil de la ruta importada" axis height={100} />
         <button type="button" className="btn btn--primary btn--block" onClick={download} disabled={busy}><Download className="ic" aria-hidden="true" />Exportar GPX actual</button>
+        {account && <Link className="btn btn--secondary btn--block" to={`/retos/nuevo?ruta=${encodeURIComponent(draft.id)}`}><Swords className="ic" aria-hidden="true" />Retar con esta ruta</Link>}
       </section>
       <section className="section card library-panel" aria-label="Ajustar el recorrido"><h2 className="card-title">Ajusta el recorrido</h2>
         <fieldset disabled={busy} className="library-fields">
