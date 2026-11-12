@@ -50,6 +50,12 @@ const collectionSchema = z.object({
   }),
 });
 
+/** `visibility` documentada en Route y Collection (OpenAPI v1). Si falta, no se da por pública. */
+function isPublic(kind: RwgpsRequest['kind'], json: unknown): boolean {
+  const body = json as { route?: { visibility?: unknown }; collection?: { visibility?: unknown } } | null;
+  return (kind === 'route' ? body?.route?.visibility : body?.collection?.visibility) === 'public';
+}
+
 /** Solo nombre, autor y puntos (o ids de rutas): nada más de la cuenta ni de la respuesta original. */
 export function trimRwgpsResponse(kind: RwgpsRequest['kind'], json: unknown): object | null {
   if (kind === 'route') {
@@ -132,6 +138,8 @@ export async function handleRwgps(request: Request, deps: RwgpsServiceDependenci
     if (status === 429) return fail(429, 'provider_busy', 'Ride with GPS limita las peticiones ahora.', 60);
     if (status === 401) return fail(503, 'unavailable', 'Ride with GPS no está disponible ahora.');
     if (status !== 200) return fail(502, 'provider_error', 'Ride with GPS no ha respondido bien.');
+    // El token común también abre lo privado de la cuenta común: sin privacy_code, solo lo público.
+    if (!input.privacyCode && !isPublic(input.kind, json)) return fail(403, 'not_visible', 'La ruta no es pública en Ride with GPS.');
     const data = trimRwgpsResponse(input.kind, json);
     if (!data) return fail(502, 'invalid_response', 'Ride with GPS ha devuelto datos que no se entienden.');
     return Response.json({ data }, { headers: cors });

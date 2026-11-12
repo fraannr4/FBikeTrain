@@ -77,7 +77,8 @@ Deno.serve(request => handleRwgps(request, {
   enabled, allowedOrigins,
   authenticate: async token => {
     const { data, error } = await serverClient(publicKey).auth.getUser(token);
-    return error ? null : data.user?.id ?? null;
+    // Como route-sources: las sesiones anónimas no gastan la cuenta común.
+    return error || !data.user || data.user.is_anonymous === true ? null : data.user.id;
   },
   consumeQuota: async userId => {
     const { data, error } = await serverClient(serviceKey).rpc('consume_shared_rwgps_quota', { account_id: userId });

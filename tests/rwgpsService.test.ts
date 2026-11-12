@@ -6,7 +6,7 @@ const SECRET_KEY = 'clave-de-servidor-sintetica';
 const SECRET_TOKEN = 'token-de-servidor-sintetico';
 const routeJson = {
   route: {
-    id: 1, name: 'Ruta sintética', privacy_code: 'xyz', user: { id: 9, name: 'Autora', email: 'autora@example.com' },
+    id: 1, name: 'Ruta sintética', visibility: 'public', privacy_code: 'xyz', user: { id: 9, name: 'Autora', email: 'autora@example.com' },
     track_points: [{ x: 2, y: 41, e: 100, d: 0, S: 1 }, { x: 2, y: 41.01, d: 1112 }],
   },
 };
@@ -53,7 +53,7 @@ describe('función rwgps', () => {
   });
 
   it('colecciones: solo nombre e ids', async () => {
-    const d = deps({ get: async () => ({ status: 200, json: { collection: { name: 'Cerca', user: { email: 'x@example.com' }, routes: [{ id: 3, name: 'a' }, { id: 4 }] } } }) });
+    const d = deps({ get: async () => ({ status: 200, json: { collection: { name: 'Cerca', visibility: 'public', user: { email: 'x@example.com' }, routes: [{ id: 3, name: 'a' }, { id: 4 }] } } }) });
     const body = await (await handleRwgps(post({ kind: 'collection', id: '55' }), d.all)).json();
     expect(body).toEqual({ data: { collection: { name: 'Cerca', routes: [{ id: 3 }, { id: 4 }] } } });
   });
@@ -114,8 +114,25 @@ describe('función rwgps', () => {
     expect((await res.json()).error.code).toBe(code);
   });
 
+  it.each([['private'], ['followers_only'], [undefined]])('sin privacy_code, una ruta con visibility %s es 403 y no se devuelve', async visibility => {
+    const d = deps({ get: async () => ({ status: 200, json: { route: { ...routeJson.route, visibility } } }) });
+    const res = await handleRwgps(post({ kind: 'route', id: '1' }), d.all);
+    expect(res.status).toBe(403);
+    expect(await res.text()).not.toContain('track_points');
+  });
+
+  it('con privacy_code se devuelve aunque no sea pública', async () => {
+    const d = deps({ get: async () => ({ status: 200, json: { route: { ...routeJson.route, visibility: 'private' } } }) });
+    expect((await handleRwgps(post({ kind: 'route', id: '1', privacyCode: 'abc' }), d.all)).status).toBe(200);
+  });
+
+  it('una colección privada sin privacy_code es 403', async () => {
+    const d = deps({ get: async () => ({ status: 200, json: { collection: { name: 'Mía', visibility: 'private', routes: [{ id: 3 }] } } }) });
+    expect((await handleRwgps(post({ kind: 'collection', id: '5' }), d.all)).status).toBe(403);
+  });
+
   it('una ruta sin track válido es 502', async () => {
-    const d = deps({ get: async () => ({ status: 200, json: { route: { name: 'x', track_points: [{ x: 500, y: 0 }, { x: 0, y: 0 }] } } }) });
+    const d = deps({ get: async () => ({ status: 200, json: { route: { name: 'x', visibility: 'public', track_points: [{ x: 500, y: 0 }, { x: 0, y: 0 }] } } }) });
     expect((await handleRwgps(post({ kind: 'route', id: '1' }), d.all)).status).toBe(502);
   });
 });
