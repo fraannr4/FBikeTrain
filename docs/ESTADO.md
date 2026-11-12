@@ -1,6 +1,18 @@
 # Estado del proyecto FBikeTrain
 
-## Retomar aquí (2026-11-12)
+## Retomar aquí (2026-11-12, tarde): rutas de Ride with GPS por zona
+
+- **Pantalla `#/rutas/catalogo`, ahora «Rutas de Ride with GPS»:** solo el generador (km, desnivel opcional, salida Casa/Aquí/Mapa, botón «Proponer rutas», nunca automático) y Wikiloc («Buscar en Wikiloc» + «Subir el GPX descargado»). Se retiraron la precarga OSM, los puertos, la importación GPX/ZIP y el pegado de enlaces (`catalog/load.ts` y `dem.ts` borrados).
+- **Propuestas:** `src/routes/sources/rwgpsProposals.ts`. Pide `nearby` con radio 5 → 15 → 30 km hasta tener 10 candidatas, ordena por km y desnivel, y elige al menos 5 (hasta 6) con rumbos separados ≥ 45° (luego 25°) y solape < 0,7. Cada una se adapta para salir y volver al inicio (`adaptRoute`), con reservas si falla, 12 intentos como máximo.
+- **Índice compartido** (migración `202611120002`, aplicada): `rwgps_route_index`, `rwgps_sync_state`, rpc `rwgps_routes_near`. Solo service_role.
+  - Se alimenta de las colecciones y rutas propias de la cuenta común (fbiketrain), solo públicas, y de las rutas públicas que se leen por id.
+  - Sincronización (`src/routes/sources/rwgpsSync.ts`) en segundo plano al pedir `nearby`, como mucho cada 6 h y 80 rutas por pasada.
+- **Función `rwgps`:** op `nearby` `{lat, lng, radiusKm, distanceKm?}` → hasta 60 rutas con línea simplificada (≤ 300 puntos) y `passM`. Lista cerrada de GET: routes/{id}, collections/{id}, collections.json, routes.json.
+- **IA:** las rutas cercanas de Ride with GPS (radio 15 km) entran como rutas conocidas con `fuente: 'rwgps'`, `aInicioKm` y `direccion` (8 rumbos). Nunca coordenadas. `ai-routes` redesplegada.
+- **Verificación:** tsc limpio; vitest 1.588/1.588 (un test de la Biblioteca es intermitente con carga); e2e `rwgps` y `catalogo` 6/6 a 360 y 430 px (capturas en `test-results/rwgps-zona/`). Prueba real: `nearby` en Caldes da 200 con 0 rutas; la primera sincronización ha corrido sin error.
+- **Pendiente del usuario:** con la cuenta fbiketrain, guardar en colecciones rutas públicas de la zona. Se indexan en la siguiente sincronización (≤ 6 h tras una búsqueda).
+
+## Anterior (2026-11-12, mañana)
 
 **Ride with GPS compartido para todos los usuarios.** Ya no hay formulario de conexión por usuario: la Edge Function `rwgps` lee la API v1 con la cuenta común de FBikeTrain.
 - Función `supabase/functions/rwgps` + handler portable `src/routes/sources/rwgpsService.ts`.

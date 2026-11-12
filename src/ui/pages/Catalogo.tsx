@@ -4,16 +4,13 @@ import { isAbort } from '../../ai/abort';
 import { useAccount } from '../../auth/AccountBoundary';
 import type { LatLng, Settings } from '../../domain/types';
 import { adaptRoute, type AdaptedRoute } from '../../routes/adapt';
-import { loadOsmCatalog, type CatalogProgress } from '../../routes/catalog/load';
-import { OsmCatalogError } from '../../routes/catalog/osm';
-import { recommendFromCatalog, type Proposal, type RecommendUpdate } from '../../routes/catalog/recommend';
-import {
-  importReferenceRoutes, listReferenceRoutes, parseReferenceRoute, saveCatalogRoutes, RouteLibraryError, type ParsedReferenceRoute, type ReferenceRoute,
-} from '../../routes/library';
+import type { Proposal } from '../../routes/catalog/recommend';
+import { parseReferenceRoute, RouteLibraryError, type ParsedReferenceRoute } from '../../routes/library';
 import { OrsError } from '../../routes/ors';
 import { RwgpsError } from '../../routes/sources/ridewithgps';
 import { clearLegacyRwgpsCredentials } from '../../routes/sources/rwgpsCredentials';
-import { fetchRwgpsRoutes, parseRwgpsLinks, RWGPS_FIND_URL, RWGPS_USER_DAY, type RwgpsAccess, type RwgpsLink } from '../../routes/sources/rwgpsImport';
+import type { RwgpsAccess } from '../../routes/sources/rwgpsImport';
+import { MIN_PROPOSALS, proposeRwgpsRoutes, type RwgpsProposalResult, type RwgpsProposalUpdate } from '../../routes/sources/rwgpsProposals';
 import { chooseOrsAccess, sessionToken, sharedOrsEnabled } from '../../routes/orsProxy';
 import { isWikilocUrl } from '../../routes/wikilocLimits';
 import { clearLegacyWikilocRows, loadWikilocRequest, saveWikilocRequest, wikilocSearchUrl } from '../../routes/wikilocNearby';
@@ -24,21 +21,19 @@ import { Page } from '../components/Page';
 import { StateView } from '../components/StateView';
 import { useToast } from '../components/Toast';
 import { formatCount } from '../format';
-import { CircleAlert, ExternalLink, KeyRound, MapIcon, RefreshCw, Route, SlidersHorizontal, Upload } from '../icons';
+import { CircleAlert, ExternalLink, KeyRound, RefreshCw, Route, SlidersHorizontal, Upload } from '../icons';
 import { ProposalCard } from '../routes/ProposalCard';
 import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
 import '../styles/library.css';
 import '../styles/wikiloc.css';
 
 const DISTANCE_ID = 'cat-distancia';
-const MIN_KM = 1;
-const MAX_KM = 1000;
+const MIN_KM = 5;
+const MAX_KM = 300;
 const MAX_GAIN_M = 20_000;
 const DISTANCE_ERROR = `Escribe la distancia en km, entre ${formatCount(MIN_KM)} y ${formatCount(MAX_KM)}.`;
 const GAIN_ERROR = `El desnivel va en metros, entre 0 y ${formatCount(MAX_GAIN_M)}.`;
 const UNEXPECTED = 'Ha fallado algo inesperado. Vuelve a probar.';
-
-const routesWord = (n: number) => (n === 1 ? '1 ruta' : `${formatCount(n)} rutas`);
 
 /** Cifra escrita con coma o punto; `null` si está vacía o no es un número. */
 function parseFigure(text: string): number | null {
@@ -51,28 +46,40 @@ function parseFigure(text: string): number | null {
 
 const samePoint = (a: LatLng | null, b: LatLng) => !!a && a.lat === b.lat && a.lng === b.lng;
 
-function progressText(p: CatalogProgress): string {
-  if (p.step === 'osm') return 'Buscando rutas ciclistas en OpenStreetMap…';
-  if (p.step === 'elevation') return `Estimando el desnivel: ${formatCount(p.done + 1)} de ${formatCount(p.total)}…`;
-  return `Calculando subidas a puertos: ${formatCount(p.done + 1)} de ${formatCount(p.total)}…`;
+function statusText(u: RwgpsProposalUpdate, ready: number): string {
+  if (u.kind === 'searching') return `Buscando rutas de Ride with GPS a menos de ${formatCount(u.radiusKm)} km de tu inicio…`;
+  if (u.kind === 'trying') return `Adaptando «${u.name}» (${u.attempt} de ${u.total})…`;
+  if (u.kind === 'waiting') return `El motor de rutas admite pocas consultas por minuto. Sigo en ${u.seconds} s…`;
+  return `${ready === 1 ? '1 lista' : `${formatCount(ready)} listas`}. Buscando la siguiente…`;
+}
+
+/** Qué decir cuando la búsqueda acaba con menos de 5 propuestas. */
+function shortfallText(r: RwgpsProposalResult): string {
+  if (r.nearby === 0) {
+    return 'Aún no hay rutas de Ride with GPS a menos de 30 km de tu inicio. Salen de la colección común de FBikeTrain, que crece con el tiempo: vuelve a probar más adelante o elige otro inicio.';
+  }
+  if (r.candidates === 0) {
+    return `Hay ${r.nearby === 1 ? '1 ruta' : `${formatCount(r.nearby)} rutas`} cerca, pero ninguna tiene una distancia parecida a la pedida. Prueba otra distancia.`;
+  }
+  const n = r.proposals.length;
+  return `${n === 0 ? 'Ninguna' : `Solo ${n}`} de las ${formatCount(r.candidates)} candidatas se ha podido adaptar bien. Prueba otra distancia u otro inicio.`;
 }
 
 type Search =
   | { state: 'running'; status: string; proposals: Proposal[] }
-  | { state: 'done'; proposals: Proposal[]; candidates: number; rejected: number }
+  | { state: 'done'; proposals: Proposal[]; result: RwgpsProposalResult | null }
   | { state: 'error'; message: string; proposals: Proposal[] };
 type UploadState = { state: 'adapting'; name: string } | { state: 'ready'; original: ParsedReferenceRoute; adapted: AdaptedRoute } | { state: 'error'; message: string };
 
 /**
- * «Rutas de tu catálogo»: rutas reales de la zona (OpenStreetMap, puertos) y las que sube el usuario,
- * ordenadas por los km y el desnivel pedidos y adaptadas para salir y volver a su inicio.
- * La app nunca accede a wikiloc.com: «Buscar en Wikiloc» abre una pestaña del usuario.
+ * «Rutas de Ride with GPS»: solo cuando el usuario lo pide, busca en la colección común las rutas de la
+ * distancia pedida que pasan cerca de su inicio, elige al menos 5 en direcciones distintas y las adapta
+ * para salir y volver a él. La app nunca accede a wikiloc.com: «Buscar en Wikiloc» abre una pestaña del usuario.
  */
 export function Catalogo() {
   const account = useAccount();
   const toast = useToast();
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [routes, setRoutes] = useState<ReferenceRoute[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [distanceText, setDistanceText] = useState('');
@@ -81,12 +88,7 @@ export function Catalogo() {
   const [points, setPoints] = useState<PickedPoints>({ aqui: null, mapa: null });
   const [checked, setChecked] = useState(false);
   const [search, setSearch] = useState<Search | null>(null);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
   const [upload, setUpload] = useState<UploadState | null>(null);
-  const [rwgpsLinks, setRwgpsLinks] = useState('');
-  const [rwgpsBusy, setRwgpsBusy] = useState<string | null>(null);
-  const [rwgpsError, setRwgpsError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -94,11 +96,10 @@ export function Catalogo() {
     setLoadFailed(false);
     void clearLegacyRwgpsCredentials().catch(() => undefined);
     void clearLegacyWikilocRows().catch(() => undefined);
-    Promise.all([loadSettings(), listReferenceRoutes(), loadWikilocRequest()])
-      .then(([s, list, request]) => {
+    Promise.all([loadSettings(), loadWikilocRequest()])
+      .then(([s, request]) => {
         if (!alive) return;
         setSettings(s);
-        setRoutes(list);
         if (request) {
           setDistanceText(String(request.distanceKm).replace('.', ','));
           setGainText(request.elevGainM === null ? '' : String(request.elevGainM));
@@ -128,17 +129,7 @@ export function Catalogo() {
   const hasKey = !!settings && ((sharedOrsEnabled() && account !== null) || settings.ors.apiKey.trim() !== '');
   const ors = useMemo(() => (settings ? chooseOrsAccess(settings.ors.apiKey, account) : null), [settings, account]);
   const rwgps = useMemo<RwgpsAccess | null>(() => (account ? { getToken: sessionToken(account.client) } : null), [account]);
-  const busy = loading !== null || importing || rwgpsBusy !== null || search?.state === 'running' || upload?.state === 'adapting';
-
-  const counts = useMemo(() => {
-    const list = routes ?? [];
-    const osm = list.filter((r) => r.catalog?.kind === 'osm').length;
-    const passes = list.filter((r) => r.catalog?.kind === 'puerto').length;
-    const rwgpsCount = list.filter((r) => r.catalog?.kind === 'rwgps').length;
-    return { total: list.length, osm, passes, rwgps: rwgpsCount, own: list.length - osm - passes - rwgpsCount };
-  }, [routes]);
-
-  const refreshRoutes = async () => setRoutes(await listReferenceRoutes());
+  const busy = search?.state === 'running' || upload?.state === 'adapting';
 
   /** Comprueba la petición y la guarda. `null` si falta algo, y lo dice. */
   const request = async () => {
@@ -164,81 +155,32 @@ export function Catalogo() {
   };
 
   const propose = async () => {
-    if (busy || !routes || !ors || !hasKey) return;
+    if (busy || !ors || !rwgps || !hasKey) return;
     const req = await request();
     if (!req) return;
     const controller = newController();
     const shown: Proposal[] = [];
-    setSearch({ state: 'running', status: 'Buscando en tu catálogo…', proposals: [] });
-    const onUpdate = (u: RecommendUpdate) => {
+    setSearch({ state: 'running', status: 'Buscando rutas de Ride with GPS…', proposals: [] });
+    const onUpdate = (u: RwgpsProposalUpdate) => {
       if (controller.signal.aborted) return;
       if (u.kind === 'proposal') shown.push(u.proposal);
-      const status = u.kind === 'trying'
-        ? `Adaptando «${u.route.name}» (${u.attempt} de ${u.total})…`
-        : u.kind === 'waiting'
-          ? `El motor de rutas admite pocas consultas por minuto. Sigo en ${u.seconds} s…`
-          : `${shown.length} de 3 listas. Buscando la siguiente…`;
-      setSearch({ state: 'running', status, proposals: [...shown] });
+      setSearch({ state: 'running', status: statusText(u, shown.length), proposals: [...shown] });
     };
     try {
-      const result = await recommendFromCatalog(routes, req, { ors, signal: controller.signal, onUpdate });
-      if (!controller.signal.aborted) setSearch({ state: 'done', proposals: result.proposals, candidates: result.candidates, rejected: result.rejected.length });
+      const result = await proposeRwgpsRoutes(req, { rwgps, ors, signal: controller.signal, onUpdate });
+      if (!controller.signal.aborted) setSearch({ state: 'done', proposals: result.proposals, result });
     } catch (e) {
       if (isAbort(e) || controller.signal.aborted) return;
-      setSearch({ state: 'error', message: e instanceof OrsError ? e.message : UNEXPECTED, proposals: [...shown] });
+      setSearch({ state: 'error', message: e instanceof OrsError || e instanceof RwgpsError ? e.message : UNEXPECTED, proposals: [...shown] });
+    } finally {
+      if (abort.current === controller) abort.current = null;
     }
   };
 
   const cancel = () => {
     abort.current?.abort();
     abort.current = null;
-    setSearch((s) => (s?.state === 'running' ? { state: 'done', proposals: s.proposals, candidates: 0, rejected: 0 } : s));
-    setLoading(null);
-    setRwgpsBusy(null);
-  };
-
-  const preload = async () => {
-    if (busy || !settings) return;
-    const centre = start ?? home;
-    if (!centre) {
-      toast('Elige primero tu inicio: el catálogo se carga alrededor de él.', { tone: 'error' });
-      return;
-    }
-    const controller = newController();
-    setLoading('Buscando rutas ciclistas en OpenStreetMap…');
-    try {
-      const result = await loadOsmCatalog(centre, {
-        ors: hasKey ? ors : null, signal: controller.signal, onProgress: (p) => !controller.signal.aborted && setLoading(progressText(p)),
-      });
-      await refreshRoutes();
-      const parts = [`${routesWord(result.osm)} de OpenStreetMap`];
-      if (result.passes) parts.push(`${result.passes === 1 ? '1 subida' : `${formatCount(result.passes)} subidas`} a puertos`);
-      toast(`Catálogo cargado: ${parts.join(' y ')}.`, { tone: 'good' });
-      if (result.withoutElevation) toast(`${routesWord(result.withoutElevation)} sin desnivel: el modelo de terreno no ha respondido.`, { tone: 'info' });
-    } catch (e) {
-      if (isAbort(e) || controller.signal.aborted) return;
-      toast(e instanceof OsmCatalogError ? e.message : 'No se ha podido guardar el catálogo. Vuelve a probar.', { tone: 'error' });
-    } finally {
-      if (abort.current === controller) abort.current = null;
-      setLoading(null);
-    }
-  };
-
-  const importFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = '';
-    if (!files.length || busy) return;
-    setImporting(true);
-    try {
-      const { imported, failed } = await importReferenceRoutes(files);
-      await refreshRoutes();
-      toast(`${routesWord(imported.length)} ${imported.length === 1 ? 'importada' : 'importadas'} al catálogo.`, { tone: imported.length ? 'good' : 'info' });
-      if (failed.length) toast(`${failed.length === 1 ? '1 fichero' : `${formatCount(failed.length)} ficheros`} sin importar. Primero: ${failed[0].name}: ${failed[0].message}`, { tone: 'error' });
-    } catch {
-      toast('No se han podido importar las rutas. Vuelve a probar.', { tone: 'error' });
-    } finally {
-      setImporting(false);
-    }
+    setSearch((s) => (s?.state === 'running' ? { state: 'done', proposals: s.proposals, result: null } : s));
   };
 
   // La pestaña se abre en el mismo gesto del usuario: si no, el navegador la bloquea.
@@ -275,49 +217,6 @@ export function Catalogo() {
     }
   };
 
-  /** Descarga con la cuenta común de Ride with GPS las rutas enlazadas y las guarda en el catálogo. */
-  const importRwgps = async (links: RwgpsLink[]) => {
-    if (!rwgps || busy || links.length === 0) return;
-    const controller = newController();
-    setRwgpsError(null);
-    setRwgpsBusy('Leyendo Ride with GPS…');
-    try {
-      const { routes: found, failed } = await fetchRwgpsRoutes(links, rwgps, {
-        signal: controller.signal,
-        onProgress: (p) => !controller.signal.aborted && setRwgpsBusy(`Descargando rutas de Ride with GPS: ${formatCount(p.done + 1)} de ${formatCount(p.total)}…`),
-      });
-      if (found.length) {
-        await saveCatalogRoutes(found.map((r) => ({
-          name: r.name, points: r.points, sourceUrl: r.sourceUrl, author: `${r.author} en Ride with GPS`,
-          catalog: { kind: 'rwgps' as const, ref: `rwgps-${r.id}`, tipo: 'carretera' as const },
-        })));
-        await refreshRoutes();
-        setRwgpsLinks('');
-      }
-      toast(`${routesWord(found.length)} de Ride with GPS en el catálogo.`, { tone: found.length ? 'good' : 'info' });
-      if (failed.length) {
-        const first = failed.slice(0, 3).map((f) => `${f.ref} (${f.message})`).join('; ');
-        setRwgpsError(`${failed.length === 1 ? '1 sin importar' : `${formatCount(failed.length)} sin importar`}: ${first}${failed.length > 3 ? '…' : ''}`);
-      }
-    } catch (err) {
-      if (isAbort(err) || controller.signal.aborted) return;
-      setRwgpsError(err instanceof RwgpsError ? err.message : UNEXPECTED);
-    } finally {
-      if (abort.current === controller) abort.current = null;
-      setRwgpsBusy(null);
-    }
-  };
-
-  const importRwgpsText = () => {
-    const { links, invalid } = parseRwgpsLinks(rwgpsLinks);
-    if (links.length === 0) {
-      setRwgpsError('Pega enlaces de rutas (ridewithgps.com/routes/…) o de colecciones (ridewithgps.com/collections/…).');
-      return;
-    }
-    if (invalid.length) toast(`${invalid.length === 1 ? '1 texto no es un enlace' : `${formatCount(invalid.length)} textos no son enlaces`} de Ride with GPS: se ignora${invalid.length === 1 ? '' : 'n'}.`, { tone: 'info' });
-    void importRwgps(links);
-  };
-
   const saveHome = async (p: LatLng) => {
     try {
       const next = { ...(await loadSettings()), home: p };
@@ -330,15 +229,14 @@ export function Catalogo() {
     }
   };
 
-  const ready = settings && routes;
   return (
     <Page
-      title="Rutas de tu catálogo"
+      title="Rutas de Ride with GPS"
       back="/rutas"
       variant="narrow"
       className="page--wikiloc page--catalogo"
-      busy={!ready && !loadFailed}
-      lead="Rutas reales de tu zona y las que subes tú. Pide km y desnivel: te propongo 3 que salen y vuelven a tu inicio."
+      busy={!settings && !loadFailed}
+      lead="Pide km y desnivel: te propongo al menos 5 rutas de Ride with GPS en direcciones distintas, adaptadas para salir y volver a tu inicio."
     >
       {loadFailed ? (
         <section className="section card">
@@ -358,7 +256,7 @@ export function Catalogo() {
         </section>
       ) : null}
 
-      {ready ? (
+      {settings ? (
         <section className="section card library-panel" aria-labelledby="cat-hoy">
           <h2 className="card-title" id="cat-hoy">
             ¿Qué quieres hacer hoy?
@@ -375,7 +273,9 @@ export function Catalogo() {
             onPick={(k, p) => setPoints((ps) => ({ ...ps, [k]: p }))}
             onSaveHome={(p) => void saveHome(p)}
           />
-          {!hasKey ? (
+          {!rwgps ? (
+            <p className="help">Inicia sesión para buscar rutas de Ride with GPS: las lee la cuenta común de FBikeTrain.</p>
+          ) : !hasKey ? (
             <StateView
               icon={KeyRound}
               level={3}
@@ -388,12 +288,10 @@ export function Catalogo() {
                 </Link>
               }
             />
-          ) : counts.total === 0 ? (
-            <p className="help">Tu catálogo está vacío. Cárgalo abajo con las rutas de OpenStreetMap o con tus GPX.</p>
           ) : (
             <button type="button" className="btn btn--primary btn--block" disabled={busy} onClick={() => void propose()}>
               <Route className="ic" aria-hidden="true" />
-              Proponer 3 rutas
+              Proponer rutas
             </button>
           )}
         </section>
@@ -408,7 +306,7 @@ export function Catalogo() {
             {search.proposals.map((p) => (
               <ProposalCard
                 key={p.route.id}
-                source={{ name: p.route.name, original: p.route, sourceUrl: p.route.sourceUrl, author: p.route.author, estimated: p.route.elevation === 'dem' }}
+                source={{ name: p.route.name, original: p.route, sourceUrl: p.route.sourceUrl, author: p.route.author }}
                 adapted={p.adapted}
                 why={p.motivo}
               />
@@ -426,54 +324,15 @@ export function Catalogo() {
             <p className="library-error" role="alert">
               {search.message}
             </p>
-          ) : search.proposals.length < 3 ? (
+          ) : search.result && search.proposals.length < MIN_PROPOSALS ? (
             <p className="help" role="status">
-              {search.candidates === 0
-                ? 'Ninguna ruta del catálogo pasa cerca de tu inicio con una distancia entre la mitad y 1,6 veces lo pedido. Carga más rutas o cambia la distancia.'
-                : `${search.proposals.length === 0 ? 'Ninguna' : `Solo ${search.proposals.length}`} de las ${formatCount(search.candidates)} candidatas se ha podido adaptar bien. Prueba otra distancia o carga más rutas.`}
+              {shortfallText(search.result)}
             </p>
           ) : null}
         </section>
       ) : null}
 
-      {ready ? (
-        <section className="section card library-panel" aria-labelledby="cat-catalogo">
-          <h2 className="card-title" id="cat-catalogo">
-            Tu catálogo
-          </h2>
-          <p className="cat-count">
-            {counts.total === 0
-              ? 'Aún no hay rutas.'
-              : `${routesWord(counts.total)}: ${formatCount(counts.osm)} de OpenStreetMap, ${formatCount(counts.passes)} a puertos, ${formatCount(counts.rwgps)} de Ride with GPS y ${formatCount(counts.own)} tuyas.`}
-          </p>
-          {loading ? (
-            <div className="cat-status" role="status">
-              <CyclingLoader compact />
-              <p>{loading}</p>
-              <button type="button" className="btn btn--ghost" onClick={cancel}>
-                Parar
-              </button>
-            </div>
-          ) : (
-            <button type="button" className="btn btn--secondary btn--block btn--wrap" disabled={busy} onClick={() => void preload()}>
-              <MapIcon className="ic" aria-hidden="true" />
-              {counts.osm ? 'Actualizar rutas de OpenStreetMap' : 'Cargar rutas de OpenStreetMap'}
-            </button>
-          )}
-          <p className="help">
-            Rutas ciclistas y de BTT señalizadas que pasan a menos de 15 km de tu inicio, y subidas a puertos cercanos. Se guardan solo en tu cuenta.
-            Datos © OpenStreetMap contributors; desnivel estimado con el modelo de terreno de Open-Meteo.
-          </p>
-          <label className={`btn btn--secondary btn--block btn--wrap${busy ? ' is-disabled' : ''}`}>
-            <Upload className="ic" aria-hidden="true" />
-            {importing ? 'Importando…' : 'Importar GPX, TCX o ZIP'}
-            <input className="sr-only" type="file" multiple accept=".gpx,.tcx,.zip,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml,application/zip" aria-label="Importar GPX, TCX o ZIP" disabled={busy} onChange={(e) => void importFiles(e)} />
-          </label>
-          <p className="help">Elige muchos a la vez o un ZIP: hasta 200 rutas por vez. Las de Wikiloc, Komoot o amigos entran igual.</p>
-        </section>
-      ) : null}
-
-      {ready ? (
+      {settings ? (
         <section className="section card library-panel" aria-labelledby="cat-wikiloc">
           <h2 className="card-title" id="cat-wikiloc">
             Una ruta de Wikiloc
@@ -497,59 +356,6 @@ export function Catalogo() {
           ) : upload?.state === 'error' ? (
             <p className="library-error" role="alert">
               {upload.message}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-      {ready ? (
-        <section className="section card library-panel" aria-labelledby="cat-rwgps">
-          <h2 className="card-title" id="cat-rwgps">
-            Rutas de Ride with GPS
-          </h2>
-          <a className="btn btn--secondary btn--block btn--wrap" href={RWGPS_FIND_URL} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="ic" aria-hidden="true" />
-            Buscar en Ride with GPS
-            <span className="sr-only"> (se abre en otra pestaña)</span>
-          </a>
-          {rwgps ? (
-            <>
-              <div className="cat-field">
-                <label className="cat-label" htmlFor="cat-rwgps-links">
-                  Enlaces de rutas o colecciones
-                </label>
-                <textarea
-                  id="cat-rwgps-links"
-                  className="cat-links"
-                  rows={4}
-                  placeholder="https://ridewithgps.com/routes/…"
-                  value={rwgpsLinks}
-                  disabled={busy}
-                  onChange={(e) => setRwgpsLinks(e.target.value)}
-                />
-              </div>
-              <button type="button" className="btn btn--primary btn--block btn--wrap" disabled={busy || !rwgpsLinks.trim()} onClick={importRwgpsText}>
-                <Upload className="ic" aria-hidden="true" />
-                Añadir al catálogo
-              </button>
-              <p className="help">
-                Ride with GPS no busca por zona desde aquí: busca en su web y pega los enlaces, uno por línea, o el de una colección pública. FBikeTrain los descarga por la API oficial, hasta {formatCount(RWGPS_USER_DAY)} rutas al día por persona, y los adapta como el resto del catálogo.
-              </p>
-            </>
-          ) : (
-            <p className="help">Inicia sesión para traer rutas de Ride with GPS al catálogo.</p>
-          )}
-          {rwgpsBusy ? (
-            <div className="cat-status" role="status">
-              <CyclingLoader compact />
-              <p>{rwgpsBusy}</p>
-              <button type="button" className="btn btn--ghost" onClick={cancel}>
-                Parar
-              </button>
-            </div>
-          ) : null}
-          {rwgpsError ? (
-            <p className="library-error" role="alert">
-              {rwgpsError}
             </p>
           ) : null}
         </section>

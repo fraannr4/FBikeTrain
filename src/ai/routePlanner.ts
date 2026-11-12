@@ -16,7 +16,8 @@ import { abortError } from './abort';
 import type { LevelSummary } from './levelSummary';
 import { chatJson, LlmError, type LlmErrorKind } from './llm';
 import { buildExplainMessages, buildPlanMessages, type AiGoal, type AiReference, type Answers, type ChatMessage, type RouteFacts } from './prompts';
-import { libraryReferences, pickReferences, type KnownRoute } from './references';
+import { libraryReferences, pickReferences, rwgpsReferences, type KnownRoute } from './references';
+import { fetchRwgpsNearby, type RwgpsAccess } from '../routes/sources/rwgpsImport';
 import { ExplanationSchema, RoutePlanSchema, toStrictJsonSchema, type RoutePlan } from './schema';
 
 /**
@@ -40,6 +41,8 @@ const FALLBACK_INVALID = 'La IA no ha devuelto un plan válido. Ajusta la ruta a
 /** Radio de búsqueda de rutas conocidas alrededor del inicio. */
 const SOURCES_RADIUS_M = 15_000;
 const SOURCES_DOWN = 'No se han podido consultar rutas conocidas cerca del inicio; las propuestas no las tienen en cuenta.';
+const RWGPS_RADIUS_KM = 15;
+const RWGPS_DOWN = 'No se han podido consultar las rutas de Ride with GPS cerca del inicio; las propuestas no las tienen en cuenta.';
 
 type Dimension = 'distancia' | 'desnivel';
 
@@ -259,6 +262,8 @@ export async function runAiRoutes(
     shared?: SharedAiPlanner;
     /** Función `route-sources` de la cuenta; sin cuenta, no se buscan rutas conocidas. */
     sources?: RouteSourceInvoker;
+    /** Colección común de Ride with GPS (función `rwgps`); sin cuenta, no se consulta. */
+    rwgps?: RwgpsAccess;
     /** Objetivo vigente del usuario (`aiGoal`), solo cifras; sin él, el plan no lo menciona. */
     goal?: AiGoal | null;
     library?: () => Promise<ReferenceRoute[]>;
@@ -285,6 +290,19 @@ export async function runAiRoutes(
     } catch {
       if (signal?.aborted) throw abortError();
       warnings.push(SOURCES_DOWN);
+    }
+  }
+  if (deps.rwgps) {
+    // Distancia orientativa para el índice: la media del usuario con el margen del formulario, sin pasar del tiempo.
+    const aimKm = Math.min(maxKm, (ref.avgDistanceM / 1000) * SUGGESTED_UPLIFT);
+    try {
+      const { routes } = await fetchRwgpsNearby(deps.rwgps, {
+        start, radiusKm: RWGPS_RADIUS_KM, ...(aimKm >= 5 ? { distanceKm: Math.round(Math.min(aimKm, 300)) } : {}),
+      }, signal);
+      known = [...rwgpsReferences(routes, start), ...known];
+    } catch {
+      if (signal?.aborted) throw abortError();
+      warnings.push(RWGPS_DOWN);
     }
   }
   try {

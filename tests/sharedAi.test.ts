@@ -92,6 +92,13 @@ describe('IA compartida: límites y privacidad', () => {
     expect((await handleSharedAi(request({ ...plan, referencias, puertos }), deps)).status).toBe(200);
     expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ referencias, puertos }), expect.any(AbortSignal));
   });
+  it('acepta referencias de Ride with GPS con distancia al inicio y dirección, nunca coordenadas', async () => {
+    const deps = mock();
+    const referencias = [{ id: 'ref1', nombre: 'Vuelta sintética', fuente: 'rwgps', distanciaKm: 61.2, desnivelM: 700, aInicioKm: 1.4, direccion: 'noreste' }];
+    expect((await handleSharedAi(request({ ...plan, referencias }), deps)).status).toBe(200);
+    expect(deps.complete).toHaveBeenCalledWith(expect.objectContaining({ referencias }), expect.any(AbortSignal));
+    expect((await handleSharedAi(request({ ...plan, referencias: [{ ...referencias[0], direccion: 'Calle Mayor 1' }] }), mock())).status).toBe(400);
+  });
   it.each([
     [{ id: 'pass1', nombre: 'Collado', cotaM: 650, distanciaKm: 22, lat: 41 }],
     [{ id: 'pass1', nombre: 'Collado', cotaM: 650, distanciaKm: 41 }],

@@ -41,6 +41,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611100004_shared_ai_quota_raise.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/shared_ai_quota_raise.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuota de la IA compartida subida: 30 por usuario y 300 globales al día, 10 globales por minuto.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611120002_rwgps_route_index.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/rwgps_route_index.sql', import.meta.url), 'utf8'));
+  console.log('PASS: índice de rutas de Ride with GPS: búsqueda por caja y radio, una fila de estado y permisos exclusivos del servidor.');
 } finally {
   await db.close();
 }

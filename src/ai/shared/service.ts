@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DIRECCIONES } from '../contracts.ts';
 
 const finite = (max: number) => z.number().finite().min(0).max(max);
 const summarySchema = z.strictObject({
@@ -21,8 +22,10 @@ const spliceFactSchema = z.strictObject({
   viasPrincipalesPct: finite(100), conectorKm: finite(2000), solapeKm: finite(2000), retrocesoKm: finite(2000), alternativa: z.boolean(),
 });
 const referenceSchema = z.strictObject({
-  id: z.string().regex(/^ref([1-9]|10)$/), nombre: z.string().trim().min(1).max(80), fuente: z.enum(['wikiloc', 'osm', 'biblioteca']),
+  id: z.string().regex(/^ref([1-9]|10)$/), nombre: z.string().trim().min(1).max(80), fuente: z.enum(['wikiloc', 'osm', 'biblioteca', 'rwgps']),
   distanciaKm: finite(2000), desnivelM: finite(200_000).nullable(),
+  // Solo cifras y una de las 8 direcciones: nunca coordenadas.
+  aInicioKm: finite(100).optional(), direccion: z.enum(DIRECCIONES).optional(),
 });
 const passSchema = z.strictObject({
   id: z.string().regex(/^pass[1-6]$/), nombre: z.string().trim().min(1).max(80),
