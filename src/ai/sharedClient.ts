@@ -1,7 +1,7 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
-import { goalFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
+import { goalFields, referenceFields, type AiGoal, type AiReference, type Answers, type RouteFacts, type SpliceFacts, type WeekInput } from './prompts';
 import { RoutePlanSchema, ExplanationSchema, spliceAdviceSchema, WorkoutWeekSchema, type SpliceAdvice, type WorkoutWeek } from './schema';
 import type { SharedAiPlanner } from './routePlanner';
 import type { AiPass } from './contracts';
@@ -51,7 +51,7 @@ export function createSharedAiPlanner(getToken: () => Promise<string | null>, fe
   const request = sharedRequest(getToken, fetchImpl);
   return {
     plan: async (summary: LevelSummary, answers: Answers, maxDistanciaKm: number, signal?: AbortSignal, referencias: AiReference[] = [], objetivo: AiGoal | null = null, puertos: AiPass[] = []) => {
-      const refs = referencias.map(r => ({ id: r.id, nombre: r.nombre, fuente: r.fuente, distanciaKm: r.distanciaKm, desnivelM: r.desnivelM }));
+      const refs = referenceFields(referencias);
       const data = await request({
         operation: 'plan', summary: numericSummary(summary), answers: { focus: answers.focus, minutes: answers.minutes, explore: answers.explore, notes: '' }, maxDistanciaKm,
         ...(refs.length ? { referencias: refs } : {}), ...(objetivo ? { objetivo: goalFields(objetivo) } : {}),

@@ -334,7 +334,7 @@ export function RutasIa() {
       } : undefined;
       const res = await runAiRoutes(
         { start, answers, reference: ctx.reference, summary: ctx.summary },
-        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions, goal, library: listReferenceRoutes, climbs: ctx.climbs },
+        { llm, orsKey: chooseOrsAccess(ctx.settings.ors.apiKey, account), visited, chat, signal: controller.signal, shared, sources: account?.client.functions, rwgps: account ? { getToken: sessionToken(account.client) } : undefined, goal, library: listReferenceRoutes, climbs: ctx.climbs },
       );
       if (!live()) return;
       if (res.kind === 'routes') {

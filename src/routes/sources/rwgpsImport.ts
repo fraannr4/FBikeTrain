@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../../auth/config';
+import type { LatLng } from '../../domain/types';
 import { rwgpsRouteToLibraryInput, RwgpsError, type RwgpsLibraryInput } from './ridewithgps';
 import type { RwgpsRequest } from './rwgpsService';
 
@@ -36,8 +37,11 @@ function quotaMessage(retryAfterS: number): string {
   return `Has llegado al límite de Ride with GPS (${RWGPS_USER_DAY} rutas al día por persona, o el total compartido). Se renueva en unas ${hours} h.`;
 }
 
+/** Rutas de la colección común de FBikeTrain que pasan cerca de un punto (índice del servidor). */
+export type RwgpsNearbyRequest = { op: 'nearby'; lat: number; lng: number; radiusKm: number; distanceKm?: number };
+
 /** Una lectura por la función `rwgps`. Los errores marcados como `fatal` paran el lote entero. */
-async function callShared(request: RwgpsRequest, access: RwgpsAccess, signal?: AbortSignal): Promise<unknown> {
+async function callShared(request: RwgpsRequest | RwgpsNearbyRequest, access: RwgpsAccess, signal?: AbortSignal): Promise<unknown> {
   signal?.throwIfAborted();
   const token = await access.getToken();
   if (!token) throw new RwgpsError(MSG.session, true);
@@ -161,4 +165,66 @@ export async function fetchRwgpsRoutes(
     }
   }
   return { routes, failed };
+}
+
+export type RwgpsNearbyRoute = {
+  id: string;
+  name: string;
+  author: string;
+  distanceM: number;
+  elevGainM: number | null;
+  start: LatLng;
+  /** Trazado simplificado (300 puntos como mucho): sirve para ver hacia dónde va, no para exportarlo. */
+  line: LatLng[];
+  /** Distancia mínima de la ruta al punto pedido, calculada por el servidor. */
+  passM: number;
+};
+
+const finiteM = z.number().finite().min(0);
+const lngLat = z.tuple([z.number().finite().min(-180).max(180), z.number().finite().min(-90).max(90)]);
+const nearbyRouteSchema = z.object({
+  id: z.string().regex(/^\d{1,12}$/),
+  name: z.string(),
+  author: z.string(),
+  distanceM: finiteM,
+  elevGainM: finiteM.nullable(),
+  start: z.object({ lat: z.number().finite(), lng: z.number().finite() }),
+  line: z.array(lngLat).min(2).max(1000),
+  passM: finiteM,
+});
+const nearbySchema = z.object({ routes: z.array(z.unknown()), total: z.number().int().min(0) });
+/** El centro sale redondeado a 0,01° (~1 km), como la precarga de OpenStreetMap. */
+const round2 = (x: number) => Math.round(x * 100) / 100;
+
+/**
+ * Rutas públicas de la colección común que pasan a menos de `radiusKm` del inicio, por la función `rwgps`.
+ * Una ruta mal formada se descarta; una respuesta sin forma de lista es un error.
+ */
+export async function fetchRwgpsNearby(
+  access: RwgpsAccess,
+  ask: { start: LatLng; radiusKm: number; distanceKm?: number },
+  signal?: AbortSignal,
+): Promise<{ routes: RwgpsNearbyRoute[]; total: number }> {
+  const request: RwgpsNearbyRequest = {
+    op: 'nearby', lat: round2(ask.start.lat), lng: round2(ask.start.lng), radiusKm: ask.radiusKm,
+    ...(ask.distanceKm !== undefined ? { distanceKm: ask.distanceKm } : {}),
+  };
+  const parsed = nearbySchema.safeParse(await callShared(request, access, signal));
+  if (!parsed.success) throw new RwgpsError(MSG.invalid);
+  const routes: RwgpsNearbyRoute[] = [];
+  for (const raw of parsed.data.routes) {
+    const r = nearbyRouteSchema.safeParse(raw);
+    if (!r.success) continue;
+    routes.push({
+      ...r.data, name: r.data.name.trim() || 'Ruta de Ride with GPS', author: r.data.author.trim() || 'Ride with GPS',
+      line: r.data.line.map(([lng, lat]) => ({ lat, lng })),
+    });
+  }
+  return { routes, total: parsed.data.total };
+}
+
+/** Track completo de una ruta pública, listo para adaptarlo. */
+export async function fetchRwgpsRoute(id: string, access: RwgpsAccess, signal?: AbortSignal): Promise<RwgpsLibraryInput & { id: string }> {
+  const json = await callShared({ kind: 'route', id }, access, signal);
+  return { ...rwgpsRouteToLibraryInput(json, `https://ridewithgps.com/routes/${id}`), id };
 }

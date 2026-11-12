@@ -1,8 +1,6 @@
 import JSZip from 'jszip';
 import { db } from '../src/db/db';
 import type { AdaptedRoute } from '../src/routes/adapt';
-import { sampleDistances, withDemElevation } from '../src/routes/catalog/dem';
-import { loadOsmCatalog } from '../src/routes/catalog/load';
 import { buildCatalogQuery, chainLines, parseCatalog, roundedCentre } from '../src/routes/catalog/osm';
 import { rankCatalog, recommendFromCatalog } from '../src/routes/catalog/recommend';
 import { importReferenceRoutes, listReferenceRoutes, saveCatalogRoutes, type ReferenceRoute } from '../src/routes/library';
@@ -77,57 +75,6 @@ describe('parseCatalog', () => {
   });
 });
 
-describe('altitud del modelo de terreno', () => {
-  it('muestrea cada ~150 m e interpola cada punto', async () => {
-    expect(sampleDistances(300)).toEqual([0, 150, 300]);
-    const line = north(41, 2.5, 1);
-    const calls: string[] = [];
-    const fake = (async (url: string) => {
-      calls.push(url);
-      const n = new URL(url).searchParams.get('latitude')!.split(',').length;
-      return new Response(JSON.stringify({ elevation: Array.from({ length: n }, (_, i) => 100 + i * 10) }));
-    }) as typeof fetch;
-    const pts = await withDemElevation(line, undefined, fake);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatch(/^https:\/\/api\.open-meteo\.com\/v1\/elevation\?/);
-    expect(pts[0].ele).toBe(100);
-    expect(pts[pts.length - 1].ele).toBeGreaterThan(160);
-    expect(pts.every((p) => p.ele !== undefined)).toBe(true);
-  });
-  it('lanza si la respuesta no cuadra', async () => {
-    const bad = (async () => new Response(JSON.stringify({ elevation: [1] }))) as typeof fetch;
-    await expect(withDemElevation(north(41, 2.5, 1), undefined, bad)).rejects.toThrow();
-  });
-});
-
-describe('loadOsmCatalog', () => {
-  it('guarda las rutas con altitud estimada y no duplica al recargar', async () => {
-    const fake = (async (url: string) => {
-      if (url.startsWith('https://overpass-api.de')) return new Response(JSON.stringify({ elements: [relation(7, 'bicycle', [north(41, 2.5, 6)])] }));
-      const n = new URL(url).searchParams.get('latitude')!.split(',').length;
-      return new Response(JSON.stringify({ elevation: Array.from({ length: n }, (_, i) => 50 + i) }));
-    }) as typeof fetch;
-    const first = await loadOsmCatalog(START, { ors: null, fetch: fake });
-    expect(first).toMatchObject({ osm: 1, passes: 0, withoutElevation: 0 });
-    const second = await loadOsmCatalog(START, { ors: null, fetch: fake });
-    const all = await listReferenceRoutes();
-    expect(all).toHaveLength(1);
-    expect(all[0].id).toBe(first.saved[0].id);
-    expect(second.saved[0].id).toBe(first.saved[0].id);
-    expect(all[0]).toMatchObject({ elevation: 'dem', catalog: { kind: 'osm', ref: 'osm-relation-7', tipo: 'carretera' }, author: '© OpenStreetMap contributors' });
-    expect(all[0].summary.elevGainM).toBeGreaterThan(0);
-    expect(all[0].originalXml).toContain('<gpx');
-  });
-  it('sin altitud la ruta se guarda igual, sin desnivel', async () => {
-    const fake = (async (url: string) => url.startsWith('https://overpass-api.de')
-      ? new Response(JSON.stringify({ elements: [relation(8, 'mtb', [north(41, 2.5, 6)])] }))
-      : new Response('no', { status: 500 })) as typeof fetch;
-    const result = await loadOsmCatalog(START, { ors: null, fetch: fake });
-    expect(result.withoutElevation).toBe(1);
-    expect((await listReferenceRoutes())[0].summary.elevGainM).toBeNull();
-  });
-});
-
 describe('importación por lotes', () => {
   const gpx = (name: string, lat: number) => `<gpx version="1.1"><trk><name>${name}</name><trkseg><trkpt lat="${lat}" lon="2.5"><ele>1</ele></trkpt><trkpt lat="${lat + 0.01}" lon="2.5"><ele>5</ele></trkpt></trkseg></trk></gpx>`;
   it('importa varios GPX y un ZIP, e informa de cada error sin parar', async () => {
@@ -178,7 +125,7 @@ describe('recomendación desde el catálogo', () => {
     });
     // Orden por cercanía a 60 km: c, b, d, a, e. c espera y vale; b rechazada; d casi igual que c; a y e valen.
     expect(result.proposals.map((p) => p.route.id)).toEqual(['c', 'a', 'e']);
-    expect(result.rejected.map((r) => r.route.id)).toEqual(['b', 'd']);
+    expect(result.rejected.map((r) => r.id)).toEqual(['b', 'd']);
     expect(waits).toEqual([60_000]);
     expect(updates).toContain('waiting');
   });

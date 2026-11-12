@@ -350,7 +350,7 @@ export function Rutas() {
           </Link>
         }
       >
-        <section className="section"><List inset><ListRow to="/rutas/catalogo" icon={Mountain} accent="elev" title="Rutas de tu catálogo" meta="Rutas reales de tu zona y las que subes de Wikiloc, adaptadas a lo que pides" /><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /></List></section>
+        <section className="section"><List inset><ListRow to="/rutas/catalogo" icon={Mountain} accent="elev" title="Rutas de Ride with GPS" meta="Al menos 5 rutas reales de tu zona, o una de Wikiloc, adaptadas a lo que pides" /><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /></List></section>
         {loadFailed ? (
           <section className="section card">
             <StateView

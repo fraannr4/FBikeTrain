@@ -11,7 +11,7 @@ import { Carousel } from './Carousel';
 /** Una ruta lista para pintar y exportar. */
 export type ShownRoute = { card: RouteCardData; coords: Coord3[]; file: string };
 
-const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap', biblioteca: 'tu biblioteca' } as const;
+const SOURCE_LABEL = { wikiloc: 'Wikiloc', osm: 'OpenStreetMap', biblioteca: 'tu biblioteca', rwgps: 'Ride with GPS' } as const;
 
 /** Tarjeta de cada propuesta: el título de la IA, su explicación y cuánto cambia frente a tu referencia (sube o baja). */
 export function aiShown(routes: AiRoute[]): ShownRoute[] {

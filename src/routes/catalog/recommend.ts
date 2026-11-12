@@ -19,13 +19,13 @@ export const MAX_ATTEMPTS = 8;
 const MAX_WAITS = 2;
 export const RATE_WAIT_MS = 60_000;
 /** Dos propuestas que comparten más de esto de recorrido son la misma salida. */
-const OVERLAP_LIMIT = 0.7;
+export const OVERLAP_LIMIT = 0.7;
 const OVERLAP_NEAR_M = 150;
 
 export type Proposal = { route: ReferenceRoute; adapted: AdaptedRoute; motivo: string };
 export type RecommendTarget = { start: LatLng; distanceKm: number; elevGainM: number | null };
 export type RecommendUpdate =
-  | { kind: 'trying'; route: ReferenceRoute; attempt: number; total: number }
+  | { kind: 'trying'; name: string; attempt: number; total: number }
   | { kind: 'waiting'; seconds: number }
   | { kind: 'proposal'; proposal: Proposal };
 export type RecommendDeps = {
@@ -35,7 +35,13 @@ export type RecommendDeps = {
   wait?: (ms: number, signal?: AbortSignal) => Promise<void>;
   adapt?: typeof adaptRoute;
 };
-export type RecommendResult = { proposals: Proposal[]; rejected: { route: ReferenceRoute; motivo: string }[]; candidates: number };
+export type Rejected = { id: string; name: string; motivo: string };
+export type RecommendResult = { proposals: Proposal[]; rejected: Rejected[]; candidates: number };
+/**
+ * Candidata por adaptar. `load` da la ruta (ya en memoria o descargada en ese momento), o un texto
+ * con el motivo por el que no se puede usar; lo que no tiene arreglo (sesión, cuota) lo lanza.
+ */
+export type AdaptCandidate = { id: string; name: string; motivo: string; load: () => Promise<ReferenceRoute | string> };
 
 type CatalogCard = RankCard & { route: ReferenceRoute };
 
@@ -78,15 +84,36 @@ export function rankCatalog(routes: ReferenceRoute[], target: RecommendTarget) {
 
 export async function recommendFromCatalog(routes: ReferenceRoute[], target: RecommendTarget, deps: RecommendDeps): Promise<RecommendResult> {
   const { ranked } = rankCatalog(routes, target);
+  const candidates = ranked.map(({ card, motivo }): AdaptCandidate => ({ id: card.id, name: card.route.name, motivo, load: async () => card.route }));
+  const { proposals, rejected } = await adaptCandidates(candidates, target, deps, { want: PROPOSALS, maxAttempts: MAX_ATTEMPTS });
+  return { proposals, rejected, candidates: ranked.length };
+}
+
+/**
+ * Adapta las candidatas en orden, de una en una (por la cuota por minuto de ORS), hasta tener `want`
+ * propuestas válidas y distintas o gastar `maxAttempts` intentos. Una que falla deja paso a la siguiente.
+ */
+export async function adaptCandidates(
+  candidates: AdaptCandidate[],
+  target: RecommendTarget,
+  deps: RecommendDeps,
+  limits: { want: number; maxAttempts: number },
+): Promise<{ proposals: Proposal[]; rejected: Rejected[] }> {
   const wait = deps.wait ?? sleep;
   const adapt = deps.adapt ?? adaptRoute;
   const proposals: Proposal[] = [];
-  const rejected: RecommendResult['rejected'] = [];
-  const candidates = ranked.slice(0, MAX_ATTEMPTS);
-  for (const [i, item] of candidates.entries()) {
-    if (proposals.length >= PROPOSALS) break;
-    const route = item.card.route;
-    deps.onUpdate?.({ kind: 'trying', route, attempt: i + 1, total: candidates.length });
+  const rejected: Rejected[] = [];
+  const tried = candidates.slice(0, limits.maxAttempts);
+  for (const [i, item] of tried.entries()) {
+    if (proposals.length >= limits.want) break;
+    deps.signal?.throwIfAborted();
+    deps.onUpdate?.({ kind: 'trying', name: item.name, attempt: i + 1, total: tried.length });
+    const reject = (motivo: string) => rejected.push({ id: item.id, name: item.name, motivo });
+    const route = await item.load();
+    if (typeof route === 'string') {
+      reject(route);
+      continue;
+    }
     let adapted: AdaptedRoute | null = null;
     for (let waits = 0; ; waits++) {
       deps.signal?.throwIfAborted();
@@ -105,23 +132,24 @@ export async function recommendFromCatalog(routes: ReferenceRoute[], target: Rec
         }
         // Sin cuota del día o sin sesión no hay nada más que probar.
         if (e instanceof OrsError && (e.kind === 'quota_day' || e.kind === 'session' || e.kind === 'unreachable')) throw e;
-        rejected.push({ route, motivo: e instanceof Error ? e.message : 'No se ha podido adaptar.' });
+        reject(e instanceof Error ? e.message : 'No se ha podido adaptar.');
         break;
       }
     }
+    deps.signal?.throwIfAborted();
     if (!adapted) continue;
     if (adapted.rejected) {
-      rejected.push({ route, motivo: adapted.rejected });
+      reject(adapted.rejected);
       continue;
     }
     const coords = adapted.coords;
     if (proposals.some((p) => overlap(coords, p.adapted.coords) > OVERLAP_LIMIT)) {
-      rejected.push({ route, motivo: 'Repite casi el mismo recorrido que otra propuesta.' });
+      reject('Repite casi el mismo recorrido que otra propuesta.');
       continue;
     }
     const proposal = { route, adapted, motivo: item.motivo };
     proposals.push(proposal);
     deps.onUpdate?.({ kind: 'proposal', proposal });
   }
-  return { proposals, rejected, candidates: ranked.length };
+  return { proposals, rejected };
 }

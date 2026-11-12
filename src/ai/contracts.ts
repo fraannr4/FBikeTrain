@@ -29,10 +29,15 @@ export type SpliceFacts = {
 export type AiReference = {
   id: string;
   nombre: string;
-  fuente: 'wikiloc' | 'osm' | 'biblioteca';
+  fuente: 'wikiloc' | 'osm' | 'biblioteca' | 'rwgps';
   distanciaKm: number;
   desnivelM: number | null;
+  /** Solo en las de Ride with GPS: lo más cerca que pasa del inicio y hacia dónde va, sin coordenadas. */
+  aInicioKm?: number;
+  direccion?: Direccion;
 };
+export const DIRECCIONES = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'] as const;
+export type Direccion = (typeof DIRECCIONES)[number];
 /** Puerto elegido a partir de datos resumidos. Su posición permanece en el cliente. */
 export type AiPass = { id: string; nombre: string; cotaM: number | null; distanciaKm: number };
 export type Focus = 'fondo' | 'subidas' | 'mixto';

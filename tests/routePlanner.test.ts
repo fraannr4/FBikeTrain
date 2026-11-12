@@ -628,6 +628,54 @@ describe('runAiRoutes con rutas conocidas cerca del inicio', () => {
   });
 });
 
+describe('runAiRoutes con rutas de Ride with GPS cerca del inicio', () => {
+  const M_LAT = 111_320;
+  /** Circuito sintético de unos 60 km hacia el noreste del inicio, en el formato de la op `nearby`. */
+  const line = Array.from({ length: 41 }, (_, i) => {
+    const t = (i / 40) * 2 * Math.PI;
+    const d = 9_500 * (1 - Math.cos(t));
+    return [START.lng + (d * Math.SQRT1_2) / (M_LAT * Math.cos((START.lat * Math.PI) / 180)), START.lat + (d * Math.SQRT1_2) / M_LAT];
+  });
+  const nearby = { id: '77', name: 'Vuelta sintética de Ride with GPS', author: 'Autora ficticia', distanceM: 61_240, elevGainM: 712, start: { lat: START.lat, lng: START.lng }, line, passM: 1_400 };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const rwgps = (reply: () => Response) => {
+    const fetchImpl = vi.fn(async (_url: string, _init: RequestInit) => reply());
+    return { fetchImpl, access: { getToken: async () => 'sesion-sintetica', fetch: fetchImpl as unknown as typeof fetch } };
+  };
+
+  it('pide la zona a 15 km con la distancia objetivo y a la IA solo le llegan cifras', async () => {
+    const { fetchImpl, access } = rwgps(() => json({ data: { routes: [nearby], total: 1 } }));
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), rwgps: access, library: async () => [] });
+
+    expect(out.kind).toBe('routes');
+    const asked = JSON.parse(String(fetchImpl.mock.calls[0][1].body));
+    expect(asked).toMatchObject({ op: 'nearby', radiusKm: 15, distanceKm: 55 });
+    const referencias = JSON.parse(fn.mock.calls[0][1].messages[1].content).referencias;
+    expect(referencias).toEqual([{ id: 'ref1', nombre: 'Vuelta sintética de Ride with GPS', fuente: 'rwgps', distanciaKm: 61.2, desnivelM: 712, aInicioKm: 1.4, direccion: 'noreste' }]);
+    const sent = fn.mock.calls.flatMap((c) => c[1].messages.map((m) => m.content)).join('\n');
+    for (const banned of ['ridewithgps', 'Autora ficticia', String(START.lat), String(line[10][1]).slice(0, 7)]) expect(sent).not.toContain(banned);
+  });
+
+  it('si Ride with GPS falla, el plan sigue sin esas rutas y lo avisa', async () => {
+    const { access } = rwgps(() => json({ error: { code: 'unavailable' } }, 503));
+    const { fn, chat } = fakeChat(validPlan, { explicaciones: [] });
+    const out = await runAiRoutes(input(), { ...deps(chat, fakeGenerate()), rwgps: access, library: async () => [] });
+
+    expect(out.kind).toBe('routes');
+    expect(JSON.parse(fn.mock.calls[0][1].messages[1].content)).not.toHaveProperty('referencias');
+    expect(out.kind === 'routes' && out.warnings).toEqual([expect.stringMatching(/Ride with GPS/)]);
+  });
+
+  it('el servicio común recibe la distancia al inicio y la dirección de las de Ride with GPS', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ data: validPlan }), { status: 200 }));
+    const shared = createSharedAiPlanner(async () => 'session', fetchImpl);
+    const ref1 = { id: 'ref1', nombre: 'Vuelta sintética', fuente: 'rwgps' as const, distanciaKm: 61.2, desnivelM: 712, aInicioKm: 1.4, direccion: 'noreste' as const };
+    await shared.plan(summary, answers, 100, undefined, [ref1]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body)).referencias).toEqual([ref1]);
+  });
+});
+
 describe('runAiRoutes con el objetivo del usuario', () => {
   const objetivo: AiGoal = { tipo: 'evento', diasHasta: 12, distanciaKm: 120, desnivelM: 1500 };
   const reply = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
