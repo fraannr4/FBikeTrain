@@ -11,8 +11,6 @@ const requestSchema = z.union([
   waypointSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('waypoints') }),
 ]);
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-/** Puertos, cimas y pueblos casi no cambian y Overpass público es lento: se guardan 30 días. */
-export const WAYPOINTS_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 30_000;
 /** Los puntos de paso admiten reintentos y Overpass público tarda decenas de segundos con carga. */
 const WAYPOINTS_TIMEOUT_MS = 60_000;
@@ -83,11 +81,10 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     signal.throwIfAborted();
     if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
     const key = await sourceCacheKey(source, search, kind);
-    const ttl = waypoints ? WAYPOINTS_CACHE_TTL_MS : CACHE_TTL_MS;
     const cached = await deps.readCache(key);
     signal.throwIfAborted();
     if (cached && Date.parse(cached.expires_at) > now() && Date.parse(cached.fetched_at) <= now()
-      && Date.parse(cached.expires_at) - Date.parse(cached.fetched_at) === ttl) {
+      && Date.parse(cached.expires_at) - Date.parse(cached.fetched_at) === CACHE_TTL_MS) {
       const cachedPasses = passes ? mountainPassesSchema.safeParse(cached.payload) : null;
       if (cachedPasses?.success && cachedPasses.data.every(pass => pass.distanceM <= search.radiusM)) {
         return Response.json({ data: cachedPasses.data }, { headers });
@@ -108,7 +105,8 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     if (passes || waypoints) {
       const data = passes ? await loadMountainPasses(search, transport) : await loadWaypoints(search, transport);
       signal.throwIfAborted();
-      await deps.writeCache({ cache_key: key, source: 'osm', payload: data, fetched_at: fetchedAt, expires_at: new Date(Date.parse(fetchedAt) + ttl).toISOString() });
+      // Sin caché la respuesta sigue valiendo: un fallo al guardar no deja al móvil sin puntos.
+      await deps.writeCache({ cache_key: key, source: 'osm', payload: data, fetched_at: fetchedAt, expires_at: new Date(Date.parse(fetchedAt) + CACHE_TTL_MS).toISOString() }).catch(() => undefined);
       signal.throwIfAborted();
       return Response.json({ data }, { headers });
     }

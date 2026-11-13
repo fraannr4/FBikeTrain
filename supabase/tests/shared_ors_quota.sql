@@ -16,15 +16,16 @@ set local role anon;
 select pg_temp.expect_ors_denied('select * from public.consume_shared_ors_quota(''00000000-0000-0000-0000-000000000001'', 1)');
 reset role;
 
--- Límite por minuto y usuario: 30.
+-- Límite por minuto y usuario: 38.
 set local role service_role;
 select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'ocho consultas de golpe');
 select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'dieciséis');
 select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'veinticuatro');
-select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 6)), 'la trigésima cabe');
-select pg_temp.assert_ors((select not allowed and retry_after_s between 1 and 60 from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'la 31 supera el minuto por usuario');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'treinta y dos');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 6)), 'la 38 cabe');
+select pg_temp.assert_ors((select not allowed and retry_after_s between 1 and 60 from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'la 39 supera el minuto por usuario');
 reset role;
-select pg_temp.assert_ors((select calls = 30 from public.shared_ai_usage where bucket = 'ors:global:day'), 'el coste se suma y el rechazo no consume');
+select pg_temp.assert_ors((select calls = 38 from public.shared_ai_usage where bucket = 'ors:global:day'), 'el coste se suma y el rechazo no consume');
 select pg_temp.assert_ors(not exists (select 1 from public.shared_ai_usage where bucket like 'user:%' or bucket like 'global:%'), 'no toca los contadores de la IA');
 
 -- Coste no válido.
@@ -39,24 +40,24 @@ do $$ begin
 exception when invalid_parameter_value then null; end $$;
 reset role;
 
--- Límite diario por usuario: 150.
+-- Límite diario por usuario: 1.500.
 delete from public.shared_ai_usage;
-insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:user:00000000-0000-0000-0000-000000000001:day', pg_temp.today(), 150);
+insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:user:00000000-0000-0000-0000-000000000001:day', pg_temp.today(), 1500);
 set local role service_role;
 select pg_temp.assert_ors((select not allowed and retry_after_s > 60 from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'límite diario por usuario');
 select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000002', 1)), 'otra cuenta sigue pudiendo');
 reset role;
 
--- Límite global por minuto: 35.
+-- Límite global por minuto: 38.
 delete from public.shared_ai_usage;
-insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:global:minute', date_trunc('minute', now()), 35);
+insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:global:minute', date_trunc('minute', now()), 38);
 set local role service_role;
 select pg_temp.assert_ors((select not allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000003', 1)), 'límite global por minuto');
 reset role;
 
--- Límite global diario: 1.800.
+-- Límite global diario: 1.900.
 delete from public.shared_ai_usage;
-insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:global:day', pg_temp.today(), 1799);
+insert into public.shared_ai_usage(bucket, window_start, calls) values ('ors:global:day', pg_temp.today(), 1899);
 set local role service_role;
 select pg_temp.assert_ors((select not allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000004', 2)), 'el coste no puede pasar del límite global diario');
 select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000004', 1)), 'la última del día cabe');

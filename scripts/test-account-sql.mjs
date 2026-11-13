@@ -31,6 +31,7 @@ try {
   console.log('PASS: cuotas IA por usuario/global y permisos exclusivos del servidor.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100001_shared_ors_quota.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/202611130004_ors_user_minute.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130006_ors_quota_near_max.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/shared_ors_quota.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuotas del motor de rutas compartido por usuario/global y permisos exclusivos del servidor.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100002_route_sources_cache.sql', import.meta.url), 'utf8'));
@@ -38,6 +39,9 @@ try {
   console.log('PASS: caché de fuentes, TTL de siete días, límite por proveedor y permisos exclusivos del servidor.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100003_route_sources_quota.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/route_sources_quota.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130005_route_sources_cache_points.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/route_sources_cache_points.sql', import.meta.url), 'utf8'));
+  console.log('PASS: la caché de fuentes guarda hasta 300 puntos sin geometría y 10 referencias con geometría.');
   console.log('PASS: cuotas de fuentes por cuenta, rechazo de anónimos, purga acotada y geometrías de hasta 2.000 puntos.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100004_shared_ai_quota_raise.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/shared_ai_quota_raise.sql', import.meta.url), 'utf8'));

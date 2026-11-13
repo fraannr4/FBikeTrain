@@ -1,7 +1,7 @@
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { handleRouteSources, CACHE_TTL_MS, WAYPOINTS_CACHE_TTL_MS, sourceCacheKey, type RouteSourceDependencies } from '../src/routes/sources/service';
+import { handleRouteSources, CACHE_TTL_MS, sourceCacheKey, type RouteSourceDependencies } from '../src/routes/sources/service';
 import { sourceTransport, wikilocSearchUrl } from '../src/routes/sources/providers';
 import { parseOverpass } from '../src/routes/sources/overpass';
 import { routeReferenceSchema } from '../src/routes/sources/schema';
@@ -238,9 +238,15 @@ describe('route-sources: puntos de paso', () => {
     expect((await response.json()).data).toHaveLength(1);
     const row = vi.mocked(deps.writeCache).mock.calls[0][0];
     expect(row.cache_key.startsWith('v2:waypoints:')).toBe(true);
-    // Puertos, cimas y pueblos casi no cambian: 30 días, para no depender de Overpass en cada búsqueda.
-    expect(WAYPOINTS_CACHE_TTL_MS).toBe(30 * 24 * 60 * 60 * 1000);
-    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(WAYPOINTS_CACHE_TTL_MS);
+    // La tabla solo admite 7 días (restricción route_sources_cache_seven_day_ttl).
+    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(CACHE_TTL_MS);
+  });
+  it('si no puede guardar la caché devuelve igualmente los puntos', async () => {
+    const deps = withData();
+    deps.writeCache = vi.fn().mockRejectedValue(new Error('cache'));
+    const response = await handleRouteSources(request(wp), deps);
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toHaveLength(1);
   });
   it('ignora una caché que no valida con osmWaypointsSchema', async () => {
     const deps = withData();

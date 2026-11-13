@@ -17,8 +17,8 @@ export type SharedOrsAccess = {
 };
 
 /** Límites por usuario de `consume_shared_ors_quota`. */
-const USER_DAY = 150;
-const USER_MINUTE = 30;
+const USER_DAY = 1500;
+const USER_MINUTE = 38;
 /** Para la interfaz: los límites del servicio común que ve cada persona. */
 export const SHARED_ORS_LIMITS = `hasta ${USER_DAY} consultas al día y ${USER_MINUTE} por minuto por persona`;
 
