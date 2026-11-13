@@ -103,6 +103,17 @@ export function RutasCerca() {
   const [search, setSearch] = useState<Search | null>(null);
   /** Segundos que faltan de la espera por el límite por minuto; `null` si no se espera. */
   const [waitLeft, setWaitLeft] = useState<number | null>(null);
+  /** Consultas del motor hechas y previstas; `null` mientras se cargan los puntos de la zona. */
+  const [progress, setProgress] = useState<{ tried: number; budget: number } | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const running = search?.state === 'running';
+  useEffect(() => {
+    if (!running) return;
+    const t0 = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [running]);
   const [upload, setUpload] = useState<UploadState | null>(null);
   const abort = useRef<AbortController | null>(null);
 
@@ -187,6 +198,7 @@ export function RutasCerca() {
     let realReady = 0;
     let status = FIRST_STATUS;
     setWaitLeft(null);
+    setProgress(null);
     setSearch({ state: 'running', start: req.start, status, cards: [] });
     const onUpdate = (u: NearbyUpdate) => {
       if (signal.aborted) return;
@@ -194,6 +206,7 @@ export function RutasCerca() {
       else if (u.kind === 'waiting') setWaitLeft(u.seconds);
       else {
         if (u.kind === 'proposal') realReady++;
+        if (u.kind === 'engine') setProgress({ tried: u.tried, budget: u.budget });
         status = statusText(u, realReady) ?? status;
         setWaitLeft(null);
       }
@@ -375,6 +388,12 @@ export function RutasCerca() {
             <div className="card library-panel cat-status" role="status" aria-label="Progreso de la búsqueda">
               <CyclingLoader compact />
               <p>{waitLeft !== null ? waitingText(waitLeft) : search.status}</p>
+              <progress
+                className="cat-progress"
+                aria-label="Progreso de la búsqueda"
+                {...(progress ? { max: progress.budget, value: progress.tried } : {})}
+              />
+              <p className="cat-elapsed">{`Llevas ${formatCount(elapsed)} s. Puede tardar hasta 4 minutos.`}</p>
               <button type="button" className="btn btn--secondary" onClick={cancel}>
                 Cancelar
               </button>

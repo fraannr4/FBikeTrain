@@ -45,8 +45,8 @@ const MAX_AVOID = 12;
 const SAME_SPOT_M = 150;
 /** Pistas a menos de esto de la salida no se piden evitar: todas las vueltas pasan por allí y ORS se queda sin ruta. */
 const AVOID_CLEAR_START_M = 2000;
-/** El móvil no espera más que esto a Overpass: el servidor sigue y lo deja en caché para la siguiente búsqueda. */
-const WAYPOINTS_WAIT_MS = 20_000;
+/** El móvil espera a Overpass hasta esto (el servidor corta a los 60 s); en frío tarda más de 20 s y sin puntos no salen vueltas. */
+const WAYPOINTS_WAIT_MS = 90_000;
 /** Consultas por dirección: si tres combinaciones hacia el mismo lado no valen, se deja ese lado. */
 const MAX_TRIES_PER_DIRECTION = 3;
 const RADIUS_STEP_M = 5_000;
