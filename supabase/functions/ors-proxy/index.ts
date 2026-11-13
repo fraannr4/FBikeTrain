@@ -46,7 +46,8 @@ Deno.serve(request => handleSharedOrs(request, {
   enabled, allowedOrigins,
   authenticate: async token => {
     const { data, error } = await serverClient(publicKey).auth.getUser(token);
-    return error ? null : data.user?.id ?? null;
+    // Las cuentas anónimas no gastan el cupo común de ORS.
+    return error || !data.user || data.user.is_anonymous === true ? null : data.user.id;
   },
   consumeQuota: async (userId, cost) => {
     const { data, error } = await serverClient(serviceKey).rpc('consume_shared_ors_quota', { account_id: userId, cost });
