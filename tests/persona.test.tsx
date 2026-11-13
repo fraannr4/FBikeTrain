@@ -7,12 +7,13 @@ import { Persona } from '../src/ui/pages/Persona';
 import { ToastProvider } from '../src/ui/components/Toast';
 import type { FriendRow } from '../src/social/friends';
 
-const profile = { id: 'p2', username: 'ana_ruta', display_name: 'Ana Ruta' };
+const profile = { id: 'p2', username: 'ana_ruta', display_name: 'Ana Ruta', bio: 'Historias sobre dos ruedas.', riding_style: 'subir', avatar_version: 0 };
 function setup(initial: FriendRow[] = [], fail = false, missing = false) {
   let friends = initial;
   const select = vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: missing ? null : profile, error: null })) })) }));
   const rpc = vi.fn(async (fn: string) => {
     if (fn === 'list_friends') return fail ? { error: { message: 'network' } } : { data: friends };
+    if (fn === 'list_profile_posts') return { data: [] };
     if (fn === 'request_friendship') friends = [{ friendship_id: 'f1', status: 'pending', direction: 'sent', profile: { ...profile, locality: null, distance_km: null } }];
     if (fn === 'accept_friendship') friends = friends.map(f => ({ ...f, status: 'accepted' }));
     if (fn === 'remove_friendship') friends = [];
@@ -31,7 +32,8 @@ it('carga solo identidad pública y permite solicitar y cancelar amistad', async
   const { select, rpc } = setup();
   const user = userEvent.setup();
   expect(await screen.findByRole('heading', { name: 'Ana Ruta' })).toBeInTheDocument();
-  expect(select).toHaveBeenCalledWith('id,username,display_name');
+  expect(select).toHaveBeenCalledWith('id,username,display_name,bio,riding_style,avatar_version');
+  expect(screen.getByText('Historias sobre dos ruedas.')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Solicitar amistad' }));
   expect(rpc).toHaveBeenCalledWith('request_friendship', { target_id: 'p2' });
   await user.click(await screen.findByRole('button', { name: 'Cancelar solicitud' }));

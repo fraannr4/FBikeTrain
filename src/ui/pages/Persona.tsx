@@ -5,6 +5,9 @@ import { acceptFriendship, removeFriendship, requestFriendship } from '../../soc
 import { loadPublicProfile } from '../../social/publicProfile';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { ProfileHero } from '../profile/ProfileHero';
+import { JournalFeed } from '../profile/JournalFeed';
+import '../styles/profile.css';
 import '../styles/social.css';
 
 type Data = Awaited<ReturnType<typeof loadPublicProfile>>;
@@ -14,7 +17,7 @@ export function Persona() {
   const account = useAccount();
   const { id = '' } = useParams();
   if (account?.user.id === id) return <Navigate to="/perfil" replace />;
-  return <Page title="Perfil del ciclista" back="/amigos" variant="narrow">
+  return <Page title="Perfil del ciclista" back="/amigos" className="page--profile">
     {account ? <PersonaView key={id} account={account} id={id} /> : <p>Inicia sesión para ver este perfil.</p>}
   </Page>;
 }
@@ -52,8 +55,7 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
     {!data ? !error && <p role="status">Cargando el perfil…</p> : !data.profile ? <section className="card reto-card">
       <h2>Perfil no disponible</h2><p>Este ciclista ya no está disponible.</p><Link className="btn btn--secondary" to="/amigos">Buscar ciclistas</Link>
     </section> : <>
-      <section className="card reto-card" aria-label="Identidad del ciclista">
-        <h2>{data.profile.display_name}</h2><p className="person-meta">@{data.profile.username}</p>
+      <ProfileHero client={account.client} profile={data.profile}>
         {f?.profile.locality && <p className="help">{f.profile.locality}</p>}
         {f?.status === 'accepted' ? <>
           <p className="person-state" data-tone="good">Sois amigos</p>
@@ -67,8 +69,8 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
           <p>Solicitud de amistad pendiente</p>
           <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Solicitud cancelada.')}>Cancelar solicitud</button>
         </> : <button className="btn btn--primary" disabled={busy} onClick={() => void act(() => requestFriendship(account.client, id), 'Solicitud de amistad enviada.')}>Solicitar amistad</button>}
-      </section>
-      <p className="help">Los tracks y mapas de las salidas son privados. En los retos solo se comparte la ruta elegida y las cifras del resultado con el otro participante.</p>
+      </ProfileHero>
+      <section className="profile-public-journal" aria-label="Cuaderno del ciclista"><div className="profile-journal-heading"><span className="profile-eyebrow">KILÓMETROS CON HISTORIA</span><h2>Su cuaderno de ruta</h2><p>Las historias que ha elegido compartir.</p></div><JournalFeed client={account.client} userId={account.user.id} targetId={data.profile.id} /></section>
     </>}
     {notice && <p role="status">{notice}</p>}
   </>;

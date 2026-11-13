@@ -12,7 +12,7 @@ for (const [width, height] of sizes) for (const theme of ['light', 'dark'] as co
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
       const profiles = new URL(r.request().url()).pathname.endsWith('/profiles');
       return r.fulfill({ headers: CORS, json: profiles
-        ? { username: 'ana_ruta', display_name: 'Ana Ruta', stats_visibility: 'friends' }
+        ? { username: 'ana_ruta', display_name: 'Ana Ruta', stats_visibility: 'friends', bio: 'Historias sobre dos ruedas.', riding_style: 'grupo', avatar_version: 0 }
         : [] });
     });
     await page.goto('./#/perfil');

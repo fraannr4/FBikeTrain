@@ -27,6 +27,8 @@ Crear un proyecto Supabase (preferiblemente en región UE). Guardar la contrase�
 
 Las migraciones se guardan en `supabase/migrations/`. La primera crea perfiles, amistades y un bucket privado de tracks. Aplicarla primero en un proyecto de pruebas, ejecutar las pruebas SQL y revisar los permisos antes de usar datos reales. Todavía no incluye tablas de actividades, sincronización ni comparativas.
 
+Actualización del 2026-11-13: `202611130007_profile_journal.sql` aplicada y registrada por la API de gestión existente. Añade biografía, estilo ciclista, versión de foto, bucket privado `fbiketrain-avatars` (WebP, 512 KiB, archivo fijo por usuario) y publicaciones opt-in con RLS/RPC y cuota. No incluye sincronización de actividades ni tracks. Comprobaciones reales: tabla con RLS, bucket no público y acceso anónimo a los nuevos datos/RPC rechazado con 401. Las pruebas SQL cubren permisos con dueño, amigo aceptado, tercero y anónimo; se ejecutan en PostgreSQL embebido.
+
 ## Correo y Google (ambos acordados)
 
 - Mantener la confirmación de correo activada. Configurar SMTP para enviar confirmaciones y recuperación a usuarios externos; el servicio predeterminado solo sirve para pruebas restringidas.

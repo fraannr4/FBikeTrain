@@ -336,3 +336,17 @@ Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Int
 - Pruebas unitarias focalizadas de shell/perfil/persona/amigos: salida 0. Siete casos nuevos de selección de comunidad, incluida la apertura de perfiles ajenos y los ajustes.
 - Build con tipos y análisis de secretos correctos. Playwright: **62/62** escenarios aprobados, incluyendo acceso, edición/cierre de sesión, perfiles, Amigos, Retos y 14 combinaciones de navegación a 360/430/844/900/1024/1280/1440 px, ambos temas.
 - Revisión visual independiente a 1440 claro, 1280 oscuro, 900 oscuro y 360 claro sin bloqueantes. Pulido posterior del carril ancho: iconos de 44 px para que Tu perfil quede en una línea; matriz de navegación repetida tras el ajuste: **14/14**, con comprobación explícita de una sola línea a 1280/1440 px. Build/tipos y escáner de secretos nuevamente correctos.
+
+## 2026-11-13 — Perfil ciclista, foto y Cuaderno de ruta
+
+- Elección del usuario: cuaderno propio y feed de amigos. Cabecera con retrato, biografía, estilo ciclista y paisaje SVG de marca; editor/cuenta en hoja modal. Sin posts automáticos ni actividad inventada.
+- Backend: migración 202611130007 probada con PostgreSQL embebido (suite profile_journal junto al resto de test:db), incluyendo propietario, amigo aceptado, pendiente, tercero y anónimo; permisos tras retirar amistad/cambiar privacidad, paginación estable, cuota y rechazo de GPS/campos extra.
+- Migración aplicada por la API de gestión existente y registrada en supabase_migrations.schema_migrations. Comprobación real: bio/riding_style/avatar_version, profile_posts con RLS y bucket fbiketrain-avatars privado (WebP, 512 KiB, archivo fijo por usuario).
+- Peticiones reales sin sesión al perfil extendido, tabla profile_posts y RPC list_profile_posts: 401 en los tres casos. No se han leído ni publicado datos reales de los usuarios durante las verificaciones.
+- Unitarias focalizadas: 32/32 en 6 ficheros (perfil/persona/journal/avatar/ProfileAvatar/JournalFeed). Tipos y build correctos; bundle sin secretos.
+- Fotos: JPEG/PNG/WebP hasta 5 MB; validación de cabecera/dimensiones antes de decodificar, recorte central256 y WebP sin metadatos EXIF. Descarga autenticada como Blob, caché limitada y revocación de URLs. Subida y cambio de biografía/estilo comprobados en navegador con imágenes sintéticas.
+- Navegador: regresión de acceso, navegación y perfiles anteriores aprobada (48 escenarios); matriz visual del nuevo cuaderno a360/390/412/430, apaisado844 y escritorio1280/1440, claro/oscuro. Se acotaron los selectores de foto/biografía a la cabecera para distinguir sus copias en feed/editor.
+- Revisión visual independiente: 360claro,430oscuro,editor360,desktop1440. Sin bloqueantes; ajustados alineación de título y botón Editar en móvil. Publicación manual con snapshot exacto y borrado comprobados; no incluye nombre privado de salida, id local ni GPS.
+- La publicación se coordina con el workflow de GitHub Pages del commit de este lote. La sincronización completa del historial y las comparativas periódicas siguen siendo otro lote; compartir cifras es una acción explícita del cuaderno.
+
+- Pasada final tras los pulidos: e2e/cuaderno.spec.ts, **16/16**. Incluye foto real procesada en navegador a WebP (fixture sintético), biografía/estilo/username, autor del feed actualizado sin perder borrador, feed de amigos y perfil ajeno, publicación exacta de cifras y borrado. Capturas finales revisadas sin desborde.

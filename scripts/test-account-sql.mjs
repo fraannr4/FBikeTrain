@@ -58,6 +58,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611130003_zona_privacidad.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/zona_privacidad.sql', import.meta.url), 'utf8'));
   console.log('PASS: zona privada: distancia por bandas de 5, 10, 25 y 50 km y 3 cambios de celda como mucho en 24 h.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130007_profile_journal.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/profile_journal.sql', import.meta.url), 'utf8'));
+  console.log('PASS: cuaderno social, privacidad por amistad/estadísticas, paginación, cuota y avatares privados autenticados.');
 } finally {
   await db.close();
 }

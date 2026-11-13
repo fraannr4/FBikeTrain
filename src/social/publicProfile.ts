@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { listFriends, type FriendRow } from './friends';
 
-export type PublicProfile = { id: string; username: string; display_name: string };
+export type PublicProfile = { id: string; username: string; display_name: string; bio?: string; riding_style?: string; avatar_version?: number };
 
 /** Solo identidad pública. No pedir email, zona, coordenadas ni datos locales del otro ciclista. */
 export async function loadPublicProfile(client: SupabaseClient, id: string): Promise<{
@@ -9,7 +9,7 @@ export async function loadPublicProfile(client: SupabaseClient, id: string): Pro
   friendship: FriendRow | null;
 }> {
   const [response, friends] = await Promise.all([
-    client.from('profiles').select('id,username,display_name').eq('id', id).maybeSingle(),
+    client.from('profiles').select('id,username,display_name,bio,riding_style,avatar_version').eq('id', id).maybeSingle(),
     listFriends(client),
   ]);
   if (response.error) throw new Error('No se pudo cargar el perfil. Comprueba la conexión e inténtalo de nuevo.');

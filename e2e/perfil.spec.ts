@@ -14,14 +14,19 @@ for (const width of [360, 430]) {
           username: 'maximiliana_de_los_santos_inoce',
           display_name: 'Maximiliana de los Santos Inocentes Bermúdez-Villalobos',
           stats_visibility: 'friends',
+          bio: 'Una bici y mil historias por descubrir.', riding_style: 'fondo', avatar_version: 0,
         } });
       });
+      await page.route('https://*.supabase.co/rest/v1/rpc/list_profile_posts', route => route.fulfill({ headers: CORS, json: [] }));
+      await page.route('https://*.supabase.co/rest/v1/rpc/list_friends', route => route.fulfill({ headers: CORS, json: [] }));
       await page.goto('./#/perfil');
       await expect(page.getByRole('region', { name: 'Tu identidad pública' })).toContainText('@maximiliana_de_los_santos_inoce');
       await expect(page.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '#/amigos?vista=amigos');
       await expect(page.getByRole('link', { name: /Buscar ciclistas/ })).toHaveAttribute('href', '#/amigos');
       await expect(page.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '#/retos');
-      await expect(page.getByText(/comparativas entre perfiles todavía no están disponibles/)).toBeVisible();
+      await expect(page.getByText(/comparativas entre perfiles siguen pendientes/)).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Editar perfil', exact: true })).toBeVisible();
+      await expect(page.getByRole('form', { name: 'Editar perfil' })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
       await page.screenshot({ path: `test-results/perfil/perfil-${width}-${theme}.png`, fullPage: true });
     });

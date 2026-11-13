@@ -1,5 +1,16 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-13): perfil ciclista y Cuaderno de ruta
+
+El usuario pide un perfil que destaque con foto, descripción y feed. Eligió expresamente **cuaderno propio y feed de amigos**. Plan: `docs/superpowers/plans/2026-11-13-perfil-cuaderno.md`.
+
+- Cabecera editorial con paisaje SVG de marca, retrato grande, biografía y «Mi manera de rodar» (explorar, subir, fondo o grupeta). La edición y la cuenta pasan a una hoja, dejando el contenido social en primer plano.
+- Publicaciones de texto y cifras de una salida elegida, solo tras pulsar Publicar. Cuaderno propio y de otros ciclistas, feed de amistades aceptadas, paginación y borrado por el autor. Sin compartir GPS, Casa ni tracks.
+- Foto: JPEG/PNG/WebP de hasta 5 MB, recorte central a 256 px y reexportación WebP sin EXIF en el navegador. Un archivo por usuario en el bucket privado `fbiketrain-avatars`, lectura autenticada y escritura solo del dueño.
+- Migración `202611130007_profile_journal.sql` **aplicada y registrada en Supabase real**. Campos bio/riding_style/avatar_version, `profile_posts` con RLS y RPC; 20 publicaciones por 24 h. Las cifras siguen la privacidad de estadísticas incluso si una publicación antigua era para toda la comunidad.
+- Sincronización completa del historial y comparativas periódicas siguen pendientes; compartir cifras de una salida es una publicación explícita, no sincronización del historial.
+- Validación: SQL/RLS correcto y revisión independiente sin bloqueantes; 32 pruebas focalizadas en verde, tipos/build y escáner de secretos correctos. Acceso sin sesión a perfil/cuaderno/RPC rechazado con 401 en el servicio real. Navegador: 48 escenarios de regresión aprobados y pasada final del cuaderno **16/16**, incluidos foto, edición, autor actualizado en feed, publicación explícita y borrado. Capturas a 360–430 px, apaisado y escritorio, claro/oscuro. La publicación se comprueba en el workflow del commit de este lote.
+
 ## Retomar aquí (2026-11-13): cierre de perfil social y navegación de comunidad
 
 Encargo: completar y publicar perfil, buscador de amigos y retos. Auditoría: Amigos y Retos ya estaban publicados en `main`; lo que faltaba era su integración en el perfil y la consulta de perfiles ajenos. Plan del cierre: `docs/superpowers/plans/2026-11-13-perfil-social-cierre.md`.

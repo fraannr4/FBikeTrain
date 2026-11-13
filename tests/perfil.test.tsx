@@ -7,8 +7,10 @@ import { Perfil } from '../src/ui/pages/Perfil';
 import { loadSettings, saveSettings } from '../src/settings/settings';
 
 vi.mock('../src/settings/settings', () => ({ loadSettings: vi.fn(), saveSettings: vi.fn() }));
+vi.mock('../src/db/repo', () => ({ listActivities: vi.fn().mockResolvedValue([]) }));
+vi.mock('../src/ui/profile/JournalFeed', () => ({ JournalFeed: () => <section aria-label="Cuaderno de ruta" /> }));
 
-const PROFILE = { username: 'ana_ruta', display_name: 'Ana Ruta', stats_visibility: 'everyone' };
+const PROFILE = { username: 'ana_ruta', display_name: 'Ana Ruta', stats_visibility: 'everyone', bio: 'La bici y los puertos.', riding_style: 'explorar', avatar_version: 0 };
 
 function fakeClient() {
   const read = vi.fn().mockResolvedValue({ data: { ...PROFILE }, error: null });
@@ -17,7 +19,8 @@ function fakeClient() {
   const select = vi.fn(() => ({ eq: vi.fn(() => ({ single: read })) }));
   const from = vi.fn(() => ({ select, update }));
   const signOut = vi.fn().mockResolvedValue({ error: null });
-  return { client: { from, auth: { signOut } } as unknown as SupabaseClient, read, update, signOut };
+  const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+  return { client: { from, rpc, auth: { signOut } } as unknown as SupabaseClient, read, update, signOut };
 }
 
 function renderWith(client: SupabaseClient) {
@@ -39,11 +42,13 @@ describe('Tu perfil', () => {
     const identity = await screen.findByRole('region', { name: 'Tu identidad pública' });
     expect(within(identity).getByText('Ana Ruta')).toBeInTheDocument();
     expect(within(identity).getByText('@ana_ruta')).toBeInTheDocument();
+    expect(within(identity).getByText('La bici y los puertos.')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Editar perfil' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Buscar ciclistas/ })).toHaveAttribute('href', '/amigos');
     expect(screen.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '/amigos?vista=amigos');
     expect(screen.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '/retos');
     expect(screen.getByRole('link', { name: /Tu zona/ })).toHaveAttribute('href', '/zona');
-    expect(screen.getByText(/comparativas entre perfiles todavía no están disponibles/)).toBeInTheDocument();
+    expect(screen.getByText(/comparativas entre perfiles siguen pendientes/)).toBeInTheDocument();
   });
 
   it('permite reintentar tras un rechazo de red y tras una respuesta sin perfil', async () => {
@@ -55,29 +60,36 @@ describe('Tu perfil', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cargar tu perfil');
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByRole('form', { name: 'Editar perfil' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Tu identidad pública' })).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Editar perfil' })).not.toBeInTheDocument();
     expect(read).toHaveBeenCalledTimes(3);
   });
 
   it('guarda solo los campos del perfil y actualiza el saludo sin enviar claves locales', async () => {
     const { client, update } = fakeClient();
     renderWith(client);
-    const name = await screen.findByLabelText('Nombre visible');
     const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Editar perfil' }));
+    const name = screen.getByLabelText('Nombre visible');
     await user.clear(name);
     await user.type(name, '  Ana del Puerto  ');
-    await user.selectOptions(screen.getByLabelText('Quién puede ver tus estadísticas'), 'friends');
+    await user.clear(screen.getByLabelText(/^Sobre ti/));
+    await user.type(screen.getByLabelText(/^Sobre ti/), '  La mejor vista llega después de la subida.  ');
+    await user.click(screen.getByRole('radio', { name: 'Subir' }));
+    await user.selectOptions(screen.getByLabelText(/^Quién puede ver tus estadísticas/), 'friends');
     await user.click(screen.getByRole('button', { name: 'Guardar perfil' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Perfil guardado.');
-    expect(update).toHaveBeenCalledWith({ username: 'ana_ruta', display_name: 'Ana del Puerto', stats_visibility: 'friends' });
+    expect(update).toHaveBeenCalledWith({ username: 'ana_ruta', display_name: 'Ana del Puerto', stats_visibility: 'friends', bio: 'La mejor vista llega después de la subida.', riding_style: 'subir' });
     expect(saveSettings).toHaveBeenCalledWith(expect.objectContaining({ displayName: 'Ana del Puerto', orsKey: 'local-key' }));
   });
 
   it('cierra solo la sesión del dispositivo', async () => {
     const { client, signOut } = fakeClient();
     renderWith(client);
-    await screen.findByRole('form', { name: 'Editar perfil' });
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Cerrar sesión en este dispositivo' }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Editar perfil' }));
+    await user.click(screen.getByText('Tu cuenta y este dispositivo'));
+    await user.click(screen.getByRole('button', { name: 'Cerrar sesión en este dispositivo' }));
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 });
