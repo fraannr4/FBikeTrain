@@ -40,6 +40,25 @@ const calls = (rpc: ReturnType<typeof vi.fn>, fn: string) => rpc.mock.calls.filt
 const zona = (locality: string | null): Handler => () => ({ data: [{ locality, show_area: true }] });
 
 describe('Amigos', () => {
+  it('abre la lista desde el acceso del perfil y enlaza perfiles ajenos', async () => {
+    const { client } = fakeClient({}, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
+    renderWith(client, <Amigos />, '/amigos?vista=amigos');
+    expect(await screen.findByRole('region', { name: 'Tus amigos' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
+  });
+
+  it('un error cargando amistades se muestra en Buscar y bloquea solicitudes desconocidas', async () => {
+    const rpc = vi.fn(async (fn: string) => fn === 'list_friends'
+      ? { error: { message: 'network' } }
+      : { data: fn === 'search_profiles' ? [ana] : [] });
+    renderWith({ rpc } as unknown as SupabaseClient);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Nombre o usuario'), 'Ana');
+    await user.click(within(screen.getByRole('search')).getByRole('button', { name: 'Buscar' }));
+    expect(await screen.findByText('Amistad sin comprobar')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Solicitar amistad a Ana Ruta' })).not.toBeInTheDocument();
+  });
   it('con menos de 3 letras no busca y lo dice', async () => {
     const { client, rpc } = fakeClient({ my_area: zona('Villa Centro') });
     renderWith(client);

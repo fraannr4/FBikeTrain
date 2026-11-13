@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ChartColumn, Ellipsis, House, Route, type LucideIcon } from '../icons';
+import { useAccount } from '../../auth/AccountBoundary';
+import { Calendar, ChartColumn, Ellipsis, House, Route, Swords, User, Users, type LucideIcon } from '../icons';
 import { BrandMark } from './BrandMark';
 import { TAB_ROOT, tabOf, type TabId } from './screens';
 
@@ -24,12 +25,16 @@ type Props = {
  */
 export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
   const current = tabOf(pathname);
+  const account = useAccount();
+  const inProfile = pathname === '/perfil' || pathname === '/zona';
+  const inFriends = pathname.startsWith('/amigos') || pathname.startsWith('/personas/');
+  const inChallenges = pathname.startsWith('/retos');
   return (
     <nav className="tabbar" aria-label="Menú principal">
       <Link className="rail-brand" to="/" aria-label="FBikeTrain, inicio">
         <BrandMark />
       </Link>
-      {TABS.map(({ id, label, icon: Icon }) => {
+      {TABS.filter(tab => !account || tab.id !== 'mas').map(({ id, label, icon: Icon }) => {
         const badge = id === 'plan' && planBadge > 0 ? planBadge : 0;
         return (
           <Link
@@ -51,6 +56,25 @@ export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
           </Link>
         );
       })}
+      {account && <>
+        <CommunityLink to="/perfil" label="Perfil" icon={User} current={current === 'mas'} className="tab--mobile" />
+        <div className="nav-community" role="group" aria-label="Comunidad">
+          <h2 className="rail-section">Comunidad</h2>
+          <CommunityLink to="/perfil" label="Tu perfil" icon={User} current={inProfile} />
+          <CommunityLink to="/amigos" label="Amigos" icon={Users} current={inFriends} />
+          <CommunityLink to="/retos" label="Retos" icon={Swords} current={inChallenges} />
+        </div>
+        <CommunityLink to="/mas" label="Más" icon={Ellipsis} current={current === 'mas' && !inProfile && !inFriends && !inChallenges} className="tab--desktop" />
+      </>}
     </nav>
   );
 });
+
+function CommunityLink({ to, label, icon: Icon, current, className = '' }: {
+  to: string; label: string; icon: LucideIcon; current: boolean; className?: string;
+}) {
+  return <Link className={`tab ${className}`} to={to} aria-current={current ? 'page' : undefined}>
+    <span className="tab-ic"><Icon className="ic" aria-hidden="true" /></span>
+    <span>{label}</span>
+  </Link>;
+}

@@ -125,3 +125,35 @@ export async function listChallenges(client: Rpc): Promise<Challenge[]> {
     iAmChallenger: c.i_am_challenger,
   }));
 }
+
+/** El listado está limitado a 100; los enlaces a retos antiguos siguen accesibles bajo RLS. */
+export async function getChallenge(client: SupabaseClient, id: string, userId: string): Promise<Challenge | null> {
+  const recent = await listChallenges(client);
+  const found = recent.find(c => c.id === id);
+  if (found) return found;
+  if (recent.length < 100) return null;
+  const { data: c, error } = await client.from('challenges')
+    .select('id,challenger_id,challenged_id,status,deadline,created_at,route_name,route_points,distance_m,elev_gain_m')
+    .eq('id', id).maybeSingle();
+  if (error) throw new Error(GENERIC);
+  if (!c || (c.challenger_id !== userId && c.challenged_id !== userId)) return null;
+  const rivalId = c.challenger_id === userId ? c.challenged_id : c.challenger_id;
+  const [profile, results] = await Promise.all([
+    client.from('profiles').select('id,username,display_name').eq('id', rivalId).single(),
+    client.from('challenge_results').select('user_id,activity_date,moving_time_s,distance_m,avg_speed_ms,elev_gain_m,vam_mh').eq('challenge_id', id),
+  ]);
+  if (profile.error || !profile.data || results.error) throw new Error(GENERIC);
+  const resultFor = (who: string): ChallengeResult | null => {
+    const row = results.data?.find(r => r.user_id === who);
+    if (!row) return null;
+    const { user_id: _userId, ...figures } = row;
+    return figures as ChallengeResult;
+  };
+  return {
+    id: c.id, status: ['pending', 'accepted'].includes(c.status) && Date.parse(c.deadline) < Date.now() ? 'expired' : c.status,
+    deadline: c.deadline, createdAt: c.created_at, routeName: c.route_name, distanceM: c.distance_m,
+    elevGainM: c.elev_gain_m, points: c.route_points,
+    rival: { ...profile.data, locality: null, distance_km: null },
+    mine: resultFor(userId), theirs: resultFor(rivalId), iAmChallenger: c.challenger_id === userId,
+  };
+}

@@ -51,7 +51,10 @@ function RetosList({ account }: { account: Account }) {
           icon={Swords}
           title="Sin retos todavía"
           text="Reta a un amigo con una ruta de tu biblioteca. Tendréis 30 días para hacerla."
-          action={<Link className="btn btn--primary" to="/amigos">Ir a Amigos</Link>}
+          action={<>
+            <Link className="btn btn--primary" to="/retos/nuevo">Nuevo reto</Link>
+            <Link className="btn btn--secondary" to="/amigos">Ir a Amigos</Link>
+          </>}
         />
       </div>
     );

@@ -1,12 +1,15 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { AccountContext } from '../src/auth/AccountBoundary';
 import { AppShell } from '../src/ui/shell/AppShell';
 import { db } from '../src/db/db';
 import { deleteWorkout, saveWorkout, setWorkoutDone } from '../src/calendar/calendarRepo';
 import { clearAllData } from '../src/db/repo';
 import { localDay } from '../src/metrics/calendar';
 import { tabOf, screenName } from '../src/ui/shell/screens';
+import { TabBar } from '../src/ui/shell/TabBar';
 
 const DAY = 86_400_000;
 const TABS = ['Inicio', 'Historial', 'Rutas', 'Plan', 'Más'];
@@ -46,6 +49,8 @@ describe('AppShell', () => {
     ['/rutas/ia', 'Rutas'],
     ['/plan/objetivos', 'Plan'],
     ['/mas', 'Más'],
+    ['/perfil', 'Más'],
+    ['/personas/p2', 'Más'],
     ['/ajustes', 'Más'],
     ['/importar', 'Más'],
   ])('en %s la pestaña actual es %s', async (path, tab) => {
@@ -121,5 +126,30 @@ describe('screens', () => {
     expect(screenName('/retos')).toBe('Retos');
     expect(screenName('/retos/nuevo')).toBe('Nuevo reto');
     expect(screenName('/retos/abc-123')).toBe('Reto');
+  });
+});
+
+describe('navegación social con cuenta', () => {
+  it.each([
+    ['/perfil', 'Tu perfil'], ['/zona', 'Tu perfil'], ['/amigos', 'Amigos'],
+    ['/personas/p2', 'Amigos'], ['/retos/nuevo', 'Retos'], ['/retos/r1', 'Retos'],
+  ])('el carril selecciona %s en %s', (pathname, label) => {
+    render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
+      <MemoryRouter><TabBar pathname={pathname} planBadge={0} /></MemoryRouter>
+    </AccountContext.Provider>);
+    const group = screen.getByRole('group', { name: 'Comunidad' });
+    const selected = within(group).getAllByRole('link').filter(link => link.getAttribute('aria-current') === 'page');
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toHaveTextContent(label);
+    expect(screen.getByRole('link', { name: 'Perfil' })).toHaveAttribute('href', '/perfil');
+  });
+
+  it('Más sigue disponible y seleccionado al abrir ajustes', () => {
+    render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
+      <MemoryRouter><TabBar pathname="/ajustes" planBadge={0} /></MemoryRouter>
+    </AccountContext.Provider>);
+    expect(screen.getByRole('link', { name: 'Más' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Amigos' })).toHaveAttribute('href', '/amigos');
+    expect(screen.getByRole('link', { name: 'Retos' })).toHaveAttribute('href', '/retos');
   });
 });

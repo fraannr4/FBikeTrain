@@ -189,6 +189,7 @@ img, svg { display: block; max-width: 100%; }
   box-shadow: 0 0 0 2px var(--bg);
 }
 .rail-brand { display: none; }
+.nav-community, .tabbar .tab.tab--desktop { display: none; }
 /* Escribiendo en una búsqueda (teclado en pantalla): la barra inferior se aparta y no queda
    flotando sobre el teclado ni tapa los resultados. Vuelve al salir del campo. */
 @media (max-width: 899px) and (pointer: coarse) {
@@ -819,7 +820,13 @@ button.row { font: inherit; }
     padding: 16px 8px; padding-left: calc(8px + var(--safe-l));
     border-top: 0; border-right: 1px solid var(--line); background: var(--side);
     -webkit-backdrop-filter: none; backdrop-filter: none;
+    overflow-y: auto; overscroll-behavior: contain;
   }
+  .tabbar .tab.tab--mobile { display: none; }
+  .tabbar .tab.tab--desktop { display: flex; }
+  .nav-community { display: grid; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .nav-community .tab:last-child { margin-top: 0; }
+  .rail-section { margin: 0 0 4px; color: var(--ink-2); text-align: center; font: 600 11px/1.4 var(--font-ui); }
   .rail-brand { display: grid; place-items: center; height: 56px; margin-bottom: 10px; }
   .tab { min-height: 64px; gap: 4px; }
   .tab:last-child { margin-top: 12px; }

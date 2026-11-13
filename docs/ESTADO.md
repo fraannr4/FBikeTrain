@@ -1,5 +1,19 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-13): cierre de perfil social y navegación de comunidad
+
+Encargo: completar y publicar perfil, buscador de amigos y retos. Auditoría: Amigos y Retos ya estaban publicados en `main`; lo que faltaba era su integración en el perfil y la consulta de perfiles ajenos. Plan del cierre: `docs/superpowers/plans/2026-11-13-perfil-social-cierre.md`.
+
+- Perfil propio como centro de comunidad: identidad, buscador, amigos, retos y zona; edición y cierre de sesión conservados.
+- Ampliación aprobada por el usuario: bloque **Comunidad** en el carril izquierdo, con **Tu perfil, Amigos y Retos**. En móvil, **Perfil** es la quinta pestaña y **Más opciones** dentro del perfil conserva acceso a ajustes, importación y copias. Carril con desplazamiento en pantallas bajas y selección independiente por sección.
+- Nueva pantalla `#/personas/:id`, accesible desde los nombres de Amigos: identidad pública y acciones de amistad/retos según la relación. `#/amigos?vista=amigos` abre directamente la lista.
+- Corregidos: pestaña activa del perfil, errores ocultos al leer amistades, acceso a retos anteriores a los últimos 100, creación del primer reto y error de almacenamiento presentado como ausencia de salidas.
+- Sin nuevas migraciones: solo columnas públicas de identidad y políticas RLS ya existentes. No se suben actividades, tracks, Casa ni claves personales.
+- Sincronización y estadísticas sociales por semana/mes/año siguen pendientes del plan de cuentas; el perfil lo explica.
+- Verificación final: **1.848/1.848 pruebas unitarias en 142 ficheros**, SQL/RLS completo, tipos y build correctos; bundle sin secretos. Navegador: 23 escenarios de acceso/perfil propio aprobados; última pasada social **25/25** (Amigos, perfiles ajenos y Retos). Capturas revisadas a 360–430 px en ambos temas y en apaisado. Se corrigió el desborde del botón con un nombre largo antes de la última pasada.
+- Tras integrar el carril: pruebas unitarias focalizadas correctas, build/tipos y bundle sin secretos; navegador **62/62**. Ajuste final de los iconos del carril ancho verificado con otra pasada de navegación **14/14**, incluidos nombre del perfil en una línea y carriles bajos.
+- El usuario confirmó expresamente commit y publicación el 2026-11-13, incluyendo la mejora de navegación. Publicación por el workflow de Pages asociado al commit de este lote: comprobar su resultado en GitHub Actions. La prueba con dos cuentas reales sigue pendiente del usuario.
+
 ## Retomar aquí (2026-11-13): «Rutas cerca», rutas de Strava y Explore publicados
 
 - **Fase A, motor propio y pantalla «Rutas cerca»** (`#/rutas/cerca`; `#/rutas/catalogo` redirige). Plan: `docs/superpowers/plans/2026-11-12-rutas-cerca-motor.md`, tareas 1 a 6.

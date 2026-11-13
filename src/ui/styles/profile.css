@@ -1,0 +1,5 @@
+.profile-identity { display: flex; align-items: center; gap: 16px; padding: 20px; min-width: 0; }
+.profile-identity > div { min-width: 0; overflow-wrap: anywhere; }
+.profile-identity h2 { margin: 0; font: 600 var(--t-lg)/1.2 var(--font-ui); color: var(--ink); }
+.profile-identity p { margin: 4px 0; color: var(--ink-2); }
+.profile-avatar { display: grid; place-items: center; flex: none; width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); color: var(--action); font: 700 28px/1 var(--font-ui); }

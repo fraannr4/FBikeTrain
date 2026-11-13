@@ -9,7 +9,7 @@ import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 
 /**
  * Armazón: «Saltar al contenido», contenido, barra inferior de cinco pestañas (carril lateral
- * desde 900 px) y avisos. Cada pantalla pinta su propia barra superior (`AppBar`).
+ * desde 900 px, con accesos a la comunidad) y avisos. Cada pantalla pinta su propia barra superior (`AppBar`).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);

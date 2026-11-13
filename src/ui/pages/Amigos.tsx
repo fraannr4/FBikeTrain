@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import {
   acceptFriendship,
@@ -38,7 +38,9 @@ export function Amigos() {
 
 function AmigosView({ account }: { account: Account }) {
   const { client } = account;
-  const [tab, setTab] = useState<Tab>('buscar');
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('vista') === 'amigos' ? 'amigos' : 'buscar';
+  const setTab = (value: Tab) => setParams(value === 'amigos' ? { vista: 'amigos' } : {});
   const [friends, setFriends] = useState<FriendRow[] | null>(null);
   const [listError, setListError] = useState('');
   /** null mientras se lee la zona propia (o si no se pudo leer: entonces decide el servidor). */
@@ -121,6 +123,7 @@ function AmigosView({ account }: { account: Account }) {
   }
 
   async function act(id: string, run: () => Promise<void>) {
+    if (busyId !== null || friends === null || listError) return;
     setBusyId(id);
     setError('');
     try {
@@ -139,13 +142,14 @@ function AmigosView({ account }: { account: Account }) {
   const accepted = (friends ?? []).filter((f) => f.status === 'accepted');
 
   function resultActions(card: ProfileCard): ReactNode {
+    if (friends === null || listError) return <span className="person-state">Amistad sin comprobar</span>;
     const f = relation.get(card.id);
-    const busy = busyId === card.id;
+    const busy = busyId !== null;
     if (!f)
       return (
         <ActionButton label="Solicitar amistad" name={card.display_name} busy={busy} primary onClick={() => act(card.id, () => requestFriendship(client, card.id))} />
       );
-    if (f.status === 'accepted') return <span className="person-state" data-tone="good">Amigos</span>;
+    if (f.status === 'accepted') return <><span className="person-state" data-tone="good">Amigos</span><Link className="btn btn--primary" to={`/retos/nuevo?amigo=${encodeURIComponent(card.id)}`} aria-label={`Retar a ${card.display_name}`}>Retar</Link></>;
     if (f.direction === 'sent') return <span className="person-state">Pendiente</span>;
     return <ActionButton label="Aceptar" name={card.display_name} busy={busy} primary onClick={() => act(card.id, () => acceptFriendship(client, f.friendship_id))} />;
   }
@@ -162,6 +166,7 @@ function AmigosView({ account }: { account: Account }) {
         ]}
       />
       {error ? <Banner tone="error">{error}</Banner> : null}
+      {listError ? <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => void refresh()}>Reintentar</button>}>{listError}</Banner> : null}
 
       {tab === 'buscar' ? (
         <>
@@ -218,14 +223,8 @@ function AmigosView({ account }: { account: Account }) {
             </section>
           ) : null}
         </>
-      ) : friends === null ? (
-        listError ? (
-          <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => void refresh()}>Reintentar</button>}>
-            {listError}
-          </Banner>
-        ) : (
-          <p role="status">Cargando tus amigos…</p>
-        )
+      ) : friends === null || listError ? (
+        !listError && <p role="status">Cargando tus amigos…</p>
       ) : friends.length === 0 ? (
         <div className="card">
           <StateView
@@ -245,13 +244,13 @@ function AmigosView({ account }: { account: Account }) {
           <FriendGroup title="Solicitudes recibidas" rows={received}>
             {(f) => (
               <>
-                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busyId === f.friendship_id} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id))} />
-                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busyId === f.friendship_id} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busyId !== null} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id))} />
+                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
               </>
             )}
           </FriendGroup>
           <FriendGroup title="Solicitudes enviadas" rows={sent}>
-            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busyId === f.friendship_id} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />}
+            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />}
           </FriendGroup>
           <FriendGroup title="Tus amigos" rows={accepted}>
             {(f) => (
@@ -259,7 +258,7 @@ function AmigosView({ account }: { account: Account }) {
                 <Link className="btn btn--primary" to={`/retos/nuevo?amigo=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>
                   Retar
                 </Link>
-                <ActionButton label="Quitar" name={f.profile.display_name} busy={busyId === f.friendship_id} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                <ActionButton label="Quitar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
               </>
             )}
           </FriendGroup>
@@ -289,11 +288,11 @@ function Person({ card, children }: { card: ProfileCard; children: ReactNode }) 
   const where = [card.locality, card.distance_km !== null ? `a menos de ${formatCount(card.distance_km)} km` : null].filter(Boolean).join(', ');
   return (
     <li className="person">
-      <span className="person-main">
+      <Link className="person-main person-profile" to={`/personas/${encodeURIComponent(card.id)}`} aria-label={card.display_name}>
         <span className="person-name">{card.display_name}</span>
         <span className="person-meta">@{card.username}</span>
         {where ? <span className="person-meta">{where}</span> : null}
-      </span>
+      </Link>
       <span className="person-actions">{children}</span>
     </li>
   );

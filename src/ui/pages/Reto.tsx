@@ -8,7 +8,7 @@ import type { StoredActivity } from '../../domain/types';
 import { TZ } from '../../metrics/aggregate';
 import { routePointsToGpx, type RoutePoint } from '../../routes/library';
 import { compare, resultFromActivity, shortRideWarning } from '../../social/challengeCompare';
-import { listChallenges, respondChallenge, submitChallengeResult, type Challenge, type ChallengeResult } from '../../social/challenges';
+import { getChallenge, respondChallenge, submitChallengeResult, type Challenge, type ChallengeResult } from '../../social/challenges';
 import { formatClock, formatKm, formatMeters, formatSpeed } from '../format';
 import { Download, TriangleAlert } from '../icons';
 import { Banner } from '../components/Banner';
@@ -24,9 +24,10 @@ const message = (e: unknown) => (e instanceof Error ? e.message : 'No se ha podi
 /** Detalle de un reto: la ruta, la respuesta, la salida elegida a mano y la comparativa. */
 export function Reto() {
   const account = useAccount();
+  const { id } = useParams();
   return (
     <Page title="Reto" back="/retos" variant="narrow" className="page--reto">
-      {account ? <RetoView account={account} /> : <p>Inicia sesión para ver tus retos.</p>}
+      {account ? <RetoView key={id} account={account} /> : <p>Inicia sesión para ver tus retos.</p>}
     </Page>
   );
 }
@@ -44,13 +45,12 @@ function RetoView({ account }: { account: Account }) {
 
   const load = useCallback(async () => {
     try {
-      const all = await listChallenges(client);
-      setChallenge(all.find((c) => c.id === id) ?? null);
+      setChallenge(await getChallenge(client, id, account.user.id));
       setLoadError('');
     } catch (e) {
       setLoadError(message(e));
     }
-  }, [client, id]);
+  }, [client, id, account.user.id]);
 
   useEffect(() => {
     void load();
@@ -249,6 +249,8 @@ function PickRide({ open, challenge, busy, error, onClose, onPick }: {
   onPick: (ride: StoredActivity) => void;
 }) {
   const [rides, setRides] = useState<StoredActivity[] | null>(null);
+  const [readError, setReadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const since = Date.parse(challenge.createdAt);
   const target = challenge.distanceM;
 
@@ -256,23 +258,28 @@ function PickRide({ open, challenge, busy, error, onClose, onPick }: {
     if (!open) return;
     let alive = true;
     setRides(null);
+    setReadError(false);
     listActivities({ from: startOfDay(new TZDate(since, TZ)).getTime(), to: Date.now() }).then(
       (rows) => {
         if (alive) setRides(rows.sort((a, b) => Math.abs(a.totals.distanceM - target) - Math.abs(b.totals.distanceM - target)));
       },
       () => {
-        if (alive) setRides([]);
+        if (alive) setReadError(true);
       },
     );
     return () => {
       alive = false;
     };
-  }, [open, since, target]);
+  }, [open, since, target, attempt]);
 
   return (
     <Sheet open={open} onClose={onClose} title="Elige tu salida" sub={`Salidas desde el ${formatDay(since)}`} closeLabel="Cerrar sin elegir">
       {error ? <Banner tone="error">{error}</Banner> : null}
-      {rides === null ? (
+      {readError ? (
+        <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => setAttempt((n) => n + 1)}>Reintentar</button>}>
+          No se han podido leer tus salidas. Comprueba el almacenamiento del navegador e inténtalo de nuevo.
+        </Banner>
+      ) : rides === null ? (
         <p role="status">Leyendo tus salidas…</p>
       ) : rides.length === 0 ? (
         <div className="reto-card">

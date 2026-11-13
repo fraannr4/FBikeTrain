@@ -113,7 +113,8 @@
     .rail-brand .brand-mark { width: 40px; height: 40px; }
     .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 14px; min-height: 52px; padding: 12px 16px; font-size: 16px; }
     .tabbar .tab:last-child { margin-top: 0; }
-    .tabbar .tab-ic { flex: none; }
+    .tabbar .tab-ic { flex: none; width: 44px; }
+    .rail-section { padding-inline: 16px; text-align: left; font-size: 12px; }
     .history-workspace { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; }
     .history-workspace > .history-list { position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; scrollbar-gutter: stable; }
     .history-workspace .hist { padding-inline: 20px; }

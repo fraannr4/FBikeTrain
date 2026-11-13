@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { AccountContext } from '../src/auth/AccountBoundary';
 import { clearAllData } from '../src/db/repo';
+import * as activityRepo from '../src/db/repo';
 import { db } from '../src/db/db';
 import type { StoredActivity } from '../src/domain/types';
 import type { ChallengeResult } from '../src/social/challenges';
@@ -94,10 +95,30 @@ describe('Retos', () => {
     renderAt(fakeClient([]).client, '/retos');
     expect(await screen.findByText('Sin retos todavía')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ir a Amigos' })).toHaveAttribute('href', '/amigos');
+    expect(screen.getByRole('link', { name: 'Nuevo reto' })).toHaveAttribute('href', '/retos/nuevo');
   });
 });
 
 describe('Reto', () => {
+  it('un fallo al leer salidas se puede reintentar sin presentarlo como un historial vacío', async () => {
+    await db.activities.put(activity('buena', '2026-11-05T09:00:00Z', 42.3, 'Salida buena'));
+    const read = vi.spyOn(activityRepo, 'listActivities').mockRejectedValueOnce(new Error('Storage unavailable'));
+    try {
+      renderAt(fakeClient([row({ status: 'accepted' })]).client, '/retos/r1');
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: 'Usar una salida' }));
+      const sheet = await screen.findByRole('dialog', { name: 'Elige tu salida' });
+      expect(await within(sheet).findByRole('alert')).toHaveTextContent('No se han podido leer tus salidas.');
+      expect(within(sheet).queryByRole('link', { name: 'Importar salidas' })).not.toBeInTheDocument();
+      await user.click(within(sheet).getByRole('button', { name: 'Reintentar' }));
+      expect(await within(sheet).findByRole('button', { name: 'Usar esta salida: Salida buena' })).toBeInTheDocument();
+      expect(within(sheet).queryByRole('alert')).not.toBeInTheDocument();
+      expect(read).toHaveBeenCalledTimes(2);
+    } finally {
+      read.mockRestore();
+    }
+  });
+
   it('si me retaron y está pendiente, aceptar llama a respond_challenge', async () => {
     const { client, rpc, state } = fakeClient([row()], {
       respond_challenge: () => {

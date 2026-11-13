@@ -315,3 +315,24 @@ Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Int
 - Build: correcto.
 - e2e `rwgps.spec.ts` 2/2 y `catalogo.spec.ts` 4/4, a 360 y 430 px sin desborde. La contraseña no queda en IndexedDB ni en localStorage.
 - Pendiente con la cuenta real del usuario: crear el token, importar las rutas y probar las propuestas.
+
+## 2026-11-13 — Cierre de perfil social, amigos y retos (local)
+
+- Auditoría: Amigos y Retos ya estaban implementados y publicados; `main` remoto coincide con `630811c`, cuyo workflow de Pages terminó correctamente. Este lote completa el perfil propio, perfiles ajenos y su navegación con amistades/retos.
+- `npx vitest run --maxWorkers=2 --minWorkers=1`: **1.848/1.848**, **142 ficheros**, salida 0. Una única pasada completa; avisos de React act/scrollTo de jsdom sin fallos de pruebas.
+- `npm run test:db`: todos los grupos SQL/RLS en verde, incluidos permisos de identidad pública, zona, amistades y retos. PostgreSQL embebido, sin modificar Supabase real.
+- `npm run build`: tipos y build correctos. `node scripts/check-bundle-secrets.mjs dist`: PASS.
+- Playwright inicial: acceso/perfil propio, Amigos y Retos correctos; 8 capturas de perfil ajeno detectaron desborde del botón con nombre largo. Se acortó el texto visible y se conservó el nombre completo mediante aria-label.
+- Última pasada sobre el build corregido: `npx playwright test e2e/personas.spec.ts e2e/amigos.spec.ts e2e/retos.spec.ts --workers=2`: **25/25**. Incluye buscar → abrir perfil → aceptar solicitud → retar al mismo ciclista, crear reto y elegir salida con envío exclusivo de cifras. Los 23 escenarios de acceso/perfil propio de la pasada anterior también aprobaron.
+- Inspección visual: perfil propio a 360 claro y 430 oscuro; perfil ajeno a 360 claro y 430 oscuro. Sin desborde, nombre largo legible y controles amplios. Capturas automatizadas a 360/390/412/430 y apaisado, ambos temas.
+- No hay nuevas migraciones. La identidad ajena usa solo id/username/display_name; la localidad de amigos se obtiene por RPC respetando show_area. Retos antiguos se consultan por id bajo RLS cuando quedan fuera del listado de 100.
+- El usuario confirmó expresamente commit y publicación y pidió dar visibilidad a la comunidad en el carril izquierdo. La publicación se sigue en el workflow de GitHub Pages del commit de este lote.
+- Pendiente real: prueba de ida y vuelta con dos cuentas reales (buscar, enviar/aceptar amistad, reto y resultados), que las sesiones sintéticas no sustituyen. Sincronización y comparativas semanales/mensuales/anuales siguen fuera de este cierre.
+
+### Ampliación autorizada: navegación de comunidad
+
+- Escritorio desde 900 px: bloque Comunidad con Tu perfil, Amigos y Retos; Más conserva ajustes y datos. Selección propia para cada sección y desplazamiento vertical en carriles bajos.
+- Móvil: cinco pestañas, con Perfil en la quinta posición; Más opciones antes del formulario del perfil mantiene acceso a ajustes, importar y copias. Sin cuenta se conserva la navegación local anterior.
+- Pruebas unitarias focalizadas de shell/perfil/persona/amigos: salida 0. Siete casos nuevos de selección de comunidad, incluida la apertura de perfiles ajenos y los ajustes.
+- Build con tipos y análisis de secretos correctos. Playwright: **62/62** escenarios aprobados, incluyendo acceso, edición/cierre de sesión, perfiles, Amigos, Retos y 14 combinaciones de navegación a 360/430/844/900/1024/1280/1440 px, ambos temas.
+- Revisión visual independiente a 1440 claro, 1280 oscuro, 900 oscuro y 360 claro sin bloqueantes. Pulido posterior del carril ancho: iconos de 44 px para que Tu perfil quede en una línea; matriz de navegación repetida tras el ajuste: **14/14**, con comprobación explícita de una sola línea a 1280/1440 px. Build/tipos y escáner de secretos nuevamente correctos.

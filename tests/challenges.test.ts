@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   challengePoints,
   createChallenge,
+  getChallenge,
   listChallenges,
   respondChallenge,
   submitChallengeResult,
@@ -13,6 +14,33 @@ function fake(result: { data?: unknown; error?: { message: string } | null }) {
   const rpc = vi.fn().mockResolvedValue({ data: result.data ?? null, error: result.error ?? null });
   return { client: { rpc } as unknown as SupabaseClient, rpc };
 }
+
+describe('detalle de retos antiguos', () => {
+  const old = { id: 'old', challenger_id: 'u1', challenged_id: 'u2', status: 'accepted', deadline: '2020-01-02T00:00:00Z', created_at: '2020-01-01T00:00:00Z', route_name: 'Ruta antigua', route_points: [[1, 2], [2, 3]], distance_m: 1000, elev_gain_m: null };
+  function archive(data: unknown) {
+    const rpc = vi.fn().mockResolvedValue({ data: Array.from({ length: 100 }, (_, i) => ({ challenge: { id: `recent-${i}` }, rival: {}, mine: null, theirs: null })) });
+    const from = vi.fn((table: string) => ({ select: vi.fn(() => ({ eq: vi.fn(() => {
+      if (table === 'challenges') return { maybeSingle: async () => ({ data }) };
+      if (table === 'profiles') return { single: async () => ({ data: { id: 'u2', username: 'ana', display_name: 'Ana' } }) };
+      return Promise.resolve({ data: [{ user_id: 'u1', activity_date: '2020-01-01', moving_time_s: 600, distance_m: 1000, avg_speed_ms: 2, elev_gain_m: null, vam_mh: null }] });
+    }) })) }));
+    return { client: { rpc, from } as unknown as SupabaseClient, from };
+  }
+  it('lee por id fuera de los últimos 100 y calcula la caducidad', async () => {
+    const { client, from } = archive(old);
+    const result = await getChallenge(client, 'old', 'u1');
+    expect(result).toMatchObject({ id: 'old', status: 'expired', iAmChallenger: true, rival: { id: 'u2' }, mine: { distance_m: 1000 }, theirs: null });
+    expect(result?.mine).not.toHaveProperty('user_id');
+    expect(from).toHaveBeenCalledWith('challenge_results');
+  });
+  it('no muestra un reto ausente ni de terceros', async () => {
+    const missing = archive(null);
+    expect(await getChallenge(missing.client, 'old', 'u1')).toBeNull();
+    const foreign = archive(old);
+    expect(await getChallenge(foreign.client, 'old', 'stranger')).toBeNull();
+    expect(foreign.from).toHaveBeenCalledTimes(1);
+  });
+});
 
 /** Recta sintética hacia el este, un punto cada ~8 m. */
 const line = (n: number, ele = true): RoutePoint[] =>

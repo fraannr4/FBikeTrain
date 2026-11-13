@@ -26,7 +26,7 @@ test('entrar, editar el perfil y salir conserva la separación de datos', async 
   await page.getByLabel('Correo electrónico').fill('synthetic@example.invalid');
   await page.getByLabel('Contraseña', { exact: true }).fill('synthetic-password');
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await page.getByRole('link', { name: /Tu perfil/ }).click();
+  await page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Tu perfil', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Tu perfil' })).toBeVisible();
   await page.getByLabel('Nombre visible').fill('Ana Ciclista');
   await page.getByLabel('Quién puede ver tus estadísticas').selectOption('friends');

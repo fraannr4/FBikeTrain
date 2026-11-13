@@ -12,11 +12,12 @@ export const TAB_ROOT: Record<TabId, string> = {
   mas: '/mas',
 };
 
-/** Pestaña a la que pertenece una ruta. Importar, Ajustes, Tu zona, Amigos y Retos se abren desde Más. */
+/** Agrupa las pantallas secundarias: Perfil con cuenta en móvil; Más en el modo local. */
 export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/historial')) return 'historial';
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
+  if (pathname.startsWith('/perfil') || pathname.startsWith('/personas')) return 'mas';
   if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos')) return 'mas';
   return 'inicio';
 }
@@ -34,6 +35,7 @@ const NAMES: Record<string, string> = {
   '/plan': 'Plan',
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',
+  '/perfil': 'Tu perfil',
   '/importar': 'Importar',
   '/compartido': 'Ficheros compartidos',
   '/ajustes': 'Ajustes',
@@ -51,6 +53,7 @@ export function screenName(pathname: string): string {
   if (path.startsWith('/historial/repetidas/')) return 'Repetidas';
   if (path.startsWith('/historial/')) return 'Salida';
   if (path.startsWith('/retos/')) return 'Reto';
+  if (path.startsWith('/personas/')) return 'Perfil del ciclista';
   return 'Inicio';
 }
 
