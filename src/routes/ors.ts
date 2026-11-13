@@ -38,6 +38,8 @@ export class OrsError extends Error {
     public kind: OrsErrorKind,
     message: string,
     public code?: number,
+    /** Segundos hasta que el servicio vuelve a admitir consultas, si los dice. */
+    public retryAfterS?: number,
   ) {
     super(message);
     this.name = 'OrsError';

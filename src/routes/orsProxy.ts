@@ -18,7 +18,7 @@ export type SharedOrsAccess = {
 
 /** Límites por usuario de `consume_shared_ors_quota`. */
 const USER_DAY = 150;
-const USER_MINUTE = 8;
+const USER_MINUTE = 30;
 /** Para la interfaz: los límites del servicio común que ve cada persona. */
 export const SHARED_ORS_LIMITS = `hasta ${USER_DAY} consultas al día y ${USER_MINUTE} por minuto por persona`;
 
@@ -36,7 +36,7 @@ function quotaError(retryAfterS: number): OrsError {
     const hours = Math.max(1, Math.round(retryAfterS / 3600));
     return new OrsError('quota_day', `Se ha llegado al límite diario del servicio común de rutas (${USER_DAY} consultas al día por persona, o el total compartido). Se renueva en unas ${hours} h; mientras, puedes usar tu propia clave en Ajustes, apartado Avanzado.`);
   }
-  return new OrsError('rate_minute', `El servicio común de rutas admite ${USER_MINUTE} consultas por minuto por persona. Espera ${Math.max(1, Math.ceil(retryAfterS))} s y vuelve a probar.`);
+  return new OrsError('rate_minute', `El servicio común de rutas admite ${USER_MINUTE} consultas por minuto por persona. Espera ${Math.max(1, Math.ceil(retryAfterS))} s y vuelve a probar.`, undefined, retryAfterS);
 }
 
 /** Mismo papel que `fetchRoadFeature`, pero con la sesión en lugar de la clave y la operación en lugar del cuerpo de ORS. */

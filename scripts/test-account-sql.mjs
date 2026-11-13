@@ -30,6 +30,7 @@ try {
   await db.exec(await readFile(new URL('../supabase/tests/shared_ai_quota.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuotas IA por usuario/global y permisos exclusivos del servidor.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100001_shared_ors_quota.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202611130004_ors_user_minute.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/shared_ors_quota.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuotas del motor de rutas compartido por usuario/global y permisos exclusivos del servidor.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611100002_route_sources_cache.sql', import.meta.url), 'utf8'));

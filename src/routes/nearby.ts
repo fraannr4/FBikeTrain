@@ -142,8 +142,10 @@ export async function proposeNearbyRoutes(target: NearbyTarget, deps: NearbyDeps
       } catch (e) {
         if (signal?.aborted || !(e instanceof OrsError) || e.kind !== 'rate_minute' || rateWaits >= MAX_RATE_WAITS) throw e;
         rateWaits++;
-        deps.onUpdate?.({ kind: 'waiting', seconds: RATE_WAIT_MS / 1000 });
-        await wait(RATE_WAIT_MS, signal);
+        // El servicio común cuenta por minuto de reloj y dice cuánto falta; con clave propia no lo dice.
+        const ms = e.retryAfterS ? Math.min(RATE_WAIT_MS, Math.ceil(e.retryAfterS) * 1000 + 1000) : RATE_WAIT_MS;
+        deps.onUpdate?.({ kind: 'waiting', seconds: ms / 1000 });
+        await wait(ms, signal);
       }
     }
   };

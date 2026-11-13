@@ -40,7 +40,7 @@ describe('cliente del motor de rutas compartido', () => {
   it.each([
     [401, {}, 'session', /sesión/],
     [429, { retryAfterS: 7200 }, 'quota_day', /150 consultas al día/],
-    [429, { retryAfterS: 30 }, 'rate_minute', /8 consultas por minuto/],
+    [429, { retryAfterS: 30 }, 'rate_minute', /30 consultas por minuto/],
     [503, {}, 'unreachable', /no está disponible/],
     [404, {}, 'no_route', /carretera/],
     [502, {}, 'server', /motor de rutas/],

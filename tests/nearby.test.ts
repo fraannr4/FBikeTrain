@@ -305,6 +305,15 @@ describe('proposeNearbyRoutes', () => {
     expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
   });
 
+  it('con el servicio común espera solo lo que falta para el siguiente minuto, más un segundo', async () => {
+    const wait = vi.fn(async () => {});
+    const updates: NearbyUpdate[] = [];
+    const fetchPath = fakePath({ fail: (call) => (call === 3 ? new OrsError('rate_minute', 'Espera 12 s.', undefined, 12) : null) });
+    await proposeNearbyRoutes(target, deps({ fetchPath, wait, onUpdate: (u) => updates.push(u) }));
+    expect(wait).toHaveBeenCalledWith(13_000, undefined);
+    expect(updates).toContainEqual({ kind: 'waiting', seconds: 13 });
+  });
+
   it('cancelar durante la espera corta al momento con AbortError', async () => {
     const controller = new AbortController();
     const wait = vi.fn(async (_ms: number, signal?: AbortSignal) => {

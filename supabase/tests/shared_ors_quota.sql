@@ -16,13 +16,15 @@ set local role anon;
 select pg_temp.expect_ors_denied('select * from public.consume_shared_ors_quota(''00000000-0000-0000-0000-000000000001'', 1)');
 reset role;
 
--- Límite por minuto y usuario: 8.
+-- Límite por minuto y usuario: 30.
 set local role service_role;
-select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 7)), 'siete consultas de golpe');
-select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'la octava cabe');
-select pg_temp.assert_ors((select not allowed and retry_after_s between 1 and 60 from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'la novena supera el minuto por usuario');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'ocho consultas de golpe');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'dieciséis');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 8)), 'veinticuatro');
+select pg_temp.assert_ors((select allowed from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 6)), 'la trigésima cabe');
+select pg_temp.assert_ors((select not allowed and retry_after_s between 1 and 60 from public.consume_shared_ors_quota('00000000-0000-0000-0000-000000000001', 1)), 'la 31 supera el minuto por usuario');
 reset role;
-select pg_temp.assert_ors((select calls = 8 from public.shared_ai_usage where bucket = 'ors:global:day'), 'el coste se suma y el rechazo no consume');
+select pg_temp.assert_ors((select calls = 30 from public.shared_ai_usage where bucket = 'ors:global:day'), 'el coste se suma y el rechazo no consume');
 select pg_temp.assert_ors(not exists (select 1 from public.shared_ai_usage where bucket like 'user:%' or bucket like 'global:%'), 'no toca los contadores de la IA');
 
 -- Coste no válido.
