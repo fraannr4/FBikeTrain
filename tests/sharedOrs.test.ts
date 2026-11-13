@@ -143,3 +143,32 @@ describe('ORS compartido: límites y privacidad', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+describe('zonas que se evitan', () => {
+  const avoid = [{ lat: 40.42, lng: -3.7 }, { lat: 40.425, lng: -3.695 }];
+
+  it('cada punto se convierte en un cuadrado de unos 120 m en `options.avoid_polygons`', () => {
+    const body = buildOrsBody({ ...path, operation: 'path', avoid }) as { options: { avoid_features: string[]; avoid_polygons: { type: string; coordinates: number[][][][] } } };
+    expect(body.options.avoid_features).toEqual(['ferries', 'fords', 'steps']);
+    expect(body.options.avoid_polygons.type).toBe('MultiPolygon');
+    expect(body.options.avoid_polygons.coordinates).toHaveLength(2);
+    const ring = body.options.avoid_polygons.coordinates[0][0];
+    expect(ring).toHaveLength(5);
+    expect(ring[0]).toEqual(ring[4]);
+    const lats = ring.map(([, lat]) => lat);
+    const lngs = ring.map(([lng]) => lng);
+    expect((Math.max(...lats) - Math.min(...lats)) * 111_320).toBeCloseTo(120, 0);
+    expect((Math.max(...lngs) - Math.min(...lngs)) * 111_320 * Math.cos((40.42 * Math.PI) / 180)).toBeCloseTo(120, 0);
+    expect((Math.max(...lats) + Math.min(...lats)) / 2).toBeCloseTo(40.42, 6);
+  });
+
+  it('sin puntos no se manda `avoid_polygons`', () => {
+    expect((buildOrsBody({ ...path, operation: 'path' }) as { options: object }).options).toEqual({ avoid_features: ['ferries', 'fords', 'steps'] });
+  });
+
+  it('el servicio admite como mucho 12 puntos', async () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ lat: 40.42 + i * 0.001, lng: -3.7 }));
+    expect((await handleSharedOrs(request({ ...path, avoid: many(12) }), mock())).status).toBe(200);
+    expect((await handleSharedOrs(request({ ...path, avoid: many(13) }), mock())).status).toBe(400);
+  });
+});

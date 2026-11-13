@@ -73,8 +73,11 @@ export async function fetchRoundTrip(
 }
 
 /** Geometría completa recalculada; no conserva segmentos del GPX original. */
-export async function fetchPathFeature(access: OrsAccess, waypoints: LatLng[], signal?: AbortSignal): Promise<OrsFeature> {
-  const request: SharedOrsRequest = { operation: 'path', waypoints: waypoints.map(p => ({ lat: p.lat, lng: p.lng })) };
+export async function fetchPathFeature(access: OrsAccess, waypoints: LatLng[], signal?: AbortSignal, avoid?: LatLng[]): Promise<OrsFeature> {
+  const request: SharedOrsRequest = {
+    operation: 'path', waypoints: waypoints.map(p => ({ lat: p.lat, lng: p.lng })),
+    ...(avoid?.length ? { avoid: avoid.map(p => ({ lat: p.lat, lng: p.lng })) } : {}),
+  };
   return typeof access === 'string'
     ? fetchRoadFeature(access, buildOrsBody(request), signal)
     : access.fetch(request, signal);

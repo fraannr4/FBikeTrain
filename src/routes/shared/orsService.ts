@@ -15,9 +15,26 @@ export const sharedOrsRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({
     operation: z.literal('path'), waypoints: z.array(point).min(2).max(8),
     alternatives: z.number().int().min(2).max(3).optional(),
+    /** Puntos por los que la ruta no debe pasar (pistas ya vistas): el servidor los convierte en cuadrados pequeños. */
+    avoid: z.array(point).max(12).optional(),
   }).refine(r => r.alternatives === undefined || r.waypoints.length === 2, 'ORS solo da alternativas entre dos puntos'),
 ]);
 export type SharedOrsRequest = z.infer<typeof sharedOrsRequestSchema>;
+
+/** Mitad del lado del cuadrado que se evita alrededor de cada punto de `avoid`. */
+const AVOID_HALF_M = 60;
+
+/** `options.avoid_polygons` de ORS: un cuadrado por punto. */
+function avoidPolygons(points: { lat: number; lng: number }[]): object {
+  return {
+    type: 'MultiPolygon',
+    coordinates: points.map(({ lat, lng }) => {
+      const dLat = AVOID_HALF_M / 111_320;
+      const dLng = dLat / Math.cos((lat * Math.PI) / 180);
+      return [[[lng - dLng, lat - dLat], [lng + dLng, lat - dLat], [lng + dLng, lat + dLat], [lng - dLng, lat + dLat], [lng - dLng, lat - dLat]]];
+    }),
+  };
+}
 
 /** Cuerpo de `POST /v2/directions/cycling-road/geojson`. Lo usan también las peticiones con clave personal. */
 export function buildOrsBody(r: SharedOrsRequest): object {
@@ -31,7 +48,8 @@ export function buildOrsBody(r: SharedOrsRequest): object {
     };
   }
   return {
-    coordinates: r.waypoints.map(p => [p.lng, p.lat]), ...common, options: { avoid_features },
+    coordinates: r.waypoints.map(p => [p.lng, p.lat]), ...common,
+    options: { avoid_features, ...(r.avoid?.length ? { avoid_polygons: avoidPolygons(r.avoid) } : {}) },
     // Valores por defecto documentados de ORS; solo admite alternativas con dos coordenadas.
     ...(r.alternatives ? { alternative_routes: { target_count: r.alternatives, weight_factor: 1.4, share_factor: 0.6 } } : {}),
   };

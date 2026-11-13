@@ -52,7 +52,8 @@ export async function historyWaypoints(start: LatLng, band: { minM: number; maxM
   const inBand = (m: number) => m >= band.minM && m <= band.maxM;
   const track = deps.track ?? getTrack;
 
-  const passes = await historyPasses(start, deps.climbs, track, signal);
+  // Con la banda de la vuelta, no con los 15-40 km de los puertos: una vuelta corta tiene sus subidas más cerca.
+  const passes = await historyPasses(start, deps.climbs, track, signal, band);
   const out: HistoryWaypoint[] = passes
     .filter((p) => inBand(p.distanceM))
     .slice(0, MAX_CLIMBS)

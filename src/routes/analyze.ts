@@ -31,6 +31,8 @@ const SURFACE_UNKNOWN = 0;
 const PAVED_SURFACES: ReadonlySet<number> = new Set([1, 3, 4, 14]);
 const WAYTYPE_STATE_ROAD = 1;
 const WAYTYPE_TRACK = 5;
+/** Tipos de vía de ORS que son carretera o calle: principal (1), carretera (2) y calle (3). */
+const ROAD_WAYTYPES: ReadonlySet<number> = new Set([1, 2, 3]);
 /** Bit de `waycategory` de ORS para `highway=motorway` y `motorway_link`. */
 const WAYCATEGORY_MOTORWAY = 1;
 
@@ -99,6 +101,65 @@ function roughTrackM(waytypes: OrsExtra, surface: OrsExtra, cum: number[]): numb
     }
   }
   return Math.max(0, m);
+}
+
+/**
+ * Porcentaje de la ruta sin dato de firme fuera de carreteras y calles. En OSM muchas carreteras comarcales no
+ * declaran `surface`: ahí el dato que falta no indica tierra; en un camino o una senda, sí puede.
+ * Sin tramos por índice, cuenta todo el firme desconocido del resumen.
+ */
+export function unknownSurfaceOffRoadPct(f: OrsFeature): number {
+  const { surface, waytypes } = f.properties.extras;
+  const unknown = surface.values.filter(([, , v]) => v === SURFACE_UNKNOWN);
+  if (surface.values.length === 0 || waytypes.values.length === 0) return sumSummary(surface, 'amount', (v) => v === SURFACE_UNKNOWN);
+  const cum = cumulativeM(f.geometry.coordinates);
+  const at = (i: number) => cum[Math.min(i, cum.length - 1)] ?? 0;
+  let m = 0;
+  for (const [from, to] of unknown) {
+    for (const [wFrom, wTo, value] of waytypes.values) {
+      if (ROAD_WAYTYPES.has(value)) continue;
+      const a = Math.max(from, wFrom);
+      const b = Math.min(to, wTo);
+      if (b > a) m += at(b) - at(a);
+    }
+  }
+  const total = cum[cum.length - 1] ?? 0;
+  return total > 0 ? (m / total) * 100 : 0;
+}
+
+/** Un tramo malo más corto que esto no se señala: suele ser un cruce o un error de etiquetado. */
+const MIN_ROUGH_SPOT_M = 50;
+
+/**
+ * Punto medio de cada tramo seguido sin asfaltar o de pista sin firme confirmado. Sirve para pedir a ORS
+ * que no vuelva a pasar por ahí.
+ */
+export function roughSpots(f: OrsFeature): { lat: number; lng: number }[] {
+  const coords = f.geometry.coordinates;
+  const { surface, waytypes } = f.properties.extras;
+  const segments = Math.max(0, coords.length - 1);
+  const mark = (extra: OrsExtra, match: (value: number) => boolean): boolean[] => {
+    const out = new Array<boolean>(segments).fill(false);
+    for (const [from, to, value] of extra.values) if (match(value)) out.fill(true, from, Math.min(to, segments));
+    return out;
+  };
+  const unpaved = mark(surface, (v) => UNPAVED_SURFACES.has(v));
+  const paved = mark(surface, (v) => PAVED_SURFACES.has(v));
+  const track = mark(waytypes, (v) => v === WAYTYPE_TRACK);
+  const cum = cumulativeM(coords);
+  const spots: { lat: number; lng: number }[] = [];
+  for (let i = 0; i < segments; i++) {
+    const rough = (k: number) => unpaved[k] || (track[k] && !paved[k]);
+    if (!rough(i)) continue;
+    let end = i;
+    while (end + 1 < segments && rough(end + 1)) end++;
+    if (cum[end + 1] - cum[i] >= MIN_ROUGH_SPOT_M) {
+      const [lng, lat] = coords[Math.round((i + end + 1) / 2)];
+      spots.push({ lat, lng });
+    }
+    i = end;
+  }
+  return spots;
 }
 
 /** Distancia y desnivel salen de las coordenadas, no del `summary` de ORS, para medir igual que el historial. */

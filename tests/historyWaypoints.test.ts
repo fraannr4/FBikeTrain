@@ -13,6 +13,16 @@ const tracksOf = (tracks: TrackPoint[][]) => async function* () { for (const t o
 const repeated = (n: number, ...places: LatLng[]) => Array.from({ length: n }, () => pass(...places));
 
 describe('historyWaypoints', () => {
+  it('includes a past climb inside the band even when it tops out closer than 15 km', async () => {
+    const top = northOf(10_000);
+    const points: TrackPoint[] = [9_000, 9_500, 10_000, 10_500].map((m, i) => ({ t: i * 1000, ...northOf(m), ele: 400 + i * 100 }));
+    const climb = { id: 'c1', activityId: 'a1', activityStart: 1, startIdx: 0, endIdx: 2, start: northOf(9_000), end: top, startDistM: 0, lengthM: 1000, gainM: 200, avgGradePct: 7, timeS: 600, avgSpeedMs: 5, vamMh: 1200 };
+    const out = await historyWaypoints(start, band, { climbs: [climb], track: async () => points, listTracks: tracksOf([]) });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ id: 'hist-climb-1', kind: 'habitual', name: 'Subida habitual 1', ele: 600 });
+    expect(await historyWaypoints(start, { minM: 12_000, maxM: 30_000 }, { climbs: [climb], track: async () => points, listTracks: tracksOf([]) })).toEqual([]);
+  });
+
   it('returns a habitual stretch repeated at least MIN_REPEATS times inside the band', async () => {
     const spot = northOf(10_000);
     const out = await historyWaypoints(start, band, { climbs: [], listTracks: tracksOf(repeated(MIN_REPEATS, spot)) });

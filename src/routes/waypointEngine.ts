@@ -15,7 +15,8 @@ export type EngineTarget = { distanceKm: number; elevGainM: number | null };
 
 /** Cuánto más larga que la línea recta es una vuelta de carretera. */
 export const ROAD_FACTOR = 1.3;
-const BAND_MIN = 0.15;
+/** En carreteras de montaña la vuelta sale 1,6 a 1,9 veces la línea recta: hacen falta puntos cercanos. */
+const BAND_MIN = 0.1;
 const BAND_MAX = 0.42;
 const DUPLICATE_M = 300;
 const PAIR_GAP_MIN_DEG = 20;
@@ -25,6 +26,14 @@ const CLOSE_TOLERANCE = 0.05;
 /** Lo que vale para la puntuación un punto del historial: el usuario ya lo elige. */
 const HISTORY_INTEREST = 2;
 const CLIMB_BONUS = 2;
+/** Con desnivel estimado: lo que resta cada 10 % de más que se aleja del pedido, pasado un 10 % de margen. */
+const GAIN_PENALTY = 10;
+const GAIN_MARGIN = 0.1;
+/**
+ * Lo que resta una pareja con un punto mucho más cerca del inicio que el otro. Medido desde Caldes: esas
+ * vueltas salen estrechas y repiten del 20 al 40 % de la carretera; las de puntos a distancia parecida, menos del 10 %.
+ */
+const UNBALANCED_PENALTY = 2;
 const MAX_COMBOS = 16;
 const DISTANCE_TOLERANCE = 0.1;
 const ELEVATION_TOLERANCE = 0.25;
@@ -33,6 +42,28 @@ const EPS = 1e-6;
 /** Distancias en línea recta a las que se buscan puntos de paso para una vuelta de `distanceKm`. */
 export function waypointBand(distanceKm: number): { minM: number; maxM: number } {
   return { minM: BAND_MIN * distanceKm * 1000, maxM: BAND_MAX * distanceKm * 1000 };
+}
+
+const RING_STEP_DEG = 30;
+/** Distancias del anillo, como fracción de la distancia pedida: con carreteras 1,5 a 1,9 veces la línea recta dan vueltas de una pareja o de un punto. */
+const RING_FRACTIONS = [0.2, 0.28];
+
+/**
+ * Puntos de paso sin datos de OSM: un anillo de rumbos alrededor del inicio. ORS ajusta cada uno a la
+ * carretera más próxima. Solo sirven cuando no hay puertos ni pueblos que elegir.
+ */
+export function ringWaypoints(start: LatLng, distanceKm: number): OsmWaypoint[] {
+  const out: OsmWaypoint[] = [];
+  for (const fraction of RING_FRACTIONS) {
+    const distanceM = fraction * distanceKm * 1000;
+    for (let deg = 0; deg < 360; deg += RING_STEP_DEG) {
+      const rad = (deg * Math.PI) / 180;
+      const lat = start.lat + (distanceM * Math.cos(rad)) / 111_320;
+      const lng = start.lng + (distanceM * Math.sin(rad)) / (111_320 * Math.cos((start.lat * Math.PI) / 180));
+      out.push({ id: `rumbo-${Math.round(fraction * 100)}-${deg}`, kind: 'pueblo', name: `rumbo ${directionName(deg)}`, lat, lng, ele: null, distanceM, interes: 0 });
+    }
+  }
+  return out;
 }
 
 /** Puntos dentro de la banda, con rumbo y dirección. Los duplicados a menos de 300 m se quitan: gana el del historial. */
@@ -66,24 +97,56 @@ export function estimateLoopKm(start: LatLng, points: LatLng[], roadFactor: numb
 /** Interés de un punto para puntuar: los del historial valen 2 porque el usuario ya los elige. */
 export const interestOf = (w: Waypoint): number => (w.kind === 'habitual' ? HISTORY_INTEREST : w.interes);
 
-type Scored = { combo: Combo; score: number; error: number };
+export type RankedCombo = {
+  combo: Combo; points: Waypoint[];
+  /** Rumbo del punto más lejano: hacia donde irá la vuelta. */
+  bearing: number;
+  straightKm: number; estimateKm: number;
+  /** Desnivel estimado, si se ha dado con qué estimarlo. */
+  gainM: number | null;
+  score: number; error: number;
+};
+export type RankOptions = {
+  /** Cuánto más larga que la línea recta sale la vuelta; puede depender del rumbo. */
+  roadFactor?: number | ((bearing: number) => number);
+  /** Desnivel estimado de una vuelta. Con él se ordena por cercanía al pedido en vez de preferir puertos y cimas. */
+  gainM?: (points: Waypoint[], estimateKm: number, bearing: number) => number | null;
+  skip?: (candidate: { combo: Combo; points: Waypoint[]; bearing: number; estimateKm: number }) => boolean;
+  /** Error admitido entre la estimación y la distancia pedida. */
+  tolerance?: number;
+};
+
+const better = (x: RankedCombo, y: RankedCombo) => y.score - x.score || x.error - y.error || x.combo.id.localeCompare(y.combo.id);
 
 /**
- * Combinaciones de 1 punto o de 2 con rumbos separados entre 20° y 90° (en el orden de giro). Entran las que
- * estiman la distancia pedida ±15 %. En cada dirección gana la que pasa por los puntos de más interés y,
- * con desnivel pedido, por más puertos y cimas.
+ * Combinaciones de 1 punto o de 2 con rumbos separados entre 20° y 90° (en el orden de giro) cuya estimación
+ * cae dentro de la tolerancia, de mejor a peor: más interés, más cerca de la distancia y, con desnivel pedido,
+ * más cerca del desnivel (o, sin forma de estimarlo, con más puertos y cimas).
  */
-export function codeCombos(start: LatLng, waypoints: Waypoint[], target: EngineTarget, roadFactor: number = ROAD_FACTOR): Combo[] {
-  const scored: Scored[] = [];
+export function rankCombos(start: LatLng, waypoints: Waypoint[], target: EngineTarget, options: RankOptions = {}): RankedCombo[] {
+  const { roadFactor = ROAD_FACTOR, tolerance = COMBO_TOLERANCE } = options;
+  const ranked: RankedCombo[] = [];
   const consider = (points: Waypoint[], direccion: Direccion) => {
-    const km = estimateLoopKm(start, points, roadFactor);
-    const error = Math.abs(km - target.distanceKm) / target.distanceKm;
-    if (error > COMBO_TOLERANCE) return;
-    let score = points.reduce((sum, p) => sum + interestOf(p), 0);
-    if (target.elevGainM !== null) score += CLIMB_BONUS * points.filter((p) => p.kind === 'puerto' || p.kind === 'cima').length;
-    if (error <= CLOSE_TOLERANCE) score += 1;
+    const bearing = points.reduce((far, p) => (p.distanceM > far.distanceM ? p : far)).bearing;
+    const straightKm = estimateLoopKm(start, points, 1);
+    const estimateKm = straightKm * (typeof roadFactor === 'number' ? roadFactor : roadFactor(bearing));
+    const error = Math.abs(estimateKm - target.distanceKm) / target.distanceKm;
+    if (error > tolerance) return;
     const waypointIds = points.map((p) => p.id);
-    scored.push({ combo: { id: waypointIds.join('+'), waypointIds, direccion, source: 'codigo' }, score, error });
+    const combo: Combo = { id: waypointIds.join('+'), waypointIds, direccion, source: 'codigo' };
+    if (options.skip?.({ combo, points, bearing, estimateKm })) return;
+    let score = points.reduce((sum, p) => sum + interestOf(p), 0);
+    if (points.length === 2) {
+      const [near, far] = points.map((p) => p.distanceM).sort((x, y) => x - y);
+      score -= UNBALANCED_PENALTY * (1 - near / far);
+    }
+    const gainM = target.elevGainM !== null ? options.gainM?.(points, estimateKm, bearing) ?? null : null;
+    if (target.elevGainM !== null) {
+      if (gainM === null) score += CLIMB_BONUS * points.filter((p) => p.kind === 'puerto' || p.kind === 'cima').length;
+      else score -= GAIN_PENALTY * Math.max(0, Math.abs(gainM - target.elevGainM) / target.elevGainM - GAIN_MARGIN);
+    }
+    if (error <= CLOSE_TOLERANCE) score += 1;
+    ranked.push({ combo, points, bearing, straightKm, estimateKm, gainM, score, error });
   };
 
   for (const a of waypoints) {
@@ -94,22 +157,25 @@ export function codeCombos(start: LatLng, waypoints: Waypoint[], target: EngineT
       if (gap >= PAIR_GAP_MIN_DEG && gap <= PAIR_GAP_MAX_DEG) consider([a, b], directionName(a.bearing + gap / 2));
     }
   }
+  return ranked.sort(better);
+}
 
-  const better = (x: Scored, y: Scored) => y.score - x.score || x.error - y.error || x.combo.id.localeCompare(y.combo.id);
-  const byDirection = new Map<Direccion, Scored[]>();
-  for (const s of scored) {
-    const list = byDirection.get(s.combo.direccion);
-    if (list) list.push(s);
-    else byDirection.set(s.combo.direccion, [s]);
+/**
+ * Las combinaciones de `rankCombos` repartidas por rumbo: primero la mejor de cada dirección, de más a menos
+ * puntuación, y después la segunda mejor de cada una. Como mucho 16.
+ */
+export function codeCombos(start: LatLng, waypoints: Waypoint[], target: EngineTarget, roadFactor: number = ROAD_FACTOR): Combo[] {
+  const byDirection = new Map<Direccion, RankedCombo[]>();
+  for (const r of rankCombos(start, waypoints, target, { roadFactor })) {
+    const list = byDirection.get(r.combo.direccion);
+    if (list) list.push(r);
+    else byDirection.set(r.combo.direccion, [r]);
   }
-  for (const list of byDirection.values()) list.sort(better);
-
-  const out: Scored[] = [];
+  const out: RankedCombo[] = [];
   for (let rank = 0; rank < 2; rank++) {
-    const round = [...byDirection.values()].map((list) => list[rank]).filter((s): s is Scored => !!s).sort(better);
-    out.push(...round);
+    out.push(...[...byDirection.values()].map((list) => list[rank]).filter((r): r is RankedCombo => !!r).sort(better));
   }
-  return out.slice(0, MAX_COMBOS).map((s) => s.combo);
+  return out.slice(0, MAX_COMBOS).map((r) => r.combo);
 }
 
 /** Línea de paso de una combinación: inicio, puntos (con entrada y salida del historial) e inicio. */

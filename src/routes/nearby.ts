@@ -1,23 +1,23 @@
 import { isAbort } from '../ai/abort';
 import type { Direccion } from '../ai/contracts';
-import { directionName } from '../ai/references';
 import { combineWaypoints, type SharedWaypointPlanner } from '../ai/waypointCombos';
 import type { Coord3, LatLng } from '../domain/types';
+import { haversineM } from '../import/summary';
 import type { UserReference } from '../metrics/reference';
 import type { Target } from '../metrics/score';
-import { analyzeRoute, type RouteCandidate } from './analyze';
+import { analyzeRoute, rejectReason, roughSpots, type RouteCandidate, unknownSurfaceOffRoadPct } from './analyze';
 import { RATE_WAIT_MS, sleep, type Proposal, type RecommendTarget } from './catalog/recommend';
-import { fitsDiversity, routeBearing } from './diversity';
+import { angleGap, fitsDiversity, MIN_HEADING_GAP_DEG, routeBearing } from './diversity';
 import { generateRoutes, MAX_INTENT_BACKTRACK, rateCandidate, type GeneratedRoute } from './generator';
 import type { HistoryWaypoint } from './historyWaypoints';
 import { visitsWaypoints } from './intent';
-import { fetchPathFeature, OrsError, type OrsErrorKind, type OrsFeature } from './ors';
+import { fetchPathFeature, fetchRoundTrip, OrsError, type OrsErrorKind, type OrsFeature } from './ors';
 import { geometryQuality } from './quality';
 import { routeSide } from './side';
 import { RwgpsError } from './sources/ridewithgps';
 import { MAX_PROPOSALS, MIN_PROPOSALS, proposeRwgpsRoutes, type RwgpsProposalDeps, type RwgpsProposalUpdate } from './sources/rwgpsProposals';
 import type { OsmWaypoint } from './sources/waypoints';
-import { comboWaypoints, estimateLoopKm, fitsTarget, ROAD_FACTOR, toWaypoints, waypointBand, type Combo, type EngineTarget, type Waypoint } from './waypointEngine';
+import { comboWaypoints, estimateLoopKm, fitsTarget, rankCombos, ringWaypoints, ROAD_FACTOR, toWaypoints, waypointBand, type Combo, type EngineTarget, type Waypoint } from './waypointEngine';
 
 /**
  * «Rutas cerca»: primero las rutas reales de la colección común que encajan y después las del motor,
@@ -29,10 +29,26 @@ import { comboWaypoints, estimateLoopKm, fitsTarget, ROAD_FACTOR, toWaypoints, w
 export const NEARBY_ORS_BUDGET = 14;
 /** Retroceso admitido en una vuelta por una cima en fondo de saco: se sube y se baja por la misma carretera. */
 export const DEAD_END_BACKTRACK = 0.3;
-/** Esperas por el límite por minuto antes de dar el motor por cortado. */
+/** Esperas por el límite por minuto en toda la búsqueda antes de dar el motor por cortado. */
 const MAX_RATE_WAITS = 3;
 /** Una combinación cuya estimación corregida queda más lejos que esto de la distancia pedida no se pide. */
 const ESTIMATE_TOLERANCE = 0.12;
+/** Lo medido en una vuelta vale para las combinaciones cuyo rumbo queda a menos de esto: las carreteras de un mismo lado se parecen. */
+const LOCAL_DEG = 60;
+/** Metros de subida por km que no explican las cotas de los puntos (el terreno ondula), antes de medirlo. */
+const UNDULATION_PRIOR = 10;
+/** Con el desnivel ya medido hacia un rumbo, no se pide una combinación cuya estimación se aleja más que esto del pedido. */
+const GAIN_ESTIMATE_TOLERANCE = 0.35;
+/** Puntos de pista que se piden evitar a ORS, como mucho (el límite del servicio). */
+const MAX_AVOID = 12;
+/** Dos puntos de pista a menos de esto son el mismo tramo. */
+const SAME_SPOT_M = 150;
+/** Pistas a menos de esto de la salida no se piden evitar: todas las vueltas pasan por allí y ORS se queda sin ruta. */
+const AVOID_CLEAR_START_M = 2000;
+/** El móvil no espera más que esto a Overpass: el servidor sigue y lo deja en caché para la siguiente búsqueda. */
+const WAYPOINTS_WAIT_MS = 20_000;
+/** Consultas por dirección: si tres combinaciones hacia el mismo lado no valen, se deja ese lado. */
+const MAX_TRIES_PER_DIRECTION = 3;
 const RADIUS_STEP_M = 5_000;
 const MIN_RADIUS_M = 8_000;
 const MAX_RADIUS_M = 35_000;
@@ -59,6 +75,10 @@ export type NearbyDeps = Omit<RwgpsProposalDeps, 'onUpdate'> & {
   /** Sin esta fuente (o sin la del historial) se sigue con la otra. */
   findWaypoints?: (start: LatLng, radiusM: number, signal?: AbortSignal) => Promise<OsmWaypoint[]>;
   historyWaypoints?: (start: LatLng, band: { minM: number; maxM: number }, signal?: AbortSignal) => Promise<HistoryWaypoint[]>;
+  /** Puntos de paso cuando OSM no da ninguno; por defecto, un anillo de rumbos (`ringWaypoints`). */
+  fallbackWaypoints?: (start: LatLng, distanceKm: number) => OsmWaypoint[];
+  /** Lo que se espera a los puntos de OSM antes de seguir sin ellos; por defecto 20 s. */
+  waypointsWaitMs?: number;
   ai: SharedWaypointPlanner | null;
   fetchPath?: typeof fetchPathFeature;
   generate?: typeof generateRoutes;
@@ -109,6 +129,37 @@ export async function proposeNearbyRoutes(target: NearbyTarget, deps: NearbyDeps
     warnings, requestsUsed: used, usedAi,
   });
   const noteGain = (c: RouteCandidate) => { if (fitsTarget(c, lengthOnly)) bestGainM = Math.max(bestGainM, c.elevGainM); };
+  let rateWaits = 0;
+  /**
+   * Límite por minuto del servicio de rutas: espera con cuenta atrás y repite la misma consulta, tanto en las
+   * vueltas por puntos de paso como en las circulares. La consulta rechazada no gasta presupuesto.
+   */
+  const patient = async <T>(call: () => Promise<T>): Promise<T> => {
+    for (;;) {
+      signal?.throwIfAborted();
+      try {
+        return await call();
+      } catch (e) {
+        if (signal?.aborted || !(e instanceof OrsError) || e.kind !== 'rate_minute' || rateWaits >= MAX_RATE_WAITS) throw e;
+        rateWaits++;
+        deps.onUpdate?.({ kind: 'waiting', seconds: RATE_WAIT_MS / 1000 });
+        await wait(RATE_WAIT_MS, signal);
+      }
+    }
+  };
+
+  // Los puntos de paso de OSM (lentos en frío) y los del historial se piden ya, a la vez que las rutas reales.
+  const band = waypointBand(distanceKm);
+  let waitTimer: ReturnType<typeof setTimeout> | undefined;
+  const tooSlow = new Promise<never>((_, reject) => {
+    waitTimer = setTimeout(() => reject(new Error('lento')), deps.waypointsWaitMs ?? WAYPOINTS_WAIT_MS);
+  });
+  const loading = Promise.allSettled([
+    deps.findWaypoints
+      ? Promise.race([deps.findWaypoints(start, searchRadiusM(band.maxM), signal), tooSlow]).finally(() => clearTimeout(waitTimer))
+      : Promise.resolve([]),
+    deps.historyWaypoints ? deps.historyWaypoints(start, band, signal) : Promise.resolve([]),
+  ]);
 
   // 1. Rutas reales de la colección común.
   try {
@@ -132,90 +183,165 @@ export async function proposeNearbyRoutes(target: NearbyTarget, deps: NearbyDeps
     warnings.push(e.message);
   }
 
-  // 2. Puntos de paso de OSM y del historial, a la vez; si falla uno se sigue con el otro.
-  const band = waypointBand(distanceKm);
-  const [osm, history] = await Promise.allSettled([
-    deps.findWaypoints ? deps.findWaypoints(start, searchRadiusM(band.maxM), signal) : Promise.resolve([]),
-    deps.historyWaypoints ? deps.historyWaypoints(start, band, signal) : Promise.resolve([]),
-  ]);
+  // 2. Puntos de paso de OSM y del historial; si falla uno se sigue con el otro.
+  const [osm, history] = await loading;
   signal?.throwIfAborted();
   for (const r of [osm, history]) if (r.status === 'rejected' && isAbort(r.reason)) throw r.reason;
-  if (osm.status === 'rejected') warnings.push('No se han podido cargar los puertos, cimas y pueblos de la zona: se sigue con tu historial y con vueltas circulares.');
   if (history.status === 'rejected') warnings.push('No se ha podido leer tu historial: se sigue con los puertos y pueblos de la zona.');
-  const waypoints = toWaypoints(start, [
+  const found = [
     ...(osm.status === 'fulfilled' ? osm.value : []),
     ...(history.status === 'fulfilled' ? history.value : []),
-  ], band);
-  deps.onUpdate?.({ kind: 'waypoints', count: waypoints.length });
-  if (waypoints.length === 0) {
-    warnings.push(`No hay puertos, cimas, pueblos ni tramos habituales entre ${fmt(band.minM / 1000)} y ${fmt(band.maxM / 1000)} km del inicio: se buscan vueltas circulares.`);
+  ];
+  let waypoints = toWaypoints(start, found, band);
+  // Sin puntos de OSM (servicio caído, lento o zona vacía) se usan puntos por rumbo: ORS los ajusta a carretera.
+  if (osm.status === 'rejected' || waypoints.length === 0) {
+    waypoints = toWaypoints(start, [...found, ...(deps.fallbackWaypoints ?? ringWaypoints)(start, distanceKm)], band);
+    warnings.push(osm.status === 'rejected'
+      ? 'No se han podido cargar a tiempo los puertos, cimas y pueblos de la zona: se usan puntos por rumbo alrededor del inicio.'
+      : `No hay puertos, cimas, pueblos ni tramos habituales entre ${fmt(band.minM / 1000)} y ${fmt(band.maxM / 1000)} km del inicio: se usan puntos por rumbo alrededor del inicio.`);
   }
+  deps.onUpdate?.({ kind: 'waypoints', count: waypoints.length });
 
   // 3. Combinaciones: las de la IA primero, completadas con las del código.
   const combined = await combineWaypoints(start, waypoints, engineTarget, deps.ai, signal);
   usedAi = combined.usedAi;
 
-  // 4. Cada combinación, de una en una, convertida en vuelta por ORS.
+  // 4. De una en una. Cada respuesta de ORS enseña cuánto se alarga la carretera y cuánto ondula el terreno
+  // hacia ese rumbo, y con eso se elige la siguiente combinación: así no se gastan consultas en vueltas que
+  // van a salir largas, con demasiado desnivel o hacia un lado ya ocupado.
   const byId = new Map(waypoints.map((w) => [w.id, w]));
-  const occupied = new Set<Direccion>(real.map((c) => directionName(routeBearing(c.proposal.adapted.coords, start))));
-  const factors: number[] = [];
   const fetchPath = deps.fetchPath ?? fetchPathFeature;
+  type Sample = { bearing: number; factor: number; undulation: number };
+  const samples: Sample[] = [];
+  /** Cota del inicio, de la primera respuesta de ORS. */
+  let baseEle: number | null = null;
+  /** Rumbos de las vueltas ya elegidas. */
+  const taken = lines.map((l) => routeBearing(l, start));
+  const triedKeys = new Set<string>();
+  const triesByDirection = new Map<Direccion, number>();
+  const aiCombos = combined.combos.filter((c) => c.source === 'ia');
   let tried = 0;
   let stopped = false;
 
-  const evaluate = (combo: Combo, points: LatLng[], straightKm: number, f: OrsFeature): MotorCard | null => {
+  const keyOf = (combo: Combo) => [...combo.waypointIds].sort().join('|');
+  const informed = (bearing: number) => samples.some((s) => angleGap(s.bearing, bearing) <= LOCAL_DEG);
+  /** Media de las dos medidas más próximas en rumbo; sin ninguna cerca, la mediana de todas; sin medidas, `prior`. */
+  const learned = (bearing: number, value: (s: Sample) => number, prior: number): number => {
+    const near = samples.filter((s) => angleGap(s.bearing, bearing) <= LOCAL_DEG)
+      .sort((x, y) => angleGap(x.bearing, bearing) - angleGap(y.bearing, bearing)).slice(0, 2);
+    return near.length ? near.reduce((sum, s) => sum + value(s), 0) / near.length : median(samples.map(value), prior);
+  };
+  const roadFactor = (bearing: number) => learned(bearing, (s) => s.factor, ROAD_FACTOR);
+  /** Subida que explican las cotas: del inicio a cada punto con cota conocida y de vuelta. */
+  const climbM = (points: Waypoint[], base: number): number => {
+    let prev = base;
+    let sum = 0;
+    for (const ele of [...points.map((p) => p.ele), base]) {
+      if (ele === null) continue;
+      sum += Math.max(0, ele - prev);
+      prev = ele;
+    }
+    return sum;
+  };
+  const gainOf = (points: Waypoint[], km: number, bearing: number): number | null =>
+    baseEle === null ? null : climbM(points, baseEle) + learned(bearing, (s) => s.undulation, UNDULATION_PRIOR) * km;
+  const skip = (c: { combo: Combo; points: Waypoint[]; bearing: number; estimateKm: number }): boolean => {
+    if (triedKeys.has(keyOf(c.combo)) || (triesByDirection.get(c.combo.direccion) ?? 0) >= MAX_TRIES_PER_DIRECTION) return true;
+    if (taken.some((h) => angleGap(h, c.bearing) < MIN_HEADING_GAP_DEG)) return true;
+    if (elevGainM === null || !informed(c.bearing)) return false;
+    const gain = gainOf(c.points, c.estimateKm, c.bearing);
+    return gain !== null && Math.abs(gain - elevGainM) > GAIN_ESTIMATE_TOLERANCE * elevGainM;
+  };
+  type Pick = { combo: Combo; points: Waypoint[]; bearing: number; straightKm: number };
+  /** Primero lo que propuso la IA; después la mejor del código, antes hacia donde ya se ha medido la carretera. */
+  const pick = (): Pick | null => {
+    for (const combo of aiCombos) {
+      const points = combo.waypointIds.map((id) => byId.get(id)).filter((w): w is Waypoint => !!w);
+      if (points.length === 0) continue;
+      const bearing = points.reduce((far, p) => (p.distanceM > far.distanceM ? p : far)).bearing;
+      const straightKm = estimateLoopKm(start, points, 1);
+      const estimateKm = straightKm * roadFactor(bearing);
+      if (Math.abs(estimateKm - distanceKm) > ESTIMATE_TOLERANCE * distanceKm || skip({ combo, points, bearing, estimateKm })) continue;
+      return { combo, points, bearing, straightKm };
+    }
+    const ranked = rankCombos(start, waypoints, engineTarget, { roadFactor, gainM: gainOf, skip, tolerance: ESTIMATE_TOLERANCE });
+    return ranked.find((r) => informed(r.bearing)) ?? ranked[0] ?? null;
+  };
+
+  /** Pistas vistas en las respuestas de ORS: las consultas siguientes las evitan. */
+  let avoid: LatLng[] = [];
+  /** Apunta las pistas nuevas de una vuelta descartada por pista o por tierra; `true` si había alguna. */
+  const learnTracks = (f: OrsFeature): boolean => {
+    const reason = rejectReason(analyzeRoute(f, tried), distanceKm * 1000);
+    if (reason !== 'pistas' && reason !== 'sin asfaltar') return false;
+    const fresh = roughSpots(f).filter((s) => haversineM(start.lat, start.lng, s.lat, s.lng) >= AVOID_CLEAR_START_M
+      && !avoid.some((a) => haversineM(a.lat, a.lng, s.lat, s.lng) < SAME_SPOT_M));
+    if (fresh.length === 0) return false;
+    avoid = [...avoid, ...fresh].slice(-MAX_AVOID);
+    return true;
+  };
+
+  const evaluate = (next: Pick, line: LatLng[], f: OrsFeature): MotorCard | null => {
     const coords = f.geometry.coordinates;
-    if (!visitsWaypoints(coords, points)) return null;
+    if (!visitsWaypoints(coords, line)) return null;
     const c = analyzeRoute(f, tried);
-    if (straightKm > 0) factors.push(c.distanceM / 1000 / straightKm);
-    if (!hasSurfaceData(f) || c.unknownSurfacePct > MAX_UNKNOWN_SURFACE_PCT) return null;
-    const comboPoints = combo.waypointIds.map((id) => byId.get(id)).filter((w): w is Waypoint => !!w);
-    const deadEnd = comboPoints.some((w) => w.kind === 'cima' && w.deadEnd);
+    if (next.straightKm > 0 && c.distanceM > 0) {
+      const km = c.distanceM / 1000;
+      baseEle ??= coords[0]?.[2] ?? null;
+      samples.push({ bearing: next.bearing, factor: km / next.straightKm, undulation: baseEle === null ? UNDULATION_PRIOR : Math.max(0, (c.elevGainM - climbM(next.points, baseEle)) / km) });
+    }
+    if (!hasSurfaceData(f) || unknownSurfaceOffRoadPct(f) > MAX_UNKNOWN_SURFACE_PCT) return null;
+    const deadEnd = next.points.some((w) => w.kind === 'cima' && w.deadEnd);
     if (geometryQuality(coords).backtrackM > c.distanceM * (deadEnd ? DEAD_END_BACKTRACK : MAX_INTENT_BACKTRACK)) return null;
     noteGain(c);
     if (!fitsTarget(c, engineTarget) || !fitsDiversity(toLine(coords), start, lines)) return null;
     // Los tramos del historial no se nombran con su posición.
-    const via = comboPoints.map((w) => (w.kind === 'habitual' ? 'tramo habitual' : w.name));
-    return { kind: 'motor', route: rateCandidate(c, scoreTarget, deps), via, combo: combo.source };
+    const via = next.points.map((w) => (w.kind === 'habitual' ? 'tramo habitual' : w.name));
+    return { kind: 'motor', route: rateCandidate(c, scoreTarget, deps), via, combo: next.combo.source };
   };
 
-  for (const combo of combined.combos) {
-    if (stopped || used >= NEARBY_ORS_BUDGET || slots() <= 0) break;
-    if (occupied.has(combo.direccion)) continue;
-    const points = comboWaypoints(start, combo, byId);
-    const straightKm = estimateLoopKm(start, points.slice(1, -1), 1);
-    const estimateKm = straightKm * median(factors, ROAD_FACTOR);
-    if (Math.abs(estimateKm - distanceKm) > ESTIMATE_TOLERANCE * distanceKm) continue;
+  while (!stopped && used < NEARBY_ORS_BUDGET && slots() > 0) {
+    const next = pick();
+    if (!next) break;
+    triedKeys.add(keyOf(next.combo));
+    triesByDirection.set(next.combo.direccion, (triesByDirection.get(next.combo.direccion) ?? 0) + 1);
+    const line = comboWaypoints(start, next.combo, byId);
 
-    let f: OrsFeature | null = null;
-    for (let waits = 0; ; waits++) {
+    let card: MotorCard | null = null;
+    // Cada combinación se pide como mucho dos veces: se repite cuando la vuelta sale con una pista que la
+    // segunda consulta ya puede evitar.
+    // Si los cuadrados que evitar dejan a ORS sin ruta, la misma combinación se repite una vez sin ellos.
+    let skipAvoid = false;
+    for (let attempt = 0; attempt < 2 && !stopped && used < NEARBY_ORS_BUDGET; attempt++) {
       signal?.throwIfAborted();
       used++;
+      let f: OrsFeature;
+      const sent = skipAvoid ? [] : avoid;
       try {
-        f = await fetchPath(deps.ors, points, signal);
-        break;
+        f = await patient(() => fetchPath(deps.ors, line, signal, sent.length ? sent : undefined));
       } catch (e) {
         if (isAbort(e) || signal?.aborted) throw e;
         if (!(e instanceof OrsError)) throw e;
-        if (e.kind === 'rate_minute' && waits < MAX_RATE_WAITS && used < NEARBY_ORS_BUDGET) {
-          deps.onUpdate?.({ kind: 'waiting', seconds: RATE_WAIT_MS / 1000 });
-          await wait(RATE_WAIT_MS, signal);
-          continue;
-        }
-        // Sin cuota, sin sesión o sin conexión se corta y se conserva lo aceptado; una combinación sin ruta deja paso a la siguiente.
+        // Solo pasa una vez por combinación: después `sent` va vacío.
+        if (e.kind === 'no_route' && sent.length) { skipAvoid = true; attempt--; continue; }
+        // Sin cuota, sin sesión, sin conexión o con las esperas agotadas se corta y se conserva lo aceptado;
+        // una combinación sin ruta deja paso a la siguiente.
         if (STOP_KINDS.has(e.kind) || e.kind === 'rate_minute') {
+          if (e.kind === 'rate_minute') used--;
           warnings.push(e.message);
           stopped = true;
         }
         break;
       }
+      card = evaluate(next, line, f);
+      if (card || !learnTracks(f)) break;
     }
     tried++;
-    const card = f ? evaluate(combo, points, straightKm, f) : null;
     if (card) {
+      const accepted = toLine(card.route.coords);
       motor.push(card);
-      lines.push(toLine(card.route.coords));
-      occupied.add(combo.direccion);
+      lines.push(accepted);
+      taken.push(routeBearing(accepted, start));
       deps.onUpdate?.({ kind: 'card', card });
     }
     deps.onUpdate?.({ kind: 'engine', tried, accepted: motor.length, budget: NEARBY_ORS_BUDGET });
@@ -226,7 +352,8 @@ export async function proposeNearbyRoutes(target: NearbyTarget, deps: NearbyDeps
     try {
       const res = await (deps.generate ?? generateRoutes)(
         { start, target: scoreTarget, count: slots(), usedSides: lines.map((l) => routeSide(toCoords(l), start)), budget: NEARBY_ORS_BUDGET - used },
-        { apiKey: deps.ors, reference: deps.reference, visited: deps.visited, signal },
+        { apiKey: deps.ors, reference: deps.reference, visited: deps.visited, signal,
+          fetchRoundTrip: (access, r, fetchImpl) => patient(() => fetchRoundTrip(access, r, fetchImpl)) },
       );
       used += res.requestsUsed;
       for (const route of res.routes) {

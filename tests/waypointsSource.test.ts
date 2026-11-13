@@ -1,4 +1,7 @@
-import { buildWaypointQuery, osmWaypointsSchema, parseWaypoints } from '../src/routes/sources/waypoints';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { buildWaypointQuery, loadWaypoints, osmWaypointsSchema, OVERPASS_ENDPOINTS, parseWaypoints } from '../src/routes/sources/waypoints';
+import { RouteSourceError } from '../src/routes/sources/schema';
 import { findWaypoints, type RouteSourceInvoker } from '../src/routes/sources/client';
 
 // Sintético, en el mar: ni tracks ni carreteras reales.
@@ -23,6 +26,18 @@ describe('puntos de paso de Overpass', () => {
     expect(parseWaypoints({ elements: [pass(), passRoad({ highway: 'secondary', surface: 'gravel' })] }, search)).toEqual([]);
     expect(names(parseWaypoints({ elements: [pass(), passRoad()] }, search))).toEqual(['Collado inventado']);
   });
+  it('solo cuenta una carretera de paso: ni pistas probables ni calles de urbanización', () => {
+    const peak = node(3, 0.2, { natural: 'peak', name: 'Cima inventada', ele: '900', wikidata: 'Q2' });
+    const access = (tags: Record<string, string>) => way(30, [31, 32], [[0.19, 0.0004], [0.21, 0.0004]], tags);
+    const found = (tags: Record<string, string>) => parseWaypoints({ elements: [peak, access(tags)] }, search).length;
+    // Una vía menor sin firme declarado suele ser una pista.
+    expect(found({ highway: 'unclassified' })).toBe(0);
+    // Una calle o un acceso asfaltados acaban en fondo de saco: la vuelta tendría que volver por donde entró.
+    expect(found({ highway: 'service', surface: 'asphalt' })).toBe(0);
+    expect(found({ highway: 'residential', surface: 'asphalt' })).toBe(0);
+    expect(found({ highway: 'unclassified', surface: 'asphalt' })).toBe(1);
+    expect(found({ highway: 'tertiary' })).toBe(1);
+  });
   it('marca deadEnd si la carretera acaba junto a la cima y no si pasa de largo', () => {
     const peak = node(3, 0.2, { natural: 'peak', name: 'Cima inventada', ele: '1400' });
     const ends = way(30, [31, 32], [[0.15, 0], [0.2009, 0]]); // acaba a 100 m
@@ -32,27 +47,35 @@ describe('puntos de paso de Overpass', () => {
     expect(a).toMatchObject({ id: 'osm-peak-3', kind: 'cima', deadEnd: true, interes: 2 });
     expect(b.deadEnd).toBeUndefined();
   });
-  it('un pueblo entra junto a una tertiary pero no junto a una residential', () => {
+  it('un pueblo entra sin cruzarlo con vías: basta con que sea village o town', () => {
     const town = node(2, 0.1, { place: 'town', name: 'Villa inventada' });
-    const road = (highway: string) => way(20, [21, 22], [[0.1, 0.001], [0.11, 0.001]], { highway });
-    expect(parseWaypoints({ elements: [town, road('tertiary')] }, search)).toHaveLength(1);
-    expect(parseWaypoints({ elements: [town, road('residential')] }, search)).toEqual([]);
+    expect(names(parseWaypoints({ elements: [town] }, search))).toEqual(['Villa inventada']);
   });
-  it('descarta lo que queda a menos de 3 km del inicio', () => {
+  it('descarta lo que queda a menos de 3 km del inicio o de un quinto del radio', () => {
     const near = node(4, 0.018, { place: 'village', name: 'Cerca' });
-    const road = way(40, [41, 42], [[0.018, 0.001], [0.03, 0.001]], { highway: 'tertiary' });
-    expect(parseWaypoints({ elements: [near, road] }, search)).toEqual([]);
+    expect(parseWaypoints({ elements: [near] }, { ...search, radiusM: 8_000 })).toEqual([]);
+    // 0,05 grados son 5,6 km: sirve para un radio de 10 km, no para uno de 30 km (mínimo 6 km).
+    const mid = node(5, 0.05, { place: 'village', name: 'Medio' });
+    expect(parseWaypoints({ elements: [mid] }, { ...search, radiusM: 10_000 })).toHaveLength(1);
+    expect(parseWaypoints({ elements: [mid] }, search)).toEqual([]);
   });
-  it('limita a 20 por tipo y a 60 en total, primero los de más interés', () => {
+  it('limita a 40 por tipo y a 120 en total, primero los de más interés', () => {
     const elements: object[] = [];
-    for (let i = 0; i < 30; i++) {
-      elements.push(node(100 + i, 0.1 + i * 0.001, { place: 'village', name: `Pueblo ${i}`, ...(i === 29 ? { wikidata: 'Q9' } : {}) }));
-      elements.push(way(200 + i, [300 + i, 400 + i], [[0.1 + i * 0.001, 0.001], [0.101 + i * 0.001, 0.001]], { highway: 'tertiary' }));
-    }
+    for (let i = 0; i < 50; i++) elements.push(node(100 + i, 0.1 + i * 0.001, { place: 'village', name: `Pueblo ${i}`, ...(i === 49 ? { wikidata: 'Q9' } : {}) }));
     const found = parseWaypoints({ elements }, search);
-    expect(found).toHaveLength(20);
-    expect(found[0].name).toBe('Pueblo 29');
-    expect(osmWaypointsSchema.safeParse(Array.from({ length: 61 }, () => found[0])).success).toBe(false);
+    expect(found).toHaveLength(40);
+    expect(found[0].name).toBe('Pueblo 49');
+    expect(osmWaypointsSchema.safeParse(Array.from({ length: 121 }, () => found[0])).success).toBe(false);
+  });
+  it('a igual interés reparte por rumbos y distancias en vez de quedarse con los más cercanos', () => {
+    const elements: object[] = [];
+    for (let i = 0; i < 60; i++) elements.push(node(100 + i, 0.08 + i * 0.0002, { place: 'village', name: `Norte ${i}` }));
+    elements.push(node(900, -0.2, { place: 'village', name: 'Sur lejano' }));
+    elements.push({ type: 'node', id: 901, lat: 0, lon: 0.15, tags: { place: 'village', name: 'Este' } });
+    const found = names(parseWaypoints({ elements }, search));
+    expect(found).toHaveLength(40);
+    expect(found).toContain('Sur lejano');
+    expect(found).toContain('Este');
   });
   it('rechaza una respuesta con remark', () => {
     expect(() => parseWaypoints({ elements: [], remark: 'timeout' }, search)).toThrow();
@@ -63,10 +86,64 @@ describe('puntos de paso de Overpass', () => {
     expect(query).not.toMatch(/node\(around:/);
     expect(() => buildWaypointQuery({ ...search, radiusM: 40_000 })).toThrow();
   });
-  it('el cliente envía kind waypoints con punto cuantizado y radio de 5 km', async () => {
+  it('la consulta cabe en memoria: solo cimas con cota y ficha, sin vías de los pueblos', () => {
+    const query = buildWaypointQuery(search);
+    expect(query).toContain('node[natural=peak][name][ele][~"^(wikidata|wikipedia)$"~"."]');
+    expect(query).not.toContain('around.towns');
+    expect(Number(/\[maxsize:(\d+)\]/.exec(query)?.[1])).toBeGreaterThanOrEqual(64 * 1024 * 1024);
+  });
+  it('lee una respuesta real recortada de Overpass (datos públicos de OSM)', () => {
+    const raw = JSON.parse(readFileSync(resolve('tests/fixtures/route-sources/overpass-waypoints.json'), 'utf8'));
+    const found = parseWaypoints(raw, { lat: 41.63, lon: 2.16, radiusM: 30_000 });
+    const byName = new Map(found.map(w => [w.name, w]));
+    expect(byName.get("Coll d'Estenalles")).toMatchObject({ kind: 'puerto', interes: 3 });
+    expect(byName.get('Collformic')).toMatchObject({ kind: 'puerto' });
+    // Al Turó de l'Home se llega por una vía de servicio: no es carretera de paso y no entra.
+    expect(byName.has("Turó de l'Home")).toBe(false);
+    expect(byName.get('el Tibidabo')).toMatchObject({ kind: 'cima', deadEnd: true });
+    expect(byName.get('Sant Llorenç Savall')).toMatchObject({ kind: 'pueblo', ele: null });
+    expect(found.every(w => w.distanceM >= 3_000 && w.distanceM <= 30_000)).toBe(true);
+    // El collado sin carretera asfaltada cerca no entra.
+    const passNodes = raw.elements.filter((e: { tags?: Record<string, string> }) => e.tags?.mountain_pass === 'yes' || e.tags?.natural === 'saddle');
+    expect(found.filter(w => w.kind === 'puerto').length).toBeLessThan(passNodes.length);
+  });
+  describe('loadWaypoints reintenta', () => {
+    const good = JSON.stringify({ elements: [node(2, 0.1, { place: 'town', name: 'Villa inventada' })] });
+    const memory = JSON.stringify({ elements: [], remark: 'runtime error: Query ran out of memory in "query" at line 1. It would need at least 32 MB of RAM to continue.' });
+    it('un remark de runtime error es un fallo reintentable, no «sin puntos»', async () => {
+      const transport = vi.fn().mockResolvedValueOnce(memory).mockResolvedValueOnce(memory).mockResolvedValue(good);
+      expect(names(await loadWaypoints(search, transport))).toEqual(['Villa inventada']);
+      expect(transport).toHaveBeenCalledTimes(4);
+      await expect(loadWaypoints(search, vi.fn().mockResolvedValue(memory))).rejects.toMatchObject({ code: 'invalid_response' });
+    });
+    it('pregunta a los dos servidores a la vez y se queda con el primero que responde bien', async () => {
+      const transport = vi.fn((url: string) => (url === OVERPASS_ENDPOINTS[0] ? new Promise<string>(() => {}) : Promise.resolve(good)));
+      expect(await loadWaypoints(search, transport)).toHaveLength(1);
+      expect(transport.mock.calls.map(c => c[0])).toEqual([...OVERPASS_ENDPOINTS]);
+      const half = vi.fn((url: string) => (url === OVERPASS_ENDPOINTS[0] ? Promise.reject(new RouteSourceError('blocked')) : Promise.resolve(good)));
+      expect(await loadWaypoints(search, half)).toHaveLength(1);
+      expect(half).toHaveBeenCalledTimes(2);
+    });
+    it('si fallan los dos (502/504/429) repite la ronda una vez', async () => {
+      const down = vi.fn().mockRejectedValue(new RouteSourceError('blocked'));
+      await expect(loadWaypoints(search, down)).rejects.toMatchObject({ code: 'blocked' });
+      expect(down).toHaveBeenCalledTimes(4);
+    });
+    it('un corte de red se reintenta; una cancelación no', async () => {
+      const transport = vi.fn().mockRejectedValueOnce(new TypeError('fetch failed')).mockRejectedValueOnce(new TypeError('fetch failed')).mockResolvedValue(good);
+      expect(await loadWaypoints(search, transport)).toHaveLength(1);
+      const cancelled = vi.fn().mockRejectedValue(new RouteSourceError('cancelled'));
+      await expect(loadWaypoints(search, cancelled)).rejects.toMatchObject({ code: 'cancelled' });
+      expect(cancelled).toHaveBeenCalledTimes(2);
+      const aborted = vi.fn().mockRejectedValue(new DOMException('Cancelado', 'AbortError'));
+      await expect(loadWaypoints(search, aborted)).rejects.toMatchObject({ name: 'AbortError' });
+      expect(aborted).toHaveBeenCalledTimes(2);
+    });
+  });
+  it('el cliente envía kind waypoints con punto cuantizado a 2 decimales y radio de 5 km', async () => {
     const invoke = vi.fn<RouteSourceInvoker['invoke']>().mockResolvedValue({ data: { data: [] }, error: null });
     await findWaypoints({ lat: 41.60049, lng: 2.16051 }, 21_000, { invoke });
-    expect(invoke).toHaveBeenCalledWith('route-sources', { body: { lat: 41.6, lon: 2.161, radiusM: 25_000, source: 'osm', kind: 'waypoints' }, signal: undefined });
+    expect(invoke).toHaveBeenCalledWith('route-sources', { body: { lat: 41.6, lon: 2.16, radiusM: 25_000, source: 'osm', kind: 'waypoints' }, signal: undefined });
     invoke.mockResolvedValue({ data: null, error: {} });
     await expect(findWaypoints({ lat: 0, lng: 0 }, 20_000, { invoke })).rejects.toThrow();
   });

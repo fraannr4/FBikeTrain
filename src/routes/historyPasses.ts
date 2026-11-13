@@ -6,10 +6,12 @@ export type LocalPass = Omit<MountainPass, 'ele'> & { ele: number | null };
 const gps = (p: TrackPoint | undefined): p is TrackPoint & LatLng => p?.lat !== undefined && p.lng !== undefined && Number.isFinite(p.lat) && Number.isFinite(p.lng);
 
 /** Solo lee unos pocos tracks locales para confirmar cima y salida; nada de ello llega al modelo. */
-export async function historyPasses(start: LatLng, climbs: ClimbEffort[], track: (id: string) => Promise<TrackPoint[] | undefined>, signal?: AbortSignal): Promise<LocalPass[]> {
+/** `range`: distancia de la cima al inicio; por defecto la de los puertos de «Rutas con IA» (15 a 40 km). */
+export async function historyPasses(start: LatLng, climbs: ClimbEffort[], track: (id: string) => Promise<TrackPoint[] | undefined>, signal?: AbortSignal,
+  range: { minM: number; maxM: number } = { minM: 15_000, maxM: 40_000 }): Promise<LocalPass[]> {
   const selected = climbs.filter(c => {
     const d = haversineM(start.lat, start.lng, c.end.lat, c.end.lng);
-    return d >= 15_000 && d <= 40_000;
+    return d >= range.minM && d <= range.maxM;
   }).sort((a, b) => b.activityStart - a.activityStart);
   const found: LocalPass[] = [];
   const tracks = new Map<string, TrackPoint[]>();

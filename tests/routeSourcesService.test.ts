@@ -1,7 +1,7 @@
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { handleRouteSources, CACHE_TTL_MS, sourceCacheKey, type RouteSourceDependencies } from '../src/routes/sources/service';
+import { handleRouteSources, CACHE_TTL_MS, WAYPOINTS_CACHE_TTL_MS, sourceCacheKey, type RouteSourceDependencies } from '../src/routes/sources/service';
 import { sourceTransport, wikilocSearchUrl } from '../src/routes/sources/providers';
 import { parseOverpass } from '../src/routes/sources/overpass';
 import { routeReferenceSchema } from '../src/routes/sources/schema';
@@ -231,20 +231,54 @@ describe('route-sources: puntos de paso', () => {
   const village = { type: 'node', id: 5, lat: 0.1, lon: 0, tags: { place: 'village', name: 'Pueblo inventado' } };
   const road = { type: 'way', id: 6, nodes: [7, 8], tags: { highway: 'tertiary' }, geometry: [{ lat: 0.1, lon: 0.001 }, { lat: 0.11, lon: 0.001 }] };
   const withData = () => { const deps = mock(); deps.fetch = vi.fn().mockImplementation(async () => Response.json({ elements: [village, road] })); return deps; };
-  it('cachea con clave v1:waypoints y 7 días', async () => {
+  it('cachea con clave v2:waypoints y 7 días', async () => {
     const deps = withData();
     const response = await handleRouteSources(request(wp), deps);
     expect(response.status).toBe(200);
     expect((await response.json()).data).toHaveLength(1);
     const row = vi.mocked(deps.writeCache).mock.calls[0][0];
-    expect(row.cache_key.startsWith('v1:waypoints:')).toBe(true);
-    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(CACHE_TTL_MS);
+    expect(row.cache_key.startsWith('v2:waypoints:')).toBe(true);
+    // Puertos, cimas y pueblos casi no cambian: 30 días, para no depender de Overpass en cada búsqueda.
+    expect(WAYPOINTS_CACHE_TTL_MS).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(WAYPOINTS_CACHE_TTL_MS);
   });
   it('ignora una caché que no valida con osmWaypointsSchema', async () => {
     const deps = withData();
     deps.readCache = vi.fn().mockResolvedValue({ payload: [{ broken: true }], fetched_at: at, expires_at: new Date(now + CACHE_TTL_MS).toISOString() });
     expect((await handleRouteSources(request(wp), deps)).status).toBe(200);
-    expect(deps.fetch).toHaveBeenCalledTimes(1);
+    expect(deps.fetch).toHaveBeenCalledTimes(2);
+  });
+  it('si los dos servidores de Overpass fallan (502 o remark de error) repite la ronda, y no cachea el fallo', async () => {
+    vi.useFakeTimers();
+    const deps = withData();
+    vi.mocked(deps.fetch).mockResolvedValueOnce(new Response('', { status: 502 }))
+      .mockResolvedValueOnce(Response.json({ elements: [], remark: 'runtime error: Query ran out of memory' }));
+    const pending = handleRouteSources(request(wp), deps);
+    await vi.waitFor(() => expect(deps.fetch).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(1100);
+    const response = await pending;
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toHaveLength(1);
+    expect(vi.mocked(deps.fetch).mock.calls.slice(0, 2).map(c => new URL(String(c[0])).host).sort()).toEqual(['overpass-api.de', 'overpass.openstreetmap.fr']);
+    expect(deps.writeCache).toHaveBeenCalledTimes(1);
+    const down = mock(); down.fetch = vi.fn().mockImplementation(async () => new Response('', { status: 504 }));
+    const failing = handleRouteSources(request(wp), down);
+    await vi.waitFor(() => expect(down.fetch).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(1100);
+    expect((await failing).status).toBe(502);
+    expect(down.fetch).toHaveBeenCalledTimes(4);
+    expect(down.writeCache).not.toHaveBeenCalled();
+  });
+  it('da a los puntos de paso 60 s antes de cortar: el Overpass principal tarda decenas de segundos', async () => {
+    vi.useFakeTimers();
+    const slow = mock(); slow.fetch = vi.fn().mockImplementation((_url, init) => new Promise((_resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('lento')))));
+    let status = 0;
+    void handleRouteSources(request(wp), slow).then(r => { status = r.status; });
+    await vi.waitFor(() => expect(slow.fetch).toHaveBeenCalledTimes(2));
+    await vi.advanceTimersByTimeAsync(40_000);
+    expect(status).toBe(0);
+    await vi.advanceTimersByTimeAsync(20_000);
+    expect(status).toBe(504);
   });
   it('rechaza radios fuera de 8-35 km y campos extra', async () => {
     expect((await handleRouteSources(request({ ...wp, radiusM: 40_000 }), mock())).status).toBe(400);

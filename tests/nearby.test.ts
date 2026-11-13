@@ -1,11 +1,13 @@
 import type { Coord3, LatLng } from '../src/domain/types';
+import { haversineM } from '../src/import/summary';
 import { angleGap, routeBearing, sameRoute } from '../src/routes/diversity';
 import type { AdaptedRoute } from '../src/routes/adapt';
 import { analyzeRoute } from '../src/routes/analyze';
-import { rateCandidate, type generateRoutes, type GeneratedRoute } from '../src/routes/generator';
+import { generateRoutes, rateCandidate, type GeneratedRoute } from '../src/routes/generator';
 import type { HistoryWaypoint } from '../src/routes/historyWaypoints';
 import { DEAD_END_BACKTRACK, NEARBY_ORS_BUDGET, proposeNearbyRoutes, type NearbyCard, type NearbyDeps, type NearbyUpdate } from '../src/routes/nearby';
 import { OrsError, type fetchPathFeature, type OrsFeature } from '../src/routes/ors';
+import type { SharedOrsAccess } from '../src/routes/orsProxy';
 import { geometryQuality } from '../src/routes/quality';
 import { RouteSourceError } from '../src/routes/sources/schema';
 import type { OsmWaypoint } from '../src/routes/sources/waypoints';
@@ -67,13 +69,14 @@ function feature(points: LatLng[], gain: number): OrsFeature {
 }
 
 /** ORS simulado: dibuja la vuelta por los puntos que le piden; `fail` decide qué llamada falla. */
-function fakePath(o: { km?: number; gain?: number; fail?: (call: number) => Error | null; shape?: (waypoints: LatLng[]) => LatLng[] } = {}) {
+function fakePath(o: { km?: number; gain?: number; fail?: (call: number) => Error | null; shape?: (waypoints: LatLng[]) => LatLng[];
+  kmOf?: (waypoints: LatLng[]) => number; gainOf?: (waypoints: LatLng[]) => number } = {}) {
   let call = 0;
   return vi.fn<typeof fetchPathFeature>(async (_access, waypoints) => {
     call++;
     const error = o.fail?.(call);
     if (error) throw error;
-    return feature(o.shape ? o.shape(waypoints) : loopThrough(waypoints, o.km ?? D_KM), o.gain ?? 500);
+    return feature(o.shape ? o.shape(waypoints) : loopThrough(waypoints, o.kmOf?.(waypoints) ?? o.km ?? D_KM), o.gainOf?.(waypoints) ?? o.gain ?? 500);
   });
 }
 
@@ -235,7 +238,7 @@ describe('proposeNearbyRoutes', () => {
     const fetchPath = fakePath();
     const res = await proposeNearbyRoutes(target, deps({
       findWaypoints: async () => { throw new RouteSourceError('unavailable'); },
-      historyWaypoints: async () => [habitual],
+      historyWaypoints: async () => [habitual], fallbackWaypoints: () => [],
       fetchPath, generate,
     }));
     expect(res.warnings.some((w) => /puertos/.test(w))).toBe(true);
@@ -245,18 +248,42 @@ describe('proposeNearbyRoutes', () => {
     expect(generate.mock.calls[0][0].budget).toBe(NEARBY_ORS_BUDGET - 1);
   });
 
+  describe('sin puntos de OSM usa puntos por rumbo', () => {
+    it('si Overpass falla, ORS ajusta a carretera un anillo de puntos y salen 5 vueltas sin pedir round_trip', async () => {
+      const generate = fakeGenerate();
+      const fetchPath = fakePath();
+      const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => { throw new RouteSourceError('unavailable'); }, fetchPath, generate }));
+      const motor = motorCards(res.cards);
+      expect(motor.length).toBeGreaterThanOrEqual(5);
+      for (const card of motor) for (const name of card.via) expect(name).toMatch(/^rumbo /);
+      expect(generate).not.toHaveBeenCalled();
+      expect(res.warnings.join(' ')).toMatch(/puntos por rumbo/);
+    });
+
+    it('no espera a Overpass más del tope: sigue con los puntos por rumbo', async () => {
+      const res = await proposeNearbyRoutes(target, deps({ findWaypoints: () => new Promise(() => {}), waypointsWaitMs: 5 }));
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(res.warnings.join(' ')).toMatch(/puntos por rumbo/);
+    });
+
+    it('con puntos de OSM no añade los de rumbo', async () => {
+      const res = await proposeNearbyRoutes(target, deps());
+      for (const card of motorCards(res.cards)) for (const name of card.via) expect(name).not.toMatch(/^rumbo /);
+    });
+  });
+
   it('sin ningún punto de paso busca vueltas circulares y solo acepta las que cumplen', async () => {
     const vuelta = (deg: number, km: number) =>
       rateCandidate(analyzeRoute(feature(loopThrough([START, at(deg, 23), START], km), 500), deg), { distanceM: D_KM * 1000, elevGainM: null, preferNew: true }, { reference: null, visited: new Set() });
     const generate = fakeGenerate([vuelta(0, 60), vuelta(90, 60), vuelta(180, 75), vuelta(200, 60), vuelta(270, 59)]);
     const updates: NearbyUpdate[] = [];
-    const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => [], generate, onUpdate: (u) => updates.push(u) }));
+    const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => [], fallbackWaypoints: () => [], generate, onUpdate: (u) => updates.push(u) }));
     expect(generate.mock.calls[0][0].budget).toBe(NEARBY_ORS_BUDGET);
     expect(updates).toContainEqual({ kind: 'waypoints', count: 0 });
     // La de 75 km no cumple ±10 %; por eso la de 200°, a solo 20° de ella, sí entra.
     expect(motorCards(res.cards).map((c) => c.combo)).toEqual(['vuelta', 'vuelta', 'vuelta', 'vuelta']);
     expect(res.warnings.join(' ')).toMatch(/4 vueltas/);
-    expect(res.warnings.join(' ')).toMatch(/circulares/);
+    expect(res.warnings.join(" ")).toMatch(/No hay puertos/);
   });
 
   it('las combinaciones de la IA se marcan como tales', async () => {
@@ -304,6 +331,238 @@ describe('proposeNearbyRoutes', () => {
     const emitted = updates.flatMap((u) => (u.kind === 'card' ? [u.card] : []));
     expect(emitted.length).toBe(res.cards.length);
     expect(new Set(emitted)).toEqual(new Set(res.cards));
+  });
+
+  describe('límite por minuto en las vueltas circulares (sin puntos de paso)', () => {
+    const limit = () => new OrsError('rate_minute', 'El servicio común de rutas admite 8 consultas por minuto por persona. Espera 30 s y vuelve a probar.');
+    /** Servicio común simulado: cada semilla da una vuelta de 60 km hacia un lado distinto. */
+    const shared = (fail: (call: number) => boolean): SharedOrsAccess & { calls: () => number } => {
+      let call = 0;
+      const fetch = async (request: { operation: string; seed?: number }) => {
+        call++;
+        if (fail(call)) throw limit();
+        return feature(loopThrough([START, at(((request.seed ?? 0) % 8) * 46, 23), START], D_KM), 500);
+      };
+      return { kind: 'shared', fetch: fetch as SharedOrsAccess['fetch'], fetchAll: async () => [], calls: () => call };
+    };
+    const run = (ors: SharedOrsAccess, over: Partial<NearbyDeps> = {}) =>
+      proposeNearbyRoutes(target, deps({ ors, findWaypoints: async () => [], fallbackWaypoints: () => [], generate: (req, d) => generateRoutes(req, { ...d, seedBase: 0 }), ...over }));
+
+    it('en la primera consulta espera con aviso y sigue, en vez de devolver 0 rutas', async () => {
+      const wait = vi.fn(async () => {});
+      const updates: NearbyUpdate[] = [];
+      const res = await run(shared((call) => call === 1), { wait, onUpdate: (u) => updates.push(u) });
+      expect(wait).toHaveBeenCalledTimes(1);
+      expect(updates).toContainEqual({ kind: 'waiting', seconds: 60 });
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(res.warnings.join(' ')).not.toMatch(/Espera 30 s/);
+    });
+
+    it('a media búsqueda conserva lo aceptado, espera y completa', async () => {
+      const wait = vi.fn(async () => {});
+      const res = await run(shared((call) => call === 4), { wait });
+      expect(wait).toHaveBeenCalledTimes(1);
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(res.requestsUsed).toBeLessThanOrEqual(NEARBY_ORS_BUDGET);
+    });
+
+    it('espera como mucho 3 veces en toda la búsqueda y entonces avisa', async () => {
+      const wait = vi.fn(async () => {});
+      const ors = shared(() => true);
+      const res = await run(ors, { wait });
+      expect(wait).toHaveBeenCalledTimes(3);
+      expect(ors.calls()).toBe(4);
+      expect(res.cards).toHaveLength(0);
+      expect(res.warnings.join(' ')).toMatch(/8 consultas por minuto/);
+    });
+  });
+
+  describe('aprende de cada respuesta de ORS', () => {
+    const straightKm = (waypoints: LatLng[]) =>
+      waypoints.slice(1).reduce((sum, p, i) => sum + Math.hypot(toXY(p).x - toXY(waypoints[i]).x, toXY(p).y - toXY(waypoints[i]).y), 0) / 1000;
+    /** Dos anillos: a 23 km (60 km de vuelta con factor 1,3) y a 16 km (60 km con factor 1,85). */
+    const rings = () => RING.flatMap((deg, i) => [osm(i + 1, deg), osm(i + 101, deg, { ...at(deg, 16), distanceM: 16_000 })]);
+
+    it('en carreteras de montaña (1,85 veces la línea recta) pasa a puntos más cercanos y llega a 5', async () => {
+      const fetchPath = fakePath({ kmOf: (waypoints) => straightKm(waypoints) * 1.85 });
+      const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => rings(), fetchPath }));
+      const motor = motorCards(res.cards);
+      expect(motor.length).toBeGreaterThanOrEqual(5);
+      for (const card of motor) expect(Math.abs(card.route.distanceM - D_KM * 1000)).toBeLessThanOrEqual(D_KM * 100);
+      // La primera consulta mide el factor; después casi todas aciertan.
+      expect(res.requestsUsed).toBeLessThanOrEqual(8);
+    });
+
+    it('usa el factor medido en el rumbo más próximo: al norte 1,85 y al sur 1,3', async () => {
+      const north = (waypoints: LatLng[]) => toXY(waypoints[1]).y > 0;
+      const fetchPath = fakePath({ kmOf: (waypoints) => straightKm(waypoints) * (north(waypoints) ? 1.85 : 1.3) });
+      const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => rings(), fetchPath }));
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(res.requestsUsed).toBeLessThanOrEqual(NEARBY_ORS_BUDGET);
+    });
+
+    it('con un desnivel moderado deja los puertos altos y va por los pueblos', async () => {
+      // Sale de 100 m. Cada puerto está a 900 m; el terreno ondula 12 m por km.
+      const points = RING.flatMap((deg, i) => [
+        osm(i + 1, deg),
+        osm(i + 201, deg + 4, { id: `osm-place-${i + 201}`, kind: 'pueblo', name: `Poble sintètic ${i}`, ele: null, interes: 1, ...at(deg + 4, 23) }),
+      ]);
+      const passes = points.filter((p) => p.kind === 'puerto');
+      const viaPass = (waypoints: LatLng[]) => passes.some((p) => Math.abs(p.lat - waypoints[1].lat) < 1e-9 && Math.abs(p.lng - waypoints[1].lng) < 1e-9);
+      const fetchPath = fakePath({ gainOf: (waypoints) => 12 * D_KM + (viaPass(waypoints) ? 800 : 0) });
+      const res = await proposeNearbyRoutes({ ...target, elevGainM: 800 }, deps({ findWaypoints: async () => points, fetchPath }));
+      const motor = motorCards(res.cards);
+      expect(motor.length).toBeGreaterThanOrEqual(5);
+      for (const card of motor) {
+        expect(card.via[0]).toMatch(/Poble/);
+        expect(Math.abs(card.route.elevGainM - 800)).toBeLessThanOrEqual(200);
+      }
+      // Una consulta para medir (por el puerto) y después solo pueblos.
+      expect(res.requestsUsed).toBeLessThanOrEqual(8);
+    });
+
+    it('no pide una combinación cuyo rumbo queda a menos de 45° de una vuelta ya aceptada', async () => {
+      // 16 puntos cada 22,5°: los vecinos de una aceptada no caben por diversidad y no deben gastar consultas.
+      const many = Array.from({ length: 16 }, (_, i) => osm(i + 1, i * 22.5));
+      const fetchPath = fakePath();
+      const res = await proposeNearbyRoutes(target, deps({ findWaypoints: async () => many, fetchPath }));
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(fetchPath).toHaveBeenCalledTimes(motorCards(res.cards).length);
+    });
+  });
+
+  describe('firme sin datos', () => {
+    /** El 30 % central de la vuelta sin dato de firme, por una vía del tipo `waytype`. */
+    const unknownOn = (waytype: number) => vi.fn<typeof fetchPathFeature>(async (_access, waypoints) => {
+      const f = feature(loopThrough(waypoints, D_KM), 500);
+      const n = f.geometry.coordinates.length - 1;
+      const a = Math.round(n * 0.35);
+      const b = Math.round(n * 0.65);
+      const split = (inside: number, outside: number) => ({
+        values: [[0, a, outside], [a, b, inside], [b, n, outside]] as [number, number, number][],
+        summary: [{ value: outside, distance: 42_000, amount: 70 }, { value: inside, distance: 18_000, amount: 30 }],
+      });
+      f.properties.extras.surface = split(0, 3);
+      f.properties.extras.waytypes = split(waytype, 2);
+      return f;
+    });
+
+    it('en una carretera cuenta como asfalto: en OSM muchas comarcales no declaran el firme', async () => {
+      const res = await proposeNearbyRoutes(target, deps({ fetchPath: unknownOn(2) }));
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+    });
+
+    it('en un camino no: la vuelta se descarta', async () => {
+      const res = await proposeNearbyRoutes(target, deps({ fetchPath: unknownOn(4) }));
+      expect(motorCards(res.cards)).toHaveLength(0);
+    });
+  });
+
+  describe('pistas', () => {
+    /** ORS simulado: mete 2 km de pista en mitad de la vuelta mientras no le pidan evitar ese punto. */
+    const withTrack = () => vi.fn<typeof fetchPathFeature>(async (_access, waypoints, _signal, avoid) => {
+      const f = feature(loopThrough(waypoints, D_KM), 500);
+      if (avoid?.length) return f;
+      const n = f.geometry.coordinates.length - 1;
+      const a = Math.round(n * 0.48);
+      const b = Math.round(n * 0.52);
+      f.properties.extras.surface = { values: [[0, a, 3], [a, b, 0], [b, n, 3]], summary: [{ value: 3, distance: 58_000, amount: 96 }, { value: 0, distance: 2_000, amount: 4 }] };
+      f.properties.extras.waytypes = { values: [[0, a, 2], [a, b, 5], [b, n, 2]], summary: [{ value: 2, distance: 58_000, amount: 96 }, { value: 5, distance: 2_000, amount: 4 }] };
+      return f;
+    });
+
+    it('una vuelta con pista se repite una vez pidiendo a ORS que evite ese punto, y las siguientes ya lo evitan', async () => {
+      const fetchPath = withTrack();
+      const res = await proposeNearbyRoutes(target, deps({ fetchPath }));
+      const [first, second, third] = fetchPath.mock.calls;
+      expect(first[3] ?? []).toEqual([]);
+      expect(second[1]).toEqual(first[1]);
+      expect(second[3]).toHaveLength(1);
+      const mid = feature(loopThrough(first[1], D_KM), 500).geometry.coordinates;
+      const [lng, lat] = mid[Math.round((mid.length - 1) * 0.5)];
+      expect(haversineM(second[3]![0].lat, second[3]![0].lng, lat, lng)).toBeLessThan(200);
+      expect(third[1]).not.toEqual(first[1]);
+      expect(third[3]).toEqual(second[3]);
+      expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
+      expect(res.requestsUsed).toBe(fetchPath.mock.calls.length);
+    });
+
+    it('no manda pistas cercanas a la salida: un cuadrado allí deja a ORS sin ruta en todas las consultas', async () => {
+      const fetchPath = vi.fn<typeof fetchPathFeature>(async (_access, waypoints) => {
+        const f = feature(loopThrough(waypoints, D_KM), 500);
+        const n = f.geometry.coordinates.length - 1;
+        const b = Math.max(2, Math.round(n * 0.02));
+        f.properties.extras.surface = { values: [[0, b, 0], [b, n, 3]], summary: [{ value: 3, distance: 58_800, amount: 98 }, { value: 0, distance: 1_200, amount: 2 }] };
+        f.properties.extras.waytypes = { values: [[0, b, 5], [b, n, 2]], summary: [{ value: 2, distance: 58_800, amount: 98 }, { value: 5, distance: 1_200, amount: 2 }] };
+        return f;
+      });
+      await proposeNearbyRoutes(target, deps({ fetchPath }));
+      for (const call of fetchPath.mock.calls) {
+        for (const a of call[3] ?? []) expect(haversineM(a.lat, a.lng, START.lat, START.lng)).toBeGreaterThanOrEqual(2000);
+      }
+    });
+
+    it('si ORS no encuentra ruta con puntos que evitar, repite la misma vuelta sin ellos', async () => {
+      const inner = withTrack();
+      const fetchPath = vi.fn<typeof fetchPathFeature>(async (access, waypoints, signal, avoid) => {
+        if (avoid?.length) throw new OrsError('no_route', 'sin ruta', 404);
+        return inner(access, waypoints, signal, avoid);
+      });
+      await proposeNearbyRoutes(target, deps({ fetchPath }));
+      const calls = fetchPath.mock.calls;
+      const failed = calls.findIndex((c) => (c[3]?.length ?? 0) > 0);
+      expect(failed).toBeGreaterThan(-1);
+      expect(calls[failed + 1][1]).toEqual(calls[failed][1]);
+      expect(calls[failed + 1][3] ?? []).toEqual([]);
+    });
+
+    it('nunca manda más de 12 puntos que evitar', async () => {
+      const fetchPath = vi.fn<typeof fetchPathFeature>(async (_access, waypoints) => {
+        const f = feature(loopThrough(waypoints, D_KM), 500);
+        const n = f.geometry.coordinates.length - 1;
+        const cut = [0.2, 0.25, 0.4, 0.45, 0.6, 0.65, 0.8, 0.85].map((x) => Math.round(n * x));
+        const spans = (inside: number, outside: number) => [0, ...cut, n].slice(1).map((to, i, all) => [i === 0 ? 0 : all[i - 1], to, i % 2 ? inside : outside] as [number, number, number]);
+        f.properties.extras.surface = { values: spans(0, 3), summary: [{ value: 3, distance: 48_000, amount: 80 }, { value: 0, distance: 12_000, amount: 20 }] };
+        f.properties.extras.waytypes = { values: spans(5, 2), summary: [{ value: 2, distance: 48_000, amount: 80 }, { value: 5, distance: 12_000, amount: 20 }] };
+        return f;
+      });
+      await proposeNearbyRoutes(target, deps({ fetchPath }));
+      expect(fetchPath.mock.calls.length).toBeGreaterThan(4);
+      for (const call of fetchPath.mock.calls) expect((call[3] ?? []).length).toBeLessThanOrEqual(12);
+      expect(fetchPath.mock.calls.at(-1)![3]).toHaveLength(12);
+    });
+  });
+
+  it('las esperas por el límite son 3 en total, no 3 por combinación', async () => {
+    const wait = vi.fn(async () => {});
+    const fetchPath = fakePath({ fail: () => new OrsError('rate_minute', 'límite') });
+    const generate = fakeGenerate();
+    const res = await proposeNearbyRoutes(target, deps({ fetchPath, wait, generate }));
+    expect(wait).toHaveBeenCalledTimes(3);
+    expect(fetchPath).toHaveBeenCalledTimes(4);
+    expect(generate).not.toHaveBeenCalled();
+    expect(res.requestsUsed).toBeLessThanOrEqual(NEARBY_ORS_BUDGET);
+  });
+
+  it('una consulta rechazada por el límite por minuto no gasta presupuesto', async () => {
+    const fetchPath = fakePath({ fail: (call) => (call === 2 ? new OrsError('rate_minute', 'límite') : call > 2 ? new OrsError('no_route', 'sin ruta') : null) });
+    const many = Array.from({ length: 24 }, (_, i) => osm(i + 1, i * 15));
+    const res = await proposeNearbyRoutes(target, deps({ fetchPath, findWaypoints: async () => many }));
+    // 14 consultas de verdad más la rechazada.
+    expect(fetchPath).toHaveBeenCalledTimes(NEARBY_ORS_BUDGET + 1);
+    expect(res.requestsUsed).toBe(NEARBY_ORS_BUDGET);
+  });
+
+  it('pide los puntos de paso a la vez que las rutas reales, sin esperar a que acaben', async () => {
+    let asked = false;
+    const rwgps = { getToken: async () => 'sesion-sintetica', fetch: (async () => {
+      // Si los puntos se pidieran después, esta promesa no se resolvería nunca.
+      await vi.waitFor(() => expect(asked).toBe(true));
+      return json({ data: { routes: [], total: 0 } });
+    }) as unknown as typeof fetch };
+    const res = await proposeNearbyRoutes(target, deps({ rwgps, findWaypoints: async () => { asked = true; return ring(); } }));
+    expect(res.warnings).toEqual([]);
+    expect(motorCards(res.cards).length).toBeGreaterThanOrEqual(5);
   });
 
   it('un fallo de Ride with GPS no fatal se avisa y el motor sigue', async () => {

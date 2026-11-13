@@ -3,7 +3,7 @@ import type { LatLng } from '../src/domain/types';
 import type { RouteCandidate } from '../src/routes/analyze';
 import type { OsmWaypoint } from '../src/routes/sources/waypoints';
 import type { HistoryWaypoint } from '../src/routes/historyWaypoints';
-import { codeCombos, comboWaypoints, estimateLoopKm, fitsTarget, ROAD_FACTOR, toWaypoints, waypointBand, type Waypoint } from '../src/routes/waypointEngine';
+import { codeCombos, comboWaypoints, estimateLoopKm, fitsTarget, rankCombos, ROAD_FACTOR, toWaypoints, waypointBand, type Waypoint, ringWaypoints } from '../src/routes/waypointEngine';
 
 // Inicio sintético en el mar, no es el de nadie.
 const START: LatLng = { lat: 41, lng: 2.5 };
@@ -22,9 +22,9 @@ function osm(id: string, kind: OsmWaypoint['kind'], km: number, deg: number, int
 const build = (points: (OsmWaypoint | HistoryWaypoint)[]): Waypoint[] => toWaypoints(START, points, BAND);
 
 describe('waypointBand', () => {
-  it('va de 0,15 a 0,42 de la distancia en línea recta', () => {
+  it('va de 0,10 a 0,42 de la distancia en línea recta', () => {
     const b = waypointBand(60);
-    expect(b.minM).toBeCloseTo(9_000, 6);
+    expect(b.minM).toBeCloseTo(6_000, 6);
     expect(b.maxM).toBeCloseTo(25_200, 6);
   });
 });
@@ -95,6 +95,59 @@ describe('codeCombos', () => {
   it('devuelve como mucho 16', () => {
     const many = build(Array.from({ length: 40 }, (_, i) => osm(`w${i}`, 'puerto', 23, (i * 9) % 360, 2)));
     expect(codeCombos(START, many, { distanceKm: 60, elevGainM: null }).length).toBeLessThanOrEqual(16);
+  });
+});
+
+describe('ringWaypoints', () => {
+  it('da 12 rumbos a dos distancias dentro de la banda, con las que salen parejas de la distancia pedida', () => {
+    const ring = ringWaypoints(START, 60);
+    expect(ring).toHaveLength(24);
+    expect(new Set(ring.map((p) => Math.round(p.distanceM / 1000)))).toEqual(new Set([12, 17]));
+    expect(build(ring)).toHaveLength(24);
+    expect(ring[0].name).toBe('rumbo norte');
+    const ranked = rankCombos(START, build(ring), { distanceKm: 60, elevGainM: null }, { roadFactor: 1.7 });
+    expect(new Set(ranked.map((r) => r.combo.direccion)).size).toBe(8);
+  });
+});
+
+describe('rankCombos', () => {
+  const target = { distanceKm: 60, elevGainM: null };
+  const rings = () => build([0, 180].flatMap((d) => [osm(`lejos${d}`, 'puerto', 23, d, 2), osm(`cerca${d}`, 'puerto', 16, d, 2)]));
+
+  it('con un factor de carretera mayor elige los puntos más cercanos', () => {
+    expect(rankCombos(START, rings(), target, { roadFactor: 1.3 }).map((r) => r.combo.id).sort()).toEqual(['lejos0', 'lejos180']);
+    const twisty = rankCombos(START, rings(), target, { roadFactor: 1.85 });
+    expect(twisty.map((r) => r.combo.id).sort()).toEqual(['cerca0', 'cerca180']);
+    expect(twisty[0].estimateKm).toBeCloseTo(2 * 16 * 1.85, 0);
+  });
+
+  it('admite un factor distinto para cada rumbo', () => {
+    const ranked = rankCombos(START, rings(), target, { roadFactor: (bearing) => (bearing < 90 || bearing > 270 ? 1.85 : 1.3) });
+    expect(ranked.map((r) => r.combo.id).sort()).toEqual(['cerca0', 'lejos180']);
+  });
+
+  it('entre dos parejas iguales prefiere la de puntos a distancia parecida: la otra suele ir y volver por la misma carretera', () => {
+    // Las dos parejas estiman lo mismo (59 km) con el mismo interés.
+    const wps = build([osm('a', 'puerto', 13.7, 0, 2), osm('b', 'puerto', 13.7, 60, 2), osm('cerca', 'puerto', 6.5, 180, 2), osm('lejos', 'puerto', 18.6, 240, 2)]);
+    const pairs = rankCombos(START, wps, target).filter((r) => r.points.length === 2);
+    expect(pairs.map((r) => r.combo.id)).toEqual(expect.arrayContaining(['a+b', 'cerca+lejos']));
+    expect(pairs[0].combo.id).toBe('a+b');
+    expect(pairs[0].score).toBeGreaterThan(pairs.find((r) => r.combo.id === 'cerca+lejos')!.score);
+  });
+
+  it('con una estimación de desnivel ordena por lo que se acerca al pedido, no por puertos', () => {
+    const wps = build([osm('puerto', 'puerto', 23, 0, 3), osm('pueblo', 'pueblo', 23, 10, 0)]);
+    const gainM = (points: Waypoint[]) => (points.some((w) => w.kind === 'puerto') ? 1500 : 750);
+    const ranked = rankCombos(START, wps, { distanceKm: 60, elevGainM: 800 }, { gainM });
+    expect(ranked[0].combo.waypointIds).toEqual(['pueblo']);
+    expect(ranked[0].gainM).toBe(750);
+  });
+
+  it('salta lo que indique skip y da el rumbo del punto más lejano', () => {
+    const wps = build([osm('a', 'puerto', 12, 0, 3), osm('b', 'puerto', 17, 60, 3)]);
+    const [pair] = rankCombos(START, wps, target, { skip: (c) => c.points.length === 1 });
+    expect(pair.combo.waypointIds).toEqual(['a', 'b']);
+    expect(pair.bearing).toBeCloseTo(60, 0);
   });
 });
 

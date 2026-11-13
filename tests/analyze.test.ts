@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { OrsExtra, OrsFeature } from '../src/routes/ors';
-import { analyzeRoute, rejectReason, type RouteCandidate } from '../src/routes/analyze';
+import { analyzeRoute, rejectReason, roughSpots, type RouteCandidate } from '../src/routes/analyze';
 
 const extra = (summary: [value: number, distance: number, amount: number][] = [], values: [number, number, number][] = []): OrsExtra => ({
   values,
@@ -148,5 +148,30 @@ describe('analyzeRoute with fixture', () => {
     const fc = JSON.parse(readFileSync('tests/fixtures/ors/round-trip-ok.json', 'utf8')) as { features: OrsFeature[] };
     expect(fc.features[0].properties.extras.waycategory?.summary.length).toBeGreaterThan(0);
     expect(analyzeRoute(fc.features[0], 1).motorway).toBe(false);
+  });
+});
+
+describe('roughSpots', () => {
+  /** Once puntos en línea, uno cada ~100 m. */
+  const line = (extras: Partial<OrsFeature['properties']['extras']>): OrsFeature => ({
+    geometry: { type: 'LineString', coordinates: Array.from({ length: 11 }, (_, i) => [-3.7, 40 + i * 0.0009, 100]) },
+    properties: { summary: { distance: 1000, duration: 60 }, extras: { surface: extra(), waytypes: extra(), steepness: extra(), ...extras } },
+  });
+
+  it('da el punto medio de cada tramo de pista sin firme confirmado o sin asfaltar', () => {
+    const spots = roughSpots(line({
+      surface: extra([], [[0, 2, 3], [2, 4, 0], [4, 7, 3], [7, 9, 10], [9, 10, 3]]),
+      waytypes: extra([], [[0, 2, 2], [2, 4, 5], [4, 10, 2]]),
+    }));
+    expect(spots).toHaveLength(2);
+    expect(spots[0].lat).toBeCloseTo(40 + 3 * 0.0009, 6);
+    expect(spots[1].lat).toBeCloseTo(40 + 8 * 0.0009, 6);
+  });
+
+  it('no señala una pista asfaltada ni un tramo de menos de 50 m', () => {
+    expect(roughSpots(line({ surface: extra([], [[0, 10, 3]]), waytypes: extra([], [[0, 2, 2], [2, 6, 5], [6, 10, 2]]) }))).toEqual([]);
+    const short = line({ surface: extra([], [[0, 10, 0]]), waytypes: extra([], [[0, 5, 2], [5, 6, 5], [6, 10, 2]]) });
+    short.geometry.coordinates[6] = [-3.7, 40 + 5.3 * 0.0009, 100];
+    expect(roughSpots(short)).toEqual([]);
   });
 });
