@@ -60,6 +60,8 @@ describe('generador: utilidades', () => {
     expect(meetsRoad(base)).toBe(true);
     expect(meetsRoad({ ...base, distanceM: 1 })).toBe(true);
     expect(meetsRoad({ ...base, unpavedM: 150 })).toBe(false);
+    // El acceso al inicio (calle de tierra de la casa) no cuenta.
+    expect(meetsRoad({ ...base, unpavedM: 150, trackM: 150 }, { unpavedM: 100, trackM: 100 })).toBe(true);
     expect(meetsRoad({ ...base, trackM: 150 })).toBe(false);
     expect(meetsRoad({ ...base, mainRoadPct: 25 })).toBe(false);
     expect(meetsRoad({ ...base, motorway: true })).toBe(false);

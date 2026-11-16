@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { OrsExtra, OrsFeature } from '../src/routes/ors';
-import { analyzeRoute, rejectReason, roughSpots, type RouteCandidate } from '../src/routes/analyze';
+import { accessRoughM, analyzeRoute, rejectReason, roughSpots, type RouteCandidate } from '../src/routes/analyze';
 
 const extra = (summary: [value: number, distance: number, amount: number][] = [], values: [number, number, number][] = []): OrsExtra => ({
   values,
@@ -173,5 +173,31 @@ describe('roughSpots', () => {
     const short = line({ surface: extra([], [[0, 10, 0]]), waytypes: extra([], [[0, 5, 2], [5, 6, 5], [6, 10, 2]]) });
     short.geometry.coordinates[6] = [-3.7, 40 + 5.3 * 0.0009, 100];
     expect(roughSpots(short)).toEqual([]);
+  });
+});
+
+describe('accessRoughM', () => {
+  /** Once puntos en línea, uno cada ~100 m: 1 km. */
+  const line = (extras: Partial<OrsFeature['properties']['extras']>): OrsFeature => ({
+    geometry: { type: 'LineString', coordinates: Array.from({ length: 11 }, (_, i) => [-3.7, 40 + i * 0.0009, 100]) },
+    properties: { summary: { distance: 1000, duration: 60 }, extras: { surface: extra(), waytypes: extra(), steepness: extra(), ...extras } },
+  });
+
+  it('cuenta solo lo malo de los primeros y los últimos metros', () => {
+    // Tierra en 0-200 m (salida), 400-600 m (centro) y 900-1000 m (llegada); pista sin firme en 0-200 m.
+    const f = line({
+      surface: extra([], [[0, 2, 10], [2, 4, 3], [4, 6, 10], [6, 9, 3], [9, 10, 10]]),
+      waytypes: extra([], [[0, 2, 5], [2, 10, 2]]),
+    });
+    const access = accessRoughM(f, 300);
+    expect(access.unpavedM).toBeGreaterThan(290);
+    expect(access.unpavedM).toBeLessThan(310);
+    expect(access.trackM).toBeGreaterThan(190);
+    expect(access.trackM).toBeLessThan(210);
+  });
+
+  it('no cuenta una pista asfaltada ni nada sin tramos por índice', () => {
+    expect(accessRoughM(line({ surface: extra([], [[0, 10, 3]]), waytypes: extra([], [[0, 3, 5], [3, 10, 2]]) }), 300)).toEqual({ unpavedM: 0, trackM: 0 });
+    expect(accessRoughM(line({}), 300)).toEqual({ unpavedM: 0, trackM: 0 });
   });
 });

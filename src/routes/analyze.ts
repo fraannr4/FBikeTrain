@@ -162,6 +162,40 @@ export function roughSpots(f: OrsFeature): { lat: number; lng: number }[] {
   return spots;
 }
 
+/**
+ * Metros sin asfaltar y de pista sin firme confirmado en el acceso: los primeros y los últimos
+ * `accessM` de la ruta. Quien sale de una casa en una calle de tierra o en una urbanización tiene que
+ * pasar por ahí en cualquier vuelta: ese tramo no dice nada de la vuelta. Sin tramos por índice, 0.
+ */
+export function accessRoughM(f: OrsFeature, accessM: number): { unpavedM: number; trackM: number } {
+  const coords = f.geometry.coordinates;
+  const { surface, waytypes } = f.properties.extras;
+  const cum = cumulativeM(coords);
+  const total = cum[cum.length - 1] ?? 0;
+  const at = (i: number) => cum[Math.min(i, cum.length - 1)] ?? 0;
+  /** Metros de [from, to] dentro del acceso de salida o del de llegada. */
+  const inAccess = (from: number, to: number) => {
+    const a = at(from);
+    const b = at(to);
+    return Math.max(0, Math.min(b, accessM) - a) + Math.max(0, b - Math.max(a, total - accessM));
+  };
+  let unpavedM = 0;
+  for (const [from, to, v] of surface.values) if (UNPAVED_SURFACES.has(v)) unpavedM += inAccess(from, to);
+  let trackM = 0;
+  for (const [from, to, v] of waytypes.values) {
+    if (v !== WAYTYPE_TRACK) continue;
+    trackM += inAccess(from, to);
+    for (const [sFrom, sTo, value] of surface.values) {
+      if (!PAVED_SURFACES.has(value)) continue;
+      const a = Math.max(from, sFrom);
+      const b = Math.min(to, sTo);
+      if (b > a) trackM -= inAccess(a, b);
+    }
+  }
+  // Con una ruta más corta que dos accesos, los dos se solapan: nunca más que el total.
+  return { unpavedM: Math.min(unpavedM, total), trackM: Math.max(0, Math.min(trackM, total)) };
+}
+
 /** Distancia y desnivel salen de las coordenadas, no del `summary` de ORS, para medir igual que el historial. */
 export function analyzeRoute(f: OrsFeature, seed: number): RouteCandidate {
   const coords = f.geometry.coordinates;

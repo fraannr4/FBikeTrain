@@ -17,8 +17,8 @@ export function orient(points: RoutePoint[], start: LatLng, closeM = 100): Route
 }
 
 /** Verifica el resultado del motor antes de atribuirle una referencia o exportarlo. */
-export function visitsWaypoints(coords: Coord3[], waypoints: LatLng[]): boolean {
+export function visitsWaypoints(coords: Coord3[], waypoints: LatLng[], toleranceM = 50): boolean {
   if (coords.length < 2 || coords.some(c => c.length !== 3 || !c.every(Number.isFinite))) return false;
   if (coords.some((c, i) => i > 0 && haversineM(c[1], c[0], coords[i - 1][1], coords[i - 1][0]) > 5000)) return false;
-  return waypoints.every(p => coords.some(c => haversineM(p.lat, p.lng, c[1], c[0]) <= 50));
+  return waypoints.every(p => coords.some(c => haversineM(p.lat, p.lng, c[1], c[0]) <= toleranceM));
 }

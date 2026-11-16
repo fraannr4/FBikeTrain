@@ -5,7 +5,7 @@ import type { UserReference } from '../../metrics/reference';
 import type { Target } from '../../metrics/score';
 import { formatMeters, formatNumber } from '../../ui/format';
 import { adaptRoute, MAX_ADAPT_REQUESTS, type AdaptedRoute } from '../adapt';
-import { analyzeRoute, rejectReason, unknownSurfaceOffRoadPct, type RouteCandidate } from '../analyze';
+import { accessRoughM, analyzeRoute, rejectReason, unknownSurfaceOffRoadPct, type RejectReason, type RouteCandidate } from '../analyze';
 import { sleep } from '../catalog/recommend';
 import { MAX_INTENT_BACKTRACK, rateCandidate, type GeneratedRoute } from '../generator';
 import { visitsWaypoints } from '../intent';
@@ -49,8 +49,11 @@ export type GeneratorTarget = { start: LatLng; distanceKm: number; elevGainM: nu
 export type GeneratorCard =
   | { kind: 'biblioteca'; id: string; route: LibraryRoute; adapted: AdaptedRoute }
   | { kind: 'nueva'; id: string; route: GeneratedRoute };
+/** Por qué no vale una vuelta nueva ya calculada. */
+export type DiscardReason = RejectReason | 'no pasa por sus puntos' | 'firme desconocido' | 'desnivel' | 'ida y vuelta' | 'repetida';
 export type GeneratorUpdate =
   | { kind: 'library' } | { kind: 'library-ready'; routes: number; cells: number; fill: LibraryFill }
+  | { kind: 'discarded'; reason: DiscardReason; distanceM: number; elevGainM: number }
   | { kind: 'trying'; used: number; budget: number } | { kind: 'waiting'; seconds: number } | { kind: 'card'; card: GeneratorCard };
 export type GeneratorDeps = {
   ors: OrsAccess; library: (search: LibrarySearch, signal?: AbortSignal) => Promise<LibraryZone>;
@@ -62,9 +65,21 @@ export type GeneratorResult = {
   zone: { routes: number; cells: number; factor: number; fill: LibraryFill } | null;
 };
 
-/** Filtro de carretera de `rejectReason` sin la longitud: sin autopista, ≤ 100 m sin asfaltar y de pista, ≤ 20 % principal. */
-export function meetsRoad(c: RouteCandidate): boolean {
-  return rejectReason(c, c.distanceM) === null;
+/**
+ * ORS ajusta cada punto de paso a la carretera más próxima, hasta 350 m: una casa o una celda del mapa de
+ * calor no están sobre el eje de la carretera. Con los 50 m de `visitsWaypoints` se descartaban todas.
+ */
+export const WAYPOINT_SNAP_M = 400;
+
+/** Tramo de salida y de llegada (m) cuyo firme no descarta la vuelta: es el acceso a la casa, igual en todas. */
+export const START_ACCESS_M = 1500;
+
+/**
+ * Filtro de carretera de `rejectReason` sin la longitud: sin autopista, ≤ 100 m sin asfaltar y de pista, ≤ 20 % principal.
+ * `access` son los metros malos del acceso al inicio (`accessRoughM`), que no cuentan.
+ */
+export function meetsRoad(c: RouteCandidate, access: { unpavedM: number; trackM: number } = { unpavedM: 0, trackM: 0 }): boolean {
+  return rejectReason({ ...c, unpavedM: c.unpavedM - access.unpavedM, trackM: c.trackM - access.trackM }, c.distanceM) === null;
 }
 
 /** ±10 % en km; ±25 % en desnivel si se pide (un desnivel desconocido no cumple). */
@@ -225,7 +240,7 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
   async function retraceOk(coords: RoutePoint[]): Promise<boolean> {
     const f = await ask(retracePoints(coords, start, RETRACE_POINTS));
     const c = f && candidateOf(f, 0);
-    return !!c && meetsRoad(c) && cellOverlap(toLatLng(c.coords), coords) >= RETRACE_MIN_OVERLAP;
+    return !!f && !!c && meetsRoad(c, accessRoughM(f, START_ACCESS_M)) && cellOverlap(toLatLng(c.coords), coords) >= RETRACE_MIN_OVERLAP;
   }
 
   async function libraryPass() {
@@ -265,12 +280,18 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
   /** A: vale si pasa por sus puntos, hay firme, es de carretera, cumple el objetivo, no retrocede y no repite otra. */
   function consider(f: OrsFeature, c: RouteCandidate, ring: Ring): boolean {
     noteGain(c.distanceM, c.elevGainM);
-    if (!visitsWaypoints(c.coords, [start, ...ring.waypoints, start])) return false;
-    if (unknownSurfaceOffRoadPct(f) > MAX_UNKNOWN_OFFROAD_PCT || !meetsRoad(c)) return false;
-    if (!meetsTarget(c.distanceM, c.elevGainM, target)) return false;
-    if (geometryQuality(c.coords).backtrackM > MAX_INTENT_BACKTRACK * c.distanceM) return false;
     const line = toLatLng(c.coords);
-    if (overlapsAccepted(line)) return false;
+    const access = accessRoughM(f, START_ACCESS_M);
+    const reason: DiscardReason | null = !visitsWaypoints(c.coords, [start, ...ring.waypoints, start], WAYPOINT_SNAP_M) ? 'no pasa por sus puntos'
+      : unknownSurfaceOffRoadPct(f) > MAX_UNKNOWN_OFFROAD_PCT ? 'firme desconocido'
+      : !meetsRoad(c, access) ? rejectReason({ ...c, unpavedM: c.unpavedM - access.unpavedM, trackM: c.trackM - access.trackM }, c.distanceM) ?? 'sin asfaltar'
+      : !meetsTarget(c.distanceM, c.elevGainM, target) ? (Math.abs(c.distanceM - targetM) > LENGTH_TOLERANCE * targetM ? 'longitud' : 'desnivel')
+      : geometryQuality(c.coords).backtrackM > MAX_INTENT_BACKTRACK * c.distanceM ? 'ida y vuelta'
+      : overlapsAccepted(line) ? 'repetida' : null;
+    if (reason) {
+      onUpdate?.({ kind: 'discarded', reason, distanceM: c.distanceM, elevGainM: c.elevGainM });
+      return false;
+    }
     accept({ kind: 'nueva', id: `nueva-${newCards.length + 1}`, route: rateCandidate(c, scoreTarget, deps) }, line);
     return true;
   }

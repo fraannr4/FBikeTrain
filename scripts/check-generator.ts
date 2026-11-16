@@ -53,9 +53,9 @@ async function main() {
   }
 
   const { ACCOUNT_PROJECT_URL } = await import('../src/auth/config');
-  const { analyzeRoute, rejectReason } = await import('../src/routes/analyze');
+  const { accessRoughM, analyzeRoute, rejectReason } = await import('../src/routes/analyze');
   const { acceptanceReport } = await import('../src/routes/library/acceptance');
-  const { generateProposals, MAX_PROPOSALS, MIN_PROPOSALS } = await import('../src/routes/library/generate');
+  const { generateProposals, MAX_PROPOSALS, MIN_PROPOSALS, START_ACCESS_M } = await import('../src/routes/library/generate');
   const { buildLibraryZone, circleBox } = await import('../src/routes/library/zoneResponse');
   const { normalizeLibrarySearch } = await import('../src/routes/library/schema');
   const { ORS_DAILY_LIMIT, OrsError } = await import('../src/routes/ors');
@@ -122,6 +122,8 @@ async function main() {
   let orsRequests = 0;
   /** Última candidata devuelta por ORS: la del re-trazado cuando se acepta una ruta de la biblioteca. */
   let lastCandidate: RouteCandidate | null = null;
+  /** Metros malos del acceso al inicio de esa última candidata: no cuentan (como en el generador). */
+  let lastAccess = { unpavedM: 0, trackM: 0 };
   async function orsFetch(request: SharedOrsRequest, signal?: AbortSignal): Promise<OrsFeature[]> {
     const now = Date.now();
     while (calls.length && now - calls[0] >= 60_000) calls.shift();
@@ -146,6 +148,7 @@ async function main() {
     if (!features.length) throw new OrsError('no_route', 'ORS no ha devuelto ninguna ruta.');
     for (const f of features) f.properties.extras = orsExtras(f.properties.extras as Record<string, unknown>) as OrsFeature['properties']['extras'];
     lastCandidate = analyzeRoute(features[0], 0);
+    lastAccess = accessRoughM(features[0], START_ACCESS_M);
     if (verbose) {
       const c = lastCandidate;
       console.log(`  ORS ${request.operation}: ${(c.distanceM / 1000).toFixed(1)} km, +${Math.round(c.elevGainM)} m, sin asfaltar ${Math.round(c.unpavedM)} m, `
@@ -167,11 +170,13 @@ async function main() {
     const t = Date.now();
     const before = orsRequests;
     const retraced = new Map<string, RouteCandidate | null>();
+    const access = new Map<string, { unpavedM: number; trackM: number }>();
     const res = await generateProposals(target, {
       ors, library, reference: null, visited: new Set(),
       onUpdate: u => {
         if (u.kind === 'waiting') console.log(`Esperando ${u.seconds} s por el límite por minuto...`);
-        else if (u.kind === 'card' && u.card.kind === 'biblioteca') retraced.set(u.card.id, lastCandidate);
+        else if (u.kind === 'card') { access.set(u.card.id, lastAccess); if (u.card.kind === 'biblioteca') retraced.set(u.card.id, lastCandidate); }
+        else if (u.kind === 'discarded') console.log(`  descartada (${u.reason}): ${(u.distanceM / 1000).toFixed(1)} km, +${Math.round(u.elevGainM)} m`);
         else if (verbose && u.kind === 'library-ready') console.log(`  biblioteca: ${u.routes} rutas, ${u.cells} celdas`);
       },
     });
@@ -181,7 +186,7 @@ async function main() {
         const r = card.route;
         return {
           kind: card.kind, distanceM: r.distanceM, elevGainM: r.elevGainM, backtrackM: geometryQuality(r.coords).backtrackM,
-          road: { unpavedM: r.unpavedM, trackM: r.trackM, mainRoadPct: r.mainRoadPct, motorway: r.motorway },
+          road: { unpavedM: r.unpavedM - (access.get(card.id)?.unpavedM ?? 0), trackM: r.trackM - (access.get(card.id)?.trackM ?? 0), mainRoadPct: r.mainRoadPct, motorway: r.motorway },
           line: r.coords.map(([lng, lat]) => ({ lat, lng })),
         };
       }
@@ -190,7 +195,7 @@ async function main() {
       return {
         kind: card.kind, distanceM: a.distanceM, elevGainM: a.elevGainM,
         backtrackM: geometryQuality(a.coords.map(p => [p.lng, p.lat, p.ele ?? 0] as [number, number, number])).backtrackM,
-        road: c && { unpavedM: c.unpavedM, trackM: c.trackM, mainRoadPct: c.mainRoadPct, motorway: c.motorway },
+        road: c && { unpavedM: c.unpavedM - (access.get(card.id)?.unpavedM ?? 0), trackM: c.trackM - (access.get(card.id)?.trackM ?? 0), mainRoadPct: c.mainRoadPct, motorway: c.motorway },
         line: a.coords.map(p => ({ lat: p.lat, lng: p.lng })),
       };
     });
