@@ -25,3 +25,10 @@
 @media (min-width: 900px) {
   .legacy { padding-bottom: 64px; }
 }
+
+/* Tu foto en la barra superior de las pantallas raíz (móvil). En PC el perfil está en el carril. */
+.appbar-profile { padding: 0; }
+.appbar-profile .profile-avatar { width: 34px; height: 34px; font-size: 15px; box-shadow: 0 0 0 2px var(--line-strong); }
+@media (min-width: 900px) {
+  .app .appbar-profile { display: none; }
+}

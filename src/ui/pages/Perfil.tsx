@@ -7,14 +7,18 @@ import { listActivities } from '../../db/repo';
 import { TZ } from '../../metrics/aggregate';
 import { loadSettings, saveSettings } from '../../settings/settings';
 import { listFriends } from '../../social/friends';
+import { listCommunityChallenges } from '../../social/communityChallenges';
 import { removeAvatar, uploadAvatar } from '../../social/avatar';
 import type { RidingStyle } from '../../social/journal';
+import { USERNAME_HELP, profileSaveMessage } from '../../social/profileIdentity';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
 import { Banner } from '../components/Banner';
 import { Sheet } from '../components/Sheet';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { BookOpen, Ellipsis, MapPin, Pencil, Search, Swords, Users } from '../icons';
+import { ProfileStats, type ProfileStat } from '../profile/ProfileStats';
+import { forgetOwnProfile } from '../shell/OwnProfileButton';
 import { formatCount, formatKm, formatMeters } from '../format';
 import { ProfileHero } from '../profile/ProfileHero';
 import { JournalFeed } from '../profile/JournalFeed';
@@ -38,7 +42,8 @@ export function Perfil() {
   const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<'cuaderno' | 'amigos'>('cuaderno');
   const [year, setYear] = useState<Year | null>(null);
-  const [friends, setFriends] = useState<number | null>(null);
+  const [friends, setFriends] = useState<{ accepted: number; received: number } | null>(null);
+  const [wins, setWins] = useState<number | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!account) return;
@@ -57,7 +62,8 @@ export function Perfil() {
     listActivities({ from: new TZDate(currentYear, 0, 1, TZ).getTime(), to: Date.now() }).then(rows => {
       if (live) setYear({ year: currentYear, rides: rows.length, distance: rows.reduce((s, a) => s + a.totals.distanceM, 0), elevation: rows.reduce((s, a) => s + a.totals.elevGainM, 0) });
     }).catch(() => {});
-    listFriends(account.client).then(rows => { if (live) setFriends(rows.filter(f => f.status === 'accepted').length); }).catch(() => {});
+    listFriends(account.client).then(rows => { if (live) setFriends({ accepted: rows.filter(f => f.status === 'accepted').length, received: rows.filter(f => f.status === 'pending' && f.direction === 'received').length }); }).catch(() => {});
+    listCommunityChallenges(account.client, 0).then(rows => { if (live) setWins(rows.filter(c => c.status === 'finished' && c.winner_ids.includes(account.user.id)).length); }).catch(() => {});
     return () => { live = false; };
   }, [account?.client, account?.user.id]);
   function edit() { setDraft(profile); setEditError(''); setEditing(true); }
@@ -68,8 +74,8 @@ export function Perfil() {
       const next = { username: draft.username, display_name: draft.display_name.trim(), bio: draft.bio.trim(), riding_style: draft.riding_style, stats_visibility: draft.stats_visibility };
       if (!next.display_name) { setEditError('Escribe un nombre para tu perfil.'); return; }
       const { data, error: err } = await account.client.from('profiles').update(next).eq('id', account.user.id).select('id').single();
-      if (err || !data) { setEditError(err?.code === '23505' ? 'Ese nombre de usuario ya está ocupado. Elige otro.' : 'No se pudo guardar el perfil. Inténtalo de nuevo.'); return; }
-      setProfile(p => p ? { ...p, ...next } : p); setEditing(false); setNotice('Perfil guardado.');
+      if (err || !data) { setEditError(profileSaveMessage(err)); return; }
+      setProfile(p => p ? { ...p, ...next } : p); setEditing(false); setNotice('Perfil guardado.'); forgetOwnProfile();
       try { const settings = await loadSettings(); await saveSettings({ ...settings, displayName: next.display_name }); }
       catch { setNotice('Perfil guardado. El saludo local se actualizará cuando el almacenamiento vuelva a estar disponible.'); }
     } catch { setEditError('No se pudo guardar el perfil. Comprueba la conexión.'); }
@@ -78,14 +84,14 @@ export function Perfil() {
   async function photo(file: File | undefined) {
     if (!account || !file || photoBusy) return;
     setPhotoBusy(true); setError(''); setNotice('');
-    try { const version = await uploadAvatar(account.client, account.user.id, file); setProfile(p => p ? { ...p, avatar_version: version } : p); setNotice('Foto de perfil guardada.'); }
+    try { const version = await uploadAvatar(account.client, account.user.id, file); setProfile(p => p ? { ...p, avatar_version: version } : p); setNotice('Foto de perfil guardada.'); forgetOwnProfile(); }
     catch (e) { setError(errorText(e)); }
     finally { setPhotoBusy(false); if (photoInput.current) photoInput.current.value = ''; }
   }
   async function clearPhoto() {
     if (!account || photoBusy) return;
     setPhotoBusy(true); setEditError('');
-    try { await removeAvatar(account.client, account.user.id); setProfile(p => p ? { ...p, avatar_version: 0 } : p); setNotice('Foto de perfil retirada.'); }
+    try { await removeAvatar(account.client, account.user.id); setProfile(p => p ? { ...p, avatar_version: 0 } : p); setNotice('Foto de perfil retirada.'); forgetOwnProfile(); }
     catch (e) { setEditError(errorText(e)); }
     finally { setPhotoBusy(false); }
   }
@@ -96,14 +102,18 @@ export function Perfil() {
     catch (e) { setEditError(authMessage(e)); }
     finally { setBusy(false); }
   }
-  return <Page title="Tu perfil" className="page--profile">
+  const stats: ProfileStat[] = [];
+  if (friends) stats.push({ value: friends.accepted, label: 'Amigos', to: '/perfil/amigos', note: friends.received ? `${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud' : 'solicitudes'}` : undefined,
+    name: `${formatCount(friends.accepted)} ${friends.accepted === 1 ? 'amigo' : 'amigos'}${friends.received ? `, ${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}` : ''}` });
+  if (wins !== null) stats.push({ value: wins, label: 'Retos ganados', to: '/retos?vista=historial', name: `${formatCount(wins)} ${wins === 1 ? 'reto ganado' : 'retos ganados'}` });
+  if (year) stats.push({ value: year.rides, label: `Salidas ${year.year}`, to: '/historial', name: `${formatCount(year.rides)} ${year.rides === 1 ? 'salida' : 'salidas'} en ${year.year}` });
+  return <Page title="Tu perfil" back="/" className="page--profile">
     {!account ? <p>Inicia sesión para ver tu perfil.</p> : <>
       {error && <Banner tone="error" action={!profile ? <button className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button> : undefined}>{error}</Banner>}
       {!profile ? !error && <p role="status">Cargando tu perfil…</p> : <>
         <input ref={photoInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Archivo de foto de perfil" tabIndex={-1} onChange={e => void photo(e.target.files?.[0])} />
-        <ProfileHero client={account.client} profile={{ ...profile, id: account.user.id }} own onPhoto={() => photoInput.current?.click()} photoBusy={photoBusy}>
+        <ProfileHero client={account.client} profile={{ ...profile, id: account.user.id }} own onPhoto={() => photoInput.current?.click()} photoBusy={photoBusy} stats={stats.length ? <ProfileStats label="Tus cifras" items={stats} /> : null}>
           <button className="btn btn--primary" onClick={edit} aria-label="Editar perfil"><Pencil className="ic" aria-hidden="true" />Editar</button>
-          <Link className="btn btn--secondary" to="/amigos?vista=amigos" aria-label="Mis amigos"><Users className="ic" aria-hidden="true" />{friends === null ? 'Mis amigos' : `${formatCount(friends)} ${friends === 1 ? 'amigo' : 'amigos'}`}</Link>
           <Link className="icon-btn profile-more" to="/mas" aria-label="Más opciones"><Ellipsis className="ic" aria-hidden="true" /></Link>
         </ProfileHero>
         {notice && <p className="profile-notice" role="status">{notice}</p>}
@@ -123,7 +133,7 @@ export function Perfil() {
         {draft && <div className="profile-editor">{editError && <Banner tone="error">{editError}</Banner>}
           <form aria-label="Editar perfil" onSubmit={save}><fieldset disabled={busy || photoBusy}>
             <Field label="Nombre visible" required maxLength={60} autoComplete="nickname" value={draft.display_name} onChange={e => setDraft({ ...draft, display_name: e.target.value })} />
-            <Field label="Nombre de usuario" required minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" help="Entre 3 y 32 letras minúsculas, números o guiones bajos." autoCapitalize="none" spellCheck={false} value={draft.username} onChange={e => setDraft({ ...draft, username: e.target.value })} />
+            <Field label="Nombre de usuario" required minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" help={USERNAME_HELP} autoCapitalize="none" spellCheck={false} value={draft.username} onChange={e => setDraft({ ...draft, username: e.target.value })} />
             <label className="field"><span className="field-label">Sobre ti</span><textarea className="input" rows={3} maxLength={280} value={draft.bio} placeholder="Lo que te saca de casa. Tu puerto favorito. Tu manera de entender la bici." onChange={e => setDraft({ ...draft, bio: e.target.value })} /><span className="help">{draft.bio.length}/280 · Visible para los usuarios de la app.</span></label>
             <fieldset className="profile-modes"><legend>Mi manera de rodar</legend>{(Object.keys(RIDING_STYLES) as RidingStyle[]).map(mode => { const style = RIDING_STYLES[mode]; const Icon = style.icon; return <label key={mode} className="profile-mode"><input type="radio" name="riding-style" value={mode} checked={draft.riding_style === mode} onChange={() => setDraft({ ...draft, riding_style: mode })} /><Icon className="ic" aria-hidden="true" /><span>{style.label}</span></label>; })}</fieldset>
             <label className="field"><span className="field-label">Quién puede ver tus estadísticas</span><select className="input" value={draft.stats_visibility} onChange={e => setDraft({ ...draft, stats_visibility: e.target.value as Profile['stats_visibility'] })}><option value="everyone">Todos los usuarios de la app</option><option value="friends">Solo amigos aceptados</option></select><span className="help">Esta privacidad también protege las cifras de las salidas publicadas en tu cuaderno. Tus tracks y mapas de salidas son privados.</span></label>

@@ -1,26 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
-import { listCommunityChallenges, listCommunityNotifications, readCommunityNotification, CHALLENGE_LABELS, formatCommunityScore, rankedCommunityMembers, type CommunityChallenge, type CommunityNotification } from '../../social/communityChallenges';
+import { listCommunityChallenges, listCommunityNotifications, readCommunityNotification, respondCommunityChallenge, CHALLENGE_LABELS, formatCommunityScore, rankedCommunityMembers, type CommunityChallenge, type CommunityNotification } from '../../social/communityChallenges';
 import { syncCommunityScores } from '../../social/challengeScoring';
+import { notifyCommunityChanged } from '../../social/communityBadge';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { SegmentedControl } from '../components/SegmentedControl';
+import { formatCount } from '../format';
+import { Search } from '../icons';
+import { RivalRow } from '../retos/RivalRow';
+import { RetosEmpty } from '../retos/RetosEmpty';
 import { DuelComparison } from '../retos/DuelComparison';
 import '../styles/community-challenges.css';
 
 export const communityError = (e: unknown) => e instanceof Error ? e.message : 'No se pudo completar. Comprueba la conexión.';
 export const communityDate = (s: string) => new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+type View = 'active' | 'notifications' | 'finished';
+const VIEW_PARAM: Record<string, View> = { avisos: 'notifications', historial: 'finished' };
+
+/** Pestaña Retos: rivales con su estado, invitaciones con respuesta en la tarjeta y el marcador. */
 export function CommunityRetos() {
   const account = useAccount();
-  return <Page title="Retos" back="/perfil" variant="narrow" className="page--community" lead="Elige a otro ciclista. Enviad la invitación y medid vuestro esfuerzo.">
+  return <Page title="Retos" variant="narrow" className="page--community"
+    actions={<Link className="icon-btn" to="/ciclistas" aria-label="Buscar ciclistas"><Search className="ic" aria-hidden="true" /></Link>}>
     {account && !account.user.is_anonymous ? <CommunityRetosList account={account} /> : <p>Inicia sesión con una cuenta registrada para participar.</p>}
   </Page>;
 }
 function CommunityRetosList({ account }: { account: Account }) {
+  const [params] = useSearchParams();
   const [rows, setRows] = useState<CommunityChallenge[] | null>(null);
   const [notifications, setNotifications] = useState<CommunityNotification[]>([]);
-  const [view, setView] = useState<'active' | 'finished' | 'notifications'>('active');
+  const [view, setView] = useState<View>(() => VIEW_PARAM[params.get('vista') ?? ''] ?? 'active');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [more, setMore] = useState(false);
   const [notificationMore, setNotificationMore] = useState(false);
@@ -68,17 +81,33 @@ function CommunityRetosList({ account }: { account: Account }) {
     try { await readCommunityNotification(account.client, n.id); setNotifications(previous => previous.map(row => row.id === n.id ? { ...row, read_at: new Date().toISOString() } : row)); }
     catch (e) { setError(communityError(e)); }
   }
-  const visible = rows?.filter(row => row.status === view) ?? [];
+  async function respond(c: CommunityChallenge, accept: boolean) {
+    if (busy) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await respondCommunityChallenge(account.client, c.id, accept);
+      // La tarjeta cambia en el sitio: sin esperar a recargar la lista.
+      setRows(previous => previous?.map(row => row.id !== c.id ? row : { ...row, members: row.members.map(m => m.id === account.user.id ? { ...m, status: accept ? 'accepted' : 'declined' } : m) }) ?? previous);
+      setNotice(accept ? `Reto aceptado: «${c.title}». Ya está en juego.` : `Invitación rechazada: «${c.title}».`);
+      notifyCommunityChanged();
+    } catch (e) { setError(communityError(e)); }
+    finally { setBusy(false); }
+  }
+  const userId = account.user.id;
+  const myStatus = (c: CommunityChallenge) => c.members.find(m => m.id === userId)?.status;
+  const invitations = rows?.filter(c => c.status === 'active' && myStatus(c) === 'pending') ?? [];
+  const active = rows?.filter(c => c.status === 'active' && myStatus(c) === 'accepted') ?? [];
+  const finished = rows?.filter(c => c.status === 'finished' || myStatus(c) === 'declined') ?? [];
   const unread = notifications.filter(n => !n.read_at).length;
   return <>
-    <div className="community-rival-entry"><div><span className="community-eyebrow">DE CICLISTA A CICLISTA</span><p>¿A quién retas hoy?</p></div><Link className="btn btn--primary" to="/ciclistas">Elegir rival <span aria-hidden="true">↗</span></Link></div>
-    <div className="community-tabs" aria-label="Vistas de retos">
-      <button className="btn" aria-pressed={view === 'active'} onClick={() => setView('active')}>En marcha</button>
-      <button className="btn" aria-pressed={view === 'finished'} onClick={() => setView('finished')}>Historial</button>
-      <button className="btn" aria-pressed={view === 'notifications'} onClick={() => setView('notifications')}>Avisos{unread ? ` (${unread})` : ''}</button>
-    </div>
-    <div className="community-refresh"><span>Se actualiza cada 30 s mientras estás aquí.</span><button className="btn btn--ghost" disabled={busy} onClick={() => void load(true)}>Actualizar</button></div>
+    {rows && <RivalRow client={account.client} rows={rows} userId={userId} />}
+    <SegmentedControl<View> label="Vistas de retos" value={view} onChange={setView} options={[
+      { value: 'active', label: 'En juego' },
+      { value: 'notifications', label: unread ? `Avisos (${formatCount(unread)})` : 'Avisos' },
+      { value: 'finished', label: 'Historial' },
+    ]} />
     {error && <Banner tone="error" action={<button className="btn btn--ghost" onClick={() => void load(true)} disabled={busy}>Reintentar</button>}>{error}</Banner>}
+    {notice && <p className="community-notice-line" role="status">{notice}</p>}
     {!rows && !error && <p role="status">Cargando tus retos…</p>}
     {view === 'notifications' ? <section aria-label="Notificaciones de retos" className="community-stack">
       {!notifications.length && <div className="card community-empty"><h2>Al día con la grupeta</h2><p>Aquí aparecerán las invitaciones, respuestas y retos terminados.</p></div>}
@@ -88,14 +117,33 @@ function CommunityRetosList({ account }: { account: Account }) {
         {!n.challenge_id && n.actor_id && <Link className="btn btn--secondary" to={`/personas/${n.actor_id}`} onClick={() => void read(n)}>Ver ciclista</Link>}
         {!n.read_at && <button className="btn btn--ghost" onClick={() => void read(n)}>Marcar leído</button>}
       </article>)}
-    </section> : <section className="community-stack" aria-label={view === 'active' ? 'Retos en marcha' : 'Historial de retos'}>
-      {rows && !visible.length && <div className="card community-empty"><h2>{view === 'active' ? 'Tu próximo rival está en Ciclistas' : 'Cada reto deja huella'}</h2><p>{view === 'active' ? 'Elige a alguien y envíale una invitación. Aquí verás vuestros marcadores.' : 'Los retos terminados y sus ganadores aparecerán aquí.'}</p>{view === 'active' && <Link className="btn btn--secondary" to="/ciclistas">Buscar un rival</Link>}</div>}
-      {visible.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
+    </section> : view === 'active' ? <section className="community-stack" aria-label="Retos en juego">
+      {invitations.map(c => <InvitationCard key={c.id} challenge={c} userId={userId} busy={busy} onRespond={accept => void respond(c, accept)} />)}
+      {active.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
+      {rows && !invitations.length && !active.length && <RetosEmpty account={account} />}
+    </section> : <section className="community-stack" aria-label="Historial de retos">
+      {rows && !finished.length && <div className="card community-empty"><h2>Cada reto deja huella</h2><p>Los retos terminados y sus ganadores aparecerán aquí.</p></div>}
+      {finished.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
     </section>}
     {(view === 'notifications' ? notificationMore : more) && <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => void next()}>Cargar más</button>}
+    <div className="community-refresh"><span>Se actualiza cada 30 s mientras estás aquí.</span><button className="btn btn--ghost" disabled={busy} onClick={() => void load(true)}>Actualizar</button></div>
     <p className="community-footnote">Los tracks y tu ubicación se quedan en tu dispositivo. Solo compartes cifras con los participantes al aceptar.</p>
     <Link className="btn btn--ghost" to="/retos/anteriores">Retos anteriores de ruta</Link>
   </>;
+}
+/** «Te han retado»: se responde en la propia tarjeta, sin abrir el detalle. */
+function InvitationCard({ challenge: c, userId, busy, onRespond }: { challenge: CommunityChallenge; userId: string; busy: boolean; onRespond: (accept: boolean) => void }) {
+  const from = c.members.find(m => m.id === c.creator_id && m.id !== userId)?.display_name ?? 'Un ciclista';
+  return <article className="card community-challenge community-invite" aria-label={`${from} te reta: ${c.title}`}>
+    <div className="community-card-top"><span className="chip community-invite-chip">Te reta {from}</span><span className="community-eyebrow">{CHALLENGE_LABELS[c.kind]}</span></div>
+    <h2>{c.title}</h2>
+    <p>{c.members.length === 2 ? 'Duelo' : `Grupeta · ${c.members.length} ciclistas`} · Hasta {communityDate(c.deadline)}</p>
+    <div className="btn-row community-invite-actions">
+      <button className="btn btn--primary" disabled={busy} onClick={() => onRespond(true)} aria-label={`Aceptar reto «${c.title}»`}>Aceptar reto</button>
+      <button className="btn btn--secondary" disabled={busy} onClick={() => onRespond(false)} aria-label={`Ahora no: «${c.title}»`}>Ahora no</button>
+    </div>
+    <Link className="community-card-link" to={`/retos/comunidad/${c.id}`}>Ver invitación <span aria-hidden="true">→</span></Link>
+  </article>;
 }
 function ChallengeCard({ challenge: c, account }: { challenge: CommunityChallenge; account: Account }) {
   const userId = account.user.id;

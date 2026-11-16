@@ -13,6 +13,7 @@ import { Calendario } from './ui/pages/Calendario';
 import { Objetivos } from './ui/pages/Objetivos';
 import { Mas } from './ui/pages/Mas';
 import { Perfil } from './ui/pages/Perfil';
+import { PerfilNuevo } from './ui/pages/PerfilNuevo';
 import { Persona } from './ui/pages/Persona';
 import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 import { RutaCompartida } from './ui/pages/RutaCompartida';
@@ -70,12 +71,15 @@ export function App() {
           <Route path="/plan/objetivos" element={<Objetivos />} />
           <Route path="/mas" element={<Mas />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/perfil/nuevo" element={<PerfilNuevo />} />
           <Route path="/personas/:id" element={<Persona />} />
           <Route path="/importar" element={<Importar />} />
           <Route path="/compartido" element={<Compartido />} />
           <Route path="/ajustes" element={<Ajustes />} />
           <Route path="/zona" element={<Zona />} />
-          <Route path="/amigos" element={<Amigos />} />
+          <Route path="/perfil/amigos" element={<Amigos />} />
+          {/* Amigos vive ahora dentro del perfil; el enlace antiguo (también ?vista=amigos) redirige. */}
+          <Route path="/amigos" element={<Navigate to="/perfil/amigos" replace />} />
           <Route path="/ciclistas" element={<Ciclistas />} />
           <Route path="/retos" element={<CommunityRetos />} />
           <Route path="/retos/nuevo" element={<NewChallengeRoute />} />

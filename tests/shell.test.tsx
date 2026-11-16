@@ -133,7 +133,7 @@ describe('screens', () => {
 
 describe('navegación social con cuenta', () => {
   it.each([
-    ['/perfil', 'Tu perfil'], ['/zona', 'Tu perfil'], ['/amigos', 'Amigos'],
+    ['/perfil', 'Tu perfil'], ['/zona', 'Tu perfil'], ['/amigos', 'Amigos'], ['/perfil/amigos', 'Amigos'],
     ['/personas/p2', 'Ciclistas'], ['/ciclistas', 'Ciclistas'], ['/retos/nuevo', 'Retos'], ['/retos/r1', 'Retos'],
   ])('el carril selecciona %s en %s', (pathname, label) => {
     render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
@@ -143,7 +143,9 @@ describe('navegación social con cuenta', () => {
     const selected = within(group).getAllByRole('link').filter(link => link.getAttribute('aria-current') === 'page');
     expect(selected).toHaveLength(1);
     expect(selected[0]).toHaveTextContent(label);
-    expect(screen.getByRole('link', { name: 'Perfil' })).toHaveAttribute('href', '/perfil');
+    // En el móvil, la quinta pestaña es Retos; el perfil se abre desde la foto de la cabecera.
+    expect(screen.queryByRole('link', { name: 'Perfil' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Retos' }).filter(link => link.classList.contains('tab--mobile'))).toHaveLength(1);
   });
 
   it('Más sigue disponible y seleccionado al abrir ajustes', () => {
@@ -151,7 +153,7 @@ describe('navegación social con cuenta', () => {
       <MemoryRouter><TabBar pathname="/ajustes" planBadge={0} /></MemoryRouter>
     </AccountContext.Provider>);
     expect(screen.getByRole('link', { name: 'Más' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Amigos' })).toHaveAttribute('href', '/amigos');
-    expect(screen.getByRole('link', { name: 'Retos' })).toHaveAttribute('href', '/retos');
+    expect(screen.getByRole('link', { name: 'Amigos' })).toHaveAttribute('href', '/perfil/amigos');
+    screen.getAllByRole('link', { name: 'Retos' }).forEach(link => expect(link).toHaveAttribute('href', '/retos'));
   });
 });

@@ -26,7 +26,7 @@ function fakeClient(handlers: Record<string, Handler>, friends: FriendRow[] = []
   return { client: { rpc } as unknown as SupabaseClient, rpc, state };
 }
 
-function renderWith(client: SupabaseClient, page = <Amigos />, path = '/amigos') {
+function renderWith(client: SupabaseClient, page = <Amigos />, path = '/perfil/amigos') {
   return render(
     <AccountContext.Provider value={{ client, user: { id: 'u1' } as User }}>
       <MemoryRouter initialEntries={[path]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -36,116 +36,25 @@ function renderWith(client: SupabaseClient, page = <Amigos />, path = '/amigos')
   );
 }
 
-const calls = (rpc: ReturnType<typeof vi.fn>, fn: string) => rpc.mock.calls.filter((c) => c[0] === fn);
-const zona = (locality: string | null): Handler => () => ({ data: [{ locality, show_area: true }] });
+const NEAR_MISSING: Handler = () => ({ error: { message: 'Sin zona configurada' } });
 
-describe('Amigos', () => {
-  it('abre la lista desde el acceso del perfil y enlaza perfiles ajenos', async () => {
-    const { client } = fakeClient({}, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
-    renderWith(client, <Amigos />, '/amigos?vista=amigos');
-    expect(await screen.findByRole('region', { name: 'Tus amigos' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
-  });
-
-  it('un error cargando amistades se muestra en Buscar y bloquea solicitudes desconocidas', async () => {
-    const rpc = vi.fn(async (fn: string) => fn === 'list_friends'
-      ? { error: { message: 'network' } }
-      : { data: fn === 'search_profiles' ? [ana] : [] });
-    renderWith({ rpc } as unknown as SupabaseClient);
-    expect(await screen.findByRole('alert')).toBeInTheDocument();
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Nombre o usuario'), 'Ana');
-    await user.click(within(screen.getByRole('search')).getByRole('button', { name: 'Buscar' }));
-    expect(await screen.findByText('Amistad sin comprobar')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Solicitar amistad a Ana Ruta' })).not.toBeInTheDocument();
-  });
-  it('con menos de 3 letras no busca y lo dice', async () => {
-    const { client, rpc } = fakeClient({ my_area: zona('Villa Centro') });
+describe('Amigos dentro del perfil', () => {
+  it('lista tus amigos con su perfil y Retar, y vuelve al perfil', async () => {
+    const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
     renderWith(client);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Nombre o usuario'), 'an');
-    await user.click(within(screen.getByRole('search')).getByRole('button', { name: 'Buscar' }));
-    expect(screen.getByText('Escribe al menos 3 letras.')).toBeInTheDocument();
-    expect(calls(rpc, 'search_profiles')).toHaveLength(0);
+    expect(screen.getByRole('heading', { name: 'Amigos', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Volver a Tu perfil' })).toBeInTheDocument();
+    const mine = await screen.findByRole('region', { name: 'Tus amigos' });
+    expect(within(mine).getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
+    expect(within(mine).getByRole('link', { name: 'Retar a Ana Ruta' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p2');
   });
 
-  it('muestra los resultados por nombre y envía la solicitud', async () => {
-    const { client, rpc, state } = fakeClient({
-      my_area: zona('Villa Centro'),
-      search_profiles: () => ({ data: [ana, bea] }),
-      request_friendship: () => {
-        state.friends = [{ friendship_id: 'f1', status: 'pending', direction: 'sent', profile: ana }];
-        return {};
-      },
-    });
-    renderWith(client);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Nombre o usuario'), 'Ana');
-    await user.click(within(screen.getByRole('search')).getByRole('button', { name: 'Buscar' }));
-    const row = (await screen.findByText('Ana Ruta')).closest('li')!;
-    expect(within(row).getByText('@ana_ruta')).toBeInTheDocument();
-    expect(within(row).getByText('Villa Prueba')).toBeInTheDocument();
-    expect(rpc).toHaveBeenCalledWith('search_profiles', { q: 'Ana' });
-    await user.click(within(row).getByRole('button', { name: 'Solicitar amistad a Ana Ruta' }));
-    expect(rpc).toHaveBeenCalledWith('request_friendship', { target_id: 'p2' });
-    expect(await within(row).findByText('Pendiente')).toBeInTheDocument();
-  });
-
-  it('«Cerca de mí» sin zona lo dice y no llama', async () => {
-    const { client, rpc } = fakeClient({ my_area: zona(null) });
-    renderWith(client);
-    await vi.waitFor(() => expect(calls(rpc, 'my_area')).toHaveLength(1));
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Cerca de mí: 25 km' }));
-    expect(await screen.findByText('Indica tu zona en Ajustes para buscar cerca.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Indicar mi zona' })).toHaveAttribute('href', '/ajustes?abrir=zona');
-    expect(calls(rpc, 'search_profiles_near')).toHaveLength(0);
-  });
-
-  it('«Cerca de mí» con zona busca en el radio elegido y muestra la banda de distancia', async () => {
-    const { client, rpc } = fakeClient({
-      my_area: zona('Villa Centro'),
-      search_profiles_near: () => ({ data: [{ ...ana, distance_km: 10 }] }),
-    });
-    renderWith(client);
-    await vi.waitFor(() => expect(calls(rpc, 'my_area')).toHaveLength(1));
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Cerca de mí: 50 km' }));
-    expect(await screen.findByText('Villa Prueba, a menos de 10 km')).toBeInTheDocument();
-    expect(rpc).toHaveBeenCalledWith('search_profiles_near', { radius_km: 50 });
-  });
-
-  it('un error de la solicitud se muestra traducido y no deja el botón bloqueado', async () => {
-    const { client } = fakeClient({
-      my_area: zona('Villa Centro'),
-      search_profiles: () => ({ data: [ana] }),
-      request_friendship: () => ({ error: { message: 'Solicitud no válida' } }),
-    });
-    renderWith(client);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Nombre o usuario'), 'Ana');
-    await user.click(within(screen.getByRole('search')).getByRole('button', { name: 'Buscar' }));
-    const button = await screen.findByRole('button', { name: 'Solicitar amistad a Ana Ruta' });
-    await user.click(button);
-    expect(await screen.findByRole('alert')).toHaveTextContent('No puedes enviarte una solicitud a ti mismo.');
-    expect(button).toBeEnabled();
-  });
-
-  it('sin amistades invita a buscar', async () => {
-    const { client } = fakeClient({ my_area: zona('Villa Centro') });
-    renderWith(client);
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Amigos' }));
-    expect(await screen.findByText('Todavía no tienes amigos. Busca a alguien por su nombre o cerca de ti.')).toBeInTheDocument();
-  });
-
-  it('aceptar y quitar refrescan la lista', async () => {
+  it('las solicitudes recibidas van arriba y se aceptan o rechazan', async () => {
     const { client, rpc, state } = fakeClient(
       {
-        my_area: zona('Villa Centro'),
+        search_profiles_near: () => ({ data: [] }),
         accept_friendship: () => {
           state.friends = [{ ...state.friends[0], status: 'accepted' }];
-          return {};
-        },
-        remove_friendship: () => {
-          state.friends = [];
           return {};
         },
       },
@@ -153,37 +62,99 @@ describe('Amigos', () => {
     );
     renderWith(client);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Amigos (1)' }));
     const received = await screen.findByRole('region', { name: 'Solicitudes recibidas' });
-    expect(within(received).getByText('Bea Puerto')).toBeInTheDocument();
     expect(within(received).getByRole('button', { name: 'Rechazar a Bea Puerto' })).toBeInTheDocument();
     await user.click(within(received).getByRole('button', { name: 'Aceptar a Bea Puerto' }));
     expect(rpc).toHaveBeenCalledWith('accept_friendship', { request_id: 'f9' });
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
-    await user.click(within(mine).getByRole('button', { name: 'Quitar a Bea Puerto' }));
-    expect(rpc).toHaveBeenCalledWith('remove_friendship', { request_id: 'f9' });
-    expect(await screen.findByText('Todavía no tienes amigos. Busca a alguien por su nombre o cerca de ti.')).toBeInTheDocument();
-    expect(calls(rpc, 'list_friends').length).toBeGreaterThanOrEqual(3);
+    expect(within(mine).getByText('Bea Puerto')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
   });
 
-  it('a un amigo aceptado se le puede retar', async () => {
-    const { client } = fakeClient({ my_area: zona('Villa Centro') }, [{ friendship_id: 'f3', status: 'accepted', direction: 'sent', profile: bea }]);
+  it('rechazar retira la solicitud', async () => {
+    const { client, rpc, state } = fakeClient(
+      { search_profiles_near: () => ({ data: [] }), remove_friendship: () => { state.friends = []; return {}; } },
+      [{ friendship_id: 'f9', status: 'pending', direction: 'received', profile: bea }],
+    );
     renderWith(client);
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Amigos' }));
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Rechazar a Bea Puerto' }));
+    expect(rpc).toHaveBeenCalledWith('remove_friendship', { request_id: 'f9' });
+    expect(await screen.findByText('Todavía no tienes amigos.')).toBeInTheDocument();
+  });
+
+  it('el buscador filtra tu lista de amigos', async () => {
+    const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [
+      { friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana },
+      { friendship_id: 'f2', status: 'accepted', direction: 'received', profile: bea },
+    ]);
+    renderWith(client);
+    const user = userEvent.setup();
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
-    expect(within(mine).getByRole('link', { name: 'Retar a Bea Puerto' })).toHaveAttribute('href', '/retos/nuevo?amigo=p3');
+    const box = screen.getByRole('searchbox', { name: 'Buscar entre tus amigos' });
+    await user.type(box, 'puer');
+    expect(within(mine).queryByText('Ana Ruta')).not.toBeInTheDocument();
+    expect(within(mine).getByText('Bea Puerto')).toBeInTheDocument();
+    await user.clear(box);
+    await user.type(box, 'zzz');
+    expect(within(mine).getByText('Ningún amigo coincide con «zzz».')).toBeInTheDocument();
+  });
+
+  it('sugiere ciclistas cercanos que aún no son amigos y permite añadirlos', async () => {
+    const { client, rpc, state } = fakeClient(
+      {
+        search_profiles_near: () => ({ data: [{ ...ana, distance_km: 10 }, bea] }),
+        request_friendship: () => {
+          state.friends = [...state.friends, { friendship_id: 'f7', status: 'pending', direction: 'sent', profile: ana }];
+          return {};
+        },
+      },
+      [{ friendship_id: 'f2', status: 'accepted', direction: 'sent', profile: bea }],
+    );
+    renderWith(client);
+    const user = userEvent.setup();
+    const suggestions = await screen.findByRole('region', { name: 'Sugerencias' });
+    expect(rpc).toHaveBeenCalledWith('search_profiles_near', { radius_km: 50 });
+    expect(await within(suggestions).findByText('Villa Prueba, a menos de 10 km')).toBeInTheDocument();
+    expect(within(suggestions).queryByText('Bea Puerto')).not.toBeInTheDocument();
+    await user.click(within(suggestions).getByRole('button', { name: 'Añadir a Ana Ruta' }));
+    expect(rpc).toHaveBeenCalledWith('request_friendship', { target_id: 'p2' });
+    expect(await within(suggestions).findByText('Solicitud enviada')).toBeInTheDocument();
+  });
+
+  it('sin zona, sugiere ciclistas activos y explica cómo ver los cercanos', async () => {
+    const { client } = fakeClient({
+      search_profiles_near: NEAR_MISSING,
+      list_cyclists: () => ({ data: [{ ...ana, bio: '', riding_style: 'grupo', avatar_version: 0, last_active_at: null }] }),
+    });
+    renderWith(client);
+    const suggestions = await screen.findByRole('region', { name: 'Sugerencias' });
+    expect(await within(suggestions).findByText('Ana Ruta')).toBeInTheDocument();
+    expect(within(suggestions).getByRole('link', { name: 'Indicar mi zona' })).toHaveAttribute('href', '/ajustes?abrir=zona');
+  });
+
+  it('sin amigos, invita a buscar ciclistas', async () => {
+    const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) });
+    renderWith(client);
+    expect(await screen.findByText('Todavía no tienes amigos.')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Buscar ciclistas' })[0]).toHaveAttribute('href', '/ciclistas');
+  });
+
+  it('un error cargando amistades se muestra y no deja añadir a ciegas', async () => {
+    const rpc = vi.fn(async (fn: string) => (fn === 'list_friends' ? { error: { message: 'network' } } : { data: fn === 'search_profiles_near' ? [ana] : [] }));
+    renderWith({ rpc } as unknown as SupabaseClient);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Añadir a Ana Ruta' })).not.toBeInTheDocument();
   });
 
   it('las solicitudes enviadas se pueden cancelar', async () => {
     const { client, rpc, state } = fakeClient(
-      { my_area: zona('Villa Centro'), remove_friendship: () => { state.friends = []; return {}; } },
+      { search_profiles_near: () => ({ data: [] }), remove_friendship: () => { state.friends = []; return {}; } },
       [{ friendship_id: 'f5', status: 'pending', direction: 'sent', profile: ana }],
     );
     renderWith(client);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Amigos' }));
     const sent = await screen.findByRole('region', { name: 'Solicitudes enviadas' });
-    await user.click(within(sent).getByRole('button', { name: 'Cancelar a Ana Ruta' }));
+    await userEvent.setup().click(within(sent).getByRole('button', { name: 'Cancelar a Ana Ruta' }));
     expect(rpc).toHaveBeenCalledWith('remove_friendship', { request_id: 'f5' });
   });
 });

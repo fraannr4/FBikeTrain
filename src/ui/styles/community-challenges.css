@@ -124,3 +124,34 @@
 .community-device-option summary { min-height: 44px; padding: 14px 0; color: var(--ink-3); font-size: 12px; cursor: pointer; }
 .community-device-option > p { margin: 4px 0 14px; }
 @media (max-width: 370px) { .community-rival-entry { gap: 10px; } .community-rival-entry .btn { padding-inline: 12px; font-size: 13px; } .community-rival-entry p { font-size: 17px; } }
+
+/* Pestaña Retos (opción 2): fila de rivales con anillo de estado. El color acompaña; el estado va siempre en texto. */
+.rival-row { min-width: 0; }
+.rival-row-title { margin: 0 0 10px; font-size: var(--t-md, 17px); font-weight: 700; }
+.rival-list { display: flex; gap: 14px; margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter) 6px; overflow-x: auto; list-style: none; scroll-snap-type: x proximity; scrollbar-width: none; }
+.rival-list::-webkit-scrollbar { display: none; }
+.rival-list > li { flex: none; scroll-snap-align: start; }
+.rival { display: grid; justify-items: center; gap: 4px; width: 68px; min-height: 44px; color: inherit; text-decoration: none; border-radius: 12px; }
+.rival-ring { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; padding: 3px; box-shadow: inset 0 0 0 2px var(--ring, var(--line-strong)); }
+.rival-ring .profile-avatar { width: 50px; height: 50px; font-size: 20px; }
+.rival-ring--add { box-shadow: none; border: 2px dashed var(--line-strong); color: var(--link); }
+.rival-ring--add .ic { width: 24px; height: 24px; }
+.rival[data-state="invited"] { --ring: var(--warning); }
+.rival[data-state="sent"] { --ring: var(--line-strong); }
+.rival[data-state="active"] { --ring: var(--good); }
+.rival[data-state="rematch"] { --ring: var(--ink-3); }
+.rival-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink-2); }
+.rival-state { font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+
+.community-invite { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); }
+.community-card-top .community-invite-chip { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--warning-bg); color: var(--warning); }
+.community-invite-actions { margin: 16px 0 10px; }
+.community-invite-actions .btn--primary { flex: 1 1 auto; }
+.community-notice-line { margin: 0; color: var(--ink-2); font-size: 14px; }
+
+.retos-suggest { display: grid; gap: 10px; margin: 16px 0; padding: 0; list-style: none; }
+.retos-suggest li { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.retos-suggest-who { display: grid; flex: 1; min-width: 0; }
+.retos-suggest-who strong, .retos-suggest-who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.retos-suggest-who small { color: var(--ink-3); font-size: 12px; }
+.retos-templates { display: flex; flex-wrap: wrap; gap: 8px; }

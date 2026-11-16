@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
-import { acceptFriendship, removeFriendship, requestFriendship } from '../../social/friends';
+import { listCommunityChallenges } from '../../social/communityChallenges';
 import { loadPublicProfile } from '../../social/publicProfile';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
 import { ProfileHero } from '../profile/ProfileHero';
 import { JournalFeed } from '../profile/JournalFeed';
 import { CommunitySafety } from '../profile/CommunitySafety';
+import { FriendshipActions } from '../profile/FriendshipActions';
+import { ProfileStats } from '../profile/ProfileStats';
 import '../styles/profile.css';
 import '../styles/social.css';
 
@@ -29,7 +31,17 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [together, setTogether] = useState<{ total: number; mine: number; theirs: number } | null>(null);
   const load = useCallback(() => loadPublicProfile(account.client, id), [account.client, id]);
+  // Retos compartidos: salen de tu propia lista; no hay forma de leer los amigos ni los retos ajenos.
+  useEffect(() => {
+    let live = true;
+    listCommunityChallenges(account.client, 0).then(rows => {
+      const shared = rows.filter(c => c.members.some(m => m.id === id && m.status === 'accepted'));
+      if (live) setTogether({ total: shared.length, mine: shared.filter(c => c.winner_ids.includes(account.user.id)).length, theirs: shared.filter(c => c.winner_ids.includes(id)).length });
+    }, () => {});
+    return () => { live = false; };
+  }, [account.client, account.user.id, id]);
   useEffect(() => {
     let live = true;
     setError('');
@@ -37,8 +49,8 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
     return () => { live = false; };
   }, [load, attempt]);
 
-  async function act(run: () => Promise<void>, success: string) {
-    if (busy) return;
+  async function act(run: () => Promise<void>, success: string): Promise<boolean> {
+    if (busy) return false;
     setBusy(true); setError(''); setNotice('');
     try {
       await run();
@@ -46,9 +58,11 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
       setData(null);
       setData(await load());
       setNotice(success);
-    } catch (e) { setError(message(e)); }
+      return true;
+    } catch (e) { setError(message(e)); return false; }
     finally { setBusy(false); }
   }
+  const blocked = () => { setData({ profile: null, friendship: null }); setNotice('Ciclista bloqueado. Puedes desbloquearlo desde Ciclistas.'); };
 
   const f = data?.friendship;
   return <>
@@ -56,23 +70,16 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
     {!data ? !error && <p role="status">Cargando el perfil…</p> : !data.profile ? <section className="card reto-card">
       <h2>Perfil no disponible</h2><p>Este ciclista ya no está disponible.</p><Link className="btn btn--secondary" to="/ciclistas">Buscar ciclistas</Link>
     </section> : <>
-      <ProfileHero client={account.client} profile={data.profile}>
+      <ProfileHero client={account.client} profile={data.profile} stats={together && <ProfileStats label={`Cifras de ${data.profile.display_name}`} items={[
+        { value: together.total, label: 'Retos juntos', name: `${together.total} ${together.total === 1 ? 'reto juntos' : 'retos juntos'}`, to: '/retos?vista=historial' },
+        { value: together.mine, label: 'Tus victorias', name: `${together.mine} tuyas` },
+        { value: together.theirs, label: 'Sus victorias', name: `${together.theirs} suyas` },
+      ]} />}>
         {f?.profile.locality && <p className="help">{f.profile.locality}</p>}
-        {f?.status === 'accepted' ? <>
-          <p className="person-state" data-tone="good">Sois amigos</p>
-          <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Amistad retirada.')}>Quitar de amigos</button>
-        </> : f?.direction === 'received' ? <>
-          <p>Te ha enviado una solicitud de amistad.</p>
-          <div className="btn-row"><button className="btn btn--primary" disabled={busy} onClick={() => void act(() => acceptFriendship(account.client, f.friendship_id), 'Solicitud aceptada.')}>Aceptar solicitud</button>
-          <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Solicitud rechazada.')}>Rechazar solicitud</button></div>
-        </> : f ? <>
-          <p>Solicitud de amistad pendiente</p>
-          <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Solicitud cancelada.')}>Cancelar solicitud</button>
-        </> : <button className="btn btn--primary" disabled={busy} onClick={() => void act(() => requestFriendship(account.client, id), 'Solicitud de amistad enviada.')}>Solicitar amistad</button>}
-        <Link className="btn btn--primary btn--block" to={`/retos/nuevo?ciclista=${encodeURIComponent(id)}`} aria-label={`Retar a ${data.profile.display_name}`}>Lanzar un reto</Link>
+        <FriendshipActions client={account.client} targetId={id} name={data.profile.display_name} friendship={f ?? null} busy={busy} act={act} onBlocked={blocked} />
       </ProfileHero>
       <section className="profile-public-journal" aria-label="Cuaderno del ciclista"><div className="profile-journal-heading"><span className="profile-eyebrow">KILÓMETROS CON HISTORIA</span><h2>Su cuaderno de ruta</h2><p>Las historias que ha elegido compartir.</p></div><JournalFeed client={account.client} userId={account.user.id} targetId={data.profile.id} /></section>
-      <CommunitySafety client={account.client} targetId={id} name={data.profile.display_name} onBlocked={() => { setData({ profile: null, friendship: null }); setNotice('Ciclista bloqueado. Puedes desbloquearlo desde Ciclistas.'); }} />
+      <CommunitySafety client={account.client} targetId={id} name={data.profile.display_name} onBlocked={blocked} />
     </>}
     {notice && <p role="status">{notice}</p>}
   </>;
