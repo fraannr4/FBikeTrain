@@ -6,8 +6,10 @@ import { RIDING_STYLES, ridingStyle } from './profileStyle';
 export type ProfileIdentity = { id: string; username: string; display_name: string; bio?: string; riding_style?: string; avatar_version?: number };
 
 /** Paisaje inventado de marca: nunca la geometría ni el mapa de una salida. */
-export function ProfileHero({ client, profile, own = false, onPhoto, photoBusy = false, children }: {
-  client: SupabaseClient; profile: ProfileIdentity; own?: boolean; onPhoto?: () => void; photoBusy?: boolean; children?: ReactNode;
+export function ProfileHero({ client, profile, own = false, onPhoto, photoBusy = false, stats, children }: {
+  client: SupabaseClient; profile: ProfileIdentity; own?: boolean; onPhoto?: () => void; photoBusy?: boolean;
+  /** Fila de cifras tocables (amigos, retos, salidas), entre la bio y las acciones. */
+  stats?: ReactNode; children?: ReactNode;
 }) {
   const mode = ridingStyle(profile.riding_style);
   const style = RIDING_STYLES[mode]; const Icon = style.icon;
@@ -30,6 +32,7 @@ export function ProfileHero({ client, profile, own = false, onPhoto, photoBusy =
       <div className="profile-name-row"><div className="profile-name"><h2>{profile.display_name}</h2><p>@{profile.username}</p></div><span className="profile-style"><Icon className="ic" aria-hidden="true" />{style.label}</span></div>
       {profile.bio?.trim() ? <p className="profile-bio">{profile.bio}</p> : own ? <p className="profile-bio profile-bio--empty">Una bici, muchas historias. Cuenta la tuya.</p> : null}
       {photoBusy && <p className="help" role="status">Preparando tu foto…</p>}
+      {stats}
       {children && <div className="profile-actions">{children}</div>}
     </div>
     <div className="profile-signoff"><Icon className="ic" aria-hidden="true" /><span>{style.line}</span><span className="profile-signoff-mark" aria-hidden="true">↗</span></div>

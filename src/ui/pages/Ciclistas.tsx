@@ -19,7 +19,7 @@ export function cyclistActivityDay(value: string | null): string {
 
 export function Ciclistas() {
   const account = useAccount();
-  return <Page title="Ciclistas" back="/perfil" className="page--cyclists" actions={<Link className="icon-btn" to="/perfil" aria-label="Tu perfil"><User className="ic" aria-hidden="true" /></Link>}>
+  return <Page title="Ciclistas" back="/retos" className="page--cyclists" actions={<Link className="icon-btn" to="/perfil" aria-label="Tu perfil"><User className="ic" aria-hidden="true" /></Link>}>
     {!account || account.user.is_anonymous ? <p>Necesitas una cuenta registrada para acceder a la comunidad.</p> : <CyclistsView account={account} />}
   </Page>;
 }
@@ -114,7 +114,7 @@ function CyclistsView({ account }: { account: Account }) {
       <input ref={searchInput} aria-label="Nombre o usuario" type="search" autoComplete="off" maxLength={60} value={query} onChange={e => setQuery(e.target.value)} placeholder="Busca un ciclista" />
       {query && <button className="cyclists-search-icon" type="button" aria-label="Limpiar búsqueda" onClick={() => { setQuery(''); setTerm(''); searchInput.current?.focus(); }}><X className="ic" aria-hidden="true" /></button>}
     </form>
-    <nav className="cyclists-filters" aria-label="Vistas de ciclistas"><span aria-current="page">Todos</span><Link to="/amigos?vista=amigos">Amigos</Link></nav>
+    <nav className="cyclists-filters" aria-label="Vistas de ciclistas"><span aria-current="page">Todos</span><Link to="/perfil/amigos">Amigos</Link></nav>
     </div>
     <div className="cyclists-section-heading"><h2>{term ? `Resultados para «${term}»` : 'Actividad reciente'}</h2><span>{people.length}{more ? '+' : ''} {people.length === 1 ? 'ciclista' : 'ciclistas'}</span></div>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={loading} onClick={() => void load(term, rows.length ? nextOffset : 0, generation.current)}>Reintentar</button>}>{error}</Banner>}

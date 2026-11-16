@@ -79,7 +79,8 @@ test('aceptar una invitación de grupo, consultar marcador y leer su aviso a 390
   await page.setViewportSize({ width: 390, height: 844 });
   const state = await mockCommunity(page);
   await page.goto('./#/retos');
-  await page.getByRole('link', { name: /Te han retado/ }).click();
+  // La invitación se puede aceptar en la tarjeta; aquí se abre el detalle para ver el marcador.
+  await page.getByRole('link', { name: 'Ver invitación' }).click();
   await expect(page.getByRole('heading', { name: '¿Te apuntas?' })).toBeVisible();
   await page.getByRole('button', { name: 'Aceptar reto' }).click();
   await expect(page.getByRole('heading', { name: '¿Te apuntas?' })).toBeHidden();
@@ -172,8 +173,8 @@ for (const width of [360, 390, 412, 430]) {
       await mockCommunity(page, [duel, challenge(), tied]);
       const tag = `${width}-${theme}`;
       await page.goto('./#/retos');
-      await expect(page.getByRole('link', { name: /Te han retado/ })).toBeVisible();
-      await expect(page.locator('.community-rival-entry')).toHaveCSS('display', 'flex');
+      await expect(page.getByRole('article', { name: / te reta: / })).toBeVisible();
+      await expect(page.getByRole('region', { name: '¿A quién retas?' })).toBeVisible();
       expect(await overflow(page)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/lista-${tag}.png`, fullPage: true });
       if (width === 390) await page.screenshot({ path: `${SHOTS}/lista-${tag}-viewport.png` });

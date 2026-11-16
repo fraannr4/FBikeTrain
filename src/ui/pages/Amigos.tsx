@@ -1,57 +1,54 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
+import { listCyclists } from '../../social/community';
 import {
   acceptFriendship,
   listFriends,
   removeFriendship,
   requestFriendship,
-  searchProfiles,
   searchProfilesNear,
   type FriendRow,
   type ProfileCard,
 } from '../../social/friends';
 import { formatCount } from '../format';
-import { MapPin, Search, UserPlus, Users } from '../icons';
+import { Search, UserPlus } from '../icons';
 import { Banner } from '../components/Banner';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { StateView } from '../components/StateView';
 import '../styles/social.css';
 
-type Tab = 'buscar' | 'amigos';
-type Results = { title: string; empty: string; rows: ProfileCard[] };
-const EMPTY_FRIENDS = 'Todavía no tienes amigos. Busca a alguien por su nombre o cerca de ti.';
 const NO_AREA = 'Indica tu zona en Ajustes para buscar cerca.';
+const MAX_SUGGESTIONS = 8;
 const message = (e: unknown) => (e instanceof Error ? e.message : 'No se ha podido completar.');
+const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es');
 
-/** Amigos: buscar personas por nombre o cerca, y gestionar solicitudes y amistades. */
+/**
+ * Amigos, dentro del perfil: solicitudes recibidas arriba, tu lista con buscador, las enviadas y
+ * sugerencias (cercanos por banda de zona; sin zona, ciclistas activos). Buscar a cualquiera es Ciclistas.
+ */
 export function Amigos() {
   const account = useAccount();
   return (
-    <Page title="Amigos" back="/mas" variant="narrow" className="page--amigos" lead="Busca a otros ciclistas por su nombre o cerca de tu zona.">
-      {account ? <AmigosView account={account} /> : <p>Inicia sesión para buscar amigos.</p>}
+    <Page title="Amigos" back="/perfil" variant="narrow" className="page--amigos">
+      {account ? <AmigosView account={account} /> : <p>Inicia sesión para ver a tus amigos.</p>}
     </Page>
   );
 }
 
+type Suggestions = { rows: ProfileCard[]; noArea: boolean };
+
 function AmigosView({ account }: { account: Account }) {
   const { client } = account;
-  const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('vista') === 'amigos' ? 'amigos' : 'buscar';
-  const setTab = (value: Tab) => setParams(value === 'amigos' ? { vista: 'amigos' } : {});
   const [friends, setFriends] = useState<FriendRow[] | null>(null);
   const [listError, setListError] = useState('');
-  /** null mientras se lee la zona propia (o si no se pudo leer: entonces decide el servidor). */
-  const [hasArea, setHasArea] = useState<boolean | null>(null);
-  const [q, setQ] = useState('');
-  const [fieldError, setFieldError] = useState('');
-  const [nearMissing, setNearMissing] = useState(false);
-  const [results, setResults] = useState<Results | null>(null);
-  const [searching, setSearching] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null);
+  /** Sugerencias a las que has enviado solicitud aquí: siguen a la vista con «Solicitud enviada». */
+  const [asked, setAsked] = useState<ReadonlySet<string>>(new Set());
 
   const refresh = useCallback(async () => {
     try {
@@ -64,63 +61,16 @@ function AmigosView({ account }: { account: Account }) {
 
   useEffect(() => {
     void refresh();
-    let alive = true;
-    Promise.resolve()
-      .then(() => client.rpc('my_area'))
-      .then(({ data, error: err }) => {
-        const row = (Array.isArray(data) ? data[0] : data) as { locality?: string | null } | null;
-        if (alive && !err && row) setHasArea(Boolean(row.locality));
-      })
-      .catch(() => {
-        /* sin zona conocida: la búsqueda cercana la valida el servidor */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [client, refresh]);
+  }, [refresh]);
 
-  async function find(run: () => Promise<Results>) {
-    setSearching(true);
-    setError('');
-    try {
-      setResults(await run());
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setSearching(false);
-    }
-  }
-
-  function byName(e: FormEvent) {
-    e.preventDefault();
-    setNearMissing(false);
-    const term = q.trim();
-    if (term.length < 3) {
-      setFieldError('Escribe al menos 3 letras.');
-      return;
-    }
-    setFieldError('');
-    void find(async () => ({
-      title: `Resultados para «${term}»`,
-      empty: 'Nadie se llama así. Revisa cómo se escribe o prueba con su nombre de usuario.',
-      rows: await searchProfiles(client, term),
-    }));
-  }
-
-  function near(radius: 25 | 50) {
-    setFieldError('');
-    if (hasArea === false) {
-      setNearMissing(true);
-      setResults(null);
-      return;
-    }
-    setNearMissing(false);
-    void find(async () => ({
-      title: `Cerca de ti, a ${radius} km o menos`,
-      empty: radius === 25 ? 'Nadie con la zona visible a 25 km o menos. Prueba con 50 km.' : 'Nadie con la zona visible a 50 km o menos.',
-      rows: await searchProfilesNear(client, radius),
-    }));
-  }
+  useEffect(() => {
+    let live = true;
+    searchProfilesNear(client, 50)
+      .then((rows) => ({ rows, noArea: false }))
+      .catch(async (e: unknown) => ({ rows: await listCyclists(client).catch(() => []), noArea: message(e) === NO_AREA }))
+      .then((value) => { if (live) setSuggestions(value); });
+    return () => { live = false; };
+  }, [client]);
 
   async function act(id: string, run: () => Promise<void>) {
     if (busyId !== null || friends === null || listError) return;
@@ -136,132 +86,92 @@ function AmigosView({ account }: { account: Account }) {
     }
   }
 
-  const relation = new Map((friends ?? []).map((f) => [f.profile.id, f]));
-  const received = (friends ?? []).filter((f) => f.status === 'pending' && f.direction === 'received');
-  const sent = (friends ?? []).filter((f) => f.status === 'pending' && f.direction === 'sent');
-  const accepted = (friends ?? []).filter((f) => f.status === 'accepted');
-
-  function resultActions(card: ProfileCard): ReactNode {
-    if (friends === null || listError) return <span className="person-state">Amistad sin comprobar</span>;
-    const f = relation.get(card.id);
-    const busy = busyId !== null;
-    if (!f)
-      return (
-        <ActionButton label="Solicitar amistad" name={card.display_name} busy={busy} primary onClick={() => act(card.id, () => requestFriendship(client, card.id))} />
-      );
-    if (f.status === 'accepted') return <><span className="person-state" data-tone="good">Amigos</span><Link className="btn btn--primary" to={`/retos/nuevo?amigo=${encodeURIComponent(card.id)}`} aria-label={`Retar a ${card.display_name}`}>Retar</Link></>;
-    if (f.direction === 'sent') return <span className="person-state">Pendiente</span>;
-    return <ActionButton label="Aceptar" name={card.display_name} busy={busy} primary onClick={() => act(card.id, () => acceptFriendship(client, f.friendship_id))} />;
-  }
+  const busy = busyId !== null;
+  const rows = friends ?? [];
+  const received = rows.filter((f) => f.status === 'pending' && f.direction === 'received');
+  const sent = rows.filter((f) => f.status === 'pending' && f.direction === 'sent');
+  const accepted = rows.filter((f) => f.status === 'accepted');
+  const term = fold(q.trim());
+  const shown = term ? accepted.filter((f) => fold(`${f.profile.display_name} ${f.profile.username}`).includes(term)) : accepted;
+  const relation = new Set(rows.map((f) => f.profile.id));
+  const suggested = (suggestions?.rows ?? [])
+    .filter((c) => c.id !== account.user.id && (!relation.has(c.id) || asked.has(c.id)))
+    .slice(0, MAX_SUGGESTIONS);
 
   return (
     <>
-      <SegmentedControl<Tab>
-        label="Vista de amigos"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'buscar', label: 'Buscar', icon: Search },
-          { value: 'amigos', label: received.length ? `Amigos (${formatCount(received.length)})` : 'Amigos', icon: Users },
-        ]}
-      />
       {error ? <Banner tone="error">{error}</Banner> : null}
-      {listError ? <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => void refresh()}>Reintentar</button>}>{listError}</Banner> : null}
-
-      {tab === 'buscar' ? (
-        <>
-          <section className="card amigos-search" aria-label="Buscar personas">
-            <form className="amigos-query" role="search" onSubmit={byName}>
-              <Field
-                label="Nombre o usuario"
-                type="search"
-                value={q}
-                maxLength={60}
-                autoComplete="off"
-                autoCapitalize="none"
-                spellCheck={false}
-                enterKeyHint="search"
-                error={fieldError || undefined}
-                onChange={(e) => setQ(e.target.value)}
-              />
-              <button type="submit" className="btn btn--primary" disabled={searching}>
-                Buscar
-              </button>
-            </form>
-            <fieldset className="amigos-near">
-              <legend>Cerca de mí</legend>
-              <div className="btn-row">
-                {([25, 50] as const).map((r) => (
-                  <button key={r} type="button" className="btn btn--secondary" aria-label={`Cerca de mí: ${r} km`} disabled={searching} onClick={() => near(r)}>
-                    <MapPin className="ic" aria-hidden="true" />
-                    {r} km
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            {nearMissing ? (
-              <Banner action={<Link className="btn btn--ghost" to="/ajustes?abrir=zona">Indicar mi zona</Link>}>{NO_AREA}</Banner>
-            ) : null}
-          </section>
-          <p className="sr-only" role="status">
-            {searching ? 'Buscando…' : results ? `${formatCount(results.rows.length)} resultados` : ''}
-          </p>
-          {results ? (
-            <section className="amigos-group" aria-label={results.title}>
-              <h2>{results.title}</h2>
-              {results.rows.length ? (
-                <ul className="amigos-list">
-                  {results.rows.map((card) => (
-                    <Person key={card.id} card={card}>
-                      {resultActions(card)}
-                    </Person>
-                  ))}
-                </ul>
-              ) : (
-                <p className="help">{results.empty}</p>
-              )}
-            </section>
-          ) : null}
-        </>
-      ) : friends === null || listError ? (
+      {listError ? (
+        <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => void refresh()}>Reintentar</button>}>{listError}</Banner>
+      ) : null}
+      {friends === null ? (
         !listError && <p role="status">Cargando tus amigos…</p>
-      ) : friends.length === 0 ? (
-        <div className="card">
-          <StateView
-            icon={UserPlus}
-            title="Sin amigos todavía"
-            text={EMPTY_FRIENDS}
-            action={
-              <button type="button" className="btn btn--primary" onClick={() => setTab('buscar')}>
-                <Search className="ic" aria-hidden="true" />
-                Buscar personas
-              </button>
-            }
-          />
-        </div>
       ) : (
         <>
           <FriendGroup title="Solicitudes recibidas" rows={received}>
             {(f) => (
               <>
-                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busyId !== null} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id))} />
-                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busy} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id))} />
+                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
               </>
             )}
           </FriendGroup>
+          {accepted.length ? (
+            <section className="amigos-group" aria-label="Tus amigos">
+              <h2>Tus amigos · {formatCount(accepted.length)}</h2>
+              <Field label="Buscar entre tus amigos" type="search" value={q} maxLength={60} autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" onChange={(e) => setQ(e.target.value)} />
+              {shown.length ? (
+                <ul className="amigos-list">
+                  {shown.map((f) => (
+                    <Person key={f.friendship_id} card={f.profile}>
+                      <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
+                      <ActionButton label="Quitar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                    </Person>
+                  ))}
+                </ul>
+              ) : (
+                <p className="help">Ningún amigo coincide con «{q.trim()}».</p>
+              )}
+            </section>
+          ) : !listError ? (
+            <div className="card">
+              <StateView
+                icon={UserPlus}
+                title="Todavía no tienes amigos."
+                text="Busca ciclistas por su nombre o añade a alguien de las sugerencias."
+                action={<Link className="btn btn--primary" to="/ciclistas"><Search className="ic" aria-hidden="true" />Buscar ciclistas</Link>}
+              />
+            </div>
+          ) : null}
           <FriendGroup title="Solicitudes enviadas" rows={sent}>
-            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />}
+            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />}
           </FriendGroup>
-          <FriendGroup title="Tus amigos" rows={accepted}>
-            {(f) => (
-              <>
-                <Link className="btn btn--primary" to={`/retos/nuevo?amigo=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>
-                  Retar
-                </Link>
-                <ActionButton label="Quitar" name={f.profile.display_name} busy={busyId !== null} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
-              </>
-            )}
-          </FriendGroup>
+          {!listError ? (
+            <section className="amigos-group" aria-label="Sugerencias">
+              <h2>Sugerencias</h2>
+              {suggestions?.noArea ? (
+                <Banner action={<Link className="btn btn--ghost" to="/ajustes?abrir=zona">Indicar mi zona</Link>}>Indica tu zona para ver ciclistas cerca de ti. Mientras, estos son los más activos.</Banner>
+              ) : null}
+              {suggestions === null ? (
+                <p role="status">Buscando ciclistas…</p>
+              ) : suggested.length ? (
+                <ul className="amigos-list">
+                  {suggested.map((c) => (
+                    <Person key={c.id} card={c}>
+                      {asked.has(c.id) ? (
+                        <span className="person-state">Solicitud enviada</span>
+                      ) : (
+                        <ActionButton label="Añadir" name={c.display_name} busy={busy} primary onClick={() => act(c.id, async () => { await requestFriendship(client, c.id); setAsked((s) => new Set(s).add(c.id)); })} />
+                      )}
+                    </Person>
+                  ))}
+                </ul>
+              ) : (
+                <p className="help">Sin sugerencias por ahora.</p>
+              )}
+              <Link className="btn btn--ghost" to="/ciclistas"><Search className="ic" aria-hidden="true" />Buscar ciclistas</Link>
+            </section>
+          ) : null}
         </>
       )}
     </>
@@ -285,7 +195,7 @@ function FriendGroup({ title, rows, children }: { title: string; rows: FriendRow
 }
 
 function Person({ card, children }: { card: ProfileCard; children: ReactNode }) {
-  const where = [card.locality, card.distance_km !== null ? `a menos de ${formatCount(card.distance_km)} km` : null].filter(Boolean).join(', ');
+  const where = [card.locality, card.distance_km !== null && card.distance_km !== undefined ? `a menos de ${formatCount(card.distance_km)} km` : null].filter(Boolean).join(', ');
   return (
     <li className="person">
       <Link className="person-main person-profile" to={`/personas/${encodeURIComponent(card.id)}`} aria-label={card.display_name}>

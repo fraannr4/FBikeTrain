@@ -6,6 +6,8 @@ import { NavHistoryProvider } from './navHistory';
 import { isSheetState } from './sheetRoute';
 import { TabBar } from './TabBar';
 import { usePlanBadge } from './usePlanBadge';
+import { useCommunityBadge } from './useCommunityBadge';
+import { useAccount } from '../../auth/AccountBoundary';
 import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 import { CommunitySync } from '../../social/CommunitySync';
 import { GarminProvider } from '../../connections/GarminProvider';
@@ -19,6 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname, state } = useLocation();
   const navType = useNavigationType();
   const planBadge = usePlanBadge(pathname);
+  // Retos se recuenta al entrar y salir de sus pantallas, no en cada cambio de ruta.
+  const retosBadge = useCommunityBadge(useAccount(), pathname.startsWith('/retos') ? pathname : '');
   const overSheet = isSheetState(state);
 
   // Una pantalla nueva empieza arriba; al volver atrás (POP) o al abrir una hoja sobre la lista, no se toca.
@@ -50,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {children}
           </main>
         </NavHistoryProvider></GarminAttributionProvider>
-        <TabBar pathname={pathname} planBadge={planBadge} />
+        <TabBar pathname={pathname} planBadge={planBadge} retosBadge={retosBadge} />
         </GarminProvider>
         </ConnectionsProvider>
       </ToastProvider>
