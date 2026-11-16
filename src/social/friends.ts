@@ -27,6 +27,11 @@ const MESSAGES: Record<string, string> = {
   'Solicitud no válida': 'No puedes enviarte una solicitud a ti mismo.',
   'Solicitud no disponible': 'Esa solicitud ya no está disponible.',
   'Sesión necesaria': 'Vuelve a iniciar sesión para continuar.',
+  'Cuenta registrada necesaria': 'Necesitas una cuenta registrada para usar la comunidad.',
+  'Límite diario de interacciones': 'Has alcanzado el límite de 20 solicitudes e invitaciones en 24 horas. Prueba más tarde.',
+  'Límite diario de invitaciones': 'Has alcanzado el límite de 20 solicitudes e invitaciones en 24 horas. Prueba más tarde.',
+  'Ciclista no disponible': 'Este ciclista no está disponible para interactuar.',
+  'Usuario no disponible': 'Este ciclista no está disponible para interactuar.',
   'Has cambiado tu zona demasiadas veces hoy. Prueba mañana.': 'Has cambiado tu zona demasiadas veces hoy. Prueba mañana.',
 };
 

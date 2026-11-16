@@ -41,11 +41,26 @@ it('carga solo identidad pública y permite solicitar y cancelar amistad', async
   expect(await screen.findByRole('button', { name: 'Solicitar amistad' })).toBeInTheDocument();
 });
 
-it('acepta una solicitud recibida y habilita el reto al amigo correcto', async () => {
+it('permite retar antes de aceptar amistad y conserva la aceptación de la solicitud', async () => {
   setup([{ friendship_id: 'f1', status: 'pending', direction: 'received', profile: { ...profile, locality: null, distance_km: null } }]);
-  expect(screen.queryByRole('link', { name: /Retar/ })).not.toBeInTheDocument();
+  expect(await screen.findByRole('link', { name: 'Retar a Ana Ruta' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p2');
   await userEvent.setup().click(await screen.findByRole('button', { name: 'Aceptar solicitud' }));
-  expect(await screen.findByRole('link', { name: 'Retar a Ana Ruta' })).toHaveAttribute('href', '/retos/nuevo?amigo=p2');
+  expect(await screen.findByText('Sois amigos')).toBeInTheDocument();
+});
+
+it('denuncia en privado y al bloquear retira el perfil y sus acciones', async () => {
+  const { rpc } = setup();
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Bloquear o denunciar' }));
+  await user.type(screen.getByLabelText('Motivo de la denuncia'), 'Mensajes de acoso');
+  await user.click(screen.getByRole('button', { name: 'Enviar denuncia' }));
+  expect(rpc).toHaveBeenCalledWith('report_cyclist', { target_id: 'p2', reason: 'Mensajes de acoso' });
+  expect(await screen.findByText(/Denuncia enviada/)).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Bloquear a este ciclista' }));
+  expect(rpc).toHaveBeenCalledWith('block_cyclist', { target_id: 'p2', blocked: true });
+  expect(await screen.findByRole('heading', { name: 'Perfil no disponible' })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Retar a Ana Ruta' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Cuaderno del ciclista' })).not.toBeInTheDocument();
 });
 
 it('no permite solicitudes si no se puede comprobar la relación', async () => {

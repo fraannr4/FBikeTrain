@@ -350,3 +350,22 @@ Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Int
 - La publicación se coordina con el workflow de GitHub Pages del commit de este lote. La sincronización completa del historial y las comparativas periódicas siguen siendo otro lote; compartir cifras es una acción explícita del cuaderno.
 
 - Pasada final tras los pulidos: e2e/cuaderno.spec.ts, **16/16**. Incluye foto real procesada en navegador a WebP (fixture sintético), biografía/estilo/username, autor del feed actualizado sin perder borrador, feed de amigos y perfil ajeno, publicación exacta de cifras y borrado. Capturas finales revisadas sin desborde.
+
+## Comunidad abierta y retos — 2026-11-16 (local, sin publicar)
+
+Rama `codex/comunidad-abierta`, worktree `C:/testTrain-comunidad-abierta`. Modelo y pasos: `docs/comunidad-abierta-publicacion.md`. Datos de prueba exclusivamente sintéticos.
+
+| Comprobación | Resultado |
+|---|---|
+| PostgreSQL embebido (`npm run test:db`) | 13 bloques correctos; migración nueva aplicada bajo `search_path=pg_catalog` para comprobar permisos de helpers; Auth/Storage simulados |
+| Vitest completo, estado estable (`--maxWorkers=4 --minWorkers=1`) | 1.909/1.909, 150 ficheros |
+| `npx tsc --noEmit` | Limpio |
+| `npm run build` y Vite tras pulido | Correctos; avisos no bloqueantes de bundle grande/anotaciones de dependencia |
+| Escáner `check-bundle-secrets.mjs dist` | Correcto |
+| Playwright comunidad/perfil/navegación/retos anteriores | 62/62 |
+| Repetición final de comunidad tras CSS/foco | 26/26; incluye columnas reales de marcador, foco dentro de denuncia, importación por Worker y deduplicación |
+| Capturas reales | 360/390/412/430 px, claro/oscuro, apaisado; revisadas visualmente. Selección en `docs/design/comunidad-abierta/README.md` |
+
+Se corrigieron durante revisión permisos de helpers dependientes de search_path, carrera de bloqueo/respuesta, validación de plantilla de desnivel, colisión CSS de tarjetas y pérdida de foco tras denuncia. La actualización automática conserva marcadores remotos positivos desde dispositivos sin origen local reconocido; reemplazar ese origen exige una acción explícita. La firma de subida es aproximada y las cifras importadas se basan en confianza.
+
+Pendiente real: aplicar SQL en Supabase y comprobar con dos cuentas registradas y una anónima. El usuario ha autorizado después el commit local del lote. No se ha ejecutado ninguna migración remota, push ni despliegue. El cierre del marcador no necesita cron; el aviso se genera al consultar las notificaciones. Este lote no cierra la sincronización completa del historial.

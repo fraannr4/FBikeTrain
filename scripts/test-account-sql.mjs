@@ -61,6 +61,12 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611130007_profile_journal.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/profile_journal.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuaderno social, privacidad por amistad/estadísticas, paginación, cuota y avatares privados autenticados.');
+  // Comprobar que la concesión explícita de RPC no depende de cómo regprocedure imprime su esquema.
+  await db.exec('set search_path = pg_catalog');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611160003_community_open.sql', import.meta.url), 'utf8'));
+  await db.exec('set search_path = public');
+  await db.exec(await readFile(new URL('../supabase/tests/community_open.sql', import.meta.url), 'utf8'));
+  console.log('PASS: comunidad registrada, privacidad, bloqueos, denuncias, cuota, retos de grupo, marcador y avisos.');
 } finally {
   await db.close();
 }

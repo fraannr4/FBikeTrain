@@ -119,6 +119,8 @@ describe('screens', () => {
     expect(screenName('/plan/')).toBe('Plan');
     expect(tabOf('/zona')).toBe('mas');
     expect(tabOf('/amigos')).toBe('mas');
+    expect(tabOf('/ciclistas')).toBe('mas');
+    expect(screenName('/ciclistas')).toBe('Ciclistas');
     expect(screenName('/zona')).toBe('Tu zona');
     expect(screenName('/amigos')).toBe('Amigos');
     expect(tabOf('/retos')).toBe('mas');
@@ -132,7 +134,7 @@ describe('screens', () => {
 describe('navegación social con cuenta', () => {
   it.each([
     ['/perfil', 'Tu perfil'], ['/zona', 'Tu perfil'], ['/amigos', 'Amigos'],
-    ['/personas/p2', 'Amigos'], ['/retos/nuevo', 'Retos'], ['/retos/r1', 'Retos'],
+    ['/personas/p2', 'Ciclistas'], ['/ciclistas', 'Ciclistas'], ['/retos/nuevo', 'Retos'], ['/retos/r1', 'Retos'],
   ])('el carril selecciona %s en %s', (pathname, label) => {
     render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
       <MemoryRouter><TabBar pathname={pathname} planBadge={0} /></MemoryRouter>
