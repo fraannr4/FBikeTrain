@@ -150,3 +150,21 @@ a.profile-stat:hover { background: var(--surface-2); }
 .profile-setup-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .profile-setup-photo .profile-avatar--large { box-shadow: none; }
 .profile-setup-fields .profile-mode input { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0; }
+
+/* Radios de «Mi manera de rodar» en la hoja de edición: sin el alto y ancho de los campos de texto. */
+.profile-mode input { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0; }
+.profile-mode:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Compartir: el icono pasa a «hecho» un instante. */
+.profile-share-icon { position: relative; display: inline-grid; width: 18px; height: 18px; }
+.profile-share-icon .ic { grid-area: 1 / 1; width: 18px; height: 18px; transition: opacity .16s var(--ease-out), transform .16s var(--ease-out); }
+.profile-share-icon .ic:last-child { opacity: 0; transform: scale(.85); color: var(--good); }
+.profile-share[data-done] .profile-share-icon .ic:first-child { opacity: 0; transform: scale(.85); }
+.profile-share[data-done] .profile-share-icon .ic:last-child { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .profile-share-icon .ic { transition: opacity .16s linear; transform: none !important; } }
+
+/* Esqueleto del encabezado mientras llega el perfil. */
+.profile-skeleton-body { display: grid; gap: 14px; justify-items: start; padding: 0 20px 20px; }
+.profile-skeleton-body > .sk-circle { margin-top: -40px; border-radius: 50%; box-shadow: 0 0 0 5px var(--surface); }
+.profile-skeleton-body > .sk-box { width: 100%; }
+

@@ -6,6 +6,7 @@ import { loadPublicProfile } from '../../social/publicProfile';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
 import { ProfileHero } from '../profile/ProfileHero';
+import { ProfileSkeleton } from '../profile/ProfileSkeleton';
 import { JournalFeed } from '../profile/JournalFeed';
 import { CommunitySafety } from '../profile/CommunitySafety';
 import { FriendshipActions } from '../profile/FriendshipActions';
@@ -67,7 +68,7 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
   const f = data?.friendship;
   return <>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={busy} onClick={() => setAttempt(n => n + 1)}>Reintentar</button>}>{error}</Banner>}
-    {!data ? !error && <p role="status">Cargando el perfil…</p> : !data.profile ? <section className="card reto-card">
+    {!data ? !error && <ProfileSkeleton label="Cargando el perfil…" /> : !data.profile ? <section className="card reto-card">
       <h2>Perfil no disponible</h2><p>Este ciclista ya no está disponible.</p><Link className="btn btn--secondary" to="/ciclistas">Buscar ciclistas</Link>
     </section> : <>
       <ProfileHero client={account.client} profile={data.profile} stats={together && <ProfileStats label={`Cifras de ${data.profile.display_name}`} items={[

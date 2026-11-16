@@ -58,7 +58,7 @@ test('aceptar un reto y elegir a mano la salida: solo suben las cifras', async (
   const state = await fakeRpc(page, [challenge('r1', 'pending')]);
   await seed(page, { activities: RIDES, settings: settings() });
   await page.goto('./#/mas');
-  await page.getByRole('link', { name: /Retos/ }).click();
+  await page.getByRole('link', { name: /^Retos Duelos/ }).click();
   await page.getByRole('link', { name: 'Retos anteriores de ruta' }).click();
   await page.getByRole('link', { name: /Vuelta sintética/ }).click();
   await page.getByRole('button', { name: 'Aceptar' }).click();

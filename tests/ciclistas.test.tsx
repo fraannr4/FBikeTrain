@@ -66,3 +66,30 @@ it('retries a failed directory and can unblock a cyclist', async () => {
   expect(blockCyclist).toHaveBeenCalledWith(client, 'p9', false);
   expect(await screen.findByText('No has bloqueado a ningún ciclista.')).toBeInTheDocument();
 });
+
+it('shows a busy skeleton while the first page loads', () => {
+  vi.mocked(listCyclists).mockReturnValue(new Promise(() => {}));
+  show();
+  expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+  expect(screen.getByText(/Cargando ciclistas/)).toBeInTheDocument();
+});
+
+it('marks the request as sent the moment it is tapped, before the server answers', async () => {
+  let finish: () => void = () => {};
+  vi.mocked(requestFriendship).mockReturnValue(new Promise<void>(resolve => { finish = resolve; }));
+  show();
+  const list = await screen.findByRole('list', { name: 'Ciclistas registrados' });
+  await userEvent.setup().click(await within(list).findByRole('button', { name: 'Solicitar amistad a Ciclista p2' }));
+  expect(within(list).getByLabelText('Solicitud enviada')).toBeInTheDocument();
+  expect(within(list).queryByRole('button', { name: 'Solicitar amistad a Ciclista p2' })).not.toBeInTheDocument();
+  finish();
+});
+
+it('brings the request back when the server refuses it', async () => {
+  vi.mocked(requestFriendship).mockRejectedValue(new Error('Límite diario de solicitudes'));
+  show();
+  const list = await screen.findByRole('list', { name: 'Ciclistas registrados' });
+  await userEvent.setup().click(await within(list).findByRole('button', { name: 'Solicitar amistad a Ciclista p2' }));
+  expect(await screen.findByText('Límite diario de solicitudes')).toBeInTheDocument();
+  expect(within(list).getByRole('button', { name: 'Solicitar amistad a Ciclista p2' })).toBeInTheDocument();
+});

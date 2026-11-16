@@ -3,8 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { CHALLENGE_LABELS, formatCommunityScore, getCommunityChallenge, rankedCommunityMembers, respondCommunityChallenge, type CommunityChallenge } from '../../social/communityChallenges';
 import { syncCommunityScores } from '../../social/challengeScoring';
+import { timeLeftLabel } from '../../social/challengeStatus';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { Skeleton } from '../components/Skeleton';
 import { DuelComparison } from '../retos/DuelComparison';
 import { communityDate, communityError } from './CommunityRetos';
 import '../styles/community-challenges.css';
@@ -66,14 +68,14 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
   const winners = row?.members.filter(m => row.winner_ids.includes(m.id)) ?? [];
   return <>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={busy} onClick={() => void load(true)}>Reintentar</button>}>{error}</Banner>}
-    {!loaded && !error && <p role="status">Preparando el marcador…</p>}
+    {!loaded && !error && <div aria-busy="true" className="card community-detail-hero" role="status"><span className="sr-only">Preparando el marcador…</span><div aria-hidden="true" className="community-skeleton"><Skeleton width="30%" /><Skeleton variant="title" width="64%" /><Skeleton width="48%" /><Skeleton variant="box" height={110} /></div></div>}
     {loaded && !row && <section className="card community-empty"><h2>Reto no disponible</h2><p>Este reto ya no está disponible para tu cuenta.</p><Link className="btn btn--secondary" to="/retos">Volver a Retos</Link></section>}
     {row && <>
       <section className={`card community-detail-hero${duel ? ' community-detail-hero--duel' : ''}`}>
         <div className="community-card-top"><span className="community-eyebrow">{CHALLENGE_LABELS[row.kind]}</span><span className="chip">{row.members.length === 2 ? 'Duelo' : 'Grupo'} · {row.members.length}</span></div>
         {duel && <p className="community-duel-heading">Tú contra {rival?.display_name}</p>}
         <h2>{row.title}</h2>
-        <p>{row.status === 'finished' ? 'Terminó' : 'Hasta'} {communityDate(row.deadline)}</p>
+        <p>{row.status === 'finished' ? 'Terminó' : 'Hasta'} {communityDate(row.deadline)}{row.status === 'active' && <> · <strong className="community-time-left">{timeLeftLabel(row.deadline, Date.now())}</strong></>}</p>
         {duel && <DuelComparison client={account.client} userId={account.user.id} challenge={row} />}
         {row.target_value && (duel ? <p className="community-duel-reference">Referencia del duelo: {formatCommunityScore(row.kind, row.target_value)}</p> : <div className="community-goal"><small>LA META</small><strong>{formatCommunityScore(row.kind, row.target_value)}</strong></div>)}
         {(row.kind === 'speed' || row.kind === 'segment') && row.distance_m && <p>Distancia de referencia: {(row.distance_m / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km</p>}

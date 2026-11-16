@@ -5,7 +5,8 @@ import { blockCyclist, listBlockedCyclists, listCyclists, type BlockedCyclist, t
 import { acceptFriendship, listFriends, requestFriendship, type FriendRow } from '../../social/friends';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
-import { Check, Lock, Search, User, UserPlus, X } from '../icons';
+import { SkeletonRows } from '../components/Skeleton';
+import { Check, Clock, Lock, Search, User, UserPlus, X } from '../icons';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
 import '../styles/community.css';
 
@@ -80,12 +81,18 @@ function CyclistsView({ account }: { account: Account }) {
   async function friendship(person: Cyclist, relation: FriendRow | undefined) {
     if (busyId || friends === null) return;
     setBusyId(person.id); setNotice(''); setRelationError('');
+    // El botón cambia al tocar; si el servidor lo rechaza, vuelve a como estaba.
+    const before = friends;
+    const received = relation?.direction === 'received';
+    setFriends(received
+      ? friends.map(f => f === relation ? { ...f, status: 'accepted' } : f)
+      : [...friends, { friendship_id: `pendiente-${person.id}`, status: 'pending', direction: 'sent', profile: { id: person.id, username: person.username, display_name: person.display_name, locality: person.locality, distance_km: null } }]);
+    setNotice(received ? `Ahora eres amigo de ${person.display_name}.` : `Solicitud enviada a ${person.display_name}.`);
     try {
-      if (relation?.direction === 'received') await acceptFriendship(client, relation.friendship_id);
+      if (received) await acceptFriendship(client, relation.friendship_id);
       else await requestFriendship(client, person.id);
       await loadRelations();
-      setNotice(relation?.direction === 'received' ? `Ahora eres amigo de ${person.display_name}.` : `Solicitud enviada a ${person.display_name}.`);
-    } catch (e) { setRelationError(message(e)); }
+    } catch (e) { setFriends(before); setNotice(''); setRelationError(message(e)); }
     finally { setBusyId(null); }
   }
   async function loadBlocks() {
@@ -129,12 +136,12 @@ function CyclistsView({ account }: { account: Account }) {
           <Link className="cyclist-profile" to={`/personas/${encodeURIComponent(person.id)}`} aria-label={`Ver perfil de ${person.display_name}`}><strong>{person.display_name}</strong><span>@{person.username}</span><small>{relation?.status === 'accepted' ? 'Ya sois amigos' : relation?.direction === 'sent' ? 'Solicitud enviada' : cyclistActivityDay(person.last_active_at)}</small></Link>
           <div className="cyclist-actions">
             <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(person.id)}`} aria-label={`Retar a ${person.display_name}`}>Retar</Link>
-            {relation?.status === 'accepted' ? <span className="cyclist-friend" aria-label="Amistad aceptada"><Check className="ic" aria-hidden="true" /></span> : relation?.direction === 'sent' ? <span className="cyclist-friend" aria-label="Solicitud enviada"><Check className="ic" aria-hidden="true" /></span> : <button className="cyclist-add" disabled={friends === null || busyId !== null} onClick={() => void friendship(person, relation)} aria-label={relation?.direction === 'received' ? `Aceptar amistad de ${person.display_name}` : `Solicitar amistad a ${person.display_name}`} aria-busy={busyId === person.id}>{relation?.direction === 'received' ? <Check className="ic" aria-hidden="true" /> : <UserPlus className="ic" aria-hidden="true" />}</button>}
+            {relation?.status === 'accepted' ? <span className="cyclist-friend" aria-label="Amistad aceptada"><Check className="ic" aria-hidden="true" /></span> : relation?.direction === 'sent' ? <span className="cyclist-friend cyclist-friend--sent" aria-label="Solicitud enviada"><Clock className="ic" aria-hidden="true" /></span> : <button className="cyclist-add" disabled={friends === null || busyId !== null} onClick={() => void friendship(person, relation)} aria-label={relation?.direction === 'received' ? `Aceptar amistad de ${person.display_name}` : `Solicitar amistad a ${person.display_name}`} aria-busy={busyId === person.id}>{relation?.direction === 'received' ? <Check className="ic" aria-hidden="true" /> : <UserPlus className="ic" aria-hidden="true" />}</button>}
           </div>
         </li>;
       })}
     </ul>
-    {loading && <p role="status">Cargando ciclistas…</p>}
+    {loading && (rows.length ? <p role="status">Cargando ciclistas…</p> : <SkeletonRows rows={4} label="Cargando ciclistas…" />)}
     {more && <button className="btn btn--secondary btn--block" disabled={loading} onClick={() => void load(term, nextOffset, generation.current)}>Ver más ciclistas</button>}
     <p className="cyclists-privacy"><Lock className="ic" aria-hidden="true" />Solo ves ciclistas registrados. Tu zona y tus tracks siguen protegidos.</p>
     <section className="cyclists-blocks">

@@ -159,6 +159,63 @@ describe('Amigos dentro del perfil', () => {
   });
 });
 
+describe('Amigos: acabado en móvil', () => {
+  it('mientras carga la lista muestra un esqueleto ocupado', () => {
+    const rpc = vi.fn(() => new Promise(() => {}));
+    renderWith({ rpc } as unknown as SupabaseClient);
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByText(/Cargando tus amigos/)).toBeInTheDocument();
+  });
+
+  it('aceptar una solicitud es instantáneo y lo confirma', async () => {
+    let finish: () => void = () => {};
+    const { client, state } = fakeClient(
+      {
+        search_profiles_near: () => ({ data: [] }),
+        accept_friendship: () => { state.friends = [{ ...state.friends[0], status: 'accepted' }]; return {}; },
+      },
+      [{ friendship_id: 'f9', status: 'pending', direction: 'received', profile: bea }],
+    );
+    const slow = { rpc: (fn: string, args?: Record<string, unknown>) => fn === 'accept_friendship'
+      ? new Promise(resolve => { finish = () => resolve(client.rpc(fn, args)); })
+      : client.rpc(fn, args) } as unknown as SupabaseClient;
+    renderWith(slow);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Aceptar a Bea Puerto' }));
+    expect(screen.queryByRole('region', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Tus amigos' })).getByText('Bea Puerto')).toBeInTheDocument();
+    finish();
+    expect(await screen.findByText('Ahora eres amigo de Bea Puerto.')).toBeInTheDocument();
+  });
+
+  it('si el servidor rechaza aceptar, la solicitud vuelve y se explica', async () => {
+    const { client } = fakeClient(
+      { search_profiles_near: () => ({ data: [] }), accept_friendship: () => ({ error: { message: 'x' } }) },
+      [{ friendship_id: 'f9', status: 'pending', direction: 'received', profile: bea }],
+    );
+    renderWith(client);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Aceptar a Bea Puerto' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Solicitudes recibidas' })).toBeInTheDocument();
+  });
+
+  it('quitar a un amigo pide confirmación y se puede mantener', async () => {
+    const { client, rpc, state } = fakeClient(
+      { search_profiles_near: () => ({ data: [] }), remove_friendship: () => { state.friends = []; return {}; } },
+      [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }],
+    );
+    renderWith(client);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Quitar a Ana Ruta' }));
+    expect(rpc).not.toHaveBeenCalledWith('remove_friendship', expect.anything());
+    await user.click(screen.getByRole('button', { name: 'Mantener a Ana Ruta' }));
+    expect(screen.getByRole('button', { name: 'Quitar a Ana Ruta' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Quitar a Ana Ruta' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar definitivamente a Ana Ruta' }));
+    expect(rpc).toHaveBeenCalledWith('remove_friendship', { request_id: 'f1' });
+    expect(await screen.findByText('Has quitado a Ana Ruta de tus amigos.')).toBeInTheDocument();
+  });
+});
+
 describe('Amigos en Más', () => {
   beforeEach(async () => {
     await clearAllData();

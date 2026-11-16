@@ -112,4 +112,43 @@ describe('Tu perfil', () => {
     await user.click(screen.getByRole('button', { name: 'Cerrar sesión en este dispositivo' }));
     expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
+
+  it('mientras carga el perfil, muestra un esqueleto ocupado', () => {
+    const { client, read } = fakeClient();
+    read.mockReturnValue(new Promise(() => {}));
+    renderWith(client);
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByText(/Cargando tu perfil/)).toBeInTheDocument();
+  });
+
+  it('reserva las tres cifras desde el primer momento, sin saltos al llegar los datos', async () => {
+    const { client } = fakeClient();
+    vi.mocked(client.rpc).mockReturnValue(new Promise(() => {}) as unknown as ReturnType<SupabaseClient['rpc']>);
+    renderWith(client);
+    const stats = await screen.findByRole('list', { name: 'Tus cifras' });
+    expect(within(stats).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(stats).getByText('Amigos')).toBeInTheDocument();
+    expect(within(stats).getByText('Retos ganados')).toBeInTheDocument();
+  });
+
+  it('comparte el enlace al perfil con la hoja del sistema', async () => {
+    const { client } = fakeClient();
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    renderWith(client);
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Compartir perfil' }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: `${window.location.origin}${window.location.pathname}#/personas/u1` }));
+    delete (navigator as unknown as Record<string, unknown>).share;
+  });
+
+  it('sin hoja del sistema, copia el enlace y lo dice', async () => {
+    const { client } = fakeClient();
+    delete (navigator as unknown as Record<string, unknown>).share;
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    renderWith(client);
+    await user.click(await screen.findByRole('button', { name: 'Compartir perfil' }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/#\/personas\/u1$/));
+    expect(await screen.findByRole('status')).toHaveTextContent('Enlace copiado');
+  });
 });

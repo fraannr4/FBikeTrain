@@ -22,6 +22,8 @@ import { forgetOwnProfile } from '../shell/OwnProfileButton';
 import { formatCount, formatKm, formatMeters } from '../format';
 import { ProfileHero } from '../profile/ProfileHero';
 import { JournalFeed } from '../profile/JournalFeed';
+import { ShareProfileButton } from '../profile/ShareProfileButton';
+import { ProfileSkeleton } from '../profile/ProfileSkeleton';
 import { RIDING_STYLES, ridingStyle } from '../profile/profileStyle';
 import '../styles/profile.css';
 
@@ -102,18 +104,20 @@ export function Perfil() {
     catch (e) { setEditError(authMessage(e)); }
     finally { setBusy(false); }
   }
-  const stats: ProfileStat[] = [];
-  if (friends) stats.push({ value: friends.accepted, label: 'Amigos', to: '/perfil/amigos', note: friends.received ? `${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud' : 'solicitudes'}` : undefined,
-    name: `${formatCount(friends.accepted)} ${friends.accepted === 1 ? 'amigo' : 'amigos'}${friends.received ? `, ${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}` : ''}` });
-  if (wins !== null) stats.push({ value: wins, label: 'Retos ganados', to: '/retos?vista=historial', name: `${formatCount(wins)} ${wins === 1 ? 'reto ganado' : 'retos ganados'}` });
-  if (year) stats.push({ value: year.rides, label: `Salidas ${year.year}`, to: '/historial', name: `${formatCount(year.rides)} ${year.rides === 1 ? 'salida' : 'salidas'} en ${year.year}` });
+  const friendsName = friends ? `${formatCount(friends.accepted)} ${friends.accepted === 1 ? 'amigo' : 'amigos'}${friends.received ? `, ${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}` : ''}` : 'Amigos, cargando';
+  const stats: ProfileStat[] = [
+    { value: friends?.accepted ?? null, label: 'Amigos', to: '/perfil/amigos', name: friendsName, note: friends?.received ? `${formatCount(friends.received)} ${friends.received === 1 ? 'solicitud' : 'solicitudes'}` : undefined },
+    { value: wins, label: 'Retos ganados', to: '/retos?vista=historial', name: wins === null ? 'Retos ganados, cargando' : `${formatCount(wins)} ${wins === 1 ? 'reto ganado' : 'retos ganados'}` },
+    { value: year?.rides ?? null, label: `Salidas ${year?.year ?? new TZDate(Date.now(), TZ).getFullYear()}`, to: '/historial', name: year ? `${formatCount(year.rides)} ${year.rides === 1 ? 'salida' : 'salidas'} en ${year.year}` : 'Salidas del año, cargando' },
+  ];
   return <Page title="Tu perfil" back="/" className="page--profile">
     {!account ? <p>Inicia sesión para ver tu perfil.</p> : <>
       {error && <Banner tone="error" action={!profile ? <button className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button> : undefined}>{error}</Banner>}
-      {!profile ? !error && <p role="status">Cargando tu perfil…</p> : <>
+      {!profile ? !error && <ProfileSkeleton label="Cargando tu perfil…" /> : <>
         <input ref={photoInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Archivo de foto de perfil" tabIndex={-1} onChange={e => void photo(e.target.files?.[0])} />
-        <ProfileHero client={account.client} profile={{ ...profile, id: account.user.id }} own onPhoto={() => photoInput.current?.click()} photoBusy={photoBusy} stats={stats.length ? <ProfileStats label="Tus cifras" items={stats} /> : null}>
+        <ProfileHero client={account.client} profile={{ ...profile, id: account.user.id }} own onPhoto={() => photoInput.current?.click()} photoBusy={photoBusy} stats={<ProfileStats label="Tus cifras" items={stats} />}>
           <button className="btn btn--primary" onClick={edit} aria-label="Editar perfil"><Pencil className="ic" aria-hidden="true" />Editar</button>
+          <ShareProfileButton userId={account.user.id} name={profile.display_name} onResult={setNotice} />
           <Link className="icon-btn profile-more" to="/mas" aria-label="Más opciones"><Ellipsis className="ic" aria-hidden="true" /></Link>
         </ProfileHero>
         {notice && <p className="profile-notice" role="status">{notice}</p>}

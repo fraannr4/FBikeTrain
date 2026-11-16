@@ -155,3 +155,30 @@
 .retos-suggest-who strong, .retos-suggest-who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .retos-suggest-who small { color: var(--ink-3); font-size: 12px; }
 .retos-templates { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Progreso y plazo a la vista: quién va por delante, cuánto queda y cómo terminó. */
+.page--community .community-challenge .community-time { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: var(--community-accent); }
+.community-time-left { color: var(--community-accent); font-weight: 700; }
+.community-card-result[data-result="won"] { color: var(--good); }
+.community-card-result[data-result="lost"] { color: var(--ink-2); }
+.community-duel-lead { margin: 12px 0 0; text-align: center; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.community-duel-lead[data-tone="ahead"] { color: var(--good); }
+.community-duel--compact .community-duel-lead { margin-top: 10px; font-size: 13px; }
+.community-duel-track > span { width: 100%; transform-origin: left center; transition: transform .4s var(--ease-out); }
+.community-skeleton { display: grid; gap: 14px; }
+.page--community .card.community-skeleton { display: grid; }
+.community-device-option summary, .community-card-link { min-height: 44px; }
+.community-card-link { align-items: center; }
+
+/* Entrada de las tarjetas: solo opacidad y desplazamiento, escalonadas y sin repetirse en las actualizaciones. */
+@keyframes community-card-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes community-track-fill { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: no-preference) {
+  .community-stack > .community-challenge { animation: community-card-in .24s var(--ease-out) both; }
+  .community-stack > .community-challenge:nth-child(2) { animation-delay: 45ms; }
+  .community-stack > .community-challenge:nth-child(3) { animation-delay: 90ms; }
+  .community-stack > .community-challenge:nth-child(n+4) { animation-delay: 135ms; }
+  .community-duel-track > span { animation: community-track-fill .5s var(--ease-out) .1s both; }
+}
+@media (prefers-reduced-motion: reduce) { .community-duel-track > span { transition: none; } }
+

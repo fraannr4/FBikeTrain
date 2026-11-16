@@ -3,9 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { listCommunityChallenges, listCommunityNotifications, readCommunityNotification, respondCommunityChallenge, CHALLENGE_LABELS, formatCommunityScore, rankedCommunityMembers, type CommunityChallenge, type CommunityNotification } from '../../social/communityChallenges';
 import { syncCommunityScores } from '../../social/challengeScoring';
+import { timeLeftLabel } from '../../social/challengeStatus';
 import { notifyCommunityChanged } from '../../social/communityBadge';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { Skeleton } from '../components/Skeleton';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { formatCount } from '../format';
 import { Search } from '../icons';
@@ -83,14 +85,15 @@ function CommunityRetosList({ account }: { account: Account }) {
   }
   async function respond(c: CommunityChallenge, accept: boolean) {
     if (busy) return;
-    setBusy(true); setError(''); setNotice('');
+    setBusy(true); setError('');
+    // Respuesta instantánea: la tarjeta cambia al tocar y vuelve si el servidor lo rechaza.
+    const before = rows;
+    setRows(previous => previous?.map(row => row.id !== c.id ? row : { ...row, members: row.members.map(m => m.id === account.user.id ? { ...m, status: accept ? 'accepted' : 'declined' } : m) }) ?? previous);
+    setNotice(accept ? `Reto aceptado: «${c.title}». Ya está en juego.` : `Invitación rechazada: «${c.title}».`);
     try {
       await respondCommunityChallenge(account.client, c.id, accept);
-      // La tarjeta cambia en el sitio: sin esperar a recargar la lista.
-      setRows(previous => previous?.map(row => row.id !== c.id ? row : { ...row, members: row.members.map(m => m.id === account.user.id ? { ...m, status: accept ? 'accepted' : 'declined' } : m) }) ?? previous);
-      setNotice(accept ? `Reto aceptado: «${c.title}». Ya está en juego.` : `Invitación rechazada: «${c.title}».`);
       notifyCommunityChanged();
-    } catch (e) { setError(communityError(e)); }
+    } catch (e) { setRows(before); setNotice(''); setError(communityError(e)); }
     finally { setBusy(false); }
   }
   const userId = account.user.id;
@@ -108,7 +111,7 @@ function CommunityRetosList({ account }: { account: Account }) {
     ]} />
     {error && <Banner tone="error" action={<button className="btn btn--ghost" onClick={() => void load(true)} disabled={busy}>Reintentar</button>}>{error}</Banner>}
     {notice && <p className="community-notice-line" role="status">{notice}</p>}
-    {!rows && !error && <p role="status">Cargando tus retos…</p>}
+    {!rows && !error && <ChallengesSkeleton />}
     {view === 'notifications' ? <section aria-label="Notificaciones de retos" className="community-stack">
       {!notifications.length && <div className="card community-empty"><h2>Al día con la grupeta</h2><p>Aquí aparecerán las invitaciones, respuestas y retos terminados.</p></div>}
       {notifications.map(n => <article key={n.id} className="card community-notice" data-unread={!n.read_at}>
@@ -154,12 +157,21 @@ function ChallengeCard({ challenge: c, account }: { challenge: CommunityChalleng
   const progress = c.target_value && mine?.score ? Math.min(100, mine.score / c.target_value * 100) : 0;
   return <Link className="card community-challenge" to={`/retos/comunidad/${c.id}`}>
     <div className="community-card-top"><span className="community-eyebrow">{CHALLENGE_LABELS[c.kind]}</span><span className="chip">{c.status === 'finished' ? 'Terminado' : mine?.status === 'pending' ? 'Te han retado' : mine?.status === 'declined' ? 'Rechazado' : 'En marcha'}</span></div>
+    {c.status === 'active' && mine?.status === 'accepted' && <p className="community-time">{timeLeftLabel(c.deadline, Date.now())}</p>}
     <p className="community-opponent-line">{c.members.length > 2 ? `Tu grupeta · ${c.members.length} ciclistas` : mine?.status === 'pending' ? `${rival?.display_name ?? 'Un ciclista'} te reta` : rival?.status === 'pending' && c.creator_id === userId ? `Has retado a ${rival.display_name}` : `Tú contra ${rival?.display_name ?? 'otro ciclista'}`}</p>
     <h2>{c.title}</h2><p>{c.members.length === 2 ? 'Duelo' : 'Grupeta'} · {c.members.filter(m => m.status === 'accepted').length}/{c.members.length} participantes · Hasta {communityDate(c.deadline)}</p>
     {c.members.length === 2 && <DuelComparison client={account.client} userId={userId} challenge={c} compact />}
-    {c.status === 'finished' ? <strong className="community-card-result">{winner.length ? `${winner.length > 1 ? 'Empate: ' : 'Gana '}${winner.map(m => m.id === userId ? 'tú' : m.display_name).join(', ')}` : c.members.filter(m => m.status === 'accepted').length < 2 ? 'Sin ganador: faltó rival' : 'Sin ganador: no hubo registros'}</strong> : c.members.length > 2 && <div className="community-card-result"><strong>{formatCommunityScore(c.kind, mine?.score ?? null)}</strong>{c.target_value && <span> / {formatCommunityScore(c.kind, c.target_value)}</span>}</div>}
+    {c.status === 'finished' ? <strong className="community-card-result" data-result={winner.length === 0 ? 'none' : winner.some(m => m.id === userId) ? 'won' : 'lost'}>{winner.length ? `${winner.length > 1 ? 'Empate: ' : 'Gana '}${winner.map(m => m.id === userId ? 'tú' : m.display_name).join(', ')}` : c.members.filter(m => m.status === 'accepted').length < 2 ? 'Sin ganador: faltó rival' : 'Sin ganador: no hubo registros'}</strong> : c.members.length > 2 && <div className="community-card-result"><strong>{formatCommunityScore(c.kind, mine?.score ?? null)}</strong>{c.target_value && <span> / {formatCommunityScore(c.kind, c.target_value)}</span>}</div>}
     {c.members.length > 2 && c.target_value && c.kind !== 'segment' && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
-    {leader && c.status !== 'finished' && <p className="community-leader">En cabeza: {leader.id === userId ? 'tú' : leader.display_name} · {formatCommunityScore(c.kind, leader.score)}</p>}
+    {leader && c.status !== 'finished' && c.members.length > 2 && <p className="community-leader">En cabeza: {leader.id === userId ? 'tú' : leader.display_name} · {formatCommunityScore(c.kind, leader.score)}</p>}
     <span className="community-card-link">{mine?.status === 'pending' && c.status !== 'finished' ? 'Ver invitación' : 'Ver marcador'} <span aria-hidden="true">→</span></span>
   </Link>;
+}
+function ChallengesSkeleton() {
+  return <div aria-busy="true" className="community-stack">
+    <span className="sr-only">Cargando tus retos…</span>
+    {[0, 1].map(i => <div className="card community-challenge community-skeleton" key={i} aria-hidden="true">
+      <Skeleton width="38%" /><Skeleton variant="title" width="70%" /><Skeleton width="52%" /><Skeleton variant="box" height={84} />
+    </div>)}
+  </div>;
 }

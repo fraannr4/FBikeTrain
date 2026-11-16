@@ -16,7 +16,9 @@ import { Search, UserPlus } from '../icons';
 import { Banner } from '../components/Banner';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
+import { SkeletonRows } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
+import { useToast } from '../components/Toast';
 import '../styles/social.css';
 
 const NO_AREA = 'Indica tu zona en Ajustes para buscar cerca.';
@@ -41,6 +43,8 @@ type Suggestions = { rows: ProfileCard[]; noArea: boolean };
 
 function AmigosView({ account }: { account: Account }) {
   const { client } = account;
+  const toast = useToast();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [friends, setFriends] = useState<FriendRow[] | null>(null);
   const [listError, setListError] = useState('');
   const [error, setError] = useState('');
@@ -72,19 +76,26 @@ function AmigosView({ account }: { account: Account }) {
     return () => { live = false; };
   }, [client]);
 
-  async function act(id: string, run: () => Promise<void>) {
+  /** La lista cambia al tocar y vuelve a como estaba si el servidor lo rechaza; al acabar, avisa. */
+  async function act(id: string, run: () => Promise<void>, done: string, apply?: (rows: FriendRow[]) => FriendRow[]) {
     if (busyId !== null || friends === null || listError) return;
     setBusyId(id);
     setError('');
+    setConfirmId(null);
+    const before = friends;
+    if (apply) setFriends(apply(before));
     try {
       await run();
+      toast(done, { tone: 'good' });
       await refresh();
     } catch (e) {
+      setFriends(before);
       setError(message(e));
     } finally {
       setBusyId(null);
     }
   }
+  const drop = (friendshipId: string) => (rows: FriendRow[]) => rows.filter((f) => f.friendship_id !== friendshipId);
 
   const busy = busyId !== null;
   const rows = friends ?? [];
@@ -105,14 +116,14 @@ function AmigosView({ account }: { account: Account }) {
         <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => void refresh()}>Reintentar</button>}>{listError}</Banner>
       ) : null}
       {friends === null ? (
-        !listError && <p role="status">Cargando tus amigos…</p>
+        !listError && <SkeletonRows rows={3} label="Cargando tus amigos…" />
       ) : (
         <>
           <FriendGroup title="Solicitudes recibidas" rows={received}>
             {(f) => (
               <>
-                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busy} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id))} />
-                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                <ActionButton label="Aceptar" name={f.profile.display_name} busy={busy} primary onClick={() => act(f.friendship_id, () => acceptFriendship(client, f.friendship_id), `Ahora eres amigo de ${f.profile.display_name}.`, (rows) => rows.map((r) => (r.friendship_id === f.friendship_id ? { ...r, status: 'accepted' } : r)))} />
+                <ActionButton label="Rechazar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id), `Solicitud de ${f.profile.display_name} rechazada.`, drop(f.friendship_id))} />
               </>
             )}
           </FriendGroup>
@@ -124,8 +135,17 @@ function AmigosView({ account }: { account: Account }) {
                 <ul className="amigos-list">
                   {shown.map((f) => (
                     <Person key={f.friendship_id} card={f.profile}>
-                      <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
-                      <ActionButton label="Quitar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />
+                      {confirmId === f.friendship_id ? (
+                        <>
+                          <button type="button" className="btn btn--danger" aria-label={`Quitar definitivamente a ${f.profile.display_name}`} disabled={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id), `Has quitado a ${f.profile.display_name} de tus amigos.`, drop(f.friendship_id))}>Sí, quitar</button>
+                          <button type="button" className="btn btn--secondary" aria-label={`Mantener a ${f.profile.display_name}`} onClick={() => setConfirmId(null)}>Mantener</button>
+                        </>
+                      ) : (
+                        <>
+                          <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
+                          <ActionButton label="Quitar" name={f.profile.display_name} busy={busy} onClick={() => setConfirmId(f.friendship_id)} />
+                        </>
+                      )}
                     </Person>
                   ))}
                 </ul>
@@ -144,7 +164,7 @@ function AmigosView({ account }: { account: Account }) {
             </div>
           ) : null}
           <FriendGroup title="Solicitudes enviadas" rows={sent}>
-            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id))} />}
+            {(f) => <ActionButton label="Cancelar" name={f.profile.display_name} busy={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id), `Solicitud a ${f.profile.display_name} cancelada.`, drop(f.friendship_id))} />}
           </FriendGroup>
           {!listError ? (
             <section className="amigos-group" aria-label="Sugerencias">
@@ -153,7 +173,7 @@ function AmigosView({ account }: { account: Account }) {
                 <Banner action={<Link className="btn btn--ghost" to="/ajustes?abrir=zona">Indicar mi zona</Link>}>Indica tu zona para ver ciclistas cerca de ti. Mientras, estos son los más activos.</Banner>
               ) : null}
               {suggestions === null ? (
-                <p role="status">Buscando ciclistas…</p>
+                <SkeletonRows rows={2} label="Buscando ciclistas…" />
               ) : suggested.length ? (
                 <ul className="amigos-list">
                   {suggested.map((c) => (
@@ -161,7 +181,7 @@ function AmigosView({ account }: { account: Account }) {
                       {asked.has(c.id) ? (
                         <span className="person-state">Solicitud enviada</span>
                       ) : (
-                        <ActionButton label="Añadir" name={c.display_name} busy={busy} primary onClick={() => act(c.id, async () => { await requestFriendship(client, c.id); setAsked((s) => new Set(s).add(c.id)); })} />
+                        <ActionButton label="Añadir" name={c.display_name} busy={busy} primary onClick={() => act(c.id, async () => { await requestFriendship(client, c.id); setAsked((s) => new Set(s).add(c.id)); }, `Solicitud enviada a ${c.display_name}.`)} />
                       )}
                     </Person>
                   ))}

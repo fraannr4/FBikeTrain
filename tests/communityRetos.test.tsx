@@ -20,14 +20,15 @@ const SENT = challenge('c2', 'Puerto de la Morcuera', 'u1', [member('u1', 'Tú',
 const ACTIVE = challenge('c3', 'Collado de las Encinas', 'p4', [member('p4', 'Ana', 'accepted', 9000), member('u1', 'Tú', 'accepted', 8000)]);
 const DONE = challenge('c4', 'Noviembre en llano', 'u1', [member('u1', 'Tú', 'accepted', 9000), member('p5', 'Pablo', 'accepted', 8000)], { status: 'finished', winner_ids: ['u1'] });
 
-function setup({ challenges = [INVITATION, SENT, ACTIVE, DONE], notifications = [] as CommunityNotification[], friends = [] as FriendRow[], path = '/retos' } = {}) {
+function setup({ challenges = [INVITATION, SENT, ACTIVE, DONE], notifications = [] as CommunityNotification[], friends = [] as FriendRow[], path = '/retos', respond, listGate }: { challenges?: CommunityChallenge[]; notifications?: CommunityNotification[]; friends?: FriendRow[]; path?: string; respond?: () => Promise<{ data: null; error: { message: string } | null }>; listGate?: Promise<unknown> } = {}) {
   let rows = challenges;
   const rpc = vi.fn(async (fn: string, args?: Record<string, unknown>) => {
-    if (fn === 'list_community_challenges') return { data: args?.page_offset ? [] : rows, error: null };
+    if (fn === 'list_community_challenges') { if (listGate) await listGate; return { data: args?.page_offset ? [] : rows, error: null }; }
     if (fn === 'list_community_notifications') return { data: args?.page_offset ? [] : notifications, error: null };
     if (fn === 'list_friends') return { data: friends, error: null };
     if (fn === 'list_cyclists') return { data: [{ id: 'p6', username: 'luis', display_name: 'Luis Llano', bio: '', riding_style: 'grupo', avatar_version: 0, locality: null, distance_km: null, last_active_at: null }], error: null };
     if (fn === 'respond_community_challenge') {
+      if (respond) return respond();
       rows = rows.map(c => c.id !== args?.challenge_id ? c : { ...c, members: c.members.map(m => m.id === 'u1' ? { ...m, status: args?.accept ? 'accepted' : 'declined' } : m) });
     }
     return { data: null, error: null };
@@ -105,5 +106,39 @@ describe('Retos como pestaña', () => {
     expect(await screen.findByRole('link', { name: 'Retar a Bea Puerto' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p3');
     expect(await screen.findByRole('link', { name: 'Retar a Luis Llano' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p6');
     expect(screen.getByRole('link', { name: /\+100 km esta semana/ })).toHaveAttribute('href', '/retos/nuevo?plantilla=100km');
+  });
+
+  it('en cada reto en juego dice cuánto queda y quién va por delante', async () => {
+    setup();
+    const card = (await screen.findByText('Collado de las Encinas')).closest('a') as HTMLElement;
+    expect(within(card).getByText('Quedan 5 días')).toBeInTheDocument();
+    expect(within(card).getByText('Ana te saca 1 km')).toBeInTheDocument();
+  });
+
+  it('mientras carga muestra un esqueleto ocupado, no un salto de contenido', () => {
+    setup({ listGate: new Promise(() => {}) });
+    expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(screen.getByText(/Cargando tus retos/)).toBeInTheDocument();
+  });
+
+  it('aceptar es instantáneo: la invitación sale antes de que responda el servidor', async () => {
+    let finish: (v: { data: null; error: null }) => void = () => {};
+    setup({ respond: () => new Promise(resolve => { finish = resolve; }) });
+    const user = userEvent.setup();
+    const card = await screen.findByRole('article', { name: 'Marta te reta: Vuelta del embalse' });
+    await user.click(within(card).getByRole('button', { name: 'Aceptar reto «Vuelta del embalse»' }));
+    expect(screen.queryByRole('article', { name: 'Marta te reta: Vuelta del embalse' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Reto aceptado');
+    finish({ data: null, error: null });
+  });
+
+  it('si el servidor falla, la invitación vuelve y se explica el error', async () => {
+    setup({ respond: async () => ({ data: null, error: { message: 'Reto cerrado' } }) });
+    const user = userEvent.setup();
+    const card = await screen.findByRole('article', { name: 'Marta te reta: Vuelta del embalse' });
+    await user.click(within(card).getByRole('button', { name: 'Aceptar reto «Vuelta del embalse»' }));
+    expect(await screen.findByText(/plazo del reto ha terminado/)).toBeInTheDocument();
+    expect(screen.getByRole('article', { name: 'Marta te reta: Vuelta del embalse' })).toBeInTheDocument();
+    expect(screen.queryByText(/Reto aceptado/)).not.toBeInTheDocument();
   });
 });

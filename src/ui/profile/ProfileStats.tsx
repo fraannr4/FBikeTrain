@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { formatCount } from '../format';
 
 export type ProfileStat = {
-  value: number;
+  /** `null` mientras llega el dato: se reserva el hueco con «—» para que la fila no salte. */
+  value: number | null;
   label: string;
   /** Nombre completo para el lector de pantalla, p. ej. «2 amigos, 1 solicitud pendiente». */
   name: string;
@@ -17,7 +18,7 @@ export function ProfileStats({ label, items }: { label: string; items: ProfileSt
     <ul className="profile-stats" aria-label={label}>
       {items.map((s) => {
         const body = <>
-          <strong>{formatCount(s.value)}</strong>
+          <strong>{s.value === null ? '—' : formatCount(s.value)}</strong>
           <span>{s.label}</span>
           {s.note ? <small>{s.note}</small> : null}
         </>;
