@@ -5,6 +5,7 @@ import { CHALLENGE_LABELS, formatCommunityScore, getCommunityChallenge, rankedCo
 import { syncCommunityScores } from '../../social/challengeScoring';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { DuelComparison } from '../retos/DuelComparison';
 import { communityDate, communityError } from './CommunityRetos';
 import '../styles/community-challenges.css';
 
@@ -59,6 +60,8 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
     finally { loading.current = false; setBusy(false); }
   }
   const mine = row?.members.find(m => m.id === account.user.id);
+  const rival = row?.members.find(m => m.id !== account.user.id);
+  const duel = row?.members.length === 2;
   const ranked = row ? rankedCommunityMembers(row) : [];
   const winners = row?.members.filter(m => row.winner_ids.includes(m.id)) ?? [];
   return <>
@@ -66,17 +69,20 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
     {!loaded && !error && <p role="status">Preparando el marcador…</p>}
     {loaded && !row && <section className="card community-empty"><h2>Reto no disponible</h2><p>Este reto ya no está disponible para tu cuenta.</p><Link className="btn btn--secondary" to="/retos">Volver a Retos</Link></section>}
     {row && <>
-      <section className="card community-detail-hero">
+      <section className={`card community-detail-hero${duel ? ' community-detail-hero--duel' : ''}`}>
         <div className="community-card-top"><span className="community-eyebrow">{CHALLENGE_LABELS[row.kind]}</span><span className="chip">{row.members.length === 2 ? 'Duelo' : 'Grupo'} · {row.members.length}</span></div>
+        {duel && <p className="community-duel-heading">Tú contra {rival?.display_name}</p>}
         <h2>{row.title}</h2>
         <p>{row.status === 'finished' ? 'Terminó' : 'Hasta'} {communityDate(row.deadline)}</p>
-        {row.target_value && <div className="community-goal"><small>LA META</small><strong>{formatCommunityScore(row.kind, row.target_value)}</strong></div>}
+        {duel && <DuelComparison client={account.client} userId={account.user.id} challenge={row} />}
+        {row.target_value && (duel ? <p className="community-duel-reference">Referencia del duelo: {formatCommunityScore(row.kind, row.target_value)}</p> : <div className="community-goal"><small>LA META</small><strong>{formatCommunityScore(row.kind, row.target_value)}</strong></div>)}
         {(row.kind === 'speed' || row.kind === 'segment') && row.distance_m && <p>Distancia de referencia: {(row.distance_m / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km</p>}
-        {row.status === 'finished' ? <div className="community-winner" role="status"><span className="community-eyebrow">RETO CERRADO</span><h3>{winners.length > 1 ? 'Victoria compartida' : winners.length === 1 && winners[0].id === account.user.id ? '¡Has ganado!' : winners.length === 1 ? `Gana ${winners[0].display_name}` : 'Sin ganador'}</h3>{winners.length > 1 && <p>{winners.map(w => w.id === account.user.id ? 'Tú' : w.display_name).join(' · ')}</p>}<p>{winners.length ? 'El marcador final conserva los registros recibidos antes del cierre.' : ranked.length < 2 ? 'No llegó a aceptar ningún rival.' : 'No hubo registros válidos antes del cierre.'}</p></div> : mine?.status === 'pending' ? <div className="community-invitation"><h3>¿Te apuntas?</h3><p>Al aceptar compartirás tu cifra con los participantes. Contarán tus salidas desde ese momento hasta el cierre.</p><div className="btn-row"><button className="btn btn--primary" disabled={busy} onClick={() => void respond(true)}>Aceptar reto</button><button className="btn btn--secondary" disabled={busy} onClick={() => void respond(false)}>Rechazar</button></div></div> : mine?.status === 'declined' ? <p>Has rechazado este reto.</p> : <div className="community-my-score"><small>TU MARCADOR</small><strong>{formatCommunityScore(row.kind, mine?.score ?? null)}</strong>{mine?.updated_at ? <p>Último envío: {communityDate(mine.updated_at)}</p> : <p>Importa una salida durante el plazo para estrenar el marcador.</p>}</div>}
-        {row.status === 'active' && mine?.status === 'accepted' && <div className="community-stack">
-          <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => void useThisDevice()}>Usar las salidas de este dispositivo</button>
+        {row.status === 'finished' ? <div className="community-winner" role="status"><span className="community-eyebrow">RETO CERRADO</span><h3>{winners.length > 1 ? 'Victoria compartida' : winners.length === 1 && winners[0].id === account.user.id ? '¡Has ganado!' : winners.length === 1 ? `Gana ${winners[0].display_name}` : 'Sin ganador'}</h3>{winners.length > 1 && <p>{winners.map(w => w.id === account.user.id ? 'Tú' : w.display_name).join(' · ')}</p>}<p>{winners.length ? 'El marcador final conserva los registros recibidos antes del cierre.' : ranked.length < 2 ? 'No llegó a aceptar ningún rival.' : 'No hubo registros válidos antes del cierre.'}</p></div> : mine?.status === 'pending' ? <div className="community-invitation"><h3>{duel ? `${rival?.display_name} te reta` : '¿Te apuntas?'}</h3><p>Al aceptar compartirás tu cifra con los participantes. Contarán tus salidas desde ese momento hasta el cierre.</p><div className="btn-row"><button className="btn btn--primary" disabled={busy} onClick={() => void respond(true)}>Aceptar reto</button><button className="btn btn--secondary" disabled={busy} onClick={() => void respond(false)}>Rechazar</button></div></div> : mine?.status === 'declined' ? <p>Has rechazado este reto.</p> : <div className={`community-my-score${duel ? ' community-my-score--duel' : ''}`}>{!duel && <><small>TU MARCADOR</small><strong>{formatCommunityScore(row.kind, mine?.score ?? null)}</strong></>}{mine?.updated_at ? <p>Último envío: {communityDate(mine.updated_at)}</p> : <p>Importa una salida durante el plazo para estrenar el marcador.</p>}</div>}
+        {row.status === 'active' && mine?.status === 'accepted' && <details className="community-device-option">
+          <summary>Cambiar de dispositivo</summary>
           <p className="help">Reemplaza tu marcador por las salidas guardadas aquí, incluso si está vacío. Úsalo solo si has cambiado de dispositivo.</p>
-        </div>}
+          <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => void useThisDevice()}>Usar las salidas de este dispositivo</button>
+        </details>}
       </section>
       <section className="community-stack" aria-label="Marcador del reto">
         <div className="community-score-heading"><h2>{row.status === 'finished' ? 'Clasificación final' : 'Marcador en marcha'}</h2><button className="btn btn--secondary" disabled={busy} onClick={() => void load(true)}>Actualizar</button></div>

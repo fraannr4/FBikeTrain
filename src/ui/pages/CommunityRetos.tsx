@@ -5,13 +5,14 @@ import { listCommunityChallenges, listCommunityNotifications, readCommunityNotif
 import { syncCommunityScores } from '../../social/challengeScoring';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { DuelComparison } from '../retos/DuelComparison';
 import '../styles/community-challenges.css';
 
 export const communityError = (e: unknown) => e instanceof Error ? e.message : 'No se pudo completar. Comprueba la conexión.';
 export const communityDate = (s: string) => new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 export function CommunityRetos() {
   const account = useAccount();
-  return <Page title="Retos" back="/perfil" variant="narrow" className="page--community" lead="Un motivo más para salir. Reta a cualquier ciclista y rodad hacia la próxima meta.">
+  return <Page title="Retos" back="/perfil" variant="narrow" className="page--community" lead="Elige a otro ciclista. Enviad la invitación y medid vuestro esfuerzo.">
     {account && !account.user.is_anonymous ? <CommunityRetosList account={account} /> : <p>Inicia sesión con una cuenta registrada para participar.</p>}
   </Page>;
 }
@@ -70,12 +71,7 @@ function CommunityRetosList({ account }: { account: Account }) {
   const visible = rows?.filter(row => row.status === view) ?? [];
   const unread = notifications.filter(n => !n.read_at).length;
   return <>
-    <section className="community-hero card">
-      <span className="community-eyebrow">LA PRÓXIMA META</span><h2>Mejor, en compañía.</h2>
-      <p>Un duelo o toda la grupeta. Las salidas que importas hacen avanzar el marcador.</p>
-      <Link className="btn btn--primary btn--block" to="/retos/nuevo">Crear un reto</Link>
-      <Link className="community-template" to="/retos/nuevo?plantilla=100km">+100 km esta semana <span aria-hidden="true">→</span></Link>
-    </section>
+    <div className="community-rival-entry"><div><span className="community-eyebrow">DE CICLISTA A CICLISTA</span><p>¿A quién retas hoy?</p></div><Link className="btn btn--primary" to="/ciclistas">Elegir rival <span aria-hidden="true">↗</span></Link></div>
     <div className="community-tabs" aria-label="Vistas de retos">
       <button className="btn" aria-pressed={view === 'active'} onClick={() => setView('active')}>En marcha</button>
       <button className="btn" aria-pressed={view === 'finished'} onClick={() => setView('finished')}>Historial</button>
@@ -93,24 +89,28 @@ function CommunityRetosList({ account }: { account: Account }) {
         {!n.read_at && <button className="btn btn--ghost" onClick={() => void read(n)}>Marcar leído</button>}
       </article>)}
     </section> : <section className="community-stack" aria-label={view === 'active' ? 'Retos en marcha' : 'Historial de retos'}>
-      {rows && !visible.length && <div className="card community-empty"><h2>{view === 'active' ? 'Tu próxima historia empieza aquí' : 'Cada reto deja huella'}</h2><p>{view === 'active' ? 'Invita a un ciclista, elegid una meta y empezad a sumar.' : 'Los retos terminados y sus ganadores aparecerán aquí.'}</p>{view === 'active' && <Link className="btn btn--secondary" to="/retos/nuevo">Elegir una meta</Link>}</div>}
-      {visible.map(row => <ChallengeCard key={row.id} challenge={row} userId={account.user.id} />)}
+      {rows && !visible.length && <div className="card community-empty"><h2>{view === 'active' ? 'Tu próximo rival está en Ciclistas' : 'Cada reto deja huella'}</h2><p>{view === 'active' ? 'Elige a alguien y envíale una invitación. Aquí verás vuestros marcadores.' : 'Los retos terminados y sus ganadores aparecerán aquí.'}</p>{view === 'active' && <Link className="btn btn--secondary" to="/ciclistas">Buscar un rival</Link>}</div>}
+      {visible.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
     </section>}
     {(view === 'notifications' ? notificationMore : more) && <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => void next()}>Cargar más</button>}
     <p className="community-footnote">Los tracks y tu ubicación se quedan en tu dispositivo. Solo compartes cifras con los participantes al aceptar.</p>
     <Link className="btn btn--ghost" to="/retos/anteriores">Retos anteriores de ruta</Link>
   </>;
 }
-function ChallengeCard({ challenge: c, userId }: { challenge: CommunityChallenge; userId: string }) {
+function ChallengeCard({ challenge: c, account }: { challenge: CommunityChallenge; account: Account }) {
+  const userId = account.user.id;
   const mine = c.members.find(m => m.id === userId);
+  const rival = c.members.find(m => m.id !== userId);
   const leader = rankedCommunityMembers(c).find(m => (m.score ?? 0) > 0);
   const winner = c.members.filter(m => c.winner_ids.includes(m.id));
   const progress = c.target_value && mine?.score ? Math.min(100, mine.score / c.target_value * 100) : 0;
   return <Link className="card community-challenge" to={`/retos/comunidad/${c.id}`}>
     <div className="community-card-top"><span className="community-eyebrow">{CHALLENGE_LABELS[c.kind]}</span><span className="chip">{c.status === 'finished' ? 'Terminado' : mine?.status === 'pending' ? 'Te han retado' : mine?.status === 'declined' ? 'Rechazado' : 'En marcha'}</span></div>
+    <p className="community-opponent-line">{c.members.length > 2 ? `Tu grupeta · ${c.members.length} ciclistas` : mine?.status === 'pending' ? `${rival?.display_name ?? 'Un ciclista'} te reta` : rival?.status === 'pending' && c.creator_id === userId ? `Has retado a ${rival.display_name}` : `Tú contra ${rival?.display_name ?? 'otro ciclista'}`}</p>
     <h2>{c.title}</h2><p>{c.members.length === 2 ? 'Duelo' : 'Grupeta'} · {c.members.filter(m => m.status === 'accepted').length}/{c.members.length} participantes · Hasta {communityDate(c.deadline)}</p>
-    {c.status === 'finished' ? <strong className="community-card-result">{winner.length ? `${winner.length > 1 ? 'Empate: ' : 'Gana '}${winner.map(m => m.id === userId ? 'tú' : m.display_name).join(', ')}` : c.members.filter(m => m.status === 'accepted').length < 2 ? 'Sin ganador: faltó rival' : 'Sin ganador: no hubo registros'}</strong> : <div className="community-card-result"><strong>{formatCommunityScore(c.kind, mine?.score ?? null)}</strong>{c.target_value && <span> / {formatCommunityScore(c.kind, c.target_value)}</span>}</div>}
-    {c.target_value && c.kind !== 'segment' && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
+    {c.members.length === 2 && <DuelComparison client={account.client} userId={userId} challenge={c} compact />}
+    {c.status === 'finished' ? <strong className="community-card-result">{winner.length ? `${winner.length > 1 ? 'Empate: ' : 'Gana '}${winner.map(m => m.id === userId ? 'tú' : m.display_name).join(', ')}` : c.members.filter(m => m.status === 'accepted').length < 2 ? 'Sin ganador: faltó rival' : 'Sin ganador: no hubo registros'}</strong> : c.members.length > 2 && <div className="community-card-result"><strong>{formatCommunityScore(c.kind, mine?.score ?? null)}</strong>{c.target_value && <span> / {formatCommunityScore(c.kind, c.target_value)}</span>}</div>}
+    {c.members.length > 2 && c.target_value && c.kind !== 'segment' && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
     {leader && c.status !== 'finished' && <p className="community-leader">En cabeza: {leader.id === userId ? 'tú' : leader.display_name} · {formatCommunityScore(c.kind, leader.score)}</p>}
     <span className="community-card-link">{mine?.status === 'pending' && c.status !== 'finished' ? 'Ver invitación' : 'Ver marcador'} <span aria-hidden="true">→</span></span>
   </Link>;

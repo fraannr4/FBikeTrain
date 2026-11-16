@@ -5,7 +5,9 @@ const NAME = 'Maximiliana de los Santos Inocentes Bermúdez-Villalobos';
 const cyclist = (id: string, display_name = `Ciclista ${id}`) => ({ id, username: `ciclista_${id}`, display_name, locality: 'Villa Sintética', distance_km: null, bio: 'La mejor compañía se encuentra pedaleando. Explorando las carreteras de la Sierra Ficticia.', riding_style: 'explorar', avatar_version: 0, last_active_at: '2026-11-15T00:00:00Z' });
 
 async function fakeCommunity(page: Page, short = false) {
-  const people = [cyclist(TEST_USER_ID, 'Tu perfil sintético'), cyclist('p2', NAME), ...Array.from({ length: short ? 0 : 50 }, (_, i) => cyclist(`p${i + 3}`))];
+  const people = [cyclist(TEST_USER_ID, 'Tu perfil sintético'), cyclist('p2', NAME), ...(short
+    ? ['Marta Soler', 'Luis Vega', 'Elena Costa'].map((name, i) => cyclist(`p${i + 3}`, name))
+    : Array.from({ length: 50 }, (_, i) => cyclist(`p${i + 3}`)))];
   const state = { blocked: false, friends: [] as unknown[], requests: [] as unknown[], reports: [] as unknown[], searches: [] as { query_text: string; page_offset: number }[] };
   await page.route('https://*.supabase.co/rest/v1/profiles*', route => route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(cyclist('p2', NAME)) }));
   await page.route('https://*.supabase.co/rest/v1/rpc/*', async route => {
@@ -38,12 +40,17 @@ test('directorio completo paginado: buscar, amistad, perfil, denunciar, bloquear
   const state = await fakeCommunity(page);
   await page.goto('./#/ciclistas');
   const list = page.getByRole('list', { name: 'Ciclistas registrados' });
-  await expect(list.getByRole('listitem')).toHaveCount(50);
+  await expect(list.getByRole('listitem')).toHaveCount(49);
   await page.getByRole('button', { name: 'Ver más ciclistas' }).click();
-  await expect(list.getByRole('listitem')).toHaveCount(52);
+  await expect(list.getByRole('listitem')).toHaveCount(51);
   expect(state.searches).toContainEqual({ query_text: '', page_offset: 50 });
   await page.getByLabel('Nombre o usuario').fill('Maximiliana');
   await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Limpiar búsqueda' }).click();
+  await expect(page.getByLabel('Nombre o usuario')).toBeFocused();
+  await expect(list.getByRole('listitem')).toHaveCount(49);
+  await page.getByLabel('Nombre o usuario').fill('Maximiliana');
   await expect(list.getByRole('listitem')).toHaveCount(1);
   await page.getByRole('button', { name: `Solicitar amistad a ${NAME}` }).click();
   await expect(page.getByText('Solicitud enviada', { exact: true })).toBeVisible();

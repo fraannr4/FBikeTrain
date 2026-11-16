@@ -29,6 +29,7 @@ it('shows the whole community immediately and challenges non-friends without sel
   expect(listCyclists).toHaveBeenCalledWith(client, '', 0);
   expect(within(list).getByRole('link', { name: 'Retar a Ciclista p2' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p2');
   expect(within(list).queryByRole('link', { name: 'Retar a Ciclista u1' })).not.toBeInTheDocument();
+  expect(within(list).queryByRole('link', { name: 'Ver perfil de Ciclista u1' })).not.toBeInTheDocument();
   await userEvent.setup().click(within(list).getByRole('button', { name: 'Solicitar amistad a Ciclista p2' }));
   expect(requestFriendship).toHaveBeenCalledWith(client, 'p2');
 });

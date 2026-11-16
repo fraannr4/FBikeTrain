@@ -5,7 +5,8 @@ import { blockCyclist, listBlockedCyclists, listCyclists, type BlockedCyclist, t
 import { acceptFriendship, listFriends, requestFriendship, type FriendRow } from '../../social/friends';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
-import { Search, Users } from '../icons';
+import { Check, Lock, Search, User, UserPlus, X } from '../icons';
+import { ProfileAvatar } from '../profile/ProfileAvatar';
 import '../styles/community.css';
 
 const message = (e: unknown) => e instanceof Error ? e.message : 'No se pudo completar. Comprueba la conexión.';
@@ -18,7 +19,7 @@ export function cyclistActivityDay(value: string | null): string {
 
 export function Ciclistas() {
   const account = useAccount();
-  return <Page title="Ciclistas" back="/perfil" className="page--cyclists" lead="La comunidad empieza con un saludo. Encuentra compañía y comparte tu próximo reto.">
+  return <Page title="Ciclistas" back="/perfil" className="page--cyclists" actions={<Link className="icon-btn" to="/perfil" aria-label="Tu perfil"><User className="ic" aria-hidden="true" /></Link>}>
     {!account || account.user.is_anonymous ? <p>Necesitas una cuenta registrada para acceder a la comunidad.</p> : <CyclistsView account={account} />}
   </Page>;
 }
@@ -41,6 +42,7 @@ function CyclistsView({ account }: { account: Account }) {
   const [blocksBusy, setBlocksBusy] = useState(false);
   const [blocksError, setBlocksError] = useState('');
   const generation = useRef(0);
+  const searchInput = useRef<HTMLInputElement>(null);
 
   const loadRelations = useCallback(async () => {
     setRelationError('');
@@ -66,11 +68,14 @@ function CyclistsView({ account }: { account: Account }) {
     return () => { generation.current++; };
   }, [term, load]);
   useEffect(() => { void loadRelations(); }, [loadRelations]);
+  useEffect(() => {
+    const timer = setTimeout(() => setTerm(query.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   function search(e: FormEvent) {
     e.preventDefault();
-    if (query.trim() === term) void load(term, 0, ++generation.current);
-    else setTerm(query.trim());
+    setTerm(query.trim());
   }
   async function friendship(person: Cyclist, relation: FriendRow | undefined) {
     if (busyId || friends === null) return;
@@ -101,39 +106,37 @@ function CyclistsView({ account }: { account: Account }) {
     finally { setBlocksBusy(false); }
   }
 
+  const people = rows.filter(person => person.id !== account.user.id);
   return <div className="cyclists-workspace">
-    <section className="cyclists-intro" aria-label="Comunidad abierta">
-      <Users className="ic" aria-hidden="true" /><div><span className="cyclists-eyebrow">TODOS TENEMOS ALGO QUE COMPARTIR</span><h2>Tu próxima grupeta,<br />a un saludo.</h2><p>Todos los ciclistas registrados, por actividad reciente. Puedes retar a cualquiera.</p></div>
-      <Link className="btn btn--secondary" to="/amigos?vista=amigos">Mis amigos y solicitudes</Link>
-    </section>
+    <div className="cyclists-discovery">
     <form className="cyclists-search" onSubmit={search} role="search" aria-label="Buscar ciclistas">
-      <label className="field"><span className="field-label">Nombre o usuario</span><input className="input" type="search" maxLength={60} value={query} onChange={e => setQuery(e.target.value)} placeholder="Encuentra a alguien" /></label>
-      <button className="btn btn--primary" type="submit"><Search className="ic" aria-hidden="true" /><span>Buscar</span></button>
+      <button className="cyclists-search-icon" type="submit" aria-label="Buscar"><Search className="ic" aria-hidden="true" /></button>
+      <input ref={searchInput} aria-label="Nombre o usuario" type="search" autoComplete="off" maxLength={60} value={query} onChange={e => setQuery(e.target.value)} placeholder="Busca un ciclista" />
+      {query && <button className="cyclists-search-icon" type="button" aria-label="Limpiar búsqueda" onClick={() => { setQuery(''); setTerm(''); searchInput.current?.focus(); }}><X className="ic" aria-hidden="true" /></button>}
     </form>
-    <div className="cyclists-section-heading"><h2>{term ? `Resultados para «${term}»` : 'Nuestra comunidad'}</h2><span>Actividad reciente primero</span></div>
+    <nav className="cyclists-filters" aria-label="Vistas de ciclistas"><span aria-current="page">Todos</span><Link to="/amigos?vista=amigos">Amigos</Link></nav>
+    </div>
+    <div className="cyclists-section-heading"><h2>{term ? `Resultados para «${term}»` : 'Actividad reciente'}</h2><span>{people.length}{more ? '+' : ''} {people.length === 1 ? 'ciclista' : 'ciclistas'}</span></div>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={loading} onClick={() => void load(term, rows.length ? nextOffset : 0, generation.current)}>Reintentar</button>}>{error}</Banner>}
     {relationError && <Banner tone="error" action={<button className="btn btn--ghost" disabled={Boolean(busyId)} onClick={() => void loadRelations()}>Reintentar solicitudes</button>}>{relationError}</Banner>}
     {notice && <p role="status" className="cyclists-notice">{notice}</p>}
-    {!loading && !error && !rows.length && <section className="card cyclists-empty"><h3>{term ? 'No hemos encontrado a nadie' : 'La grupeta está por llegar'}</h3><p>{term ? 'Prueba con otro nombre o deja la búsqueda vacía para ver a toda la comunidad.' : 'Los ciclistas registrados aparecerán aquí. Las cuentas anónimas quedan fuera.'}</p></section>}
+    {!loading && !error && !people.length && <section className="card cyclists-empty"><h3>{term ? 'No hemos encontrado a nadie' : 'La grupeta está por llegar'}</h3><p>{term ? 'Prueba con otro nombre o deja la búsqueda vacía para ver a toda la comunidad.' : 'Los otros ciclistas registrados aparecerán aquí. Tu perfil está disponible en Perfil.'}</p></section>}
     <ul className="cyclists-list" aria-label="Ciclistas registrados">
-      {rows.map(person => {
-        const self = person.id === account.user.id;
+      {people.map(person => {
         const relation = friends?.find(f => f.profile.id === person.id);
-        const initials = person.display_name.trim().split(/\s+/).slice(0, 2).map(n => n[0]).join('');
         return <li className="cyclist-card" key={person.id}>
-          <div className="cyclist-identity"><span className="cyclist-initials" aria-hidden="true">{initials}</span><Link className="cyclist-profile" to={self ? '/perfil' : `/personas/${encodeURIComponent(person.id)}`} aria-label={`Ver perfil de ${person.display_name}`}><strong>{person.display_name}{self ? ' · Tú' : ''}</strong><span>@{person.username}</span></Link></div>
-          {person.bio && <p className="cyclist-bio">{person.bio}</p>}
-          <p className="cyclist-meta">{cyclistActivityDay(person.last_active_at)}{person.locality ? ` · ${person.locality}` : ''}</p>
-          {!self && <div className="cyclist-actions">
-            {relation?.status === 'accepted' ? <span className="cyclist-friend">Ya sois amigos</span> : relation?.direction === 'sent' ? <span className="cyclist-friend">Solicitud enviada</span> : <button className="btn btn--secondary" disabled={friends === null || busyId !== null} onClick={() => void friendship(person, relation)} aria-label={relation?.direction === 'received' ? `Aceptar amistad de ${person.display_name}` : `Solicitar amistad a ${person.display_name}`}>{busyId === person.id ? 'Enviando…' : relation?.direction === 'received' ? 'Aceptar amistad' : 'Añadir amigo'}</button>}
-            <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(person.id)}`} aria-label={`Retar a ${person.display_name}`}>Lanzar reto<span aria-hidden="true"> ↗</span></Link>
-          </div>}
+          <ProfileAvatar client={client} userId={person.id} name={person.display_name} version={person.avatar_version} className="cyclist-photo" />
+          <Link className="cyclist-profile" to={`/personas/${encodeURIComponent(person.id)}`} aria-label={`Ver perfil de ${person.display_name}`}><strong>{person.display_name}</strong><span>@{person.username}</span><small>{relation?.status === 'accepted' ? 'Ya sois amigos' : relation?.direction === 'sent' ? 'Solicitud enviada' : cyclistActivityDay(person.last_active_at)}</small></Link>
+          <div className="cyclist-actions">
+            <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(person.id)}`} aria-label={`Retar a ${person.display_name}`}>Retar</Link>
+            {relation?.status === 'accepted' ? <span className="cyclist-friend" aria-label="Amistad aceptada"><Check className="ic" aria-hidden="true" /></span> : relation?.direction === 'sent' ? <span className="cyclist-friend" aria-label="Solicitud enviada"><Check className="ic" aria-hidden="true" /></span> : <button className="cyclist-add" disabled={friends === null || busyId !== null} onClick={() => void friendship(person, relation)} aria-label={relation?.direction === 'received' ? `Aceptar amistad de ${person.display_name}` : `Solicitar amistad a ${person.display_name}`} aria-busy={busyId === person.id}>{relation?.direction === 'received' ? <Check className="ic" aria-hidden="true" /> : <UserPlus className="ic" aria-hidden="true" />}</button>}
+          </div>
         </li>;
       })}
     </ul>
     {loading && <p role="status">Cargando ciclistas…</p>}
     {more && <button className="btn btn--secondary btn--block" disabled={loading} onClick={() => void load(term, nextOffset, generation.current)}>Ver más ciclistas</button>}
-    <p className="cyclists-privacy">Tu zona sigue siendo aproximada. Este directorio no muestra celdas ni distancias exactas.</p>
+    <p className="cyclists-privacy"><Lock className="ic" aria-hidden="true" />Solo ves ciclistas registrados. Tu zona y tus tracks siguen protegidos.</p>
     <section className="cyclists-blocks">
       <button className="btn btn--ghost btn--block" aria-expanded={blocksOpen} onClick={() => { setBlocksOpen(v => !v); if (!blocksOpen) void loadBlocks(); }}>Ciclistas bloqueados</button>
       {blocksOpen && <div>{blocksError && <Banner tone="error" action={<button className="btn btn--ghost" disabled={blocksBusy} onClick={() => void loadBlocks()}>Reintentar</button>}>{blocksError}</Banner>}{blocksBusy && <p role="status">Actualizando bloqueos…</p>}{blocked?.length === 0 && <p>No has bloqueado a ningún ciclista.</p>}<ul className="cyclists-blocked-list">{blocked?.map(person => <li key={person.id}><span>{person.display_name}<small>@{person.username}</small></span><button className="btn btn--secondary" disabled={blocksBusy} onClick={() => void unblock(person)} aria-label={`Desbloquear a ${person.display_name}`}>Desbloquear</button></li>)}</ul></div>}

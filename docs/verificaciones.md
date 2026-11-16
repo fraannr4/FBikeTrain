@@ -380,3 +380,11 @@ Correcciones en la misma migración `202611160003`, todavía sin aplicar: cifras
 - `npm run build`: correcto; avisos de dependencias/bundle ya conocidos. Escáner de secretos correcto.
 
 Revisión independiente de la cola sin hallazgos. Sin cambios de interfaz ni nuevas migraciones; sin push ni acciones SQL remotas. El usuario ha autorizado un commit local nuevo.
+
+## Diseño A de comunidad — 2026-11-16 (commit local autorizado)
+
+El usuario elige la opción A y limita el lote a diseño para conservar su presupuesto. Ciclistas integra buscador y lista compacta, con rival y acciones visibles; Retos prioriza Tú contra rival; la creación empieza por elegir la persona. Se conservan contratos, RLS, límites y cálculos. Cambio de dispositivo pasa a un desplegable secundario.
+
+Verificación: 18/18 unitarias focalizadas; tsc y build correctos; 25/25 Playwright de Ciclistas/Retos a 360/390/412/430 px, ambos temas y apaisado. Se comprueban búsqueda al escribir, limpiar conservando foco, paginación sin fila propia, amistad/bloqueo, grupos, avisos y reemplazo explícito de dispositivo. Escáner de secretos limpio. Revisión visual de capturas sin bloqueantes.
+
+Capturas nuevas: docs/design/comunidad-opcion-a/README.md. Las anteriores se conservan. Sin SQL ni lógica de resultados modificados. El usuario ha revisado las capturas y autorizado el commit local; pendiente de integración. Sin push o despliegue.

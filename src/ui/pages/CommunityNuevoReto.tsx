@@ -11,7 +11,7 @@ import '../styles/community-challenges.css';
 
 export function CommunityNuevoReto() {
   const account = useAccount();
-  return <Page title="Nuevo reto" back="/retos" variant="narrow" className="page--community" lead="Una meta clara, buena compañía y de 1 a 30 días para darlo todo.">
+  return <Page title="Nuevo reto" back="/retos" variant="narrow" className="page--community" lead="Elige a quién retas y en qué os medís. El otro ciclista tendrá que aceptar.">
     {account && !account.user.is_anonymous ? <ChallengeForm account={account} /> : <p>Inicia sesión con una cuenta registrada para crear retos.</p>}
   </Page>;
 }
@@ -89,7 +89,20 @@ function ChallengeForm({ account }: { account: Account }) {
   const unit = kind === 'distance' ? 'km' : kind === 'elevation' ? 'm' : kind === 'speed' ? 'km/h' : 'salidas';
   return <form className="community-stack" onSubmit={send}>
     <fieldset className="card community-form-section" disabled={sending}>
-      <legend>1. Elige la meta</legend>
+      <legend>1. Elige rival</legend>
+      <div className="community-tabs"><button type="button" className="btn" aria-pressed={!group} onClick={() => { setGroup(false); setChosen(previous => previous.slice(0, 1)); }}>Duelo</button><button type="button" className="btn" aria-pressed={group} onClick={() => setGroup(true)}>Grupo</button></div>
+      <p className="help">{group ? 'Invita entre 2 y 19 ciclistas. Cada persona decide si acepta.' : 'Invita a cualquier ciclista registrado, aunque aún no seáis amigos.'}</p>
+      {chosen.length > 0 && <div className="community-selected" aria-label="Ciclistas seleccionados">{chosen.map(p => <button type="button" className="btn btn--secondary" key={p.id} onClick={() => setChosen(previous => previous.filter(x => x.id !== p.id))} aria-label={`Quitar a ${p.display_name}`}>{p.display_name} <span aria-hidden="true">×</span></button>)}</div>}
+      <label className="field"><span className="field-label">Buscar ciclistas</span><input className="input" value={query} onChange={e => setQuery(e.target.value)} placeholder="Nombre o usuario" /></label>
+      <button type="button" className="btn btn--secondary" disabled={loading} onClick={() => { setOffset(0); setSearch(query.trim()); setAttempt(n => n + 1); }}>Buscar</button>
+      {searchError && <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button>}>{searchError}</Banner>}
+      {loading && <p role="status">Cargando ciclistas…</p>}
+      {!loading && !people.length && !searchError && <div><p>No hay ciclistas con ese nombre.</p><Link className="btn btn--ghost" to="/ciclistas">Abrir Ciclistas</Link></div>}
+      <div className="community-pick-list" aria-label="Elegir participantes">{people.map(p => <label className="community-pick" key={p.id}><input type="checkbox" checked={chosen.some(c => c.id === p.id)} disabled={group && chosen.length >= 19 && !chosen.some(c => c.id === p.id)} onChange={() => select(p)} /><span><strong>{p.display_name}</strong><small>@{p.username}</small></span></label>)}</div>
+      {hasMore && <button type="button" className="btn btn--secondary btn--block" disabled={loading} onClick={() => setOffset(n => n + 50)}>Más ciclistas</button>}
+    </fieldset>
+    <fieldset className="card community-form-section" disabled={sending}>
+      <legend>2. Define el duelo</legend>
       <div className="community-quick" aria-label="Plantillas rápidas">
         <button type="button" className="btn btn--secondary" onClick={() => quick('distance', '+100 km esta semana', '100')}>100 km</button>
         <button type="button" className="btn btn--secondary" onClick={() => quick('elevation', 'A por los 1.000 metros', '1000')}>1.000 m</button>
@@ -107,19 +120,6 @@ function ChallengeForm({ account }: { account: Account }) {
         <p className="help">Gana el menor tiempo en subidas detectadas equivalentes. El reconocimiento es aproximado; no se comparte el track.</p>
       </> : <label className="field"><span className="field-label">Objetivo ({unit}, opcional)</span><input className="input" type="number" min={kind === 'rides' || kind === 'elevation' ? 1 : 0.1} step={kind === 'rides' || kind === 'elevation' ? 1 : 0.1} value={target} onChange={e => setTarget(e.target.value)} placeholder="Sin objetivo fijo" /><span className="help">El objetivo guía el progreso. Gana quien consiga la mayor cifra al terminar el plazo.</span></label>}
       <label className="field"><span className="field-label">Duración (días)</span><input className="input" type="number" min={1} max={30} step={1} required value={days} onChange={e => setDays(Number(e.target.value))} /><span className="help">De 1 a 30 días desde que creas el reto.</span></label>
-    </fieldset>
-    <fieldset className="card community-form-section" disabled={sending}>
-      <legend>2. Elige la compañía</legend>
-      <div className="community-tabs"><button type="button" className="btn" aria-pressed={!group} onClick={() => { setGroup(false); setChosen(previous => previous.slice(0, 1)); }}>Duelo</button><button type="button" className="btn" aria-pressed={group} onClick={() => setGroup(true)}>Grupo</button></div>
-      <p className="help">{group ? 'Invita entre 2 y 19 ciclistas. Cada persona decide si acepta.' : 'Invita a cualquier ciclista registrado, aunque aún no seáis amigos.'}</p>
-      {chosen.length > 0 && <div className="community-selected" aria-label="Ciclistas seleccionados">{chosen.map(p => <button type="button" className="btn btn--secondary" key={p.id} onClick={() => setChosen(previous => previous.filter(x => x.id !== p.id))} aria-label={`Quitar a ${p.display_name}`}>{p.display_name} <span aria-hidden="true">×</span></button>)}</div>}
-      <label className="field"><span className="field-label">Buscar ciclistas</span><input className="input" value={query} onChange={e => setQuery(e.target.value)} placeholder="Nombre o usuario" /></label>
-      <button type="button" className="btn btn--secondary" disabled={loading} onClick={() => { setOffset(0); setSearch(query.trim()); setAttempt(n => n + 1); }}>Buscar</button>
-      {searchError && <Banner tone="error" action={<button type="button" className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button>}>{searchError}</Banner>}
-      {loading && <p role="status">Cargando ciclistas…</p>}
-      {!loading && !people.length && !searchError && <div><p>No hay ciclistas con ese nombre.</p><Link className="btn btn--ghost" to="/ciclistas">Abrir Ciclistas</Link></div>}
-      <div className="community-pick-list" aria-label="Elegir participantes">{people.map(p => <label className="community-pick" key={p.id}><input type="checkbox" checked={chosen.some(c => c.id === p.id)} disabled={group && chosen.length >= 19 && !chosen.some(c => c.id === p.id)} onChange={() => select(p)} /><span><strong>{p.display_name}</strong><small>@{p.username}</small></span></label>)}</div>
-      {hasMore && <button type="button" className="btn btn--secondary btn--block" disabled={loading} onClick={() => setOffset(n => n + 50)}>Más ciclistas</button>}
     </fieldset>
     <p className="community-footnote">Al crear o aceptar compartes únicamente tu marcador con los participantes. Cuentan las salidas desde tu aceptación hasta el cierre, importadas antes del plazo. Actualiza desde el dispositivo donde guardas tus salidas.</p>
     {error && <Banner tone="error">{error}</Banner>}
