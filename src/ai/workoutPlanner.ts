@@ -2,9 +2,8 @@ import { newId } from '../calendar/calendarRepo';
 import type { Goal, LocalDate, PlannedWorkout, Settings } from '../domain/types';
 import { addDays, diffDays } from '../ui/calendarGrid';
 import type { LevelSummary } from './contracts';
-import { chatJson, LlmError, type LlmErrorKind } from './llm';
+import { chatJson, chatWithRetry, LlmError, type LlmErrorKind } from './llm';
 import { buildWorkoutMessages, type WeekGoal, type WeekInput } from './prompts';
-import { chatWithRetry } from './routePlanner';
 import { toStrictJsonSchema, WorkoutWeekSchema, type WorkoutWeek } from './schema';
 import type { SharedWorkoutPlanner } from './sharedClient';
 

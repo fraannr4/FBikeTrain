@@ -3,17 +3,10 @@ import { z } from 'zod';
 /**
  * Ride with GPS compartido (función `rwgps`). HTTP portable: la clave de API y el token de la cuenta
  * común solo existen en el servidor y nunca se devuelven. El cliente solo elige una ruta o una
- * colección por su id, o rutas cerca de un punto del índice propio (`op: 'nearby'`); la URL la construye
- * el servidor con una lista cerrada de lecturas GET. Solo importa zod y módulos locales para que Deno lo
- * pueda cargar tal cual.
+ * colección por su id; la URL la construye el servidor con una lista cerrada de lecturas GET. La función
+ * `route-sources` pide además, con la clave de servicio, una pasada de sincronización (`op: 'sync'`).
+ * Solo importa zod y módulos locales para que Deno lo pueda cargar tal cual.
  */
-
-/** Fila de `public.rwgps_route_index` (operación `nearby`, se retira en la Tarea 8). `line` es `[[lng, lat], ...]`. */
-export type RwgpsIndexRow = {
-  id: number; name: string; author: string; distance_m: number; elev_gain_m: number | null;
-  start_lat: number; start_lng: number; min_lat: number; max_lat: number; min_lng: number; max_lng: number;
-  line: [number, number][]; source: 'seed' | 'user';
-};
 
 export const rwgpsRequestSchema = z.strictObject({
   kind: z.enum(['route', 'collection']),
@@ -23,17 +16,10 @@ export const rwgpsRequestSchema = z.strictObject({
 });
 export type RwgpsRequest = z.infer<typeof rwgpsRequestSchema>;
 
-/** Rutas del índice propio que pasan a menos de `radiusKm` del punto. */
-export const rwgpsNearbySchema = z.strictObject({
-  op: z.literal('nearby'),
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
-  radiusKm: z.number().min(1).max(30).default(10),
-  distanceKm: z.number().min(5).max(300).optional(),
-});
-export type RwgpsNearbyRequest = z.infer<typeof rwgpsNearbySchema>;
-/** Sin `op` sigue siendo una lectura de ruta o colección, como antes. */
-const bodySchema = z.union([rwgpsRequestSchema, rwgpsNearbySchema]);
+/** Pasada de sincronización de la biblioteca común: solo con el token de servicio (`route-sources`). */
+const syncSchema = z.strictObject({ op: z.literal('sync') });
+/** Sin `op` es una lectura de ruta o colección, como antes. */
+const bodySchema = z.union([rwgpsRequestSchema, syncSchema]);
 
 /** Única forma de construir la petición a Ride with GPS: `/api/v1/routes/{id}.json` o `/api/v1/collections/{id}.json`. */
 export function rwgpsApiPath(r: RwgpsRequest): string {
@@ -49,26 +35,22 @@ export function isAllowedRwgpsPath(path: string): boolean {
 export type RwgpsServiceDependencies = {
   enabled: boolean;
   allowedOrigins: string[];
+  /** Clave de servicio del proyecto: el único token que acepta `op: 'sync'`. Vacía, nunca se acepta. */
+  serviceToken: string;
   authenticate: (token: string) => Promise<string | null>;
   consumeQuota: (userId: string) => Promise<{ allowed: boolean; retryAfterS: number }>;
   /** GET a Ride with GPS con la clave y el token del servidor. `json` es el cuerpo ya leído (o null). */
   get: (path: string, signal: AbortSignal) => Promise<{ status: number; json: unknown }>;
-  /** Filas del índice cuya caja, ampliada con el radio, contiene el punto (rpc `rwgps_routes_near`). */
-  near: (lat: number, lng: number, radiusKm: number) => Promise<RwgpsIndexRow[]>;
-  /** Última sincronización del índice, o null si nunca. */
-  lastSyncAt: () => Promise<Date | null>;
   /** Lanza la sincronización en segundo plano. No debe esperar ni lanzar. */
   scheduleSync: () => void;
 };
 
 export const SYNC_EVERY_MS = 6 * 60 * 60 * 1000;
-export const MAX_NEARBY_ROUTES = 60;
 
 const MAX_BODY_BYTES = 2_000;
 const MAX_TRACK_POINTS = 100_000;
 const MAX_COLLECTION_ROUTES = 2_000;
 const TIMEOUT_MS = 20_000;
-const EARTH_M = 6_371_008.8;
 
 /** En zod 4, `z.number()` ya rechaza NaN e Infinity. */
 const finite = z.number();
@@ -111,45 +93,6 @@ export function trimRwgpsResponse(kind: RwgpsRequest['kind'], json: unknown): ob
   return { collection: { name: parsed.data.collection.name ?? null, routes: (parsed.data.collection.routes ?? []).map(r => ({ id: r.id })) } };
 }
 
-const indexRowSchema = z.object({
-  id: z.union([z.number().int().positive(), z.string().regex(/^[1-9]\d{0,11}$/)]),
-  name: z.string().nullish(), author: z.string().nullish(),
-  distance_m: z.number().nonnegative(), elev_gain_m: z.number().nullish(),
-  start_lat: z.number(), start_lng: z.number(),
-  line: z.array(z.tuple([z.number(), z.number()])).min(2),
-});
-
-/** Distancia mínima en metros del punto a la polilínea `[[lng, lat], ...]`, proyectada en plano local. */
-export function passDistanceM(lat: number, lng: number, line: [number, number][]): number {
-  const k = (Math.PI / 180) * EARTH_M;
-  const cos = Math.cos(lat * (Math.PI / 180));
-  const xy = line.map(([x, y]) => [(x - lng) * k * cos, (y - lat) * k] as const);
-  let best = Infinity;
-  for (let i = 1; i < xy.length; i++) {
-    const [ax, ay] = xy[i - 1]; const [bx, by] = xy[i];
-    const dx = bx - ax; const dy = by - ay;
-    const len = dx * dx + dy * dy;
-    const t = len === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len));
-    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
-  }
-  return best;
-}
-
-/** Rutas que pasan cerca, ordenadas por cercanía a la distancia pedida (si la hay) y por paso. */
-export function rankNearby(input: RwgpsNearbyRequest, rows: unknown[]) {
-  const target = input.distanceKm === undefined ? null : input.distanceKm * 1000;
-  const found = rows.flatMap(raw => {
-    const parsed = indexRowSchema.safeParse(raw);
-    if (!parsed.success) return [];
-    const r = parsed.data;
-    const passM = Math.round(passDistanceM(input.lat, input.lng, r.line));
-    if (!(passM <= input.radiusKm * 1000)) return [];
-    return [{ id: String(r.id), name: r.name ?? '', author: r.author ?? '', distanceM: r.distance_m, elevGainM: r.elev_gain_m ?? null, start: { lat: r.start_lat, lng: r.start_lng }, line: r.line, passM }];
-  });
-  found.sort((a, b) => (target === null ? 0 : Math.abs(a.distanceM - target) - Math.abs(b.distanceM - target)) || a.passM - b.passM);
-  return { routes: found.slice(0, MAX_NEARBY_ROUTES), total: found.length };
-}
-
 async function readBody(request: Request): Promise<string> {
   const reader = request.body?.getReader();
   if (!reader) return '';
@@ -170,6 +113,13 @@ async function readBody(request: Request): Promise<string> {
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
+/** Comparación sin salir antes en el primer carácter distinto. */
+function sameToken(a: string, b: string): boolean {
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
 /** Nunca registra ni reenvía la clave, el token ni el texto de error de Ride with GPS. */
 export async function handleRwgps(request: Request, deps: RwgpsServiceDependencies): Promise<Response> {
   const origin = request.headers.get('origin');
@@ -182,23 +132,32 @@ export async function handleRwgps(request: Request, deps: RwgpsServiceDependenci
   if (!deps.enabled) return fail(503, 'unavailable', 'Ride with GPS todavía no está disponible.');
   const match = /^Bearer ([^\s]{1,4096})$/i.exec(request.headers.get('authorization') ?? '');
   if (!match) return fail(401, 'unauthorized', 'Inicia sesión para traer rutas de Ride with GPS.');
-  let userId: string | null;
-  try { userId = await deps.authenticate(match[1]); }
-  catch { return fail(503, 'unavailable', 'No se pudo comprobar la sesión.'); }
-  if (!userId) return fail(401, 'unauthorized', 'Inicia sesión para traer rutas de Ride with GPS.');
+  const isService = deps.serviceToken !== '' && sameToken(match[1], deps.serviceToken);
+  let userId: string | null = null;
+  if (!isService) {
+    try { userId = await deps.authenticate(match[1]); }
+    catch { return fail(503, 'unavailable', 'No se pudo comprobar la sesión.'); }
+    if (!userId) return fail(401, 'unauthorized', 'Inicia sesión para traer rutas de Ride with GPS.');
+  }
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) return fail(400, 'invalid_request', 'Petición no válida.');
-  let body: RwgpsRequest | RwgpsNearbyRequest;
+  let body: z.infer<typeof bodySchema>;
   try {
     body = bodySchema.parse(JSON.parse(await readBody(request)));
   } catch (err) {
     return err instanceof RangeError ? fail(413, 'invalid_request', 'Petición demasiado grande.') : fail(400, 'invalid_request', 'Petición no válida.');
   }
+  // La sincronización solo la pide el servidor; las lecturas, solo una sesión (gastan su cuota).
+  if ('op' in body) {
+    if (!isService) return fail(401, 'unauthorized', 'Solo el servidor puede sincronizar.');
+    try { deps.scheduleSync(); } catch { /* en segundo plano: no afecta a la respuesta */ }
+    return Response.json({ data: { scheduled: true } }, { status: 202, headers: cors });
+  }
+  if (!userId) return fail(401, 'unauthorized', 'Inicia sesión para traer rutas de Ride with GPS.');
   if (request.signal.aborted) return fail(499, 'cancelled', 'Cancelado.');
   try {
     const quota = await deps.consumeQuota(userId);
     if (!quota.allowed) return fail(429, 'quota_exceeded', 'Has alcanzado el límite diario de Ride with GPS.', Math.max(1, Math.ceil(quota.retryAfterS)));
   } catch { return fail(503, 'unavailable', 'No se pudo comprobar la cuota.'); }
-  if ('op' in body) return nearby(body, deps, cors, fail);
   const input = body;
 
   const controller = new AbortController();
@@ -228,17 +187,4 @@ export async function handleRwgps(request: Request, deps: RwgpsServiceDependenci
   } finally {
     clearTimeout(timeout); request.signal.removeEventListener('abort', cancel);
   }
-}
-
-async function nearby(input: RwgpsNearbyRequest, deps: RwgpsServiceDependencies, cors: Record<string, string>, fail: (status: number, code: string, message: string) => Response): Promise<Response> {
-  // La comprobación de la sincronización va en paralelo y nunca rompe ni retrasa el error de la respuesta.
-  const lastSync = deps.lastSyncAt().then(at => at, () => undefined);
-  let rows: RwgpsIndexRow[];
-  try { rows = await deps.near(input.lat, input.lng, input.radiusKm); }
-  catch { return fail(503, 'unavailable', 'El índice de rutas no está disponible ahora.'); }
-  const at = await lastSync;
-  if (at === null || (at instanceof Date && Date.now() - at.getTime() > SYNC_EVERY_MS)) {
-    try { deps.scheduleSync(); } catch { /* en segundo plano: no afecta a la respuesta */ }
-  }
-  return Response.json({ data: rankNearby(input, rows) }, { headers: cors });
 }

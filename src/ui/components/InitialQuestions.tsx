@@ -19,7 +19,7 @@ const START: InitialAnswers = { kmPorSalida: 50, desnivelPorSalidaM: 600, veloci
 
 /**
  * Con menos de 5 salidas no hay referencia: tres cifras declaradas la sustituyen. Se guardan en
- * este navegador y la IA solo recibe estas cifras.
+ * este navegador y la IA de la semana solo recibe estas cifras.
  */
 export function InitialQuestions({ onSave, busy }: Props) {
   const [a, setA] = useState<InitialAnswers>(START);
@@ -34,7 +34,7 @@ export function InitialQuestions({ onSave, busy }: Props) {
         </h2>
       </div>
       <p className="muted">
-        Con menos de 5 salidas no hay con qué medir tu nivel. Con estas tres cifras, la IA ajusta las rutas a ti.
+        Con menos de 5 salidas no hay con qué medir tu nivel. Con estas tres cifras, la IA ajusta los entrenos a ti.
       </p>
       {QUESTIONS.map((x) => (
         <div className="gen-group" key={x.key}>

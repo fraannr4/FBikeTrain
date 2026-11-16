@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { cellKey, ROUTE_CELL_M } from '../src/metrics/routes';
 import { MAX_TRACK_GAP_M } from '../src/metrics/grid';
 import { haversineM } from '../src/import/summary';
-import { passDistanceM as rwgpsPassDistanceM } from '../src/routes/sources/rwgpsService';
 import {
   cellOverlap,
   densify,
@@ -107,11 +106,5 @@ describe('passDistanceM', () => {
     expect(passDistanceM(p.lat, p.lng, line)).toBeCloseTo(100, 0);
     const q = at(1300);
     expect(passDistanceM(q.lat, q.lng, line)).toBeCloseTo(300, 0);
-  });
-
-  it('da lo mismo que la fórmula de rwgpsService', () => {
-    const p = at(250, -420);
-    const flat = line.map(([lng, lat]) => [lng, lat] as [number, number]);
-    expect(passDistanceM(p.lat, p.lng, line)).toBeCloseTo(rwgpsPassDistanceM(p.lat, p.lng, flat), 2);
   });
 });

@@ -128,3 +128,29 @@ function rateLimitError(res: Response, model: string): LlmError {
   const wait = retryAfterS !== undefined ? `${retryAfterS} s` : 'un minuto';
   return new LlmError('rate_limit', `El proveedor de IA ha llegado a su límite${limits}. Prueba dentro de ${wait}.`, retryAfterS);
 }
+
+type ChatRequest<T> = Parameters<typeof chatJson<T>>[1];
+type Outcome<T> = { ok: true; data: T } | { ok: false; error: LlmError };
+
+/**
+ * Llama a la IA y, si el JSON no es válido, repite una vez con la respuesta anterior y el error.
+ * Los demás errores (clave, límite, red) no se repiten.
+ */
+export async function chatWithRetry<T>(
+  cfg: Settings['llm'],
+  req: ChatRequest<T>,
+  chat: typeof chatJson,
+): Promise<Outcome<T>> {
+  let messages = req.messages;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return { ok: true, data: await chat(cfg, { ...req, messages }) };
+    } catch (e) {
+      if (!(e instanceof LlmError)) throw e;
+      if (e.kind !== 'invalid_json' || attempt > 0) return { ok: false, error: e };
+      const retry: ChatMessage[] = e.raw ? [{ role: 'assistant', content: e.raw }] : [];
+      retry.push({ role: 'user', content: `Tu respuesta no cumple el formato: ${e.message}` });
+      messages = [...messages, ...retry];
+    }
+  }
+}

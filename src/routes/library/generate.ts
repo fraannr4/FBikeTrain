@@ -75,7 +75,7 @@ export function meetsTarget(distanceM: number, elevGainM: number | null, target:
   return elevGainM !== null && Math.abs(elevGainM - target.elevGainM) <= GAIN_TOLERANCE * target.elevGainM;
 }
 
-const SOURCE_NAMES: Record<LibraryRoute['source'], string | null> = {
+export const SOURCE_NAMES: Record<LibraryRoute['source'], string | null> = {
   rwgps: 'Ride with GPS', komoot: 'Komoot', bikemap: 'Bikemap', wikiloc: 'Wikiloc', strava: 'Strava', other: null,
 };
 

@@ -1,0 +1,25 @@
+{
+  "object": "chat.completion",
+  "created": 1793952040,
+  "model": "openai/gpt-oss-20b",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "{\"entrenos\":[{\"dia\":9,\"titulo\":\"Rodaje suave\",\"distanciaKm\":35,\"desnivelM\":null,\"notas\":\"Ritmo cómodo.\"},{\"dia\":2,\"titulo\":\"Subidas\",\"distanciaKm\":45,\"desnivelM\":600,\"notas\":\"Dos puertos.\"}],\"motivo\":\"Tu media es de 50 km.\"}"
+      },
+      "logprobs": null,
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 612,
+    "completion_tokens": 140,
+    "total_tokens": 752
+  },
+  "system_fingerprint": "fp_synthetic",
+  "x_groq": {
+    "id": "req_synthetic"
+  }
+}

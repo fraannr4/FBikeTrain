@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { LinePoint } from '../../../src/routes/library/cells.ts';
 import { buildHeatCells } from '../../../src/routes/library/heat.ts';
-import { handleRwgps, SYNC_EVERY_MS, type RwgpsIndexRow } from '../../../src/routes/sources/rwgpsService.ts';
+import { handleRwgps, SYNC_EVERY_MS } from '../../../src/routes/sources/rwgpsService.ts';
 import { syncReferenceRoutes } from '../../../src/routes/sources/rwgpsSync.ts';
 import { rwgpsApi } from '../_shared/rwgpsApi.ts';
 
@@ -96,8 +96,9 @@ async function runSync(): Promise<void> {
 }
 
 // Sin console.log: ni la clave, ni el token, ni los ids que pide cada persona llegan a los registros.
+// `route-sources` pide la pasada con `{ op: 'sync' }` y la clave de servicio; solo ese token la lanza.
 Deno.serve(request => handleRwgps(request, {
-  enabled, allowedOrigins,
+  enabled, allowedOrigins, serviceToken: serviceKey,
   authenticate: async token => {
     const { data, error } = await serverClient(publicKey).auth.getUser(token);
     // Como route-sources: las sesiones anónimas no gastan la cuenta común.
@@ -109,15 +110,5 @@ Deno.serve(request => handleRwgps(request, {
     return { allowed: data[0].allowed === true, retryAfterS: Number(data[0].retry_after_s) || 60 };
   },
   get: api.get,
-  near: async (lat, lng, radiusKm) => {
-    const { data, error } = await serverClient(serviceKey).rpc('rwgps_routes_near', { p_lat: lat, p_lng: lng, p_radius_km: radiusKm });
-    if (error) throw new Error('index');
-    return (data ?? []) as RwgpsIndexRow[];
-  },
-  lastSyncAt: async () => {
-    const { data, error } = await serverClient(serviceKey).from('rwgps_sync_state').select('last_sync_at').eq('id', 1).maybeSingle();
-    if (error) throw new Error('sync_state');
-    return data?.last_sync_at ? new Date(data.last_sync_at) : null;
-  },
   scheduleSync: () => background(runSync),
 }));

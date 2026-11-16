@@ -114,7 +114,7 @@ describe('screens', () => {
     expect(tabOf('/historial/repetidas')).toBe('historial');
     expect(tabOf('/ajustes')).toBe('mas');
     expect(tabOf('/')).toBe('inicio');
-    expect(screenName('/rutas/ia')).toBe('Rutas con IA');
+    expect(screenName('/rutas/ia')).not.toBe('Rutas con IA');
     expect(screenName('/historial/demo-004')).toBe('Salida');
     expect(screenName('/plan/')).toBe('Plan');
     expect(tabOf('/zona')).toBe('mas');

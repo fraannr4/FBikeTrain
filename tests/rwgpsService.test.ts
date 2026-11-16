@@ -1,4 +1,4 @@
-import { handleRwgps, isAllowedRwgpsPath, rwgpsApiPath, type RwgpsIndexRow, type RwgpsServiceDependencies } from '../src/routes/sources/rwgpsService';
+import { handleRwgps, isAllowedRwgpsPath, rwgpsApiPath, type RwgpsServiceDependencies } from '../src/routes/sources/rwgpsService';
 
 // Nunca sale a la red: `get` simulado con respuestas sintéticas de la API v1 de Ride with GPS.
 const ORIGIN = 'https://usuario.github.io';
@@ -14,12 +14,10 @@ const routeJson = {
 function deps(over: Partial<RwgpsServiceDependencies> = {}) {
   const get = vi.fn<RwgpsServiceDependencies['get']>(async () => ({ status: 200, json: routeJson }));
   const consumeQuota = vi.fn<RwgpsServiceDependencies['consumeQuota']>(async () => ({ allowed: true, retryAfterS: 0 }));
-  const near = vi.fn<RwgpsServiceDependencies['near']>(async () => []);
-  const lastSyncAt = vi.fn<RwgpsServiceDependencies['lastSyncAt']>(async () => new Date());
   const scheduleSync = vi.fn<RwgpsServiceDependencies['scheduleSync']>(() => {});
   return {
-    get, consumeQuota, near, lastSyncAt, scheduleSync,
-    all: { enabled: true, allowedOrigins: [ORIGIN], authenticate: async (t: string) => (t === 'sesion' ? 'user-1' : null), consumeQuota, get, near, lastSyncAt, scheduleSync, ...over } satisfies RwgpsServiceDependencies,
+    get, consumeQuota, scheduleSync,
+    all: { enabled: true, allowedOrigins: [ORIGIN], serviceToken: 'clave-de-servicio-por-defecto', authenticate: async (t: string) => (t === 'sesion' ? 'user-1' : null), consumeQuota, get, scheduleSync, ...over } satisfies RwgpsServiceDependencies,
   };
 }
 const post = (body: unknown, headers: Record<string, string> = {}) => new Request('https://x.supabase.co/functions/v1/rwgps', {
@@ -153,117 +151,47 @@ describe('isAllowedRwgpsPath', () => {
   ])('rechaza %s', path => expect(isAllowedRwgpsPath(path)).toBe(false));
 });
 
-// Rutas indexadas sintéticas de norte a sur, de (41, lng) a (41.1, lng), alrededor del punto (41.05, 2).
-function indexed(id: number, lngOffset: number, distanceM: number): RwgpsIndexRow {
-  const lng = 2 + lngOffset;
-  return {
-    id, name: `Ruta ${id}`, author: 'Autora', distance_m: distanceM, elev_gain_m: id % 2 ? 300 : null, start_lat: 41, start_lng: lng,
-    min_lat: 41, max_lat: 41.1, min_lng: lng, max_lng: lng, line: [[lng, 41], [lng, 41.1]], source: 'seed',
-  };
-}
-// Grados de longitud por kilómetro a 41,05° de latitud.
-const KM_LNG = 1 / (111.32 * Math.cos((41.05 * Math.PI) / 180));
+describe('función rwgps: operaciones retiradas y sincronización de servicio', () => {
+  const SERVICE = 'clave-de-servicio-sintetica';
+  const sync = (token: string) => post({ op: 'sync' }, { authorization: `Bearer ${token}`, origin: '' });
 
-describe('función rwgps: rutas cerca (op nearby)', () => {
-  const nearby = (extra: Record<string, unknown> = {}) => post({ op: 'nearby', lat: 41.05, lng: 2, ...extra });
-
-  it.each([
-    [{ lat: 91 }], [{ lat: -91 }], [{ lng: 181 }], [{ lng: -181 }], [{ lat: '41' }],
-    [{ radiusKm: 0.5 }], [{ radiusKm: 31 }], [{ distanceKm: 4 }], [{ distanceKm: 301 }], [{ kind: 'route' }], [{ id: '1' }],
-  ])('valida la petición sin gastar cuota: %j', async extra => {
+  it('la operación nearby ya no existe: 400 sin gastar cuota', async () => {
     const d = deps();
-    const res = await handleRwgps(nearby(extra), d.all);
+    const res = await handleRwgps(post({ op: 'nearby', lat: 41.05, lng: 2 }), d.all);
     expect(res.status).toBe(400);
     expect(d.consumeQuota).not.toHaveBeenCalled();
-    expect(d.near).not.toHaveBeenCalled();
   });
 
-  it('cuota agotada: 429 sin consultar el índice', async () => {
-    const d = deps({ consumeQuota: async () => ({ allowed: false, retryAfterS: 500 }) });
-    const res = await handleRwgps(nearby(), d.all);
-    expect(res.status).toBe(429);
-    expect(await res.json()).toMatchObject({ error: { code: 'quota_exceeded' }, retryAfterS: 500 });
-    expect(d.near).not.toHaveBeenCalled();
+  it.each([['sesion'], ['otra']])('op sync con un token que no es el de servicio (%s) es 401 y no sincroniza', async token => {
+    const d = deps({ serviceToken: SERVICE });
+    expect((await handleRwgps(sync(token), d.all)).status).toBe(401);
+    expect(d.scheduleSync).not.toHaveBeenCalled();
+    expect(d.consumeQuota).not.toHaveBeenCalled();
   });
 
-  it('gasta 1 de cuota, usa 10 km por defecto, filtra por paso y ordena por cercanía', async () => {
-    const d = deps();
-    d.near.mockResolvedValue([indexed(1, 6 * KM_LNG, 50_000), indexed(2, 0, 80_000), indexed(3, 15 * KM_LNG, 60_000), indexed(4, -3 * KM_LNG, 40_000)]);
-    const res = await handleRwgps(nearby(), d.all);
-    expect(res.status).toBe(200);
-    expect(d.consumeQuota).toHaveBeenCalledTimes(1);
-    expect(d.near).toHaveBeenCalledWith(41.05, 2, 10);
-    const { data } = await res.json();
-    expect(data.routes.map((r: { id: string }) => r.id)).toEqual(['2', '4', '1']);
-    expect(data.total).toBe(3);
-    expect(data.routes[0]).toEqual({ id: '2', name: 'Ruta 2', author: 'Autora', distanceM: 80_000, elevGainM: null, start: { lat: 41, lng: 2 }, line: [[2, 41], [2, 41.1]], passM: 0 });
-    expect(data.routes[1].passM).toBeGreaterThan(2900);
-    expect(data.routes[1].passM).toBeLessThan(3100);
-  });
-
-  it('con distancia objetivo, ordena por diferencia de distancia y después por paso', async () => {
-    const d = deps();
-    d.near.mockResolvedValue([indexed(1, 6 * KM_LNG, 52_000), indexed(2, 0, 80_000), indexed(3, 2 * KM_LNG, 48_000), indexed(4, 1 * KM_LNG, 48_000)]);
-    const { data } = await (await handleRwgps(nearby({ radiusKm: 12, distanceKm: 50 }), d.all)).json();
-    expect(d.near).toHaveBeenCalledWith(41.05, 2, 12);
-    expect(data.routes.map((r: { id: string }) => r.id)).toEqual(['4', '3', '1', '2']);
-  });
-
-  it('devuelve como mucho 60 rutas y el total encontrado', async () => {
-    const d = deps();
-    d.near.mockResolvedValue(Array.from({ length: 90 }, (_, i) => indexed(i + 1, (i / 20) * KM_LNG, 50_000)));
-    const { data } = await (await handleRwgps(nearby(), d.all)).json();
-    expect(data.routes).toHaveLength(60);
-    expect(data.total).toBe(90);
-  });
-
-  it('ignora filas del índice mal formadas', async () => {
-    const d = deps();
-    d.near.mockResolvedValue([{ ...indexed(1, 0, 1000), line: [[2, 41]] }, { ...indexed(2, 0, 1000), line: 'x' } as unknown as RwgpsIndexRow, indexed(3, 0, 1000)]);
-    const { data } = await (await handleRwgps(nearby(), d.all)).json();
-    expect(data.routes.map((r: { id: string }) => r.id)).toEqual(['3']);
-  });
-
-  it('si el índice falla, 503 sin detalles', async () => {
-    const d = deps({ near: async () => { throw new Error('relation rwgps_route_index secret'); } });
-    const res = await handleRwgps(nearby(), d.all);
-    expect(res.status).toBe(503);
-    expect(await res.text()).not.toContain('secret');
-  });
-
-  it.each([[null], [new Date(Date.now() - 7 * 3600_000)]])('índice sin sincronizar (%s): programa la sincronización', async last => {
-    const d = deps({ lastSyncAt: async () => last });
-    expect((await handleRwgps(nearby(), d.all)).status).toBe(200);
+  it('op sync con el token de servicio responde 202 y lanza la sincronización una vez, sin cuota', async () => {
+    const d = deps({ serviceToken: SERVICE });
+    expect((await handleRwgps(sync(SERVICE), d.all)).status).toBe(202);
     expect(d.scheduleSync).toHaveBeenCalledTimes(1);
+    expect(d.consumeQuota).not.toHaveBeenCalled();
+    expect(d.get).not.toHaveBeenCalled();
   });
 
-  it('índice reciente: no programa nada', async () => {
-    const d = deps({ lastSyncAt: async () => new Date(Date.now() - 3600_000) });
-    await handleRwgps(nearby(), d.all);
+  it('sin token de servicio configurado, op sync nunca se acepta', async () => {
+    const d = deps({ serviceToken: '' });
+    expect((await handleRwgps(sync(''), d.all)).status).toBe(401);
     expect(d.scheduleSync).not.toHaveBeenCalled();
   });
 
-  it('la sincronización nunca rompe la respuesta', async () => {
-    const d = deps({ lastSyncAt: async () => null, scheduleSync: () => { throw new Error('boom'); } });
-    expect((await handleRwgps(nearby(), d.all)).status).toBe(200);
-    const e = deps({ lastSyncAt: async () => { throw new Error('db'); } });
-    expect((await handleRwgps(nearby(), e.all)).status).toBe(200);
-    expect(e.scheduleSync).not.toHaveBeenCalled();
+  it('op sync con campos extra es 400', async () => {
+    const d = deps({ serviceToken: SERVICE });
+    expect((await handleRwgps(post({ op: 'sync', id: '1' }, { authorization: `Bearer ${SERVICE}` }), d.all)).status).toBe(400);
+    expect(d.scheduleSync).not.toHaveBeenCalled();
   });
 
-  it('una petición sin op sigue siendo una lectura (compatibilidad)', async () => {
+  it('una lectura pública no programa la sincronización', async () => {
     const d = deps();
     expect((await handleRwgps(post({ kind: 'route', id: '1' }), d.all)).status).toBe(200);
-    expect(d.near).not.toHaveBeenCalled();
-    expect((await handleRwgps(post({ op: 'get', kind: 'route', id: '1' }), d.all)).status).toBe(400);
-  });
-});
-
-describe('función rwgps: leer no escribe en el índice', () => {
-  it('una lectura pública no toca el índice compartido', async () => {
-    const d = deps();
-    expect((await handleRwgps(post({ kind: 'route', id: '1' }), d.all)).status).toBe(200);
-    expect(d.near).not.toHaveBeenCalled();
     expect(d.scheduleSync).not.toHaveBeenCalled();
   });
 });

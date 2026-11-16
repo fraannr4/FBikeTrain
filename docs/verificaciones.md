@@ -403,3 +403,27 @@ El usuario elige la opción A y limita el lote a diseño para conservar su presu
 Verificación: 18/18 unitarias focalizadas; tsc y build correctos; 25/25 Playwright de Ciclistas/Retos a 360/390/412/430 px, ambos temas y apaisado. Se comprueban búsqueda al escribir, limpiar conservando foco, paginación sin fila propia, amistad/bloqueo, grupos, avisos y reemplazo explícito de dispositivo. Escáner de secretos limpio. Revisión visual de capturas sin bloqueantes.
 
 Capturas nuevas: docs/design/comunidad-opcion-a/README.md. Las anteriores se conservan. Sin SQL ni lógica de resultados modificados. El usuario ha revisado las capturas y autorizado el commit local; pendiente de integración. Sin push o despliegue.
+
+## Generador de rutas con biblioteca común: verificación local del lote 2 (Tarea 10), 2026-11-16
+
+Comprobación local con datos sintéticos. No se ha publicado nada: ni migraciones, ni carga, ni despliegue, ni push.
+
+- `npx tsc --noEmit`: limpio (exit 0).
+- `npx vitest run`: 150 ficheros y 1.679 pruebas correctas.
+- `npm run test:db`: los 16 bloques en PASS. Incluye «índice antiguo de Ride with GPS borrado; siguen el reloj de sincronización y la biblioteca común».
+- `npm run build`: correcto. Solo aparecen los avisos ya conocidos de tamaño del bundle y de los comentarios de zod.
+- `PLAYWRIGHT_PORT=4517 npx playwright test` de `rutas`, `compartida`, `biblioteca-calidad`, `escritorio`, `mapa-rutas`, `paleta`, `ia-entrenos` e `inicio`: 46/46. En la primera pasada fallaron 4 pruebas por pruebas desactualizadas, no por este lote:
+  - `biblioteca-calidad`: el control se llama «Elegir GPX, TCX o ZIP» desde el commit 8740fe8.
+  - `paleta` a 1440 px: la tira de días y la hoja del mes llevan el mismo nombre accesible del día. Se toma el primero.
+- break-ui de `#/rutas` a 360 px, en el nuevo `e2e/break-ui-rutas.spec.ts`:
+  - Se mantiene bien:
+    - 300 km y 20.000 m (los límites del formulario), con la cuota de ORS agotada: 0 tarjetas y 2 avisos legibles, con «300 km» y «20.000 m» formateados.
+    - 301 km y 20.001 m: el formulario explica los dos errores y no busca.
+    - Sin scroll lateral con 3 y 5 tarjetas, y todos los botones miden 44 px o más.
+    - Las tarjetas «Nueva» cortan el nombre en una línea con elipsis.
+    - Un autor vacío no deja «·» colgando.
+  - Falla: las tarjetas «De la biblioteca» (`ProposalCard`, `.wk-name`) no cortan el nombre. Uno de 300 caracteres sin espacios ocupa 9 líneas y uno en cirílico, griego y japonés con emoji ocupa 8. Tampoco llevan `title`. Incumple la Tarea 6 («los nombres largos se cortan con elipsis en una línea y salen completos en el mapa»).
+  - Detalle menor: un autor formado solo por espacios sale como «    en Ride with GPS» bajo el enlace (`src/routes/library/generate.ts:88` no hace `trim`).
+  - El caso de «4 avisos largos» no se puede dar: el generador emite como mucho 2.
+- Capturas a 360×740 y 430×932 en `test-results/rutas/`, revisadas: formulario, propuestas, sin resultados y buscando. El botón «Proponer rutas» se ve sin desplazar.
+- Queda para la prueba real: aplicar `202611160001` en producción, hacer la primera carga, ejecutar `check-generator.ts` con ORS real (al menos 3 válidas en 60 km y en 60 km con 800 m), desplegar y probar en el móvil desde Caldes. La migración `202611160002` se aplica la última.

@@ -22,6 +22,12 @@ type Box = { minLat: number; maxLat: number; minLng: number; maxLng: number };
 const boxArgs = (box: Box) => ({ p_min_lat: box.minLat, p_max_lat: box.maxLat, p_min_lng: box.minLng, p_max_lng: box.maxLng });
 type HeatRow = { cell: string; lat: number; lng: number; routes: number; climb_m_per_km: number | null; ele: number | null };
 
+/** Tareas que siguen tras responder: `EdgeRuntime.waitUntil` si existe. Nunca lanzan. */
+function background(task: () => Promise<unknown>): void {
+  const running = task().catch(() => {});
+  (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(running);
+}
+
 Deno.serve(request => {
   // Las credenciales de servicio existen solo en el runtime de Supabase.
   const admin = url && serviceKey ? createClient(url, serviceKey, options) : null;
@@ -76,7 +82,17 @@ Deno.serve(request => {
     },
     // Sin la cuenta común configurada, 401: el llenado responde `fill: 'unavailable'`.
     rwgpsRouteDetail: (id, signal) => rwgps.enabled ? rwgps.get(`/api/v1/routes/${id}.json`, signal) : Promise.resolve({ status: 401, json: null }),
-    // Cada consulta a Overpass tiene 55 s; la función corta los puntos de paso a los 60 s (WAYPOINTS_TIMEOUT_MS).
+    lastRwgpsSyncAt: async () => {
+      const { data, error } = await admin!.from('rwgps_sync_state').select('last_sync_at').eq('id', 1).maybeSingle();
+      if (error) throw new Error('sync_state');
+      return data?.last_sync_at ? new Date(data.last_sync_at) : null;
+    },
+    // La función `rwgps` solo acepta `op: 'sync'` con la clave de servicio y reserva la pasada de forma atómica.
+    requestRwgpsSync: () => background(() => timedFetch(`${url}/functions/v1/rwgps`, {
+      method: 'POST', headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ op: 'sync' }),
+    })),
+    // Cada consulta a Overpass tiene 55 s.
     fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(55_000)]) }),
   });
 });

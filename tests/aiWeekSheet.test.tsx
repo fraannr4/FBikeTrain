@@ -1,5 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { loadDeclaredReference, referenceFromAnswers, saveDeclaredReference } from '../src/ai/levelSummary';
 import type { WeekProposal } from '../src/ai/workoutPlanner';
 import * as calendarRepo from '../src/calendar/calendarRepo';
 import { listWorkouts } from '../src/calendar/calendarRepo';
@@ -19,22 +21,62 @@ const PROPOSAL: WeekProposal = {
   ],
 };
 
-function setup(propose: (req: { disponibles: number[]; notas: string; ocupados: number[] }, signal: AbortSignal) => Promise<WeekProposal>, busy: number[] = []) {
+// Las tres cifras que «Cuéntanos cómo sales» trae por defecto.
+const ANSWERS = { kmPorSalida: 50, desnivelPorSalidaM: 600, velocidadMediaKmh: 25 };
+
+type Propose = (req: { disponibles: number[]; notas: string; ocupados: number[] }, signal: AbortSignal) => Promise<WeekProposal>;
+
+function mount(propose: Propose, busy: number[] = []) {
   const onAdded = vi.fn();
   const onClose = vi.fn();
-  render(<AiWeekSheet open today={TODAY} busy={busy} propose={propose} onAdded={onAdded} onClose={onClose} />);
+  render(
+    <MemoryRouter>
+      <AiWeekSheet open today={TODAY} busy={busy} propose={propose} onAdded={onAdded} onClose={onClose} />
+    </MemoryRouter>,
+  );
   return { onAdded, onClose, dialog: () => screen.getByRole('dialog', { name: 'Proponer semana con IA' }) };
+}
+
+/** Con nivel conocido, la hoja abre en el formulario de días y notas. */
+async function setup(propose: Propose, busy: number[] = []) {
+  const r = mount(propose, busy);
+  await within(r.dialog()).findByRole('button', { name: 'Proponer' });
+  return r;
 }
 
 describe('AiWeekSheet', () => {
   beforeEach(async () => {
     await Promise.all(db.tables.map((t) => t.clear()));
+    await saveDeclaredReference(ANSWERS);
+  });
+
+  it('sin salidas ni nivel declarado pide las tres cifras, las guarda y deja pedir la semana', async () => {
+    await db.meta.clear();
+    const user = userEvent.setup();
+    const propose = vi.fn().mockResolvedValue(PROPOSAL);
+    const { dialog } = mount(propose);
+
+    expect(await within(dialog()).findByRole('heading', { name: 'Cuéntanos cómo sales' })).toBeInTheDocument();
+    expect(within(dialog()).queryByRole('button', { name: 'Proponer' })).toBeNull();
+    expect(within(dialog()).queryByText(/Rutas con IA/)).toBeNull();
+
+    await user.click(within(dialog()).getByRole('button', { name: 'Guardar y seguir' }));
+    expect(await loadDeclaredReference()).toEqual(referenceFromAnswers(ANSWERS));
+
+    await user.click(await within(dialog()).findByRole('button', { name: 'Proponer' }));
+    expect(propose).toHaveBeenCalledTimes(1);
+    expect(await within(dialog()).findByText('Tu media es de 50 km y 600 m.')).toBeInTheDocument();
+  });
+
+  it('con nivel declarado no vuelve a preguntar', async () => {
+    const { dialog } = await setup(vi.fn());
+    expect(within(dialog()).queryByRole('heading', { name: 'Cuéntanos cómo sales' })).toBeNull();
   });
 
   it('propone, se desmarca uno y al añadir guarda N-1 entrenos de la IA', async () => {
     const user = userEvent.setup();
     const propose = vi.fn().mockResolvedValue(PROPOSAL);
-    const { onAdded, dialog } = setup(propose, [0]);
+    const { onAdded, dialog } = await setup(propose, [0]);
 
     // El día ocupado (hoy) no se puede elegir; el lunes se desmarca.
     expect(within(dialog()).getByRole('button', { name: /viernes 6.*ya tiene entreno/i })).toBeDisabled();
@@ -68,7 +110,7 @@ describe('AiWeekSheet', () => {
       signal = s;
       return new Promise<WeekProposal>((r) => (resolve = r));
     });
-    const { onAdded, dialog } = setup(propose);
+    const { onAdded, dialog } = await setup(propose);
 
     await user.click(within(dialog()).getByRole('button', { name: 'Proponer' }));
     expect(within(dialog()).getByRole('status')).toHaveTextContent(/Preparando/);
@@ -88,7 +130,7 @@ describe('AiWeekSheet', () => {
       .fn()
       .mockResolvedValueOnce({ ok: false, cause: 'invalid_json', message: 'La IA no ha devuelto entrenos válidos.' })
       .mockResolvedValueOnce(PROPOSAL);
-    const { dialog } = setup(propose);
+    const { dialog } = await setup(propose);
 
     await user.click(within(dialog()).getByRole('button', { name: 'Proponer' }));
     expect(await within(dialog()).findByRole('alert')).toHaveTextContent('La IA no ha devuelto entrenos válidos.');
@@ -104,7 +146,7 @@ describe('AiWeekSheet', () => {
     const real = calendarRepo.saveWorkout;
     const spy = vi.spyOn(calendarRepo, 'saveWorkout');
     spy.mockImplementationOnce(real).mockRejectedValueOnce(new Error('disco lleno'));
-    const { onAdded, dialog } = setup(propose);
+    const { onAdded, dialog } = await setup(propose);
 
     await user.click(within(dialog()).getByRole('button', { name: 'Proponer' }));
     await user.click(await within(dialog()).findByRole('button', { name: 'Añadir al calendario (3)' }));
@@ -121,8 +163,8 @@ describe('AiWeekSheet', () => {
     spy.mockRestore();
   });
 
-  it('con los 7 días ocupados lo explica y no deja proponer', () => {
-    const { dialog } = setup(vi.fn(), [0, 1, 2, 3, 4, 5, 6]);
+  it('con los 7 días ocupados lo explica y no deja proponer', async () => {
+    const { dialog } = await setup(vi.fn(), [0, 1, 2, 3, 4, 5, 6]);
     expect(within(dialog()).getByText(/Ya tienes entreno los 7 próximos días/)).toBeInTheDocument();
     expect(within(dialog()).getByRole('button', { name: 'Proponer' })).toBeDisabled();
   });

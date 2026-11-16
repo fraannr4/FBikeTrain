@@ -1,226 +1,332 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { countActivities, listActivities } from '../../db/repo';
-import type { LatLng, Settings } from '../../domain/types';
-import { computeReference, type UserReference } from '../../metrics/reference';
-import type { Target } from '../../metrics/score';
-import type { GenerateResult } from '../../routes/generator';
-import { gpxFileName, toGpx } from '../../routes/gpx';
+import { isAbort } from '../../ai/abort';
+import { resolveReference } from '../../ai/levelSummary';
 import { useAccount } from '../../auth/AccountBoundary';
-import { ORS_DAILY_LIMIT } from '../../routes/ors';
-import { SHARED_ORS_LIMITS, sharedOrsEnabled } from '../../routes/orsProxy';
-import { getOrsUsage, type OrsUsage } from '../../routes/orsUsage';
+import { listActivities } from '../../db/repo';
+import type { LatLng, Settings } from '../../domain/types';
+import { adaptRoute, type AdaptedRoute } from '../../routes/adapt';
+import { loadVisitedCells } from '../../routes/history';
+import { parseReferenceRoute, RouteLibraryError, type ParsedReferenceRoute } from '../../routes/library';
+import {
+  generateProposals,
+  GENERATOR_ORS_BUDGET,
+  MIN_PROPOSALS,
+  SOURCE_NAMES,
+  toParsedReference,
+  type GeneratorCard,
+  type GeneratorUpdate,
+} from '../../routes/library/generate';
+import { OrsError } from '../../routes/ors';
+import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
+import { findLibrary } from '../../routes/sources/client';
+import { clearLegacyRwgpsCredentials } from '../../routes/sources/rwgpsCredentials';
+import { RouteSourceError } from '../../routes/sources/schema';
+import { rwgpsExploreUrl } from '../../routes/sources/rwgpsExplore';
+import { isWikilocUrl } from '../../routes/wikilocLimits';
+import { clearLegacyWikilocRows, loadWikilocRequest, saveWikilocRequest, wikilocSearchUrl } from '../../routes/wikilocNearby';
 import { loadSettings, saveSettings } from '../../settings/settings';
-import { Banner } from '../components/Banner';
-import { Carousel } from '../components/Carousel';
 import { CyclingLoader } from '../components/CyclingLoader';
-import { DifficultyBars } from '../components/Chip';
-import { Dock } from '../components/Dock';
+import { Field } from '../components/Field';
 import { List, ListRow } from '../components/ListRow';
 import { Page } from '../components/Page';
-import { RouteForm } from '../components/RouteForm';
-import { Sheet } from '../components/Sheet';
-import { Skeleton } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { useToast } from '../components/Toast';
 import { formatCount } from '../format';
-import {
-  ChevronRight,
-  CircleAlert,
-  CircleCheck,
-  Clock,
-  Download,
-  Folder,
-  KeyRound,
-  LoaderCircle,
-  MapPin,
-  Mountain,
-  Navigation,
-  RefreshCw,
-  Route,
-  Share2,
-  SlidersHorizontal,
-  Sparkles,
-  Upload,
-} from '../icons';
-import { RouteCard, RouteCardSkeleton, type RouteCardData } from '../routes/RouteCard';
-import { RouteMapSheet } from '../routes/RouteMapSheet';
-import { RideMap } from '../components/RideMap';
-import { StartPointMap } from '../components/StartPointMap';
-import {
-  clockTime,
-  defaultTarget,
-  levelOf,
-  nameRoutes,
-  referenceRange,
-  rejectSummary,
-  renewsAt,
-  toCardData,
-} from '../routes/routeView';
-import { START_TEXT, StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
-import { useRouteSearch, type SearchProgress } from '../routes/useRouteSearch';
-import { useSaveRoute } from '../routes/useSaveRoute';
+import { ChevronDown, CircleAlert, ExternalLink, Folder, Info, KeyRound, RefreshCw, Route, Share2, SlidersHorizontal, Upload } from '../icons';
+import { NewRouteCard } from '../routes/NewRouteCard';
+import { ProposalCard } from '../routes/ProposalCard';
+import { referenceRange } from '../routes/routeView';
+import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
+import '../styles/library.css';
+import '../styles/wikiloc.css';
 
-const FORM_ID = 'rutas-form';
-const GPX_HELP_KEY = 'fbt-gpx-ayuda';
+const DISTANCE_ID = 'rutas-distancia';
+const MIN_KM = 5;
+const MAX_KM = 300;
+const MAX_GAIN_M = 20_000;
+const DISTANCE_ERROR = `Escribe la distancia en km, entre ${formatCount(MIN_KM)} y ${formatCount(MAX_KM)}.`;
+const GAIN_ERROR = `El desnivel va en metros, entre 0 y ${formatCount(MAX_GAIN_M)}.`;
+const UNEXPECTED = 'Ha fallado algo inesperado. Vuelve a probar.';
+const LIBRARY_STATUS = 'Cargando las rutas de la zona…';
+/** Sin respuesta de la biblioteca en este tiempo, la zona probablemente se está llenando desde Ride with GPS. */
+const SLOW_LIBRARY_S = 8;
+const SLOW_LIBRARY = 'Si la zona es nueva, la primera búsqueda tarda más: estamos buscando rutas en Ride with GPS.';
 
-type Request = { target: Target; kind: StartKind; start: LatLng | null };
-type Run = Request & { start: LatLng; at: number; result: GenerateResult; cards: RouteCardData[] };
-type Context = { settings: Settings; reference: UserReference | null; hasActivities: boolean };
-type SheetId = 'gen' | 'gpx' | 'key' | 'map' | null;
-
-/** Las últimas rutas de esta sesión: siguen ahí al volver a la pestaña (no se guardan en disco). */
-let lastRun: Run | null = null;
-
-/** Olvida las rutas de esta sesión (al borrar los datos, o entre pruebas). */
-export function forgetRoutes(): void {
-  lastRun = null;
+/** Cifra escrita con coma o punto; `null` si está vacía o no es un número. */
+function parseFigure(text: string): number | null {
+  const raw = text.trim().replace(/\s/g, '');
+  const t = /^\d{1,3}(\.\d{3})+(,\d+)?$/.test(raw) ? raw.replace(/\./g, '').replace(',', '.') : raw.replace(',', '.');
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
 }
 
-function gpxHelpSeen(): boolean {
-  try {
-    const seen = localStorage.getItem(GPX_HELP_KEY) === '1';
-    localStorage.setItem(GPX_HELP_KEY, '1');
-    return seen;
-  } catch {
-    return true; // sin almacenamiento: la ayuda sigue a mano en la fila de abajo
+const samePoint = (a: LatLng | null, b: LatLng) => !!a && a.lat === b.lat && a.lng === b.lng;
+const plural = (n: number, one: string, many: string) => (n === 1 ? `1 ${one}` : `${formatCount(n)} ${many}`);
+const waitingText = (s: number) => `Esperando ${formatCount(s)} s por el límite de consultas…`;
+
+/** Qué está haciendo la búsqueda; `null` si la actualización no cambia el texto. */
+function statusText(u: GeneratorUpdate): string | null {
+  switch (u.kind) {
+    case 'library':
+      return LIBRARY_STATUS;
+    case 'library-ready':
+      return `${plural(u.routes, 'ruta', 'rutas')} y ${plural(u.cells, 'tramo', 'tramos')} en la zona. Montando vueltas…`;
+    case 'trying':
+      return `Probando ${formatCount(u.used)} de ${formatCount(u.budget)}…`;
+    default:
+      return null;
   }
 }
 
-/** Descarga el GPX con un enlace temporal. `false` si el navegador no deja. */
-function downloadGpx(name: string, coords: Run['result']['routes'][number]['coords'], file: string): boolean {
-  try {
-    const url = URL.createObjectURL(new Blob([toGpx(name, coords)], { type: 'application/gpx+xml' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    return true;
-  } catch {
-    return false;
+function errorText(e: unknown): string {
+  if (e instanceof OrsError) return e.message;
+  if (e instanceof RouteSourceError) {
+    return e.code === 'busy'
+      ? 'La biblioteca de rutas está ocupada. Vuelve a probar en un minuto.'
+      : 'No se ha podido cargar la biblioteca de rutas de la zona. Vuelve a probar.';
   }
+  return UNEXPECTED;
 }
 
-const routesWord = (n: number) => (n === 1 ? '1 ruta' : `${formatCount(n)} rutas`);
+/** «De la biblioteca · Ride with GPS · autora». */
+function libraryOrigin(card: Extract<GeneratorCard, { kind: 'biblioteca' }>): string {
+  return ['De la biblioteca', SOURCE_NAMES[card.route.source], card.route.author.trim()].filter(Boolean).join(' · ');
+}
+
+type Search =
+  | { state: 'running'; n: number; start: LatLng; status: string; libraryReady: boolean; cards: GeneratorCard[] }
+  | { state: 'done'; n: number; start: LatLng; cards: GeneratorCard[]; warnings: string[] }
+  | { state: 'error'; n: number; start: LatLng; message: string; cards: GeneratorCard[] };
+type UploadState = { state: 'adapting'; name: string } | { state: 'ready'; original: ParsedReferenceRoute; adapted: AdaptedRoute } | { state: 'error'; message: string };
+
+function SearchCard({ card, start }: { card: GeneratorCard; start: LatLng }) {
+  if (card.kind === 'nueva') return <NewRouteCard card={card} start={start} />;
+  const source = toParsedReference(card.route);
+  return (
+    <ProposalCard
+      origin={libraryOrigin(card)}
+      source={{ name: source.name, original: source, sourceUrl: source.sourceUrl, author: source.author }}
+      adapted={card.adapted}
+    />
+  );
+}
 
 /**
- * Rutas: lo que pides (distancia, desnivel, dificultad y de dónde sales), la generación con su
- * progreso y las propuestas en un carrusel con «Exportar GPX» sobre la barra. Sin clave de ORS (y sin
- * el servicio común), lleva a Ajustes; con la cuota del día gastada, lo dice y deja exportar lo que ya hay.
+ * Rutas: solo cuando el usuario lo pide, propone de 3 a 5 vueltas de carretera desde su inicio. Primero
+ * rutas reales de la biblioteca común adaptadas y después vueltas nuevas por los tramos más transitados.
+ * Debajo, plegados, Explore de Ride with GPS y Wikiloc: la app solo abre su pestaña, nunca los consulta.
  */
 export function Rutas() {
   const account = useAccount();
-  const sharedOrs = sharedOrsEnabled() && account !== null;
   const toast = useToast();
-  const search = useRouteSearch();
-  const saveRoute = useSaveRoute();
-  const [ctx, setCtx] = useState<Context | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [usage, setUsage] = useState<OrsUsage | null>(null);
-  const [request, setRequest] = useState<Request | null>(lastRun);
-  const [kind, setKind] = useState<StartKind>(lastRun?.kind ?? 'casa');
+  const [attempt, setAttempt] = useState(0);
+  const [distanceText, setDistanceText] = useState('');
+  const [gainText, setGainText] = useState('');
+  const [kind, setKind] = useState<StartKind>('casa');
   const [points, setPoints] = useState<PickedPoints>({ aqui: null, mapa: null });
-  const [run, setRun] = useState<Run | null>(lastRun);
-  const [sheet, setSheet] = useState<SheetId>(null);
-  const [index, setIndex] = useState(0);
-  const [gpx, setGpx] = useState<{ file: string; name: string } | null>(null);
-  const [mapRoute, setMapRoute] = useState<RouteCardData | null>(null);
-  const focusAfter = useRef<'loading' | 'results' | null>(null);
-  const loadingTitle = useRef<HTMLHeadingElement>(null);
-  const resultsTitle = useRef<HTMLHeadingElement>(null);
+  const [checked, setChecked] = useState(false);
+  const [search, setSearch] = useState<Search | null>(null);
+  /** Segundos que faltan de la espera por el límite por minuto; `null` si no se espera. */
+  const [waitLeft, setWaitLeft] = useState<number | null>(null);
+  /** Consultas a ORS hechas en esta búsqueda. */
+  const [used, setUsed] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [upload, setUpload] = useState<UploadState | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const searches = useRef(0);
+  const running = search?.state === 'running';
 
-  const refreshUsage = useCallback(() => {
-    getOrsUsage(Date.now()).then(setUsage, () => {});
-  }, []);
+  useEffect(() => {
+    if (!running) return;
+    const t0 = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [running]);
 
   useEffect(() => {
     let alive = true;
-    const now = Date.now();
-    // Solo la ventana de la referencia: con miles de salidas, leerlas todas tarda segundos en el móvil.
-    Promise.all([loadSettings(), listActivities(referenceRange(now)), countActivities(), getOrsUsage(now)]).then(
-      ([settings, acts, total, u]) => {
+    setLoadFailed(false);
+    void clearLegacyRwgpsCredentials().catch(() => undefined);
+    void clearLegacyWikilocRows().catch(() => undefined);
+    Promise.all([loadSettings(), loadWikilocRequest()])
+      .then(([s, request]) => {
         if (!alive) return;
-        const reference = computeReference(acts, now);
-        setCtx({ settings, reference, hasActivities: total > 0 });
-        setUsage(u);
-        if (!lastRun) {
-          setRequest({ target: defaultTarget(reference), kind: settings.home ? 'casa' : 'mapa', start: null });
-          setKind(settings.home ? 'casa' : 'mapa');
-        }
-      },
-      () => alive && setLoadFailed(true),
-    );
+        setSettings(s);
+        if (request) {
+          setDistanceText(String(request.distanceKm).replace('.', ','));
+          setGainText(request.elevGainM === null ? '' : String(request.elevGainM));
+          if (samePoint(s.home, request.start)) setKind('casa');
+          else {
+            setKind('mapa');
+            setPoints((p) => ({ ...p, mapa: request.start }));
+          }
+        } else setKind(s.home ? 'casa' : 'mapa');
+      })
+      .catch(() => alive && setLoadFailed(true));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
 
-  const home = ctx?.settings.home ?? null;
-  const hasKey = !!ctx && (sharedOrs || ctx.settings.ors.apiKey.trim() !== '');
-  // El contador local es el de la clave personal; la cuota del servicio común la lleva el servidor.
-  const spent = !sharedOrs && !!usage && usage.count >= ORS_DAILY_LIMIT;
-  const quotaOut = spent || search.errorKind === 'quota_day';
-  const renew = spent && usage ? renewsAt(usage.windowStart, Date.now()) : null;
-  const start = startPoint(kind, home, points);
+  useEffect(() => () => abort.current?.abort(), []);
 
-  const failed = !search.busy && search.error !== null && !(search.errorKind === 'quota_day' && run);
-  const phase = !ctx
-    ? 'boot'
-    : !hasKey
-      ? 'nokey'
-      : search.busy
-        ? 'loading'
-        : failed
-          ? 'error'
-          : run
-            ? 'results'
-            : 'empty';
-
+  // Cuenta atrás de la espera: baja de segundo en segundo hasta 0.
   useEffect(() => {
-    const want = focusAfter.current;
-    if (want === 'loading' && phase === 'loading') loadingTitle.current?.focus();
-    if (want === 'results' && phase === 'results') {
-      resultsTitle.current?.focus();
-      focusAfter.current = null;
-    }
-  }, [phase]);
+    if (waitLeft === null || waitLeft <= 0) return;
+    const t = setTimeout(() => setWaitLeft((s) => (s === null ? null : Math.max(0, s - 1))), 1000);
+    return () => clearTimeout(t);
+  }, [waitLeft]);
 
-  const go = async (req: Request & { start: LatLng }) => {
-    focusAfter.current = 'loading';
-    const result = await search.run(req.start, req.target);
-    refreshUsage();
-    if (!result) return;
-    const names = nameRoutes(result.routes, req.start);
-    const next: Run = { ...req, at: Date.now(), result, cards: result.routes.map((r, i) => toCardData(r, names[i])) };
-    lastRun = next;
-    setRun(next);
-    setIndex(0);
-    focusAfter.current = 'results';
-    if (result.routes.length > 0) {
-      toast(`${result.routes.length === 1 ? '1 ruta generada' : `${result.routes.length} rutas generadas`}`, { tone: 'good' });
+  const home = settings?.home ?? null;
+  const start = startPoint(kind, home, points);
+  const distance = parseFigure(distanceText);
+  const gain = parseFigure(gainText);
+  const distanceOk = distance !== null && distance >= MIN_KM && distance <= MAX_KM;
+  const gainOk = gainText.trim() === '' || (gain !== null && gain >= 0 && gain <= MAX_GAIN_M);
+  const distanceError = (checked || distanceText.trim() !== '') && !distanceOk ? DISTANCE_ERROR : undefined;
+  const gainError = gainOk ? undefined : GAIN_ERROR;
+  const hasKey = !!settings && ((sharedOrsEnabled() && account !== null) || settings.ors.apiKey.trim() !== '');
+  const ors = useMemo(() => (settings ? chooseOrsAccess(settings.ors.apiKey, account) : null), [settings, account]);
+  const busy = running || upload?.state === 'adapting';
+
+  /** Comprueba la petición y la guarda. `null` si falta algo, y lo dice. */
+  const request = async () => {
+    setChecked(true);
+    if (!distanceOk || !gainOk || distance === null) {
+      document.getElementById(DISTANCE_ID)?.focus();
+      return null;
+    }
+    if (!start) {
+      toast(kind === 'aqui' ? 'Falta tu ubicación.' : 'Elige el inicio en el mapa.', { tone: 'error' });
+      return null;
+    }
+    const req = { distanceKm: distance, elevGainM: gainText.trim() === '' ? null : gain, start };
+    await saveWikilocRequest(req).catch(() => undefined);
+    return req;
+  };
+
+  const newController = () => {
+    abort.current?.abort();
+    const controller = new AbortController();
+    abort.current = controller;
+    return controller;
+  };
+
+  const propose = async () => {
+    if (busy || !ors || !account || !hasKey) return;
+    const req = await request();
+    if (!req) return;
+    const controller = newController();
+    const { signal } = controller;
+    const n = ++searches.current;
+    const accepted: GeneratorCard[] = [];
+    let status = LIBRARY_STATUS;
+    let libraryReady = false;
+    setWaitLeft(null);
+    setUsed(0);
+    setSearch({ state: 'running', n, start: req.start, status, libraryReady, cards: [] });
+    const onUpdate = (u: GeneratorUpdate) => {
+      if (signal.aborted) return;
+      if (u.kind === 'card') accepted.push(u.card);
+      else if (u.kind === 'waiting') setWaitLeft(u.seconds);
+      else {
+        if (u.kind === 'library-ready') libraryReady = true;
+        if (u.kind === 'trying') setUsed(u.used);
+        status = statusText(u) ?? status;
+        setWaitLeft(null);
+      }
+      setSearch({ state: 'running', n, start: req.start, status, libraryReady, cards: [...accepted] });
+    };
+    try {
+      // El historial (referencia y celdas visitadas) no sale nunca del navegador.
+      const now = Date.now();
+      const [visited, reference] = await Promise.all([
+        loadVisitedCells().catch(() => new Set<string>()),
+        listActivities(referenceRange(now)).then((acts) => resolveReference(acts, now)).catch(() => null),
+      ]);
+      signal.throwIfAborted();
+      const functions = account.client.functions;
+      const result = await generateProposals(req, {
+        ors, reference, visited, signal, onUpdate,
+        library: (s, sig) => findLibrary(s, functions, sig),
+      });
+      if (!signal.aborted) setSearch({ state: 'done', n, start: req.start, cards: result.cards, warnings: result.warnings });
+    } catch (e) {
+      if (isAbort(e) || signal.aborted) return;
+      setSearch({ state: 'error', n, start: req.start, message: errorText(e), cards: [...accepted] });
+    } finally {
+      if (abort.current === controller) abort.current = null;
+      if (!signal.aborted) setWaitLeft(null);
     }
   };
 
-  const submit = (target: Target) => {
-    if (!start || quotaOut) return;
-    const req = { target, kind, start };
-    setRequest(req);
-    setSheet(null);
-    void go(req);
+  /** Corta al momento y deja las tarjetas ya aceptadas. */
+  const cancel = () => {
+    abort.current?.abort();
+    abort.current = null;
+    setWaitLeft(null);
+    setSearch((s) => (s?.state === 'running' ? { state: 'done', n: s.n, start: s.start, cards: s.cards, warnings: [] } : s));
   };
 
-  const retry = () => {
-    if (request?.start && !quotaOut) void go({ ...request, start: request.start });
+  // La pestaña se abre en el mismo gesto del usuario: si no, el navegador la bloquea.
+  const openWikiloc = () => {
+    const centre = start ?? home;
+    if (!centre) {
+      toast('Elige primero tu inicio.', { tone: 'error' });
+      return;
+    }
+    const url = wikilocSearchUrl(centre);
+    if (isWikilocUrl(url)) window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  // Explore de Ride with GPS con zona, km y desnivel puestos. Solo se abre: la app nunca lo consulta.
+  const openExplore = () => {
+    const centre = start ?? home;
+    if (!centre) {
+      toast('Elige primero tu inicio.', { tone: 'error' });
+      return;
+    }
+    if (distance === null || !Number.isFinite(distance) || distance <= 0) {
+      toast('Escribe primero los km.', { tone: 'error' });
+      return;
+    }
+    const elevGainM = gain !== null && Number.isFinite(gain) && gain > 0 ? gain : null;
+    window.open(rwgpsExploreUrl({ start: centre, distanceKm: distance, elevGainM }), '_blank', 'noopener,noreferrer');
+  };
+
+  const adaptUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || busy || !ors) return;
+    const req = await request();
+    if (!req) return;
+    const controller = newController();
+    setUpload({ state: 'adapting', name: file.name });
+    try {
+      const original = parseReferenceRoute(await file.text(), file.name);
+      const adapted = await adaptRoute(
+        original.points,
+        { start: req.start, mode: 'mi-inicio', targetKm: req.distanceKm, ...(req.elevGainM !== null ? { targetGainM: req.elevGainM } : {}) },
+        { ors, signal: controller.signal },
+      );
+      if (!controller.signal.aborted) setUpload({ state: 'ready', original, adapted });
+    } catch (err) {
+      if (isAbort(err) || controller.signal.aborted) return;
+      const message = err instanceof RouteLibraryError || err instanceof OrsError || err instanceof RangeError ? err.message : 'El fichero no es un GPX o TCX válido.';
+      setUpload({ state: 'error', message });
+    }
   };
 
   const saveHome = async (p: LatLng) => {
     try {
       const next = { ...(await loadSettings()), home: p };
       await saveSettings(next);
-      setCtx((c) => (c ? { ...c, settings: next } : c));
+      setSettings(next);
       setKind('casa');
       toast('Casa guardada', { tone: 'good' });
     } catch {
@@ -228,564 +334,185 @@ export function Rutas() {
     }
   };
 
-  const exportRoute = (card: RouteCardData) => {
-    const route = run?.result.routes.find((r) => r.id === card.id);
-    if (!route) return;
-    const file = gpxFileName(route);
-    if (!downloadGpx(card.name, route.coords, file)) {
-      toast('Este navegador no deja descargar el GPX.', { tone: 'error' });
-      return;
-    }
-    setGpx({ file, name: card.name });
-    if (!gpxHelpSeen()) setSheet('gpx');
-    else toast(`GPX exportado: ${file}`, { tone: 'good', action: { label: 'Cómo pasarlo', onClick: () => setSheet('gpx') } });
-  };
-
-  const saveToLibrary = (card: RouteCardData) => {
-    const route = run?.result.routes.find((r) => r.id === card.id);
-    if (run && route) void saveRoute(`${run.at}:${route.id}`, card.name, route.coords, gpxFileName(route));
-  };
-
-  const cards = run?.cards ?? [];
-  const current = cards[Math.min(index, cards.length - 1)] ?? null;
-  const gpxInfo =
-    gpx ??
-    (current && run
-      ? { file: gpxFileName(run.result.routes.find((r) => r.id === current.id) ?? current), name: current.name }
-      : null);
-
-  const openMap = useCallback((c: RouteCardData) => {
-    setMapRoute(c);
-    setSheet('map');
-  }, []);
-
-  // Sin punto de salida, el botón dice qué falta (la ayuda de «Sale de» queda tapada por el dock).
-  const generateLabel = quotaOut ? (
-    <>
-      <Clock className="ic" aria-hidden="true" />
-      {renew ? `Cuota agotada, vuelve ${renew}` : 'Cuota de hoy agotada'}
-    </>
-  ) : !start ? (
-    <>
-      {kind === 'aqui' ? <Navigation className="ic" aria-hidden="true" /> : <MapPin className="ic" aria-hidden="true" />}
-      {kind === 'aqui' ? 'Falta tu ubicación' : 'Elige el inicio en el mapa'}
-    </>
-  ) : (
-    <>
-      <Route className="ic" aria-hidden="true" />
-      Generar 5 rutas
-    </>
-  );
-  const canGenerate = !!start && !quotaOut;
-  const generateButton = (cls: string) => (
-    <button type="submit" form={FORM_ID} className={quotaOut ? `${cls} btn--quota` : cls} disabled={!canGenerate}>
-      {generateLabel}
-    </button>
-  );
-
-  const form = request ? (
-    <RouteForm id={FORM_ID} initial={request.target} reference={ctx?.reference ?? null} onSubmit={submit}>
-      <StartChoice
-        home={home}
-        kind={kind}
-        points={points}
-        onKind={setKind}
-        onPick={(k, p) => setPoints((ps) => ({ ...ps, [k]: p }))}
-        onSaveHome={(p) => void saveHome(p)}
-      />
-    </RouteForm>
-  ) : null;
-
-  let usageLine: ReactNode = null;
-  if (sharedOrs) {
-    usageLine = <p className="field-help rutas-usage">{`Servicio común de rutas: ${SHARED_ORS_LIMITS}`}</p>;
-  } else if (usage) {
-    usageLine = (
-      <p className="field-help rutas-usage">
-        {`Consultas ORS hoy: ${formatCount(Math.min(usage.count, ORS_DAILY_LIMIT))} de ${formatCount(ORS_DAILY_LIMIT)} (cuenta de este navegador)`}
-      </p>
-    );
-  }
-
-  let quotaText: string | null;
-  if (sharedOrs) quotaText = search.error;
-  else if (renew) quotaText = `Tu clave gratuita de OpenRouteService ha llegado al límite diario y se renueva ${renew}.`;
-  else quotaText = 'Tu clave gratuita de OpenRouteService ha llegado al límite diario. Se renueva 24 h después de la primera consulta del día.';
-
-  // En el arranque, la cabecera ya ocupa lo mismo que con el formulario: nada salta al llegar.
-  const booting = phase === 'boot' && !loadFailed;
-  let kicker: ReactNode;
-  if (booting) kicker = <Skeleton width="11em" className="kicker-sk" />;
-  else if (phase === 'nokey') kicker = 'Falta un paso';
-  else if (phase === 'loading') kicker = 'Generando…';
-  else if (phase === 'error') kicker = <KickerState icon="error">No se han podido generar</KickerState>;
-  else if (quotaOut && (phase === 'empty' || phase === 'results'))
-    kicker = <KickerState icon="warn">{renew ? `Cuota agotada hasta ${renew.replace(/^a /, '')}` : 'Cuota de hoy agotada'}</KickerState>;
-  else if (phase === 'empty') kicker = 'Aún no has generado rutas';
-
-  const showRecipe = !!request && (phase === 'results' || phase === 'loading' || phase === 'error');
-  const hasRef = !!ctx?.reference;
-
+  const warnings = search?.state === 'done' ? search.warnings : [];
   return (
-    <>
-      <Page
-        title="Rutas"
-        className="page--rutas"
-        desktopMap={current ? (
-          <RideMap points={current.shape} label={`Mapa de ${current.name}`} />
-        ) : phase === 'empty' ? (
-          <StartPointMap value={start} home={home} onChange={(p) => { setKind('mapa'); setPoints((ps) => ({ ...ps, mapa: p })); }} onSaveHome={(p) => void saveHome(p)} />
-        ) : undefined}
-        kicker={kicker}
-        busy={phase === 'boot' || phase === 'loading'}
-        lead={
-          phase === 'empty' || booting ? (
-            <>
-              Elige distancia y desnivel. Te propondremos <b>hasta 5 rutas de carretera</b>, con su forma y su perfil.
-            </>
-          ) : undefined
-        }
-        actions={
-          <Link className="icon-btn" to="/rutas/ia" aria-label="Pregunta a la IA">
-            <Sparkles className="ic" aria-hidden="true" />
-          </Link>
-        }
-      >
-        <section className="section"><List inset><ListRow to="/rutas/cerca" icon={Mountain} accent="elev" title="Rutas cerca" meta="Al menos 5 vueltas de carretera desde donde salgas" /><ListRow to="/rutas/biblioteca" icon={Upload} accent="dist" title="Abrir una ruta de Wikiloc o un GPX" meta="Analiza, recorta, modifica y exporta tu propia versión" /><ListRow to="/rutas/compartida" icon={Share2} accent="time" title="Ruta de Ride with GPS Explore" meta="Búscala en Explore, compártela con FBikeTrain o pega su enlace, y se adapta a tu inicio" /></List></section>
-        {loadFailed ? (
-          <section className="section card">
-            <StateView
-              icon={CircleAlert}
-              tone="error"
-              level={2}
-              title="No se han podido leer tus ajustes"
-              text="El almacenamiento del navegador no responde. Recarga la página."
-            />
-          </section>
-        ) : null}
-
-        {quotaOut && (phase === 'empty' || phase === 'results') ? (
-          <Banner tone="warn">
-            <b>Cuota de hoy agotada.</b>{' '}
-            {quotaText}
-            {run && run.cards.length > 0 ? ' Tus últimas rutas siguen aquí y puedes exportarlas.' : ''}
-          </Banner>
-        ) : null}
-
-        {ctx && !ctx.hasActivities && (phase === 'empty' || phase === 'results') ? (
-          <Banner
+    <Page
+      title="Rutas"
+      variant="narrow"
+      className="page--wikiloc page--cerca"
+      busy={!settings && !loadFailed}
+      lead="Elige inicio, km y, si quieres, desnivel. Te proponemos de 3 a 5 vueltas de carretera hechas con rutas reales de ciclistas de la zona."
+    >
+      {loadFailed ? (
+        <section className="section card">
+          <StateView
+            icon={CircleAlert}
+            tone="error"
+            level={2}
+            title="No se han podido leer tus datos"
+            text="El almacenamiento del navegador no responde."
             action={
-              <Link className="btn btn--ghost" to="/importar">
-                <Upload className="ic" aria-hidden="true" />
-                Importar salidas
-              </Link>
+              <button type="button" className="btn btn--secondary" onClick={() => setAttempt((a) => a + 1)}>
+                <RefreshCw className="ic" aria-hidden="true" />
+                Reintentar
+              </button>
             }
-          >
-            <b>Importa tus salidas para ajustar las rutas a tu nivel.</b> Mientras, las rutas salen sin dificultad ni tiempo
-            para ti.
-          </Banner>
-        ) : null}
-
-        {showRecipe && request ? (
-          <section className="section rutas-recipe" aria-label="Tu petición">
-            <Recipe request={request} reference={ctx?.reference ?? null} at={phase === 'results' ? run?.at : undefined} onOpen={() => setSheet('gen')} />
-          </section>
-        ) : null}
-
-        {phase === 'nokey' ? (
-          <section className="section card" aria-label="Falta la clave de rutas">
-            <StateView
-              icon={KeyRound}
-              level={2}
-              title="Falta tu clave de rutas"
-              text="Las rutas se calculan con OpenRouteService, gratis con tu propia clave. Pégala en Ajustes y vuelve aquí."
-              action={
-                <div className="rutas-actions">
-                  <Link className="btn btn--primary" to="/ajustes?abrir=claves">
-                    <SlidersHorizontal className="ic" aria-hidden="true" />
-                    Ir a Ajustes
-                  </Link>
-                  <button type="button" className="btn btn--ghost" onClick={() => setSheet('key')}>
-                    Cómo conseguirla
-                  </button>
-                </div>
-              }
-            />
-          </section>
-        ) : null}
-
-        {booting ? <GeneratorSkeleton /> : null}
-
-        {phase === 'empty' && form ? (
-          <section className="section card gen-inline" aria-label="Elige tu ruta">
-            {form}
-            {usageLine}
-          </section>
-        ) : null}
-
-        {phase === 'loading' ? (
-          <Generating progress={search.progress} kind={request?.kind ?? kind} titleRef={loadingTitle} onCancel={search.cancel} />
-        ) : null}
-
-        {phase === 'error' ? (
-          <section className="section card" aria-label="Error al generar">
-            <StateView
-              icon={CircleAlert}
-              tone="error"
-              level={2}
-              title="No se han podido generar las rutas"
-              text={search.error}
-              action={
-                quotaOut ? (
-                  <button type="button" className="btn btn--secondary" onClick={() => setSheet('gen')}>
-                    <SlidersHorizontal className="ic" aria-hidden="true" />
-                    Cambiar petición
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn--secondary" onClick={retry}>
-                    <RefreshCw className="ic" aria-hidden="true" />
-                    Reintentar
-                  </button>
-                )
-              }
-            />
-          </section>
-        ) : null}
-
-        {phase === 'results' && run ? (
-          <section className="section rutas-res" aria-labelledby="r-res-t">
-            <div className="section-h">
-              <h2 className="section-title" id="r-res-t" tabIndex={-1} ref={resultsTitle}>
-                {cards.length === 0 ? 'Sin rutas' : `${routesWord(cards.length)}${hasRef ? ' para ti' : ''}`}
-              </h2>
-            </div>
-            {run.result.stoppedBy && cards.length > 0 ? (
-              <Banner tone="warn">
-                {`La búsqueda se ha cortado: han llegado ${routesWord(cards.length)}. ${run.result.stoppedBy.message}`}
-              </Banner>
-            ) : null}
-            {cards.length > 0 ? (
-              <Carousel
-                label="Rutas generadas"
-                items={cards}
-                getKey={(c) => c.id}
-                resetKey={run.at}
-                onIndexChange={setIndex}
-                renderItem={(c, i) => (
-                  <RouteCard
-                    route={c}
-                    variant={i === 0 ? 'best' : 'normal'}
-                    rank={{ n: i + 1, of: cards.length }}
-                    className="rcard--docked"
-                    onDownload={exportRoute}
-                    onMap={openMap}
-                  />
-                )}
-              />
-            ) : (
-              <div className="card">
-                <StateView
-                  icon={Route}
-                  title="No ha salido ninguna ruta"
-                  text={rejectSummary(run.result.rejected)}
-                  action={
-                    <button type="button" className="btn btn--secondary" onClick={() => setSheet('gen')}>
-                      <SlidersHorizontal className="ic" aria-hidden="true" />
-                      Cambiar petición
-                    </button>
-                  }
-                />
-              </div>
-            )}
-            {cards.length > 0 ? (
-              <List inset>
-                <ListRow
-                  icon={Download}
-                  accent="time"
-                  title="Cómo pasar el GPX al iGPSPORT"
-                  meta="BSC200S, en tres pasos con la app"
-                  onClick={() => setSheet('gpx')}
-                />
-                {current ? (
-                  <ListRow
-                    icon={Folder}
-                    accent="dist"
-                    title="Guardar en la biblioteca"
-                    meta="Para empalmarla con otra ruta"
-                    ariaLabel={`Guardar «${current.name}» en la biblioteca`}
-                    onClick={() => saveToLibrary(current)}
-                  />
-                ) : null}
-              </List>
-            ) : null}
-          </section>
-        ) : null}
-
-        {phase !== 'loading' ? (
-          // La otra forma de pedir rutas, como en el prototipo (rutas.html, #r-ia).
-          <section className="section" aria-label="Rutas con IA">
-            <List inset>
-              <ListRow
-                to="/rutas/ia"
-                icon={Sparkles}
-                accent="elev"
-                title="Pregunta a la IA"
-                meta="Cuatro preguntas y te propone rutas explicadas"
-              />
-            </List>
-          </section>
-        ) : null}
-      </Page>
-
-      {phase === 'empty' && request ? <Dock>{generateButton('btn btn--primary')}</Dock> : null}
-      {phase === 'results' && current ? (
-        <Dock narrow>
-          <button
-            type="button"
-            className="btn btn--primary"
-            aria-label={`Exportar GPX de ${current.name}, ruta ${index + 1} de ${cards.length}`}
-            onClick={() => exportRoute(current)}
-          >
-            <Download className="ic" aria-hidden="true" />
-            Exportar GPX
-            <span className="dock-tag" aria-hidden="true">
-              {index + 1} de {cards.length}
-            </span>
-          </button>
-        </Dock>
+          />
+        </section>
       ) : null}
 
-      <Sheet
-        open={sheet === 'gen' && !!request}
-        onClose={() => setSheet(null)}
-        title="Qué ruta quieres"
-        footer={generateButton('btn btn--primary btn--block btn--lg')}
-      >
-        {form}
-        {usageLine}
-      </Sheet>
-
-      <RouteMapSheet route={mapRoute} open={sheet === 'map'} onClose={() => setSheet(null)} onExport={exportRoute} />
-
-      <Sheet
-        open={sheet === 'gpx'}
-        onClose={() => setSheet(null)}
-        title="Llévala al iGPSPORT"
-        sub={gpxInfo ? `Para el BSC200S. El archivo es ${gpxInfo.file}.` : 'Para el BSC200S.'}
-        footer={
-          <button type="button" className="btn btn--secondary btn--block" onClick={() => setSheet(null)}>
-            Entendido
-          </button>
-        }
-      >
-        <ol className="howto">
-          <li>
-            <span>
-              Pulsa <b>Exportar GPX</b>. El archivo se guarda en Descargas.
-            </span>
-          </li>
-          <li>
-            <span>
-              Abre la app <b>iGPSPORT</b>, ve a <b>Rutas</b> e importa el archivo.
-            </span>
-          </li>
-          <li>
-            <span>
-              Sincroniza el BSC200S. En el ciclocomputador, abre <b>Rutas</b> y elige{' '}
-              {gpxInfo ? `«${gpxInfo.name}»` : 'la ruta'}.
-            </span>
-          </li>
-        </ol>
-      </Sheet>
-
-      <Sheet
-        open={sheet === 'key'}
-        onClose={() => setSheet(null)}
-        title="Tu clave de rutas"
-        sub="Gratis y en dos minutos. La clave se queda en este navegador."
-        footer={
-          <Link className="btn btn--primary btn--block" to="/ajustes?abrir=claves">
-            <SlidersHorizontal className="ic" aria-hidden="true" />
-            Ir a Ajustes
-          </Link>
-        }
-      >
-        <ol className="howto">
-          <li>
-            <span>
-              Crea una cuenta gratuita en <b>openrouteservice.org</b>.
-            </span>
-          </li>
-          <li>
-            <span>En tu panel, pide una clave del plan gratuito.</span>
-          </li>
-          <li>
-            <span>
-              Cópiala y pégala en <b>Ajustes</b>, en el apartado <b>Claves</b>.
-            </span>
-          </li>
-        </ol>
-      </Sheet>
-    </>
-  );
-}
-
-/** Alto del control de cada grupo del generador (distancia, desnivel, dificultad, sale de) a 390 px. */
-const SK_CONTROLS = [74, 46, 74, 75];
-
-/** El generador en carga, con su forma y su alto: la fila de la IA no salta cuando llega el formulario. */
-function GeneratorSkeleton() {
-  return (
-    <section className="section card gen-inline gen-sk" aria-busy="true">
-      <span className="sr-only">Cargando el generador</span>
-      <div className="gen" aria-hidden="true">
-        {SK_CONTROLS.map((h, i) => (
-          <div className="gen-group" key={i}>
-            <Skeleton width="34%" height={21} />
-            <Skeleton variant="box" height={h} />
+      {settings ? (
+        <section className="section card library-panel" aria-label="Qué quieres hacer hoy">
+          <div className="wk-figures">
+            <Field id={DISTANCE_ID} label="Distancia" inputMode="decimal" suffix="km" required value={distanceText} error={distanceError} onChange={(e) => setDistanceText(e.target.value)} />
+            <Field label="Desnivel (opcional)" inputMode="numeric" suffix="m" value={gainText} error={gainError} onChange={(e) => setGainText(e.target.value)} />
           </div>
-        ))}
-        <Skeleton variant="box" height={64} />
-      </div>
-      <div className="sk-stack gen-sk-help" aria-hidden="true">
-        <Skeleton width="92%" />
-        <Skeleton width="58%" />
-      </div>
-    </section>
-  );
-}
+          <StartChoice
+            home={home}
+            kind={kind}
+            points={points}
+            onKind={setKind}
+            onPick={(k, p) => setPoints((ps) => ({ ...ps, [k]: p }))}
+            onSaveHome={(p) => void saveHome(p)}
+          />
+          {!account ? (
+            <p className="help">Inicia sesión para proponer rutas: usan la biblioteca común de rutas y los servicios de FBikeTrain.</p>
+          ) : !hasKey ? (
+            <StateView
+              icon={KeyRound}
+              level={3}
+              title="Falta tu clave de rutas"
+              text="Para calcular las vueltas hace falta OpenRouteService. Pega tu clave en Ajustes."
+              action={
+                <Link className="btn btn--secondary" to="/ajustes?abrir=claves">
+                  <SlidersHorizontal className="ic" aria-hidden="true" />
+                  Ir a Ajustes
+                </Link>
+              }
+            />
+          ) : (
+            <button type="button" className="btn btn--primary btn--block" disabled={busy} onClick={() => void propose()}>
+              <Route className="ic" aria-hidden="true" />
+              Proponer rutas
+            </button>
+          )}
+        </section>
+      ) : null}
 
-function KickerState({ icon, children }: { icon: 'warn' | 'error'; children: ReactNode }) {
-  const Icon = icon === 'warn' ? Clock : CircleAlert;
-  return (
-    <span className={`kicker-state kicker-state--${icon}`}>
-      <Icon className="ic" aria-hidden="true" />
-      {children}
-    </span>
-  );
-}
-
-/** Lo que has pedido, en una fila que abre el generador en una hoja. */
-function Recipe({
-  request,
-  reference,
-  at,
-  onOpen,
-}: {
-  request: Request;
-  reference: UserReference | null;
-  at?: number;
-  onOpen: () => void;
-}) {
-  const { target } = request;
-  const elev = target.elevGainM ?? 0;
-  const level = levelOf({ distanceM: target.distanceM, elevGainM: elev }, reference);
-  const meta = `${START_TEXT[request.kind]}, circular${target.preferNew ? ', carretera nueva' : ''}${
-    at !== undefined ? ` · hoy ${clockTime(at)}` : ''
-  }`;
-  return (
-    <button type="button" className="receta" aria-haspopup="dialog" onClick={onOpen}>
-      <span className="row-lead" data-m="dist" aria-hidden="true">
-        <SlidersHorizontal className="ic" />
-      </span>
-      <span className="row-main">
-        <span className="receta-figs">
-          <span>
-            <b>{formatCount(target.distanceM / 1000)}</b>km
-          </span>
-          <span>
-            <b>{formatCount(elev)}</b>m
-          </span>
-          <span>
-            <DifficultyBars level={level} />
-            {level}
-          </span>
-        </span>
-        <span className="receta-meta">{meta}</span>
-      </span>
-      <span className="receta-go">
-        <span className="receta-go-t">Cambiar</span>
-        <ChevronRight className="ic" aria-hidden="true" />
-      </span>
-    </button>
-  );
-}
-
-const STEP_PLACE: Record<StartKind, string> = { casa: 'Casa', aqui: 'ti', mapa: 'ese punto' };
-
-/** Generando: cuántos recorridos lleva ORS, por qué paso va y el botón de cancelar. */
-function Generating({
-  progress,
-  kind,
-  titleRef,
-  onCancel,
-}: {
-  progress: SearchProgress | null;
-  kind: StartKind;
-  titleRef: Ref<HTMLHeadingElement>;
-  onCancel: () => void;
-}) {
-  const done = progress?.done ?? 0;
-  const total = progress?.total ?? 1;
-  const step = done === 0 ? 0 : done < total ? 1 : 2;
-  const frac = Math.min(1, done / total);
-  const steps = [
-    `Buscando carreteras alrededor de ${STEP_PLACE[kind]}`,
-    `Trazando ${formatCount(total)} recorridos con OpenRouteService`,
-    'Coloreando los perfiles por pendiente',
-  ];
-  return (
-    <section className="section" aria-labelledby="r-carga-t">
-      <div className="card gen-progress">
-        <div className="card-h">
-          <span className="card-ic" data-m="dist" aria-hidden="true">
-            <Route className="ic" />
-          </span>
-          <h2 className="card-title" id="r-carga-t" tabIndex={-1} ref={titleRef}>
-            Generando rutas
+      {search ? (
+        <section className="section" aria-labelledby="rutas-propuestas">
+          <h2 className="section-title" id="rutas-propuestas">
+            Propuestas
           </h2>
-        </div>
-        <CyclingLoader compact />
-        <div className="gen-progress-h">
-          <p className="gen-progress-v">
-            {formatCount(done)} <span className="u">de {formatCount(total)}</span>
-          </p>
-          <p className="meta">recorridos trazados</p>
-        </div>
-        <div
-          className="genbar"
-          role="progressbar"
-          aria-label="Progreso de la generación"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(frac * 100)}
-        >
-          <i style={{ '--p': frac } as CSSProperties} />
-        </div>
-        <ol className="gensteps">
-          {steps.map((text, i) => {
-            const state = i < step ? 'done' : i === step ? 'now' : 'todo';
-            const Icon = state === 'done' ? CircleCheck : state === 'now' ? LoaderCircle : Clock;
-            return (
-              <li key={text} data-s={state} aria-current={state === 'now' ? 'step' : undefined}>
-                <Icon className={state === 'now' ? 'ic spin' : 'ic'} aria-hidden="true" />
-                <span>{text}</span>
-              </li>
-            );
-          })}
-        </ol>
-        <button type="button" className="btn btn--secondary btn--block" onClick={onCancel}>
-          Cancelar
-        </button>
-      </div>
-      <ul className="carousel" aria-hidden="true">
-        <li>
-          <RouteCardSkeleton />
-        </li>
-        <li>
-          <RouteCardSkeleton />
-        </li>
-      </ul>
-    </section>
+          <div className="cat-list">
+            {search.cards.map((c) => (
+              <SearchCard key={`${search.n}-${c.id}`} card={c} start={search.start} />
+            ))}
+          </div>
+          {search.state === 'running' ? (
+            <div className="card library-panel cat-status" role="status" aria-label="Progreso de la búsqueda">
+              <CyclingLoader compact />
+              <p>{waitLeft !== null ? waitingText(waitLeft) : search.status}</p>
+              <progress className="cat-progress" aria-label="Consultas al motor de rutas" max={GENERATOR_ORS_BUDGET} value={used} />
+              <p className="cat-elapsed">{`Llevas ${formatCount(elapsed)} s.`}</p>
+              {!search.libraryReady && elapsed >= SLOW_LIBRARY_S ? <p className="help">{SLOW_LIBRARY}</p> : null}
+              <button type="button" className="btn btn--secondary" onClick={cancel}>
+                Cancelar
+              </button>
+            </div>
+          ) : null}
+          {search.state === 'error' ? (
+            <p className="library-error" role="alert">
+              {search.message}
+            </p>
+          ) : null}
+          {warnings.length > 0 ? (
+            <section className="card nb-notice" aria-label="Avisos de la búsqueda">
+              <StateView
+                icon={Info}
+                title={search.cards.length < MIN_PROPOSALS ? 'Menos vueltas de las buscadas' : 'Para tener en cuenta'}
+                text={warnings.map((w) => (
+                  <span key={w} className="nb-warning">
+                    {w}
+                  </span>
+                ))}
+              />
+            </section>
+          ) : null}
+        </section>
+      ) : null}
+
+      {settings ? (
+        <details className="section disclosure nb-wikiloc">
+          <summary>
+            <ExternalLink className="ic nb-wikiloc-ic" aria-hidden="true" />
+            <span className="nb-wikiloc-t">¿Buscas en Ride with GPS Explore?</span>
+            <ChevronDown className="chev" aria-hidden="true" />
+          </summary>
+          <div className="disclosure-body">
+            <button type="button" className="btn btn--secondary btn--block btn--wrap" onClick={openExplore}>
+              <ExternalLink className="ic" aria-hidden="true" />
+              Abrir Explore con tus filtros
+              <span className="sr-only"> (se abre en otra pestaña)</span>
+            </button>
+            <Link className="btn btn--secondary btn--block btn--wrap" to="/rutas/compartida">
+              <Route className="ic" aria-hidden="true" />
+              Pegar el enlace de una ruta
+            </Link>
+            <p className="help">Explore se abre alrededor de tu inicio, con tus km, tu desnivel y solo asfalto. Elige una ruta, compártela con FBikeTrain o copia su enlace: se adapta para salir y volver a tu inicio.</p>
+          </div>
+        </details>
+      ) : null}
+
+      {settings ? (
+        <details className="section disclosure nb-wikiloc">
+          <summary>
+            <ExternalLink className="ic nb-wikiloc-ic" aria-hidden="true" />
+            <span className="nb-wikiloc-t">¿Buscas en Wikiloc?</span>
+            <ChevronDown className="chev" aria-hidden="true" />
+          </summary>
+          <div className="disclosure-body">
+            <button type="button" className="btn btn--secondary btn--block btn--wrap" onClick={openWikiloc}>
+              <ExternalLink className="ic" aria-hidden="true" />
+              Buscar en Wikiloc
+              <span className="sr-only"> (se abre en otra pestaña)</span>
+            </button>
+            <label className={`btn btn--secondary btn--block btn--wrap${busy || !hasKey ? ' is-disabled' : ''}`}>
+              <Upload className="ic" aria-hidden="true" />
+              Subir el GPX descargado
+              <input className="sr-only" type="file" accept=".gpx,.tcx,application/gpx+xml,application/vnd.garmin.tcx+xml,application/xml,text/xml" aria-label="Subir el GPX descargado" disabled={busy || !hasKey} onChange={(e) => void adaptUpload(e)} />
+            </label>
+            <p className="help">Se abre Wikiloc alrededor de tu inicio con bici de carretera. Descarga allí el GPX y súbelo: se adapta a tu distancia y sale de tu inicio.</p>
+            {upload?.state === 'adapting' ? (
+              <div className="cat-status" role="status">
+                <CyclingLoader compact />
+                <p>Adaptando «{upload.name}»…</p>
+              </div>
+            ) : null}
+            {upload?.state === 'error' ? (
+              <p className="library-error" role="alert">
+                {upload.message}
+              </p>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
+      {upload?.state === 'ready' ? (
+        <section className="section" aria-label="Ruta subida">
+          <ProposalCard
+            headingLevel={2}
+            source={{ name: upload.original.name, original: upload.original, sourceUrl: upload.original.sourceUrl, author: upload.original.author }}
+            adapted={upload.adapted}
+          />
+        </section>
+      ) : null}
+
+      <section className="section" aria-label="Más formas de conseguir una ruta">
+        <List inset>
+          <ListRow to="/rutas/biblioteca" icon={Folder} accent="dist" title="Biblioteca de rutas" meta="Tus rutas guardadas y los GPX que abras: analiza, recorta y exporta" />
+          <ListRow to="/rutas/compartida" icon={Share2} accent="time" title="Ruta de Ride with GPS Explore" meta="Búscala en Explore, compártela con FBikeTrain o pega su enlace, y se adapta a tu inicio" />
+        </List>
+      </section>
+    </Page>
   );
 }

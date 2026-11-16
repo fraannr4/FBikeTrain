@@ -30,7 +30,6 @@ describe('App', () => {
     ['#/historial/repetidas', 'Historial'],
     ['#/historial/demo-001', 'Salida'],
     ['#/rutas', 'Rutas'],
-    ['#/rutas/ia', 'Rutas con IA'],
     ['#/plan', 'Plan'],
     ['#/plan/objetivos', 'Plan'],
     ['#/mas', 'Más'],
@@ -50,22 +49,6 @@ describe('App', () => {
     window.location.hash = '#/historial/demo-001';
     render(<App />);
     expect(await screen.findByRole('link', { name: 'Volver al historial' })).toHaveAttribute('href', '#/historial');
-  });
-
-  it('Rutas lleva a Rutas con IA desde la barra, y «Volver a Rutas» regresa', async () => {
-    window.location.hash = '#/rutas';
-    render(<App />);
-    await userEvent.click(await screen.findByRole('link', { name: 'Pregunta a la IA' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Rutas con IA' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('link', { name: 'Volver a Rutas' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Rutas' })).toBeInTheDocument();
-  });
-
-  it('Rutas tiene también la fila «Pregunta a la IA» hacia Rutas con IA', async () => {
-    window.location.hash = '#/rutas';
-    render(<App />);
-    const section = await screen.findByRole('region', { name: 'Rutas con IA' });
-    expect(within(section).getByRole('link', { name: /Pregunta a la IA/ })).toHaveAttribute('href', '#/rutas/ia');
   });
 
   it('Más lleva a Ajustes e Importar', async () => {

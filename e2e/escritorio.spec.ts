@@ -10,23 +10,13 @@ const routesOnly = process.env.ESCRITORIO_REPETIR_RUTAS === '1';
 const only = process.env.ESCRITORIO_VISTAS?.split(',');
 const widths = matrix === 'movil' ? [360, 390, 430] : matrix === 'pc' ? [1024, 1280, 1440, 1920] : [1280];
 const ors = JSON.parse(readFileSync('tests/fixtures/ors/round-trip-ok.json', 'utf8'));
-const plan = JSON.parse(readFileSync('tests/fixtures/llm/plan-ok.json', 'utf8'));
-const options = JSON.parse(plan.choices[0].message.content);
-for (const option of options.opciones) option.distanciaKm = 30;
-plan.choices[0].message.content = JSON.stringify(options);
 
 async function prepare(page: Page) {
   await page.clock.setFixedTime(NOW);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  // Sin red externa: sesión, carreteras, IA y teselas son sintéticos.
+  // Sin red externa: sesión, carreteras y teselas son sintéticos.
   await page.route(/tile-cyclosm/, r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"/>' }));
   await page.route('https://api.heigit.org/openrouteservice/**', r => r.fulfill({ json: ors, headers: { 'access-control-allow-origin': '*' } }));
-  let requests = 0;
-  await page.route('**/chat/completions', r => {
-    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
-    requests++;
-    return r.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: requests === 1 ? JSON.stringify(plan) : readFileSync('tests/fixtures/llm/explain-ok.json', 'utf8') });
-  });
   await seed(page, { activities: [{ ...RIDES[0], hasTrack: true }, ...RIDES.slice(1)], settings: settings({ orsKey: 'synthetic-key', llmKey: 'synthetic-key' }) });
   await page.evaluate(async ({ database, coords, now }) => {
     const db = await new Promise<IDBDatabase>(resolve => { const r = indexedDB.open(database); r.onsuccess = () => resolve(r.result); });
@@ -50,7 +40,7 @@ for (const width of widths) for (const theme of ['dark', 'light'] as const) {
     const capture = async (name: string) => {
       await page.evaluate(t => document.documentElement.dataset.theme = t, theme);
       await page.evaluate(() => document.fonts.ready);
-      if (['inicio', 'salida'].includes(name) || (width >= 1024 && ['rutas-resultados', 'rutas-ia-resultados'].includes(name))) {
+      if (['inicio', 'salida'].includes(name)) {
         await expect(page.locator('.rmap .leaflet-overlay-pane svg').first()).toBeVisible({ timeout: 30000 });
       }
       await expect(page.locator('.toasts .toast')).toHaveCount(0, { timeout: 10000 });
@@ -68,14 +58,14 @@ for (const width of widths) for (const theme of ['dark', 'light'] as const) {
     };
     for (const [name, route, ready] of [
       ['inicio', '/', '.week'], ['historial', '/historial', '.months .row'], ['salida', '/historial/s0', '.ride-figs-wrap'],
-      ['rutas', '/rutas', '.gen-inline'], ['rutas-ia', '/rutas/ia', '.opts'], ['plan', '/plan', '.desktop-month, .cal:visible'],
+      ['rutas', '/rutas', '.library-panel'], ['plan', '/plan', '.desktop-month, .cal:visible'],
       ['ajustes', '/ajustes', '.settings'], ['mas', '/mas', '.page'], ['importar', '/importar', '.page'],
       ['objetivos', '/plan/objetivos', '.page'], ['subidas', '/historial/subidas', '.page'],
-      ['repetidas', '/historial/repetidas', '.page'], ['biblioteca', '/rutas/biblioteca', '.page'], ['empalmar', '/rutas/empalmar', '.page'],
+      ['repetidas', '/historial/repetidas', '.page'], ['biblioteca', '/rutas/biblioteca', '.page'],
     ]) {
       if (only && !only.includes(name)) continue;
-      if (matrix === 'pc' && !['inicio', 'historial', 'salida', 'rutas', 'rutas-ia', 'plan', 'ajustes'].includes(name)) continue;
-      if (routesOnly && !['inicio', 'historial', 'salida', 'rutas', 'rutas-ia'].includes(name)) continue;
+      if (matrix === 'pc' && !['inicio', 'historial', 'salida', 'rutas', 'plan', 'ajustes'].includes(name)) continue;
+      if (routesOnly && !['inicio', 'historial', 'salida', 'rutas'].includes(name)) continue;
       await page.goto(`#${route}`);
       await expect(page.locator(ready).first()).toBeVisible();
       await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 20000 });
@@ -86,7 +76,7 @@ for (const width of widths) for (const theme of ['dark', 'light'] as const) {
       }
     }
     if (!only) {
-    if (!routesOnly) {
+    if (routesOnly) return;
     await page.goto('#/historial');
     await page.getByRole('button', { name: 'Filtrar y ordenar' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -97,28 +87,6 @@ for (const width of widths) for (const theme of ['dark', 'light'] as const) {
       expect(Math.abs(rect!.y + rect!.height / 2 - 400)).toBeLessThan(2);
     }
     await page.keyboard.press('Escape');
-    }
-    await page.goto('#/rutas');
-    // El fixture ORS mide 30 km: la petición debe permitir aceptarlo.
-    const distance = page.getByRole('group', { name: 'Distancia', exact: true });
-    await distance.getByRole('button', { name: 'Menos distancia' }).focus();
-    for (let i = 0; i < 40 && !/^30\s?km/.test((await distance.locator('output').innerText()).trim()); i++) await page.keyboard.press('Enter');
-    await expect(distance.locator('output')).toContainText('30');
-    await page.getByRole('button', { name: 'Generar 5 rutas' }).click();
-    await expect(page.locator('.rutas-res .rcard').first()).toBeVisible({ timeout: 45000 });
-    await expect(page.locator('.page--rutas[aria-busy="true"]')).toHaveCount(0);
-    await capture('rutas-resultados');
-    if (width >= 1024) {
-      await expect(page.locator('.route-map-panel .rmap')).toBeVisible();
-      expect((await page.locator('.route-map-panel .rmap').boundingBox())!.height).toBeGreaterThanOrEqual(480);
-    }
-    await page.goto('#/rutas/ia');
-    for (const radio of [/^Fondo/, /^2 h/, /^Casa/, /^Repetir zona/]) await page.getByRole('radio', { name: radio }).click();
-    await page.getByRole('button', { name: 'Pedir rutas a la IA' }).click();
-    await expect(page.getByRole('region', { name: 'Propuestas', exact: true }).locator('.rcard').first()).toBeVisible({ timeout: 45000 });
-    await expect(page.locator('.page--ia[aria-busy="true"]')).toHaveCount(0);
-    await capture('rutas-ia-resultados');
-    if (routesOnly) return;
     }
     if (only && !only.includes('login')) return;
     // Otra página sin el fixture de sesión: acceso real a la guardia, sin tocar auth/.

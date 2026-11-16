@@ -2,8 +2,7 @@ import { z } from 'zod';
 import { routeSearchSchema, routeReferencesSchema, RouteSourceError, type RouteReference, type RouteSearch } from './schema.ts';
 import { loadOverpass, loadWikiloc, readLimited, sourceTransport } from './providers.ts';
 import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } from './limits.ts';
-import { loadWaypoints, normalizeWaypointSearch, osmWaypointsSchema, waypointSearchSchema } from './waypoints.ts';
-import { loadMountainPasses, mountainPassesSchema, normalizePassSearch, passSearchSchema } from './passes.ts';
+import { SYNC_EVERY_MS } from './rwgpsService.ts';
 import { encodeLibraryZone, librarySearchSchema, normalizeLibrarySearch, SPARSE_ZONE_ROUTES, type LibrarySearch, type LibraryZone } from '../library/schema.ts';
 import { buildLibraryZone, circleBox } from '../library/zoneResponse.ts';
 import { fillCentre, fillZone } from '../library/fill.ts';
@@ -12,14 +11,12 @@ import type { ReferenceRouteRow } from '../library/rows.ts';
 
 const requestSchema = z.union([
   routeSearchSchema.extend({ source: z.enum(['wikiloc', 'osm']).default('wikiloc') }),
-  passSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('passes') }),
-  waypointSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('waypoints') }),
   librarySearchSchema.extend({ source: z.literal('library'), kind: z.literal('library') }),
 ]);
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 30_000;
-/** Los puntos de paso admiten reintentos y Overpass público tarda decenas de segundos con carga. */
-const WAYPOINTS_TIMEOUT_MS = 60_000;
+/** Un llenado de zona son 1 búsqueda y hasta 15 detalles de Ride with GPS a 1 por segundo. */
+const LIBRARY_TIMEOUT_MS = 60_000;
 export type SourceCacheRow = { payload: unknown; fetched_at: string; expires_at: string };
 export type RouteSourceDependencies = {
   enabled: boolean; wikilocAuthorized: boolean; wikilocSearchTemplate: string; allowedOrigins: string[];
@@ -36,19 +33,18 @@ export type RouteSourceDependencies = {
   replaceHeatCells: (cells: HeatCell[], box: Box) => Promise<void>;
   upsertRoutes: (rows: ReferenceRouteRow[]) => Promise<number>;
   rwgpsRouteDetail: (id: number, signal: AbortSignal) => Promise<{ status: number; json: unknown }>;
+  /** Última pasada de la sincronización de Ride with GPS (`rwgps_sync_state`), o null si nunca. */
+  lastRwgpsSyncAt: () => Promise<Date | null>;
+  /** Pide una pasada a la función `rwgps` (`{ op: 'sync' }` con la clave de servicio). No espera ni debe lanzar. */
+  requestRwgpsSync: () => void;
 };
 type Box = ReturnType<typeof circleBox>;
-type SearchKind = 'routes' | 'passes' | 'waypoints';
-const NORMALIZERS: Record<SearchKind, (search: RouteSearch) => RouteSearch> = {
-  routes: normalizeRouteSearch, passes: normalizePassSearch, waypoints: normalizeWaypointSearch,
-};
-const KEY_PREFIXES: Record<SearchKind, string> = { routes: 'v2', passes: 'v1:passes', waypoints: 'v2:waypoints' };
 
-export async function sourceCacheKey(source: string, search: RouteSearch, kind: SearchKind = 'routes'): Promise<string> {
+export async function sourceCacheKey(source: string, search: RouteSearch): Promise<string> {
   // No almacena el punto de consulta legible en la clave de caché.
-  const normalized = NORMALIZERS[kind](search);
+  const normalized = normalizeRouteSearch(search);
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([source, normalized.lat, normalized.lon, normalized.radiusM])));
-  return `${KEY_PREFIXES[kind]}:${source}:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
+  return `v2:${source}:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
 }
 export async function handleRouteSources(request: Request, deps: RouteSourceDependencies): Promise<Response> {
   const origin = request.headers.get('origin');
@@ -78,14 +74,11 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
   if (input.source === 'library') return serveLibrary(request, input, userId, deps, headers, fail);
   if (input.source === 'wikiloc' && (!deps.wikilocAuthorized || !deps.wikilocSearchTemplate)) return fail(503, 'wikiloc_authorization_required');
   const { source, lat, lon, radiusM } = input;
-  const passes = 'kind' in input && input.kind === 'passes';
-  const waypoints = 'kind' in input && input.kind === 'waypoints';
-  const kind: SearchKind = passes ? 'passes' : waypoints ? 'waypoints' : 'routes';
-  const search = NORMALIZERS[kind]({ lat, lon, radiusM });
+  const search = normalizeRouteSearch({ lat, lon, radiusM });
   const now = deps.now ?? Date.now;
   const controller = new AbortController();
   const signal = controller.signal;
-  const timeout = setTimeout(() => controller.abort(), waypoints ? WAYPOINTS_TIMEOUT_MS : TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const cancel = () => controller.abort();
   request.signal.addEventListener('abort', cancel, { once: true });
   if (request.signal.aborted) controller.abort();
@@ -94,21 +87,13 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     const quota = await deps.consumeQuota(userId);
     signal.throwIfAborted();
     if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
-    const key = await sourceCacheKey(source, search, kind);
+    const key = await sourceCacheKey(source, search);
     const cached = await deps.readCache(key);
     signal.throwIfAborted();
     if (cached && Date.parse(cached.expires_at) > now() && Date.parse(cached.fetched_at) <= now()
       && Date.parse(cached.expires_at) - Date.parse(cached.fetched_at) === CACHE_TTL_MS) {
-      const cachedPasses = passes ? mountainPassesSchema.safeParse(cached.payload) : null;
-      if (cachedPasses?.success && cachedPasses.data.every(pass => pass.distanceM <= search.radiusM)) {
-        return Response.json({ data: cachedPasses.data }, { headers });
-      }
-      const cachedWaypoints = waypoints ? osmWaypointsSchema.safeParse(cached.payload) : null;
-      if (cachedWaypoints?.success && cachedWaypoints.data.every(w => w.distanceM <= search.radiusM)) {
-        return Response.json({ data: cachedWaypoints.data }, { headers });
-      }
-      const parsed = !passes && !waypoints ? routeReferencesSchema.safeParse(cached.payload) : null;
-      if (parsed?.success && parsed.data.every(route => route.source === input.source && Date.parse(route.fetchedAt) === Date.parse(cached.fetched_at)
+      const parsed = routeReferencesSchema.safeParse(cached.payload);
+      if (parsed.success && parsed.data.every(route => route.source === input.source && Date.parse(route.fetchedAt) === Date.parse(cached.fetched_at)
         && (!route.geometry || route.geometry.coordinates.reduce((n, line) => n + line.length, 0) <= MAX_REFERENCE_POINTS))) {
         return Response.json({ data: parsed.data }, { headers });
       }
@@ -116,14 +101,6 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     signal.throwIfAborted();
     const fetchedAt = new Date(now()).toISOString();
     const transport = sourceTransport(source, { fetch: deps.fetch, claim: deps.claim, signal });
-    if (passes || waypoints) {
-      const data = passes ? await loadMountainPasses(search, transport) : await loadWaypoints(search, transport);
-      signal.throwIfAborted();
-      // Sin caché la respuesta sigue valiendo: un fallo al guardar no deja al móvil sin puntos.
-      await deps.writeCache({ cache_key: key, source: 'osm', payload: data, fetched_at: fetchedAt, expires_at: new Date(Date.parse(fetchedAt) + CACHE_TTL_MS).toISOString() }).catch(() => undefined);
-      signal.throwIfAborted();
-      return Response.json({ data }, { headers });
-    }
     const routes: RouteReference[] = source === 'wikiloc'
       ? await loadWikiloc(search, fetchedAt, transport, deps.wikilocSearchTemplate)
       : await loadOverpass(search, fetchedAt, transport);
@@ -181,13 +158,24 @@ async function loadLibraryZone(search: LibrarySearch, deps: RouteSourceDependenc
   }
 }
 
+/**
+ * La sincronización de la biblioteca con la cuenta común de Ride with GPS se lanza desde aquí: si la
+ * última pasada tiene más de 6 h (o no hay ninguna), se pide una a la función `rwgps`, que reserva la
+ * pasada de forma atómica. Nunca lanza ni cambia la respuesta.
+ */
+async function maybeSyncRwgps(deps: RouteSourceDependencies, now: () => number): Promise<void> {
+  try {
+    const at = await deps.lastRwgpsSyncAt();
+    if (at === null || now() - at.getTime() > SYNC_EVERY_MS) deps.requestRwgpsSync();
+  } catch { /* en segundo plano: no afecta a la respuesta */ }
+}
+
 async function serveLibrary(request: Request, input: LibrarySearch, userId: string, deps: RouteSourceDependencies,
   headers: Record<string, string>, fail: (status: number, code: string, retryAfterS?: number) => Response): Promise<Response> {
   const search = normalizeLibrarySearch({ lat: input.lat, lon: input.lon, radiusM: input.radiusM, distanceKm: input.distanceKm, elevGainM: input.elevGainM });
   const controller = new AbortController();
   const signal = controller.signal;
-  // Un llenado son 1 búsqueda y hasta 15 detalles a 1 por segundo: el mismo margen que los puntos de paso.
-  const timeout = setTimeout(() => controller.abort(), WAYPOINTS_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), LIBRARY_TIMEOUT_MS);
   const cancel = () => controller.abort();
   request.signal.addEventListener('abort', cancel, { once: true });
   if (request.signal.aborted) controller.abort();
@@ -196,7 +184,9 @@ async function serveLibrary(request: Request, input: LibrarySearch, userId: stri
     const quota = await deps.consumeQuota(userId);
     signal.throwIfAborted();
     if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
+    const syncCheck = maybeSyncRwgps(deps, deps.now ?? Date.now);
     const zone = await loadLibraryZone(search, deps, signal, deps.now ?? Date.now);
+    await syncCheck;
     signal.throwIfAborted();
     return Response.json({ data: encodeLibraryZone(zone) }, { headers });
   } catch {

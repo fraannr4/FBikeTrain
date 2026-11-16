@@ -7,14 +7,6 @@ import { NOW, RIDES, seed, settings } from './seed';
 // Solo datos inventados y servicios interceptados; no usa cuentas, claves o tracks reales.
 const fixture = (name: string) => readFileSync(fileURLToPath(new URL(`../tests/fixtures/${name}`, import.meta.url)), 'utf8');
 const ORS_OK = fixture('ors/round-trip-ok.json');
-const EXPLAIN_OK = fixture('llm/explain-ok.json');
-const PLAN_OK = (() => {
-  const response = JSON.parse(fixture('llm/plan-ok.json'));
-  const plan = JSON.parse(response.choices[0].message.content);
-  for (const option of plan.opciones) option.distanciaKm = 30;
-  response.choices[0].message.content = JSON.stringify(plan);
-  return JSON.stringify(response);
-})();
 const CORS = { 'access-control-allow-origin': '*' };
 const VIEWPORTS = [{ width: 360, height: 780 }, { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 1000 }];
 
@@ -87,11 +79,6 @@ for (const theme of ['dark', 'light'] as const) {
       await page.addInitScript((theme) => localStorage.setItem('fbt-theme', theme), theme);
       await page.route(/tile-cyclosm/, (route) => route.abort());
       await page.route('https://api.heigit.org/openrouteservice/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: ORS_OK }));
-      let llmCalls = 0;
-      await page.route('**/chat/completions', (route) => {
-        if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
-        return route.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: ++llmCalls === 1 ? PLAN_OK : EXPLAIN_OK });
-      });
       await populate(page);
       const dir = `test-results/paleta-a/${theme}/${viewport.width}`;
       mkdirSync(dir, { recursive: true });
@@ -131,25 +118,11 @@ for (const theme of ['dark', 'light'] as const) {
       await capture('salida');
 
       await page.goto('#/rutas');
-      const distance = page.getByRole('group', { name: 'Distancia' });
-      await expect(distance).toBeVisible();
+      await expect(page.getByLabel('Distancia')).toBeVisible();
       await capture('rutas-formulario');
-      const less = distance.getByRole('button', { name: 'Menos distancia' });
-      await less.focus();
-      for (let i = 0; i < 40 && !/^30\s?km/.test((await distance.locator('output').innerText()).trim()); i++) await page.keyboard.press('Enter');
-      await page.getByRole('button', { name: /Generar 5 rutas/ }).click();
-      await expect(page.getByRole('list', { name: 'Rutas generadas' })).toBeVisible({ timeout: 30_000 });
-      await capture('rutas');
 
-      await page.goto('#/rutas/ia');
-      await expect(page.getByRole('radio', { name: /^Fondo/ })).toBeVisible();
-      await capture('rutas-ia-formulario');
-      for (const name of [/^Fondo/, /^2 h/, /^Casa/, /^Repetir zona/]) await page.getByRole('radio', { name }).click();
-      await page.getByRole('button', { name: 'Pedir rutas a la IA' }).click();
-      await expect(page.getByRole('list', { name: 'Propuestas de la IA' })).toBeVisible({ timeout: 40_000 });
-      await capture('rutas-ia');
       await page.goto('#/plan');
-      await page.getByRole('button', { name: 'Sábado 7 de noviembre: Fondo por el valle, pendiente', exact: true }).click();
+      await page.getByRole('button', { name: 'Sábado 7 de noviembre: Fondo por el valle, pendiente', exact: true }).first().click();
       await expect(page.getByRole('article', { name: 'Fondo por el valle' })).toBeVisible();
       await capture('plan-calendario');
       await page.goto('#/ajustes');

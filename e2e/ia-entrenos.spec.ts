@@ -44,3 +44,20 @@ test('ai week proposal ends up in the calendar', async ({ page }) => {
   expect(bodies[0]).not.toMatch(/\b(lat|lng|lon|coordinates|trkpt|geometry)\b/i);
   expect(bodies[0]).not.toContain('40.4168');
 });
+
+test('sin salidas pide antes las tres cifras del nivel, a 360 px', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  await seed(page, { settings: settings({ llmKey: 'test-key' }) });
+  await page.goto('#/plan');
+
+  await page.getByRole('button', { name: 'Proponer semana con IA' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Proponer semana con IA' });
+  await expect(sheet.getByRole('heading', { name: 'Cuéntanos cómo sales' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Proponer' })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: 'test-results/ia-entrenos/nivel-360.png' });
+
+  await sheet.getByRole('button', { name: 'Guardar y seguir' }).click();
+  await expect(sheet.getByRole('button', { name: 'Proponer' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/ia-entrenos/dias-360.png' });
+});

@@ -75,7 +75,7 @@ export function ProposalCard({ source, adapted, why, origin, headingLevel = 3 }:
   return (
     <article className="cat-card">
       {origin ? <p className="nb-origin">{origin}</p> : null}
-      <Heading className="wk-name">{source.name}</Heading>
+      <Heading className="wk-name wk-name--clip" title={source.name} dir="auto">{source.name}</Heading>
       {source.sourceUrl ? (
         <a className="cat-origin" href={source.sourceUrl} target="_blank" rel="noopener noreferrer">
           <ExternalLink className="ic" aria-hidden="true" />

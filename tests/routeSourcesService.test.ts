@@ -25,6 +25,7 @@ const mock = (): RouteSourceDependencies => ({
   routesInBox: vi.fn().mockResolvedValue([]), heatCellsInBox: vi.fn().mockResolvedValue([]), replaceHeatCells: vi.fn().mockResolvedValue(undefined),
   upsertRoutes: vi.fn().mockImplementation(async (rows: unknown[]) => rows.length),
   rwgpsRouteDetail: vi.fn().mockImplementation(async (id: number) => ({ status: 200, json: routeDetailJson(id) })),
+  lastRwgpsSyncAt: vi.fn().mockResolvedValue(new Date(now)), requestRwgpsSync: vi.fn(),
 });
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -233,69 +234,12 @@ describe('transporte conservador Wikiloc', () => {
   });
 });
 
-describe('route-sources: puntos de paso', () => {
-  const wp = { lat: 0, lon: 0, radiusM: 30_000, source: 'osm', kind: 'waypoints' };
-  const village = { type: 'node', id: 5, lat: 0.1, lon: 0, tags: { place: 'village', name: 'Pueblo inventado' } };
-  const road = { type: 'way', id: 6, nodes: [7, 8], tags: { highway: 'tertiary' }, geometry: [{ lat: 0.1, lon: 0.001 }, { lat: 0.11, lon: 0.001 }] };
-  const withData = () => { const deps = mock(); deps.fetch = vi.fn().mockImplementation(async () => Response.json({ elements: [village, road] })); return deps; };
-  it('cachea con clave v2:waypoints y 7 días', async () => {
-    const deps = withData();
-    const response = await handleRouteSources(request(wp), deps);
-    expect(response.status).toBe(200);
-    expect((await response.json()).data).toHaveLength(1);
-    const row = vi.mocked(deps.writeCache).mock.calls[0][0];
-    expect(row.cache_key.startsWith('v2:waypoints:')).toBe(true);
-    // La tabla solo admite 7 días (restricción route_sources_cache_seven_day_ttl).
-    expect(Date.parse(row.expires_at) - Date.parse(row.fetched_at)).toBe(CACHE_TTL_MS);
-  });
-  it('si no puede guardar la caché devuelve igualmente los puntos', async () => {
-    const deps = withData();
-    deps.writeCache = vi.fn().mockRejectedValue(new Error('cache'));
-    const response = await handleRouteSources(request(wp), deps);
-    expect(response.status).toBe(200);
-    expect((await response.json()).data).toHaveLength(1);
-  });
-  it('ignora una caché que no valida con osmWaypointsSchema', async () => {
-    const deps = withData();
-    deps.readCache = vi.fn().mockResolvedValue({ payload: [{ broken: true }], fetched_at: at, expires_at: new Date(now + CACHE_TTL_MS).toISOString() });
-    expect((await handleRouteSources(request(wp), deps)).status).toBe(200);
-    expect(deps.fetch).toHaveBeenCalledTimes(2);
-  });
-  it('si los dos servidores de Overpass fallan (502 o remark de error) repite la ronda, y no cachea el fallo', async () => {
-    vi.useFakeTimers();
-    const deps = withData();
-    vi.mocked(deps.fetch).mockResolvedValueOnce(new Response('', { status: 502 }))
-      .mockResolvedValueOnce(Response.json({ elements: [], remark: 'runtime error: Query ran out of memory' }));
-    const pending = handleRouteSources(request(wp), deps);
-    await vi.waitFor(() => expect(deps.fetch).toHaveBeenCalledTimes(2));
-    await vi.advanceTimersByTimeAsync(1100);
-    const response = await pending;
-    expect(response.status).toBe(200);
-    expect((await response.json()).data).toHaveLength(1);
-    expect(vi.mocked(deps.fetch).mock.calls.slice(0, 2).map(c => new URL(String(c[0])).host).sort()).toEqual(['overpass-api.de', 'overpass.openstreetmap.fr']);
-    expect(deps.writeCache).toHaveBeenCalledTimes(1);
-    const down = mock(); down.fetch = vi.fn().mockImplementation(async () => new Response('', { status: 504 }));
-    const failing = handleRouteSources(request(wp), down);
-    await vi.waitFor(() => expect(down.fetch).toHaveBeenCalledTimes(2));
-    await vi.advanceTimersByTimeAsync(1100);
-    expect((await failing).status).toBe(502);
-    expect(down.fetch).toHaveBeenCalledTimes(4);
-    expect(down.writeCache).not.toHaveBeenCalled();
-  });
-  it('da a los puntos de paso 60 s antes de cortar: el Overpass principal tarda decenas de segundos', async () => {
-    vi.useFakeTimers();
-    const slow = mock(); slow.fetch = vi.fn().mockImplementation((_url, init) => new Promise((_resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('lento')))));
-    let status = 0;
-    void handleRouteSources(request(wp), slow).then(r => { status = r.status; });
-    await vi.waitFor(() => expect(slow.fetch).toHaveBeenCalledTimes(2));
-    await vi.advanceTimersByTimeAsync(40_000);
-    expect(status).toBe(0);
-    await vi.advanceTimersByTimeAsync(20_000);
-    expect(status).toBe(504);
-  });
-  it('rechaza radios fuera de 8-35 km y campos extra', async () => {
-    expect((await handleRouteSources(request({ ...wp, radiusM: 40_000 }), mock())).status).toBe(400);
-    expect((await handleRouteSources(request({ ...wp, track: [] }), mock())).status).toBe(400);
+describe('route-sources: operaciones retiradas', () => {
+  it.each(['passes', 'waypoints'])('kind %s ya no existe: 400 sin gastar cuota ni consultar', async kind => {
+    const deps = mock();
+    expect((await handleRouteSources(request({ lat: 0, lon: 0, radiusM: 30_000, source: 'osm', kind }), deps)).status).toBe(400);
+    expect(deps.consumeQuota).not.toHaveBeenCalled();
+    expect(deps.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -319,6 +263,31 @@ describe('route-sources: biblioteca común (kind library)', () => {
     const response = await pending;
     return { status: response.status, zone: libraryZoneSchema.parse((await response.json()).data) };
   };
+
+  it.each([[null], [new Date(now - 7 * 3600_000)]])('con la sincronización de Ride with GPS pendiente (%s) la pide a la función rwgps una vez', async last => {
+    const deps = mock(); deps.routesInBox = vi.fn().mockResolvedValue(rows(20));
+    deps.lastRwgpsSyncAt = vi.fn().mockResolvedValue(last);
+    expect((await respond(deps)).status).toBe(200);
+    expect(deps.requestRwgpsSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('con la sincronización reciente no pide nada', async () => {
+    const deps = mock(); deps.routesInBox = vi.fn().mockResolvedValue(rows(20));
+    deps.lastRwgpsSyncAt = vi.fn().mockResolvedValue(new Date(now - 3600_000));
+    expect((await respond(deps)).status).toBe(200);
+    expect(deps.requestRwgpsSync).not.toHaveBeenCalled();
+  });
+
+  it('un fallo al comprobar o pedir la sincronización no rompe la respuesta', async () => {
+    const deps = mock(); deps.routesInBox = vi.fn().mockResolvedValue(rows(20));
+    deps.lastRwgpsSyncAt = vi.fn().mockRejectedValue(new Error('db secreto'));
+    expect((await respond(deps)).status).toBe(200);
+    expect(deps.requestRwgpsSync).not.toHaveBeenCalled();
+    const other = mock(); other.routesInBox = vi.fn().mockResolvedValue(rows(20));
+    other.lastRwgpsSyncAt = vi.fn().mockResolvedValue(null);
+    other.requestRwgpsSync = vi.fn(() => { throw new Error('boom'); });
+    expect((await respond(other)).status).toBe(200);
+  });
 
   it('rechaza radios de más de 40 km y sesiones anónimas antes de leer nada', async () => {
     const deps = mock();

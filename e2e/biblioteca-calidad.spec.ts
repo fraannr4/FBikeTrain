@@ -9,7 +9,7 @@ for (const width of [360, 430]) {
     const name = `Vuelta sintética ${'por carreteras conocidas '.repeat(5)}`.slice(0, 120).trim();
     const author = `Autora${'sintética'.repeat(15)}`.slice(0, 120);
     const xml = `<gpx><metadata><link href="https://es.wikiloc.com/rutas-ciclismo/sintetica-1234"/><author><name>${author}</name></author></metadata><trk><name>${name}</name><trkseg><trkpt lat="41" lon="2.5"><ele>10</ele></trkpt><trkpt lat="41.001" lon="2.5"><ele>30</ele></trkpt><trkpt lat="41.001" lon="2.501"><ele>20</ele></trkpt><trkpt lat="41" lon="2.5"><ele>10</ele></trkpt></trkseg></trk></gpx>`;
-    const upload = page.getByLabel('Elegir GPX o TCX');
+    const upload = page.getByLabel('Elegir GPX, TCX o ZIP');
     await expect(upload).toBeEnabled();
     await upload.setInputFiles({ name: 'sintetica.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(xml) });
     const source = page.getByRole('link', { name: `Origen: Wikiloc · ${author}` });

@@ -188,7 +188,10 @@ export function analyzeRoute(f: OrsFeature, seed: number): RouteCandidate {
 }
 
 /** Motivo por el que una candidata no es de carretera o no se ajusta al objetivo; `null` si pasa. */
-export function rejectReason(c: RouteCandidate, targetM: number): RejectReason | null {
+export function rejectReason(
+  c: Pick<RouteCandidate, 'motorway' | 'unpavedM' | 'trackM' | 'mainRoadPct' | 'distanceM'>,
+  targetM: number,
+): RejectReason | null {
   if (c.motorway) return 'autopista';
   if (c.unpavedM > ROAD_FILTER.maxUnpavedM) return 'sin asfaltar';
   if (c.trackM > ROAD_FILTER.maxTrackM) return 'pistas';

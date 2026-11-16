@@ -1,47 +1,4 @@
 import { z } from 'zod';
-import { DIRECCIONES } from './contracts.ts';
-
-/**
- * Objetivos que propone la IA. La IA no traza rutas: solo da la dimensión y la
- * subida sobre la referencia; las carreteras las pone ORS y el código recorta
- * cualquier cifra que se salga del rango.
- */
-export const RoutePlanSchema = z.strictObject({
-  opciones: z
-    .array(
-      z.strictObject({
-        titulo: z.string().min(1).max(60),
-        dimension: z.enum(['distancia', 'desnivel']),
-        subidaPct: z.number().min(5).max(15),
-        distanciaKm: z.number().min(10).max(200),
-        desnivelM: z.number().min(0).max(4000).nullable(),
-        motivo: z.string().min(1).max(300),
-        /** Id de la referencia en la que se basa; uno desconocido lo ignora el código. */
-        referenciaId: z.string().max(20).nullable().optional(),
-        puertoId: z.string().regex(/^pass[1-6]$/).nullable().optional(),
-      }),
-    )
-    .min(3)
-    .max(5),
-});
-
-export type RoutePlan = z.infer<typeof RoutePlanSchema>;
-
-/** Un texto por ruta, enlazado por el `id` de sus `RouteFacts`. */
-export const ExplanationSchema = z.strictObject({
-  explicaciones: z.array(
-    z.strictObject({
-      id: z.string(),
-      texto: z.string().min(1).max(500),
-    }),
-  ),
-});
-
-/** Recomendación de empalme: una de las opciones recibidas y una frase. */
-export function spliceAdviceSchema(ids: [string, ...string[]]) {
-  return z.strictObject({ recomendada: z.enum(ids), motivo: z.string().min(1).max(240) });
-}
-export type SpliceAdvice = { recomendada: string; motivo: string };
 
 /**
  * Entrenos de la semana que propone la IA. `dia` es el índice desde hoy (0 hoy, 6 dentro de 6 días).
@@ -64,23 +21,6 @@ export const WorkoutWeekSchema = z.strictObject({
 });
 
 export type WorkoutWeek = z.infer<typeof WorkoutWeekSchema>;
-
-/**
- * Combinaciones de puntos de paso que propone la IA: solo ids de la lista recibida. Las carreteras
- * las pone ORS y la dirección y las cifras las vuelve a calcular el código.
- */
-export const WaypointCombosSchema = z.strictObject({
-  combinaciones: z
-    .array(
-      z.strictObject({
-        puntos: z.array(z.string().regex(/^w\d{1,2}$/)).min(1).max(3).refine(ids => new Set(ids).size === ids.length),
-        direccion: z.enum(DIRECCIONES),
-        titulo: z.string().min(1).max(60),
-      }),
-    )
-    .min(1)
-    .max(10),
-});
 
 type JsonNode = Record<string, unknown>;
 

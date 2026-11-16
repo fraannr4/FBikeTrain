@@ -4,16 +4,13 @@
 
 Contratos:
 
-- `{ operation: 'plan', summary: LevelSummary, answers: { focus, minutes, explore, notes: '' }, maxDistanciaKm, referencias?, objetivo? }`
-- `{ operation: 'explain', summary: LevelSummary, facts: RouteFacts[] }`
-- `{ operation: 'splice', facts: SpliceFacts[], objetivo? }`: recomendación de empalme. De 1 a 12 opciones con solo cifras (distancia, desnivel, vías principales, conector, solape, retroceso); devuelve `{ recomendada, motivo }` y `recomendada` debe ser uno de los `id` recibidos.
-- `objetivo` (opcional en `plan` y `splice`, o `null`): el objetivo vigente del usuario como contexto, solo cifras. `{ tipo: 'evento', diasHasta (0-730), distanciaKm, desnivelM }` o `{ tipo: 'volumen', diasRestantes (0-366), distanciaRestanteKm, desnivelRestanteM }`; nunca el nombre ni el lugar. Lo calcula `src/ai/goalContext.ts` en el navegador.
-- `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: '' }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar y las notas vacías, como en `plan`. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
-- `{ operation: 'waypoints', objetivo: { distanciaKm, desnivelM | null }, puntos: [{ id: 'w1'..'w24', tipo: 'puerto' | 'cima' | 'pueblo' | 'habitual', nombre (≤ 60), cotaM | null, distanciaKm, direccion, interes (0-3) }] }`: agrupa los puntos de paso en vueltas por dirección. De 1 a 24 puntos, sin coordenadas ni la entrada o salida de los tramos del historial. Devuelve `WaypointCombosSchema` (`{ combinaciones: [{ puntos: 1-3 ids, direccion, titulo }] }`, de 1 a 10); el servicio solo comprueba la forma y el navegador descarta los ids que no envió, recalcula la dirección y completa con sus propias combinaciones. Lo usa `src/ai/waypointCombos.ts`.
+Solo queda la operación de la semana con IA (generador de rutas de 2026-11-13: la IA ya no interviene en las rutas). `plan`, `explain`, `splice` y `waypoints` se han retirado y responden 400. La función conserva su nombre porque ya está desplegada.
+
+- `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: '' }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar y las notas vacías. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
 - Éxito: `{ data: ... }` con el esquema de la operación.
 - Error: `{ error: { code, message }, retryAfterS? }`. Códigos: unauthorized, invalid_request, quota_exceeded, unavailable, provider_error, timeout, cancelled, invalid_response. No se devuelven errores crudos ni claves.
 
-La validación es estricta: sin coordenadas, tracks ni campos extras. No admite URL, modelo ni prompt del cliente. Notes está vacío por diseño para evitar enviar direcciones en texto libre; los títulos de hechos se sustituyen por `Ruta N`. El servidor reutiliza los prompts/esquemas existentes, controla el modelo (`openai/gpt-oss-20b`), no reintenta automáticamente y limita salida a 1.600 tokens y petición de proveedor a 20 segundos.
+La validación es estricta: sin coordenadas, tracks ni campos extras. No admite URL, modelo ni prompt del cliente. Las notas van vacías por diseño para evitar enviar direcciones en texto libre. El servidor reutiliza los prompts/esquemas existentes, controla el modelo (`openai/gpt-oss-20b`), no reintenta automáticamente y limita salida a 1.600 tokens y petición de proveedor a 20 segundos.
 
 ## Activación y secretos
 
@@ -37,11 +34,11 @@ Solo la función SQL de servidor puede consumir. Un bloqueo transaccional compar
 | Día (UTC) | 30 operaciones (antes 12) | 300 (antes 40) |
 | Minuto | 2 operaciones | 10 (antes 3) |
 
-- `plan`, `explain`, `splice` y `workouts` cuentan por separado, una operación cada una: una búsqueda habitual necesita dos operaciones. Los intentos ya admitidos consumen incluso si el proveedor falla; evita reintentos ilimitados y gasto no contabilizado.
+- Cada petición `workouts` cuenta como una operación. Los intentos ya admitidos consumen incluso si el proveedor falla; evita reintentos ilimitados y gasto no contabilizado.
 
 No confundir estas cuotas de aplicación con las efectivas del proveedor (peticiones y tokens). No se cambia automáticamente a planes de pago. Al agotarse, 429 con Retry-After.
 
-Si el servicio común responde 503 o no hay red y el usuario tiene clave personal de IA en Ajustes, la app sigue con su clave. Con 429 (cuota agotada) no reintenta: muestra el límite y el formulario manual.
+Si el servicio común responde 503 o no hay red y el usuario tiene clave personal de IA en Ajustes, la app sigue con su clave. Con 429 (cuota agotada) no reintenta: muestra el límite.
 
 Pruebas: `node node_modules/vitest/vitest.mjs run tests/sharedAi.test.ts --maxWorkers=1 --minWorkers=1` y `npm run test:db` (PostgreSQL embebido, esquemas externos simulados). La prueba de cuotas verifica límites y permisos; la simultaneidad entre conexiones remotas requiere prueba en Supabase.
 

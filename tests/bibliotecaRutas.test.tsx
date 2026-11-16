@@ -35,3 +35,14 @@ it('con cuenta, la ruta abierta se puede usar para retar a un amigo', async () =
   await userEvent.setup().click(await screen.findByRole('button', { name: /Vuelta del reto/ }));
   expect(screen.queryByRole('link', { name: 'Retar con esta ruta' })).not.toBeInTheDocument();
 });
+
+it('con dos rutas o más ya no ofrece empalmarlas', async () => {
+  await db.referenceRoutes.clear();
+  for (const id of ['ruta-a', 'ruta-b']) {
+    const parsed = parseReferenceRoute(`<gpx><trk><name>Vuelta ${id}</name><trkseg><trkpt lat="41" lon="2.5"><ele>10</ele></trkpt><trkpt lat="41.001" lon="2.501"><ele>20</ele></trkpt></trkseg></trk></gpx>`, `${id}.gpx`);
+    await db.referenceRoutes.put({ ...parsed, id, createdAt: 0, updatedAt: 0 });
+  }
+  render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><BibliotecaRutas /></MemoryRouter>);
+  expect(await screen.findByRole('button', { name: /Vuelta ruta-b/ })).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Empalmar rutas' })).not.toBeInTheDocument();
+});

@@ -9,15 +9,12 @@ import { HistoryWorkspace } from './ui/historial/HistoryWorkspace';
 import { Subidas } from './ui/pages/Subidas';
 import { Repetidas } from './ui/pages/Repetidas';
 import { Rutas } from './ui/pages/Rutas';
-import { RutasIa } from './ui/pages/RutasIa';
 import { Calendario } from './ui/pages/Calendario';
 import { Objetivos } from './ui/pages/Objetivos';
 import { Mas } from './ui/pages/Mas';
 import { Perfil } from './ui/pages/Perfil';
 import { Persona } from './ui/pages/Persona';
 import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
-import { Empalmar } from './ui/pages/Empalmar';
-import { RutasCerca } from './ui/pages/RutasCerca';
 import { RutaCompartida } from './ui/pages/RutaCompartida';
 import { Zona } from './ui/pages/Zona';
 import { Amigos } from './ui/pages/Amigos';
@@ -63,13 +60,11 @@ export function App() {
           <Route path="/historial/repetidas/:id" element={<Repetidas />} />
           <Route path="/historial/:id" element={<HistoryWorkspace />} />
           <Route path="/rutas" element={<Rutas />} />
-          <Route path="/rutas/ia" element={<RutasIa />} />
           <Route path="/rutas/biblioteca" element={<BibliotecaRutas />} />
-          <Route path="/rutas/empalmar" element={<Empalmar />} />
-          <Route path="/rutas/cerca" element={<RutasCerca />} />
-          {/* Enlaces antiguos: el catálogo de Ride with GPS y el marcador de Wikiloc, ya retirados. */}
-          <Route path="/rutas/catalogo" element={<Navigate to="/rutas/cerca" replace />} />
-          <Route path="/rutas/wikiloc/*" element={<Navigate to="/rutas/cerca" replace />} />
+          {/* Enlaces antiguos: Rutas con IA, Rutas cerca, Empalmar, el catálogo y el marcador de Wikiloc, ya retirados. */}
+          {['/rutas/ia', '/rutas/cerca', '/rutas/empalmar', '/rutas/catalogo', '/rutas/wikiloc/*'].map((path) => (
+            <Route key={path} path={path} element={<Navigate to="/rutas" replace />} />
+          ))}
           <Route path="/rutas/compartida" element={<RutaCompartida />} />
           <Route path="/plan" element={<Calendario />} />
           <Route path="/plan/objetivos" element={<Objetivos />} />

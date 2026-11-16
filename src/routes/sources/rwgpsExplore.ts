@@ -1,8 +1,8 @@
 import type { LatLng } from '../../domain/types';
 import { adaptCandidates, type Proposal, type RecommendDeps, type RecommendTarget } from '../catalog/recommend';
+import { analyzeReferenceRoutePoints, routePointsToGpx, type ReferenceRoute } from '../library';
 import { RwgpsError } from './ridewithgps';
 import { fetchRwgpsCollection, fetchRwgpsRoute, type RwgpsAccess, type RwgpsLink } from './rwgpsImport';
-import { toReferenceRoute } from './rwgpsProposals';
 
 /**
  * Explore de Ride with GPS a mano: la app solo abre Explore en una pestaña del usuario con los filtros
@@ -34,6 +34,17 @@ export function rwgpsExploreUrl(ask: { start: LatLng; distanceKm: number; elevGa
   if (ask.elevGainM !== null) params.push(['ele', `${round100(ask.elevGainM * (1 - GAIN_MARGIN))}*${round100(ask.elevGainM * (1 + GAIN_MARGIN))}m`]);
   params.push(['s', 'paved'], ['m', 'routes'], ['a', 'cycling:road']);
   return `${RWGPS_EXPLORE_URL}?${params.map(([k, v]) => `${k}=${encodeURIComponent(v).replace(/%21/g, '!').replace(/%2A/g, '*')}`).join('&')}`;
+}
+
+/** Ruta de Ride with GPS leída por id, como ruta de referencia lista para adaptar. */
+export function toReferenceRoute(r: Awaited<ReturnType<typeof fetchRwgpsRoute>>): ReferenceRoute {
+  const now = Date.now();
+  const ref = `rwgps-${r.id}`;
+  return {
+    id: ref, name: r.name, format: 'gpx', sourceFileName: `${ref}.gpx`, sourceUrl: r.sourceUrl, author: `${r.author} en Ride with GPS`,
+    originalXml: routePointsToGpx(r.name, r.points), originalPoints: r.points.map((p) => ({ ...p })), points: r.points,
+    summary: analyzeReferenceRoutePoints(r.points), catalog: { kind: 'rwgps', ref, tipo: 'carretera' }, createdAt: now, updatedAt: now,
+  };
 }
 
 /** Una ruta que el usuario puede elegir para adaptar. */

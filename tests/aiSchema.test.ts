@@ -1,12 +1,12 @@
-import { ExplanationSchema, RoutePlanSchema, toStrictJsonSchema } from '../src/ai/schema';
+import { toStrictJsonSchema, WorkoutWeekSchema } from '../src/ai/schema';
+import * as schema from '../src/ai/schema';
 
-const option = (over: Record<string, unknown> = {}) => ({
-  titulo: 'Fondo llano',
-  dimension: 'distancia',
-  subidaPct: 8,
-  distanciaKm: 55,
+const entreno = (over: Record<string, unknown> = {}) => ({
+  dia: 1,
+  titulo: 'Rodaje suave',
+  distanciaKm: 40,
   desnivelM: null,
-  motivo: 'Un 8 % más de distancia que tu media.',
+  notas: '',
   ...over,
 });
 
@@ -23,63 +23,26 @@ function objectNodes(node: unknown, out: JsonNode[] = []): JsonNode[] {
   return out;
 }
 
-describe('RoutePlanSchema', () => {
-  it('plan schema accepts 3 to 5 options', () => {
-    for (const n of [3, 4, 5]) {
-      const r = RoutePlanSchema.safeParse({ opciones: Array.from({ length: n }, () => option()) });
-      expect(r.success).toBe(true);
-    }
+describe('WorkoutWeekSchema', () => {
+  it('solo quedan el esquema de la semana y su conversión estricta: la IA no propone rutas', () => {
+    expect(Object.keys(schema).sort()).toEqual(['WorkoutWeekSchema', 'toStrictJsonSchema']);
   });
 
-  it('rejects 2 options', () => {
-    expect(RoutePlanSchema.safeParse({ opciones: [option(), option()] }).success).toBe(false);
+  it('acepta de 1 a 7 entrenos con motivo y desnivel nulo o numérico', () => {
+    expect(WorkoutWeekSchema.safeParse({ entrenos: [entreno(), entreno({ dia: 3, desnivelM: 600 })], motivo: 'Tu media es 45 km.' }).success).toBe(true);
+    expect(WorkoutWeekSchema.safeParse({ entrenos: [], motivo: 'x' }).success).toBe(false);
+    expect(WorkoutWeekSchema.safeParse({ entrenos: Array.from({ length: 8 }, (_, i) => entreno({ dia: i % 7 })), motivo: 'x' }).success).toBe(false);
   });
 
-  it('rejects 6 options', () => {
-    const opciones = Array.from({ length: 6 }, () => option());
-    expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(false);
-  });
-
-  it('rejects subidaPct 20', () => {
-    const opciones = [option(), option(), option({ subidaPct: 20 })];
-    expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(false);
-  });
-
-  it('rejects extra keys', () => {
-    expect(
-      RoutePlanSchema.safeParse({ opciones: [option(), option(), option({ lat: 41.4 })] }).success,
-    ).toBe(false);
-    expect(
-      RoutePlanSchema.safeParse({ opciones: [option(), option(), option()], extra: 1 }).success,
-    ).toBe(false);
-  });
-
-  it('accepts a number or null as desnivelM', () => {
-    const opciones = [option({ desnivelM: 900, dimension: 'desnivel' }), option(), option()];
-    expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(true);
-  });
-
-  it('referenciaId is optional and accepts a string or null', () => {
-    const opciones = [option({ referenciaId: 'ref2' }), option({ referenciaId: null }), option()];
-    expect(RoutePlanSchema.safeParse({ opciones }).success).toBe(true);
-    expect(RoutePlanSchema.safeParse({ opciones: [option({ referenciaId: 7 }), option(), option()] }).success).toBe(false);
-  });
-});
-
-describe('ExplanationSchema', () => {
-  it('accepts one text per id and rejects an empty text', () => {
-    expect(
-      ExplanationSchema.safeParse({ explicaciones: [{ id: 'r1', texto: '58 km y 640 m.' }] }).success,
-    ).toBe(true);
-    expect(
-      ExplanationSchema.safeParse({ explicaciones: [{ id: 'r1', texto: '' }] }).success,
-    ).toBe(false);
+  it('rechaza días fuera de 0-6 y campos extra', () => {
+    expect(WorkoutWeekSchema.safeParse({ entrenos: [entreno({ dia: 7 })], motivo: 'x' }).success).toBe(false);
+    expect(WorkoutWeekSchema.safeParse({ entrenos: [entreno({ lat: 41 })], motivo: 'x' }).success).toBe(false);
   });
 });
 
 describe('toStrictJsonSchema', () => {
   it('strict json schema is strict-compatible', () => {
-    const json = toStrictJsonSchema(RoutePlanSchema);
+    const json = toStrictJsonSchema(WorkoutWeekSchema);
     const objects = objectNodes(json);
     expect(objects.length).toBe(2);
     for (const o of objects) {
@@ -88,11 +51,9 @@ describe('toStrictJsonSchema', () => {
         Object.keys(o.properties as JsonNode).sort(),
       );
     }
-    const item = (json.properties as JsonNode).opciones as JsonNode;
+    const item = (json.properties as JsonNode).entrenos as JsonNode;
     const desnivel = ((item.items as JsonNode).properties as JsonNode).desnivelM as JsonNode;
     expect(JSON.stringify(desnivel)).toContain('"null"');
-    const referencia = ((item.items as JsonNode).properties as JsonNode).referenciaId as JsonNode;
-    expect(JSON.stringify(referencia)).toContain('"null"');
   });
 
   it('completes objects that zod leaves loose or partial', async () => {
@@ -101,14 +62,5 @@ describe('toStrictJsonSchema', () => {
     const [o] = objectNodes(toStrictJsonSchema(loose));
     expect(o.additionalProperties).toBe(false);
     expect([...(o.required as string[])].sort()).toEqual(['a', 'b']);
-  });
-
-  it('explanation schema is strict-compatible too', () => {
-    for (const o of objectNodes(toStrictJsonSchema(ExplanationSchema))) {
-      expect(o.additionalProperties).toBe(false);
-      expect([...(o.required as string[])].sort()).toEqual(
-        Object.keys(o.properties as JsonNode).sort(),
-      );
-    }
   });
 });

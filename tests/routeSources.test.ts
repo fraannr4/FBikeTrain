@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 import { routeReferenceSchema, routeSearchSchema } from '../src/routes/sources/schema';
 import { buildOverpassQuery, parseOverpass } from '../src/routes/sources/overpass';
 import { parseWikilocDetail, wikilocLinks, parsePublicGpx } from '../src/routes/sources/wikiloc';
-import { findRouteReferences } from '../src/routes/sources/client';
 
 const fixture = (name: string) => readFileSync(resolve('tests/fixtures/route-sources', name), 'utf8');
 const at = '2026-11-09T12:00:00.000Z';
@@ -64,30 +63,5 @@ describe('fuentes de referencia sintéticas', () => {
     expect(routeReferenceSchema.safeParse({ ...wiki(), author: '' }).success).toBe(false);
     expect(routeReferenceSchema.safeParse({ ...wiki(), url: 'https://evil.invalid/a' }).success).toBe(false);
     expect(routeReferenceSchema.safeParse({ ...wiki(), distanceM: -1 }).success).toBe(false);
-  });
-});
-
-describe('cliente: Wikiloc primero y OSM de respaldo', () => {
-  it('no consulta OSM si Wikiloc aporta referencias válidas', async () => {
-    const invoke = vi.fn().mockResolvedValue({ data: { data: [wiki()] }, error: null });
-    expect(await findRouteReferences(search, { invoke })).toEqual([wiki()]);
-    expect(invoke).toHaveBeenCalledTimes(1);
-    expect(invoke).toHaveBeenCalledWith('route-sources', expect.objectContaining({ body: { ...search, source: 'wikiloc' } }));
-  });
-  it.each(['empty', 'error', 'malformed', 'throw'])('recurre a OSM ante %s', async mode => {
-    const osm = parseOverpass(JSON.parse(fixture('overpass.json')), search, at);
-    const invoke = vi.fn();
-    if (mode === 'throw') invoke.mockRejectedValueOnce(new Error('network'));
-    else invoke.mockResolvedValueOnce(mode === 'error' ? { data: null, error: {} } : { data: { data: mode === 'empty' ? [] : [{ secret: true }] }, error: null });
-    invoke.mockResolvedValueOnce({ data: { data: osm }, error: null });
-    expect(await findRouteReferences(search, { invoke })).toEqual(osm);
-    expect(invoke.mock.calls[1][1].body.source).toBe('osm');
-  });
-  it('no oculta el fallo de ambos proveedores ni reintenta cancelar', async () => {
-    const invoke = vi.fn().mockResolvedValue({ data: null, error: {} });
-    await expect(findRouteReferences(search, { invoke })).rejects.toThrow('unavailable');
-    const controller = new AbortController(); controller.abort(); invoke.mockClear();
-    await expect(findRouteReferences(search, { invoke }, controller.signal)).rejects.toThrow();
-    expect(invoke).not.toHaveBeenCalled();
   });
 });

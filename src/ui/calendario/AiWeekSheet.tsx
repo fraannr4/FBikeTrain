@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isAbort } from '../../ai/abort';
-import { buildLevelSummary, climbsInWindow, resolveReference } from '../../ai/levelSummary';
+import { buildLevelSummary, climbsInWindow, resolveReference, saveDeclaredReference, type InitialAnswers } from '../../ai/levelSummary';
 import { createSharedWorkoutPlanner, SHARED_AI_ENABLED } from '../../ai/sharedClient';
 import { nextGoal, proposeWeek, toPlannedWorkouts, type ProposedWorkout, type WeekProposal } from '../../ai/workoutPlanner';
 import { listGoals, saveWorkout } from '../../calendar/calendarRepo';
@@ -12,6 +12,7 @@ import { sessionToken } from '../../routes/orsProxy';
 import { loadSettings } from '../../settings/settings';
 import { addDays, dayNumber, longDate, relativeDayName, weekdayInitial } from '../calendarGrid';
 import { CyclingLoader } from '../components/CyclingLoader';
+import { InitialQuestions } from '../components/InitialQuestions';
 import { Sheet } from '../components/Sheet';
 import { formatCount, formatNumber } from '../format';
 import { Check, CircleAlert, RefreshCw, Sparkles } from '../icons';
@@ -23,7 +24,13 @@ export type ProposeWeekFn = (req: WeekAsk, signal: AbortSignal) => Promise<WeekP
 const MAX_NOTES = 200;
 const UNEXPECTED = 'No se ha podido preparar la semana. Vuelve a intentarlo.';
 const SAVE_FAILED = 'No se han podido guardar todos los entrenos. Vuelve a pulsar «Añadir» para guardar los que faltan.';
-const NO_LEVEL = 'Aún no conocemos tu nivel: importa tus salidas o contesta las preguntas de Rutas con IA.';
+const NO_LEVEL = 'Aún no conocemos tu nivel: importa tus salidas o contesta las tres preguntas.';
+const LEVEL_SAVE_FAILED = 'No se han podido guardar tus cifras. Vuelve a probar.';
+
+/** Hay nivel si las salidas de la ventana de referencia lo dan o si el usuario declaró sus cifras. */
+async function levelKnown(now: number): Promise<boolean> {
+  return (await resolveReference(await listActivities(referenceRange(now)), now)) !== null;
+}
 
 /**
  * Propuesta real: nivel de la ventana de referencia, objetivo más próximo y la IA compartida
@@ -50,6 +57,8 @@ export function createWeekProposer(client: SupabaseClient | null): ProposeWeekFn
 }
 
 type Proposal = Extract<WeekProposal, { ok: true }>;
+/** Sin nivel no hay propuesta: antes del formulario se piden las tres cifras. */
+type Level = 'checking' | 'missing' | 'known';
 type State =
   | { kind: 'form' }
   | { kind: 'loading' }
@@ -82,8 +91,9 @@ function figures(e: ProposedWorkout): string {
 }
 
 /**
- * Hoja «Proponer semana con IA»: días disponibles y notas, espera cancelable, propuestas con casillas
- * (todas marcadas) y «Añadir al calendario (N)». Solo se guarda lo que el usuario acepta.
+ * Hoja «Proponer semana con IA»: sin nivel, primero las tres cifras de «Cuéntanos cómo sales»; luego
+ * días disponibles y notas, espera cancelable, propuestas con casillas (todas marcadas) y
+ * «Añadir al calendario (N)». Solo se guarda lo que el usuario acepta.
  */
 export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, onAdded }: Props) {
   const ids = useId();
@@ -93,12 +103,39 @@ export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, on
   const [notes, setNotes] = useState('');
   const [noDays, setNoDays] = useState(false);
   const [state, setState] = useState<State>({ kind: 'form' });
+  const [level, setLevel] = useState<Level>('checking');
+  const [savingLevel, setSavingLevel] = useState(false);
+  const [levelError, setLevelError] = useState(false);
   const abort = useRef<AbortController | null>(null);
   // Entrenos ya guardados en un intento que falló a medias: al cerrar, el calendario los recarga.
   const savedSoFar = useRef<PlannedWorkout[]>([]);
   const allBusy = [0, 1, 2, 3, 4, 5, 6].every((d) => busy.includes(d));
 
   useEffect(() => () => abort.current?.abort(), []);
+
+  useEffect(() => {
+    let live = true;
+    // Si no se puede leer, se deja pedir: la propuesta explica entonces que falta el nivel.
+    levelKnown(Date.now())
+      .then((ok) => live && setLevel(ok ? 'known' : 'missing'))
+      .catch(() => live && setLevel('known'));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const saveLevel = async (a: InitialAnswers) => {
+    setSavingLevel(true);
+    setLevelError(false);
+    try {
+      await saveDeclaredReference(a);
+      setLevel('known');
+    } catch {
+      setLevelError(true);
+    } finally {
+      setSavingLevel(false);
+    }
+  };
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
 
@@ -172,7 +209,9 @@ export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, on
 
   const formId = `${ids}-form`;
   let footer;
-  if (state.kind === 'form') {
+  if (level !== 'known') {
+    footer = null;
+  } else if (state.kind === 'form') {
     footer = (
       <button className="btn btn--primary btn--block" type="submit" form={formId} disabled={allBusy}>
         <Sparkles className="ic" aria-hidden="true" />
@@ -211,7 +250,19 @@ export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, on
       className="sheet--aiw"
       footer={footer}
     >
-      {state.kind === 'form' ? (
+      {level === 'missing' ? (
+        <>
+          {levelError ? (
+            <p className="field-error" role="alert">
+              <CircleAlert className="ic" aria-hidden="true" />
+              {LEVEL_SAVE_FAILED}
+            </p>
+          ) : null}
+          <InitialQuestions onSave={(a) => void saveLevel(a)} busy={savingLevel} />
+        </>
+      ) : null}
+
+      {level === 'known' && state.kind === 'form' ? (
         <form className="aiw-form" id={formId} noValidate onSubmit={submit}>
           <fieldset className="aiw-days">
             <legend className="field-label">Días en que puedes salir</legend>

@@ -74,6 +74,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611160010_garmin_connect.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/garmin_connect.sql', import.meta.url), 'utf8'));
   console.log('PASS: Garmin: tokens, estado PKCE, colas y originales solo para el servidor; estado de un solo uso y cola idempotente.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611160002_drop_rwgps_route_index.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/drop_rwgps_route_index.sql', import.meta.url), 'utf8'));
+  console.log('PASS: índice antiguo de Ride with GPS borrado; siguen el reloj de sincronización y la biblioteca común.');
 } finally {
   await db.close();
 }

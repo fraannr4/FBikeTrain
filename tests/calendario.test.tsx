@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { saveDeclaredReference } from '../src/ai/levelSummary';
 import { App } from '../src/App';
 import { db } from '../src/db/db';
 import { saveActivity, setLastBackupAt } from '../src/db/repo';
@@ -277,11 +278,13 @@ describe('Calendario', { timeout: 20_000 }, () => {
     unmount();
 
     await saveSettings({ ...DEFAULT_SETTINGS, llm: { ...DEFAULT_SETTINGS.llm, apiKey: 'test-key', model: 'openai/gpt-oss-20b' } });
+    // Sin salidas, la hoja pide antes el nivel: con cifras declaradas abre en los días.
+    await saveDeclaredReference({ kmPorSalida: 50, desnivelPorSalidaM: 600, velocidadMediaKmh: 25 });
     renderCalendario();
     await user.click(await screen.findByRole('button', { name: 'Proponer semana con IA' }));
     const dialog = sheet('Proponer semana con IA');
+    expect(await within(dialog).findByRole('button', { name: 'Proponer' })).toBeInTheDocument();
     // El sábado 7 ya tiene entreno: no se puede elegir.
     expect(within(dialog).getByRole('button', { name: /^Sábado 7 de noviembre, ya tiene entreno/ })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: 'Proponer' })).toBeInTheDocument();
   });
 });
