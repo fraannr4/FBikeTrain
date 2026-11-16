@@ -42,6 +42,7 @@ const NAMES: Record<string, string> = {
   '/ajustes': 'Ajustes',
   '/zona': 'Tu zona',
   '/amigos': 'Amigos',
+  '/perfil/amigos': 'Amigos',
   '/ciclistas': 'Ciclistas',
   '/retos/anteriores': 'Retos anteriores',
   '/retos': 'Retos',

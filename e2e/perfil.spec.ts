@@ -23,7 +23,7 @@ for (const width of [360, 430]) {
       await page.route('https://*.supabase.co/rest/v1/rpc/touch_community_activity', route => route.fulfill({ status: 204, headers: CORS }));
       await page.goto('./#/perfil');
       await expect(page.getByRole('region', { name: 'Tu identidad pública' })).toContainText('@maximiliana_de_los_santos_inoce');
-      await expect(page.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '#/amigos?vista=amigos');
+      await expect(page.getByRole('list', { name: 'Tus cifras' }).getByRole('link', { name: /amigos/ })).toHaveAttribute('href', '#/perfil/amigos');
       await expect(page.getByRole('link', { name: 'Ciclistas' }).first()).toHaveAttribute('href', '#/ciclistas');
       await expect(page.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '#/retos');
       await expect(page.getByText(/comparativas entre perfiles siguen pendientes/)).toBeVisible();

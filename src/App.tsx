@@ -82,7 +82,9 @@ export function App() {
           <Route path="/compartido" element={<Compartido />} />
           <Route path="/ajustes" element={<Ajustes />} />
           <Route path="/zona" element={<Zona />} />
-          <Route path="/amigos" element={<Amigos />} />
+          <Route path="/perfil/amigos" element={<Amigos />} />
+          {/* Amigos vive ahora dentro del perfil; el enlace antiguo (también ?vista=amigos) redirige. */}
+          <Route path="/amigos" element={<Navigate to="/perfil/amigos" replace />} />
           <Route path="/ciclistas" element={<Ciclistas />} />
           <Route path="/retos" element={<CommunityRetos />} />
           <Route path="/retos/nuevo" element={<NewChallengeRoute />} />

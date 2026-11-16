@@ -1,6 +1,18 @@
 /* Cuaderno de ruta: una firma ciclista personal, sobre los tokens de FBikeTrain. */
+
+/* Cifras del perfil (amigos, retos, salidas): tocables, con la cifra arriba y la etiqueta debajo. */
+.profile-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 4px; margin: 16px 0 4px; padding: 0; list-style: none; border-block: 1px solid var(--line); }
+.profile-stats > li { min-width: 0; }
+.profile-stat { display: grid; justify-items: center; align-content: center; gap: 2px; min-height: 64px; padding: 8px 4px; color: inherit; text-align: center; text-decoration: none; border-radius: 12px; }
+a.profile-stat:hover { background: var(--surface-2); }
+.profile-stat strong { font: 700 20px/1.1 var(--font-fig); font-variant-numeric: tabular-nums; color: var(--ink); }
+.profile-stat span { font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.profile-stat small { font-size: 11px; font-weight: 700; color: var(--critical); }
+.profile-relation { width: 100%; }
+.profile-relation > * { flex: 1 1 0; }
+.profile-relation-menu { display: grid; gap: 10px; }
 .page.page--profile { max-width: 1120px; gap: 20px; }
-.page--profile > .page-head { margin: 0; padding: 0; background: none; border: 0; min-height: 0; }
+.page--profile > .page-head { margin: 0; padding: 0 var(--gutter); background: none; border: 0; min-height: 0; }
 .page--profile > .page-head::before, .page--profile > .page-head::after { display: none; }
 .page--profile > .page-head .page-title { font: 600 16px/1.4 var(--font-ui); color: var(--ink-2); margin: 0; }
 .profile-hero { --profile-accent: var(--acc-dist); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; background: var(--surface); min-width: 0; }

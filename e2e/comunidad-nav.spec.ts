@@ -19,11 +19,15 @@ for (const [width, height] of sizes) for (const theme of ['light', 'dark'] as co
     await expect(page.getByRole('region', { name: 'Tu identidad pública' })).toContainText('Ana Ruta');
     const nav = page.getByRole('navigation', { name: 'Menú principal' });
     if (width < 900) {
+      // Opción 2: la quinta pestaña es Retos; el perfil se abre desde tu foto en la cabecera.
       await expect(nav.getByRole('link')).toHaveCount(5);
-      await expect(nav.getByRole('link', { name: 'Perfil', exact: true })).toHaveAttribute('aria-current', 'page');
+      await expect(nav.getByRole('link', { name: 'Perfil', exact: true })).toHaveCount(0);
       await page.getByRole('link', { name: /Más opciones/ }).click();
       await expect(page.getByRole('heading', { name: 'Más', exact: true })).toBeVisible();
-      await nav.getByRole('link', { name: 'Perfil', exact: true }).click();
+      await nav.getByRole('link', { name: 'Retos', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Retos', exact: true })).toBeVisible();
+      await expect(nav.getByRole('link', { name: 'Retos', exact: true })).toHaveAttribute('aria-current', 'page');
+      await page.getByRole('link', { name: 'Tu perfil', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Tu perfil' })).toBeVisible();
     } else {
       const group = nav.getByRole('group', { name: 'Comunidad' });

@@ -20,15 +20,14 @@ async function social(page: Page) {
   return state;
 }
 
-test('buscador → perfil → aceptar amistad → retar al mismo ciclista', async ({ page }) => {
+test('amigos → perfil → aceptar amistad → retar al mismo ciclista', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const state = await social(page);
-  await page.goto('./#/amigos');
-  await page.getByLabel('Nombre o usuario').fill('Maximiliana');
-  await page.getByRole('search').getByRole('button', { name: 'Buscar' }).click();
-  await page.getByRole('link', { name: PERSON.display_name, exact: true }).click();
+  await page.goto('./#/perfil/amigos');
+  await page.getByRole('region', { name: 'Solicitudes recibidas' }).getByRole('link', { name: PERSON.display_name, exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Perfil del ciclista' })).toBeVisible();
   await expect(page.getByRole('link', { name: `Retar a ${PERSON.display_name}` })).toHaveAttribute('href', `#/retos/nuevo?ciclista=${PERSON.id}`);
+  await page.getByRole('button', { name: 'Responder solicitud' }).click();
   await page.getByRole('button', { name: 'Aceptar solicitud' }).click();
   await expect(page.getByRole('link', { name: `Retar a ${PERSON.display_name}` })).toHaveAttribute('href', `#/retos/nuevo?ciclista=${PERSON.id}`);
   expect(state.status).toBe('accepted');

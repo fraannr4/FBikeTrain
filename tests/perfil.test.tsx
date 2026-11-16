@@ -45,10 +45,30 @@ describe('Tu perfil', () => {
     expect(within(identity).getByText('La bici y los puertos.')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Editar perfil' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ciclistas' })).toHaveAttribute('href', '/ciclistas');
-    expect(screen.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '/amigos?vista=amigos');
     expect(screen.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '/retos');
     expect(screen.getByRole('link', { name: /Tu zona/ })).toHaveAttribute('href', '/zona');
     expect(screen.getByText(/comparativas entre perfiles siguen pendientes/)).toBeInTheDocument();
+  });
+
+  it('fila de cifras tocables: amigos con solicitudes, retos ganados y salidas del año', async () => {
+    const { client } = fakeClient();
+    const card = (id: string) => ({ id, username: id, display_name: id, locality: null, distance_km: null });
+    const m = (id: string) => ({ id, username: id, display_name: id, status: 'accepted', accepted_at: null, score: 1, updated_at: null });
+    const duel = (id: string, winner: string) => ({ id, title: id, kind: 'distance', created_at: '2026-11-01T00:00:00Z', deadline: '2026-11-08T00:00:00Z', creator_id: 'u1', target_value: null, distance_m: null, segment_key: null, status: 'finished', members: [m('u1'), m('p2')], winner_ids: [winner] });
+    vi.mocked(client.rpc).mockImplementation((async (fn: string) => {
+      if (fn === 'list_friends') return { data: [
+        { friendship_id: 'a', status: 'accepted', direction: 'sent', profile: card('p2') },
+        { friendship_id: 'b', status: 'accepted', direction: 'received', profile: card('p3') },
+        { friendship_id: 'c', status: 'pending', direction: 'received', profile: card('p4') },
+      ], error: null };
+      if (fn === 'list_community_challenges') return { data: [duel('x', 'u1'), duel('y', 'p2')], error: null };
+      return { data: [], error: null };
+    }) as unknown as SupabaseClient['rpc']);
+    renderWith(client);
+    const stats = await screen.findByRole('list', { name: 'Tus cifras' });
+    expect(await within(stats).findByRole('link', { name: '2 amigos, 1 solicitud pendiente' })).toHaveAttribute('href', '/perfil/amigos');
+    expect(await within(stats).findByRole('link', { name: '1 reto ganado' })).toHaveAttribute('href', '/retos?vista=historial');
+    expect(await within(stats).findByRole('link', { name: /^0 salidas en \d{4}$/ })).toHaveAttribute('href', '/historial');
   });
 
   it('permite reintentar tras un rechazo de red y tras una respuesta sin perfil', async () => {

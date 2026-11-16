@@ -1,6 +1,6 @@
 import { test, expect, type Page } from './accountFixture';
 
-// Amigos con las RPC simuladas. Nombres sintéticos, también los extremos (largos y sin espacios).
+// Amigos dentro del perfil, con las RPC simuladas. Nombres sintéticos, también los extremos (largos y sin espacios).
 test.setTimeout(90_000);
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
 const SHOTS = 'test-results/amigos';
@@ -24,7 +24,11 @@ async function fakeRpc(page: Page, opts: { results?: unknown[]; friends?: unknow
     if (fn === 'my_area') return json([{ locality: opts.locality === undefined ? 'Villa Centro' : opts.locality, show_area: true }]);
     if (fn === 'list_friends') return json(state.friends);
     if (fn === 'search_profiles') return json(opts.results ?? RESULTS);
-    if (fn === 'search_profiles_near') return json((opts.results ?? RESULTS).map((c, i) => ({ ...(c as object), distance_km: [5, 25, 50][i % 3] })));
+    if (fn === 'search_profiles_near') {
+      if (opts.locality === null) return r.fulfill({ status: 400, headers: CORS, contentType: 'application/json', body: JSON.stringify({ message: 'Sin zona configurada' }) });
+      return json((opts.results ?? RESULTS).map((c, i) => ({ ...(c as object), distance_km: [5, 25, 50][i % 3] })));
+    }
+    if (fn === 'list_cyclists') return json((opts.results ?? RESULTS).map((c) => ({ ...(c as object), bio: '', riding_style: 'grupo', avatar_version: 0, last_active_at: null })));
     if (fn === 'request_friendship') {
       state.requested.push(req.postDataJSON());
       const target = (opts.results ?? RESULTS).find((c) => (c as { id: string }).id === req.postDataJSON().target_id);
@@ -36,28 +40,26 @@ async function fakeRpc(page: Page, opts: { results?: unknown[]; friends?: unknow
   return state;
 }
 
-test('desde Más: buscar por nombre, solicitar amistad y verla pendiente', async ({ page }) => {
+test('el enlace antiguo lleva a Amigos dentro del perfil y una sugerencia se añade', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const state = await fakeRpc(page);
-  await page.goto('./#/mas');
-  await page.getByRole('link', { name: /Amigos/ }).click();
+  await page.goto('./#/amigos?vista=amigos');
+  await expect(page).toHaveURL(/#\/perfil\/amigos$/);
   await expect(page.getByRole('heading', { name: 'Amigos', level: 1 })).toBeVisible();
-  await page.getByLabel('Nombre o usuario').fill('Ana');
-  await page.getByRole('search').getByRole('button', { name: 'Buscar' }).click();
-  await page.getByRole('button', { name: 'Solicitar amistad a Ana Ruta' }).click();
-  await expect(page.getByRole('listitem').filter({ hasText: 'Ana Ruta' }).getByText('Pendiente')).toBeVisible();
+  const suggestions = page.getByRole('region', { name: 'Sugerencias' });
+  await suggestions.getByRole('button', { name: 'Añadir a Ana Ruta' }).click();
+  await expect(suggestions.getByRole('listitem').filter({ hasText: 'Ana Ruta' }).getByText('Solicitud enviada')).toBeVisible();
   expect(state.requested).toEqual([{ target_id: 'p2' }]);
-  await page.getByRole('button', { name: 'Amigos', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Solicitudes enviadas' })).toContainText('Ana Ruta');
 });
 
-test('sin zona, «Cerca de mí» lleva a indicarla', async ({ page }) => {
+test('sin zona, las sugerencias son ciclistas activos y explican cómo ver los cercanos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await fakeRpc(page, { locality: null });
-  await page.goto('./#/amigos');
-  await page.waitForResponse((r) => r.url().includes('/rpc/my_area'));
-  await page.getByRole('button', { name: 'Cerca de mí: 25 km' }).click();
-  await expect(page.getByText('Indica tu zona en Ajustes para buscar cerca.')).toBeVisible();
+  await page.goto('./#/perfil/amigos');
+  const suggestions = page.getByRole('region', { name: 'Sugerencias' });
+  await expect(suggestions.getByRole('link', { name: 'Indicar mi zona' })).toHaveAttribute('href', '#/ajustes?abrir=zona');
+  await expect(suggestions.getByText('Ana Ruta')).toBeVisible();
 });
 
 for (const width of [360, 430]) {
@@ -72,30 +74,21 @@ for (const width of [360, 430]) {
         { friendship_id: 'f2', status: 'pending', direction: 'sent', profile: RESULTS[0] },
         { friendship_id: 'f3', status: 'accepted', direction: 'sent', profile: RESULTS[2] },
       ];
-      await fakeRpc(page, { friends });
-      await page.goto('./#/amigos');
-      await page.getByRole('button', { name: 'Cerca de mí: 50 km' }).click();
-      await expect(page.getByText(/a menos de 25 km/)).toBeVisible();
-      const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-      expect(await overflow()).toBe(0);
-      await page.screenshot({ path: `${SHOTS}/amigos-buscar-${tag}.png`, fullPage: true });
-      await page.getByRole('button', { name: 'Amigos (1)' }).click();
-      await expect(page.getByRole('region', { name: 'Tus amigos' })).toBeVisible();
-      expect(await overflow()).toBe(0);
+      await fakeRpc(page, { friends, results: [...RESULTS, card('p5', 'Carla Cumbre', 'carla', 'Villa Norte')] });
+      await page.goto('./#/perfil/amigos');
+      await expect(page.getByRole('region', { name: 'Solicitudes recibidas' })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Sugerencias' }).getByText('Carla Cumbre')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/amigos-lista-${tag}.png`, fullPage: true });
     });
   }
 }
 
-test('0 resultados y lista vacía, a 360 px', async ({ page }) => {
+test('lista vacía, a 360 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await fakeRpc(page, { results: [] });
-  await page.goto('./#/amigos');
-  await page.getByLabel('Nombre o usuario').fill('Nadie');
-  await page.getByRole('search').getByRole('button', { name: 'Buscar' }).click();
-  await expect(page.getByText('Nadie se llama así.', { exact: false })).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/amigos-sin-resultados-360.png`, fullPage: true });
-  await page.getByRole('button', { name: 'Amigos', exact: true }).click();
-  await expect(page.getByText('Todavía no tienes amigos. Busca a alguien por su nombre o cerca de ti.')).toBeVisible();
+  await page.goto('./#/perfil/amigos');
+  await expect(page.getByText('Todavía no tienes amigos.')).toBeVisible();
+  await expect(page.getByText('Sin sugerencias por ahora.')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/amigos-vacio-360.png`, fullPage: true });
 });

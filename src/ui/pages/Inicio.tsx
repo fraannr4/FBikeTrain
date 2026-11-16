@@ -20,6 +20,7 @@ import { StravaHowTo } from '../components/StravaHowTo';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { EventGoalRow, GoalGlance } from '../inicio/GoalGlance';
 import { Hero } from '../inicio/Hero';
+import { OwnProfileButton } from '../shell/OwnProfileButton';
 import { heroDate, heroSentence } from '../inicio/heroCopy';
 import { lastData, rememberData, rememberScroll, savedScroll } from '../inicio/inicioMemory';
 import { heroLead, pickGoals, pickUpcoming, volumeGlance, weekCaption, weekDeltas } from '../inicio/inicioPlan';
@@ -339,9 +340,12 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
         }
         notices={[]}
         actions={
-          <Link to="/rutas" className="round press hero-route" aria-label="Generar ruta">
-            <Route size={20} strokeWidth={2} aria-hidden="true" />
-          </Link>
+          <>
+            <Link to="/rutas" className="round press hero-route" aria-label="Generar ruta">
+              <Route size={20} strokeWidth={2} aria-hidden="true" />
+            </Link>
+            <OwnProfileButton className="round avatar press appbar-profile" />
+          </>
         }
       >
         <section aria-labelledby="week-title" className="week">
