@@ -129,3 +129,12 @@
   .profile-workspace { grid-template-columns: minmax(0,1fr) 280px; gap: 24px; }
   .profile-sidebar { position: sticky; top: 80px; }
 }
+
+/* Paso de alta del perfil: mismas piezas que Tu zona y el editor. */
+.profile-setup-h { margin: 0; font: 600 var(--fs-title) / 1.2 var(--font-ui); }
+.profile-setup-h:focus { outline: none; }
+.profile-setup-fields { display: grid; gap: 14px; border: 0; min-width: 0; padding: 0; margin: 0; }
+.profile-setup-fields textarea { resize: vertical; min-height: 100px; padding: 12px; line-height: 1.6; width: 100%; min-width: 0; }
+.profile-setup-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.profile-setup-photo .profile-avatar--large { box-shadow: none; }
+.profile-setup-fields .profile-mode input { flex: none; width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0; }

@@ -8,6 +8,7 @@ import { WelcomeScene, welcomeName } from './WelcomeScene';
 import { takeFreshSignIn } from './useFreshSignIn';
 import { restoreSharedLocation } from '../pwa/sharedFiles';
 import { zonaSkippedRecently } from '../social/profileArea';
+import { needsProfileSetup } from '../social/profileIdentity';
 
 export type Account = { client: SupabaseClient; user: User };
 export const AccountContext = createContext<Account | null>(null);
@@ -43,27 +44,38 @@ function Workspace({ account, welcome, children }: { account: Account; welcome: 
     return () => { live = false; clearTimeout(deadline); };
     // Una sola consulta por escena: Workspace se monta de nuevo con cada usuario (key).
   }, [welcome, client]);
-  // Sin pueblo en el perfil, se pide una vez, tras la bienvenida y solo si se entra por Inicio:
-  // un enlace a otra pantalla (un fichero compartido) no se interrumpe. Sin red, no se pregunta.
-  const [needsZona, setNeedsZona] = useState(false);
+  // Tras la bienvenida, y solo si se entra por Inicio, se piden una vez los pasos que faltan: primero
+  // el perfil público (la comunidad lista a todos los registrados), después el pueblo. Un enlace a otra
+  // pantalla (un fichero compartido) no se interrumpe. Sin red, no se pregunta.
+  const [onboarding, setOnboarding] = useState<string | null>(null);
   useEffect(() => {
-    if (zonaSkippedRecently(Date.now())) return;
     let live = true;
-    Promise.resolve()
+    const profile = user.is_anonymous ? Promise.resolve(false) : Promise.resolve()
+      // Sin reintentos: un fallo de red no debe retrasar varios segundos el paso de la zona.
+      .then(() => client.from('profiles').select('username,display_name').eq('id', user.id).retry(false).single())
+      .then(({ data, error }) => !error && needsProfileSetup(user.id, data))
+      .catch(() => false);
+    const zona = zonaSkippedRecently(Date.now()) ? Promise.resolve(false) : Promise.resolve()
       .then(() => client.rpc('my_area'))
       .then(({ data, error }) => {
         const row = (Array.isArray(data) ? data[0] : data) as { locality?: string | null } | null;
-        if (live && !error && row && !row.locality) setNeedsZona(true);
+        return !error && Boolean(row) && !row?.locality;
       })
-      .catch(() => { /* sin perfil o sin red: se preguntará en otro inicio */ });
+      .catch(() => false);
+    void Promise.all([profile, zona]).then(([needsProfile, needsZona]) => {
+      if (!live) return;
+      if (needsProfile) setOnboarding(needsZona ? '#/perfil/nuevo?siguiente=zona' : '#/perfil/nuevo');
+      else if (needsZona) setOnboarding('#/zona');
+    });
     return () => { live = false; };
+    // Una sola comprobación por cuenta: Workspace se monta de nuevo con cada usuario (key).
   }, [client]);
   useEffect(() => {
-    if (!needsZona || !ready || phase !== 'app') return;
-    setNeedsZona(false);
+    if (!onboarding || !ready || phase !== 'app') return;
+    setOnboarding(null);
     const path = window.location.hash.replace(/^#/, '').split('?')[0];
-    if (path === '' || path === '/') window.location.hash = '#/zona';
-  }, [needsZona, ready, phase]);
+    if (path === '' || path === '/') window.location.hash = onboarding;
+  }, [onboarding, ready, phase]);
   if (failed) return <AccountFrame><h1>No se pueden abrir tus datos</h1><p>Comprueba el espacio disponible y que el navegador permita guardar datos.</p><button className="btn btn--primary" onClick={() => window.location.reload()}>Reintentar</button></AccountFrame>;
   // La escena corre en paralelo con la apertura de la base; si al salir no está lista, queda el loader.
   const scene = phase !== 'app' && <WelcomeScene name={name} onLeave={() => setPhase('leaving')} onDone={() => setPhase('app')} />;

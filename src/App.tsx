@@ -14,6 +14,7 @@ import { Calendario } from './ui/pages/Calendario';
 import { Objetivos } from './ui/pages/Objetivos';
 import { Mas } from './ui/pages/Mas';
 import { Perfil } from './ui/pages/Perfil';
+import { PerfilNuevo } from './ui/pages/PerfilNuevo';
 import { Persona } from './ui/pages/Persona';
 import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
 import { Empalmar } from './ui/pages/Empalmar';
@@ -75,6 +76,7 @@ export function App() {
           <Route path="/plan/objetivos" element={<Objetivos />} />
           <Route path="/mas" element={<Mas />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/perfil/nuevo" element={<PerfilNuevo />} />
           <Route path="/personas/:id" element={<Persona />} />
           <Route path="/importar" element={<Importar />} />
           <Route path="/compartido" element={<Compartido />} />
