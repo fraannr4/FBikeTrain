@@ -9,6 +9,7 @@ import { loadSettings, saveSettings } from '../../settings/settings';
 import { listFriends } from '../../social/friends';
 import { removeAvatar, uploadAvatar } from '../../social/avatar';
 import type { RidingStyle } from '../../social/journal';
+import { USERNAME_HELP, profileSaveMessage } from '../../social/profileIdentity';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
 import { Banner } from '../components/Banner';
@@ -68,7 +69,7 @@ export function Perfil() {
       const next = { username: draft.username, display_name: draft.display_name.trim(), bio: draft.bio.trim(), riding_style: draft.riding_style, stats_visibility: draft.stats_visibility };
       if (!next.display_name) { setEditError('Escribe un nombre para tu perfil.'); return; }
       const { data, error: err } = await account.client.from('profiles').update(next).eq('id', account.user.id).select('id').single();
-      if (err || !data) { setEditError(err?.code === '23505' ? 'Ese nombre de usuario ya está ocupado. Elige otro.' : 'No se pudo guardar el perfil. Inténtalo de nuevo.'); return; }
+      if (err || !data) { setEditError(profileSaveMessage(err)); return; }
       setProfile(p => p ? { ...p, ...next } : p); setEditing(false); setNotice('Perfil guardado.');
       try { const settings = await loadSettings(); await saveSettings({ ...settings, displayName: next.display_name }); }
       catch { setNotice('Perfil guardado. El saludo local se actualizará cuando el almacenamiento vuelva a estar disponible.'); }
@@ -123,7 +124,7 @@ export function Perfil() {
         {draft && <div className="profile-editor">{editError && <Banner tone="error">{editError}</Banner>}
           <form aria-label="Editar perfil" onSubmit={save}><fieldset disabled={busy || photoBusy}>
             <Field label="Nombre visible" required maxLength={60} autoComplete="nickname" value={draft.display_name} onChange={e => setDraft({ ...draft, display_name: e.target.value })} />
-            <Field label="Nombre de usuario" required minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" help="Entre 3 y 32 letras minúsculas, números o guiones bajos." autoCapitalize="none" spellCheck={false} value={draft.username} onChange={e => setDraft({ ...draft, username: e.target.value })} />
+            <Field label="Nombre de usuario" required minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" help={USERNAME_HELP} autoCapitalize="none" spellCheck={false} value={draft.username} onChange={e => setDraft({ ...draft, username: e.target.value })} />
             <label className="field"><span className="field-label">Sobre ti</span><textarea className="input" rows={3} maxLength={280} value={draft.bio} placeholder="Lo que te saca de casa. Tu puerto favorito. Tu manera de entender la bici." onChange={e => setDraft({ ...draft, bio: e.target.value })} /><span className="help">{draft.bio.length}/280 · Visible para los usuarios de la app.</span></label>
             <fieldset className="profile-modes"><legend>Mi manera de rodar</legend>{(Object.keys(RIDING_STYLES) as RidingStyle[]).map(mode => { const style = RIDING_STYLES[mode]; const Icon = style.icon; return <label key={mode} className="profile-mode"><input type="radio" name="riding-style" value={mode} checked={draft.riding_style === mode} onChange={() => setDraft({ ...draft, riding_style: mode })} /><Icon className="ic" aria-hidden="true" /><span>{style.label}</span></label>; })}</fieldset>
             <label className="field"><span className="field-label">Quién puede ver tus estadísticas</span><select className="input" value={draft.stats_visibility} onChange={e => setDraft({ ...draft, stats_visibility: e.target.value as Profile['stats_visibility'] })}><option value="everyone">Todos los usuarios de la app</option><option value="friends">Solo amigos aceptados</option></select><span className="help">Esta privacidad también protege las cifras de las salidas publicadas en tu cuaderno. Tus tracks y mapas de salidas son privados.</span></label>

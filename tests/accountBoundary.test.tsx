@@ -146,6 +146,65 @@ describe('guardia obligatoria de cuenta', () => {
       await db.delete();
     });
 
+    describe('perfil sin configurar', () => {
+      const withProfile = (client: SupabaseClient, row: unknown) => {
+        const single = vi.fn().mockResolvedValue({ data: row, error: null });
+        const from = vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ retry: vi.fn(() => ({ single })) })) })) }));
+        Object.assign(client, { from });
+        return from;
+      };
+      const hex = (id: string) => id.replace(/-/g, '');
+
+      it('sin nombre de usuario propio lleva primero a configurar el perfil y después a Tu zona', async () => {
+        const id = '00000000-0000-0000-0000-000000000077';
+        const { client } = mockClient({ id });
+        withArea(client, [{ locality: null, show_area: true }]);
+        const from = withProfile(client, { username: hex(id), display_name: 'Ciclista' });
+        render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+        await screen.findByText('Datos privados', {}, { timeout: 5000 });
+        await vi.waitFor(() => expect(window.location.hash).toBe('#/perfil/nuevo?siguiente=zona'));
+        expect(from).toHaveBeenCalledWith('profiles');
+        await db.delete();
+      });
+
+      it('con el pueblo ya guardado solo pide el perfil', async () => {
+        const id = '00000000-0000-0000-0000-000000000076';
+        const { client } = mockClient({ id });
+        withArea(client, [{ locality: 'Villa Prueba', show_area: true }]);
+        withProfile(client, { username: hex(id), display_name: 'Ciclista' });
+        render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+        await screen.findByText('Datos privados', {}, { timeout: 5000 });
+        await vi.waitFor(() => expect(window.location.hash).toBe('#/perfil/nuevo'));
+        await db.delete();
+      });
+
+      it('con nombre de usuario propio no vuelve a pedir el perfil', async () => {
+        const id = '00000000-0000-0000-0000-000000000075';
+        const { client } = mockClient({ id });
+        const rpc = withArea(client, [{ locality: 'Villa Prueba', show_area: true }]);
+        const from = withProfile(client, { username: 'ana_ruta', display_name: 'Ana' });
+        render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+        await screen.findByText('Datos privados', {}, { timeout: 5000 });
+        await vi.waitFor(() => { expect(rpc).toHaveBeenCalled(); expect(from).toHaveBeenCalled(); });
+        await new Promise((r) => setTimeout(r, 50));
+        expect(window.location.hash).toBe('');
+        await db.delete();
+      });
+
+      it('una cuenta anónima no tiene perfil público que configurar', async () => {
+        const id = '00000000-0000-0000-0000-000000000074';
+        const { client } = mockClient({ id, is_anonymous: true } as { id: string });
+        withArea(client, [{ locality: 'Villa Prueba', show_area: true }]);
+        const from = withProfile(client, { username: hex(id), display_name: 'Ciclista' });
+        render(<AccountBoundary client={client} initialize={initialize}><p>Datos privados</p></AccountBoundary>);
+        await screen.findByText('Datos privados', {}, { timeout: 5000 });
+        await new Promise((r) => setTimeout(r, 50));
+        expect(from).not.toHaveBeenCalled();
+        expect(window.location.hash).toBe('');
+        await db.delete();
+      });
+    });
+
     it('no interrumpe un enlace a otra pantalla', async () => {
       window.location.hash = '#/compartido';
       const { client } = mockClient({ id: '00000000-0000-0000-0000-000000000078' });

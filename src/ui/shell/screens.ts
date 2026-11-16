@@ -36,6 +36,7 @@ const NAMES: Record<string, string> = {
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',
   '/perfil': 'Tu perfil',
+  '/perfil/nuevo': 'Tu perfil ciclista',
   '/importar': 'Importar',
   '/compartido': 'Ficheros compartidos',
   '/ajustes': 'Ajustes',
