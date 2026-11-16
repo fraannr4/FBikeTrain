@@ -63,6 +63,7 @@ test('un dispositivo vacío conserva el marcador remoto y solo lo reemplaza con 
   remote.members[0] = { ...remote.members[0], status: 'accepted', accepted_at: '2026-11-01T08:00:00Z', score: 50000, updated_at: '2026-11-02T08:00:00Z' };
   const state = await mockCommunity(page, [remote]);
   await page.goto('./#/retos/comunidad/c1');
+  await page.getByText('Cambiar de dispositivo', { exact: true }).click();
   const replace = page.getByRole('button', { name: 'Usar las salidas de este dispositivo' });
   await expect(replace).toBeEnabled();
   await expect(page.getByText('Reemplaza tu marcador por las salidas guardadas aquí, incluso si está vacío. Úsalo solo si has cambiado de dispositivo.')).toBeVisible();
@@ -163,11 +164,16 @@ for (const width of [360, 390, 412, 430]) {
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const tied = challenge({ id: 'tied', title: 'Un reto con un nombre muy largo para cruzar todos los puertos de la Sierra Ficticia en compañía', status: 'finished', deadline: '2026-11-02T08:00:00Z', winner_ids: [TEST_USER_ID, OTHER] });
       tied.members[0] = { ...tied.members[0], status: 'accepted', score: 58000, accepted_at: '2026-11-01T08:00:00Z', updated_at: '2026-11-02T08:00:00Z' };
-      await mockCommunity(page, [challenge(), tied]);
+      const duel = challenge({ id: 'duel', title: '¿Quién suma más kilómetros?' });
+      duel.members = [
+        { ...duel.members[0], status: 'accepted', score: 42000, accepted_at: '2026-11-01T08:00:00Z', updated_at: '2026-11-02T08:00:00Z' },
+        { ...duel.members[1], display_name: 'Ana Ruiz' },
+      ];
+      await mockCommunity(page, [duel, challenge(), tied]);
       const tag = `${width}-${theme}`;
       await page.goto('./#/retos');
       await expect(page.getByRole('link', { name: /Te han retado/ })).toBeVisible();
-      await expect(page.locator('.community-hero')).toHaveCSS('display', 'block');
+      await expect(page.locator('.community-rival-entry')).toHaveCSS('display', 'flex');
       expect(await overflow(page)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/lista-${tag}.png`, fullPage: true });
       if (width === 390) await page.screenshot({ path: `${SHOTS}/lista-${tag}-viewport.png` });
@@ -186,6 +192,15 @@ for (const width of [360, 390, 412, 430]) {
         await page.locator('.community-scoreboard').scrollIntoViewIfNeeded();
         await page.screenshot({ path: `${SHOTS}/marcador-${tag}-viewport.png` });
       }
+      await page.goto('./#/retos/comunidad/duel');
+      const comparison = page.getByRole('group', { name: 'Comparativa del duelo' });
+      await expect(comparison.getByText('Tú', { exact: true })).toBeVisible();
+      await expect(comparison.getByText('Ana Ruiz', { exact: true })).toBeVisible();
+      await expect(comparison.getByText('42 km', { exact: true })).toBeVisible();
+      await expect(comparison.getByText('58 km', { exact: true })).toBeVisible();
+      expect(await overflow(page)).toBe(0);
+      await page.screenshot({ path: `${SHOTS}/duelo-${tag}.png`, fullPage: true });
+      if (width === 390) await page.screenshot({ path: `${SHOTS}/duelo-${tag}-viewport.png` });
       await page.goto('./#/retos/nuevo?plantilla=100km');
       await expect(page.getByLabel('Nombre del reto')).toHaveValue('+100 km esta semana');
       expect(await overflow(page)).toBe(0);

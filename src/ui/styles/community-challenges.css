@@ -86,3 +86,41 @@
 .community-rules p { color: var(--ink-3); font-size: 12px; line-height: 1.7; }
 @media (min-width: 430px) { .page--community .community-scoreboard > .community-score-row { grid-template-columns: 28px minmax(0, 1fr) auto; } .community-score-row > strong { grid-column: auto; align-self: center; font-size: 22px; } }
 @media (prefers-reduced-motion: reduce) { .community-challenge { transition: none; } }
+
+/* Opción A: el rival y el duelo preceden a los objetivos de entrenamiento. */
+.page--community .community-rival-entry { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.community-rival-entry > div { min-width: 0; }
+.community-rival-entry p { margin: 7px 0 0; font-size: 19px; font-weight: 600; line-height: 1.25; }
+.community-rival-entry .btn { flex: none; min-height: 48px; gap: 8px; }
+.page--community .community-challenge .community-opponent-line { color: var(--ink); font-weight: 600; font-size: 18px; margin: 16px 0 4px; line-height: 1.35; overflow-wrap: anywhere; }
+.page--community .community-challenge h2 { font-size: 16px; margin: 6px 0 8px; font-weight: 500; color: var(--ink-2); }
+.community-duel { position: relative; margin: 22px 0; }
+.community-duel-people { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: 30px; row-gap: 9px; text-align: center; }
+.community-duel-person { display: contents; }
+.community-duel-person > * { min-width: 0; justify-self: center; align-self: center; }
+.community-duel-person:first-child > * { grid-column: 1; }
+.community-duel-person:last-child > * { grid-column: 2; }
+.community-duel-person > .profile-avatar { grid-row: 1; }
+.community-duel-person > .community-duel-name { grid-row: 2; }
+.community-duel-person > strong { grid-row: 3; }
+.community-duel-person .profile-avatar { width: 66px; height: 66px; font-size: 27px; border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface-2); }
+.community-duel-person:first-child .profile-avatar { color: var(--action); border-color: var(--action); }
+.community-duel-name { display: block; color: var(--ink-2); font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; max-width: 100%; }
+.community-duel-person strong { font-size: clamp(21px,6vw,30px); font-weight: 700; line-height: 1.15; max-width: 100%; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.community-duel-vs { position: absolute; top: 23px; left: 50%; transform: translateX(-50%); color: var(--ink-3); font-size: 11px; font-weight: 700; letter-spacing: .05em; }
+.community-duel-track { height: 7px; overflow: hidden; border-radius: 9px; margin-top: 20px; background: var(--acc-elev); }
+.community-duel-track > span { display: block; height: 100%; background: var(--action); }
+.community-duel--compact { margin: 18px 0 12px; }
+.community-duel--compact .profile-avatar { width: 44px; height: 44px; font-size: 19px; }
+.community-duel--compact .community-duel-vs { top: 14px; }
+.community-duel--compact .community-duel-person strong { font-size: 22px; }
+.community-duel--compact .community-duel-track { margin-top: 14px; }
+.page--community .community-detail-hero--duel .community-duel-heading { color: var(--ink); font-size: 25px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; margin: 18px 0 8px; }
+.page--community .community-detail-hero--duel h2 { font-size: 17px; color: var(--ink-2); font-weight: 500; margin: 0 0 8px; }
+.page--community .community-detail-hero--duel > p { font-size: 13px; margin-bottom: 12px; }
+.page--community .community-detail-hero--duel .community-duel-reference { padding-top: 14px; margin-top: 18px; border-top: 1px solid var(--line); font-size: 12px; }
+.community-my-score--duel { margin-top: 14px; padding-top: 0; border-top: 0; }
+.community-device-option { border-top: 1px solid var(--line); margin-top: 16px; }
+.community-device-option summary { min-height: 44px; padding: 14px 0; color: var(--ink-3); font-size: 12px; cursor: pointer; }
+.community-device-option > p { margin: 4px 0 14px; }
+@media (max-width: 370px) { .community-rival-entry { gap: 10px; } .community-rival-entry .btn { padding-inline: 12px; font-size: 13px; } .community-rival-entry p { font-size: 17px; } }

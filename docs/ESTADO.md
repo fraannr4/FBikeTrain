@@ -1,5 +1,11 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-16): diseño A de Ciclistas y duelos, commit local autorizado
+
+El usuario eligió la propuesta A y pidió limitarse al diseño para conservar presupuesto. Aplicado sobre `9557040` en `codex/comunidad-abierta`: buscador integrado y lista compacta, propio fuera de candidatos, Retar junto a cada ciclista, pareja Tú/rival con cifras alineadas y creación con rival primero. Contratos, SQL y cálculos intactos. Cambiar de dispositivo queda en un desplegable secundario. Fotos de perfil disponibles en Ciclistas; en duelos se usan iniciales mientras la respuesta de miembros no incluya versión de avatar.
+
+Validado con 18/18 unitarias focalizadas, tipos/build y 25/25 Playwright de comunidad en 360/390/412/430 px, ambos temas y apaisado. Capturas reales y alcance: `docs/design/comunidad-opcion-a/README.md`. El usuario ha revisado el diseño y autorizado su commit local. Sin push, migración remota ni despliegue; pendiente de integración con el resto de lotes.
+
 ## Retomar aquí (2026-11-16): comunidad abierta y retos, preparados sin publicar
 
 Worktree `C:/testTrain-comunidad-abierta`, rama `codex/comunidad-abierta`, desde `main` en `e6e6c50`. Modelo propuesto antes de programar: `docs/superpowers/plans/2026-11-16-comunidad-abierta.md`. Guía de comportamiento, límites, integración y publicación: `docs/comunidad-abierta-publicacion.md`.
