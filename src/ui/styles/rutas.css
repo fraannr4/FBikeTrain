@@ -68,7 +68,7 @@ dialog.sheet .rutas-usage { margin-top: 18px; }
 .gen-progress-v { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
 .gen-progress-v .u { font: 600 var(--t-md)/1 var(--font-fig); color: var(--ink-2); }
 .genbar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
-.genbar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 520ms var(--ease-out); }
+.genbar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform var(--dur-sheet) var(--ease-out); }
 .gensteps { display: grid; }
 .gensteps li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 40px; font-size: 15px; color: var(--ink-3); }
 .gensteps li .ic { width: 20px; height: 20px; }

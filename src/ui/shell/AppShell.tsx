@@ -32,6 +32,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (lastPath.current === pathname) return;
     lastPath.current = pathname;
     if (navType !== 'POP' && !overSheet) window.scrollTo(0, 0);
+    // Fundido corto al cambiar de pantalla (no al abrir una hoja). La animación se reinicia quitando
+    // y volviendo a poner el atributo; con movimiento reducido la regla global la deja en 0 ms.
+    const main = mainRef.current;
+    if (main && !overSheet) {
+      main.removeAttribute('data-screen-enter');
+      void main.offsetWidth;
+      main.setAttribute('data-screen-enter', '');
+    }
   }, [pathname, navType, overSheet]);
 
   // Con HashRouter, ir a «#contenido» cambiaría de ruta: se mueve el foco a mano.

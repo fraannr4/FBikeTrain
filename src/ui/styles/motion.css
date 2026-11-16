@@ -1,1 +1,30 @@
-/* Movimiento y prefers-reduced-motion. Lo rellena la tarea 11. */
+/* Movimiento común. Tokens de duración y curva: tokens.css (--dur-*, --ease-*).
+   Solo transform y opacity. prefers-reduced-motion: la regla global de kit.css (sección 16) pone las
+   duraciones a 0; aquí además se quita el desplazamiento. */
+
+/* ---------- Respuesta al pulsar en piezas que el kit no cubría ---------- */
+.kpi, .choice, .round {
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease, background-color var(--dur-fast) ease;
+}
+.kpi[aria-pressed]:active, .choice:active, .round:active { transform: scale(0.97); }
+.choice:active { transform: scale(0.985); }  /* ancha, como las filas */
+
+/* ---------- Entrada de pantalla: fundido corto, solo opacidad (la FAB y la barra son fixed) ---------- */
+@keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
+.main[data-screen-enter] { animation: screen-in 140ms var(--ease-out); }
+
+/* ---------- Entrada de tarjetas: la primera aparición, con escalón corto ----------
+   Una animación CSS corre al montar, no al refrescar datos: re-renderizar no la repite. */
+@keyframes enter-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .cat-list > * {
+    animation: enter-up var(--dur-ui) var(--ease-out) both;
+  }
+  .cat-list > :nth-child(2) { animation-delay: 50ms; }
+  .cat-list > :nth-child(3) { animation-delay: 100ms; }
+  .cat-list > :nth-child(n+4) { animation-delay: 150ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi[aria-pressed]:active, .choice:active, .round:active { transform: none; }
+}
