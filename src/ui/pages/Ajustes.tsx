@@ -48,6 +48,7 @@ import { ThemeToggle } from '../shell/ThemeToggle';
 import { InstallApp } from '../components/InstallApp';
 import { ActivityConnections } from '../components/ActivityConnections';
 import { useConnections } from '../../connections/ConnectionsProvider';
+import { useGarminConnections } from '../../connections/GarminProvider';
 import '../styles/conexiones.css';
 import '../styles/social.css';
 import { useTheme } from '../theme/theme';
@@ -1085,6 +1086,7 @@ function BackupSection({
 
 function DeleteSection({ rides, onDeleted }: { rides: number; onDeleted: () => Promise<void> }) {
   const connections = useConnections();
+  const garmin = useGarminConnections();
   const toast = useToast();
   const [confirm, setConfirm] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -1092,8 +1094,10 @@ function DeleteSection({ rides, onDeleted }: { rides: number; onDeleted: () => P
   async function deleteAll() {
     try {
       await connections?.stop();
+      await garmin?.stop();
       await clearAllData();
       await connections?.refresh();
+      await garmin?.refresh();
       setConfirm(false);
       setFailed(false);
       await onDeleted();

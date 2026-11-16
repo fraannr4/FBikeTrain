@@ -71,6 +71,9 @@ try {
   await db.exec('set search_path = public');
   await db.exec(await readFile(new URL('../supabase/tests/community_open.sql', import.meta.url), 'utf8'));
   console.log('PASS: comunidad registrada, privacidad, bloqueos, denuncias, cuota, retos de grupo, marcador y avisos.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611160010_garmin_connect.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/garmin_connect.sql', import.meta.url), 'utf8'));
+  console.log('PASS: Garmin: tokens, estado PKCE, colas y originales solo para el servidor; estado de un solo uso y cola idempotente.');
 } finally {
   await db.close();
 }

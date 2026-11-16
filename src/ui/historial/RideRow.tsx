@@ -1,3 +1,4 @@
+import { ActivitySource } from '../components/ActivitySource';
 import { memo } from 'react';
 import type { Difficulty } from '../../metrics/reference';
 import { DifficultyBars } from '../components/Chip';
@@ -68,7 +69,7 @@ export const RideRow = memo(function RideRow({ item, now, flat, qn, repeated, sh
         </span>
       }
       meta={
-        <span className="ride-meta">
+        <><ActivitySource activity={act} /><span className="ride-meta">
           <span className="when">
             {whenLabel(act.startTime, now, flat)}
             <span className="sr-only">, {fullDate(act.startTime)}</span>
@@ -80,7 +81,7 @@ export const RideRow = memo(function RideRow({ item, now, flat, qn, repeated, sh
           {showSpeed ? <span data-m="speed">{formatSpeed(item.speedMs)}</span> : null}
           {act.hasTrack ? null : <span className="no-gps">Sin GPS</span>}
           {repeated ? <span className="sr-only">Ruta repetida</span> : null}
-        </span>
+        </span></>
       }
       trail={
         <span className="ride-figs">

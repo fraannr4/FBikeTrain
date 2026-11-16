@@ -1,3 +1,4 @@
+import { GarminConnection } from './GarminConnection';
 import { useEffect, useState } from 'react';
 import { useConnections } from '../../connections/ConnectionsProvider';
 import { validateCredentials } from '../../connections/intervalsClient';
@@ -97,6 +98,7 @@ export function ActivityConnections({ defaultOpen }: { defaultOpen: boolean }) {
           <ImportReportView report={state.result.report} />
         </> : null}
       </div>
+      <GarminConnection />
     </Disclosure>
   );
 }

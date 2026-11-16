@@ -1,3 +1,4 @@
+import { GarminHistoryAttribution } from '../components/ActivitySource';
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useElementSize } from '../hooks/useElementWidth';
@@ -216,6 +217,7 @@ export function Hero({
         <p className="hero-date">{date}</p>
         <p className={greeting.length > 26 ? 'hello hello-long' : 'hello'}>{greeting}</p>
         <p className="sub">{sentence}</p>
+        <GarminHistoryAttribution />
         {notice}
         {action}
       </div>
