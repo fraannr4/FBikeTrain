@@ -14,6 +14,7 @@ insert into auth.users(id,email,is_anonymous) values
 update public.profiles set display_name = 'Ciclista Uno',username = 'ciclista_uno',locality = 'Pueblo sintético',area_lat = 41.61,area_lng = 2.29 where id::text like '%0101';
 update public.profiles set display_name = 'Ciclista Dos',username = 'ciclista_dos',locality = 'Secreto',show_area = false,area_lat = 41.63,area_lng = 2.29 where id::text like '%0102';
 update public.profiles set locality='Cerca',area_lat=41.64,area_lng=2.29 where id::text like '%0103';
+insert into storage.objects(bucket_id,name) values('fbiketrain-avatars','00000000-0000-0000-0000-000000000101/avatar.webp');
 set local role authenticated;
 select pg_temp.who('00000000-0000-0000-0000-000000000101');
 select pg_temp.ok((select count(*) = 4 from public.list_cyclists()),'todas las cuentas registradas, incluida la propia');
@@ -25,6 +26,11 @@ select pg_temp.fails('select area_lat,area_lng from public.profiles','42501');
 select pg_temp.fails('select * from public.community_presence','42501');
 select pg_temp.fails('update public.profiles set area_changes = 0','42501');
 select pg_temp.fails('update public.community_rate_limits set used=0','42501');
+select pg_temp.fails('select public.community_registered(''00000000-0000-0000-0000-000000000102'')','42501');
+select pg_temp.fails('select public.community_visible(''00000000-0000-0000-0000-000000000102'')','42501');
+select pg_temp.ok(public.community_current_registered(),'política puede comprobar solo la cuenta actual');
+select pg_temp.ok((select count(*)=4 from public.community_readable_profile_ids()),'envoltorio solo devuelve identidades visibles de la sesión');
+select pg_temp.ok((select count(*)=1 from storage.objects where bucket_id='fbiketrain-avatars'),'lectura de avatar sigue funcionando sin EXECUTE de helpers privados');
 update public.profiles set bio = 'Propia' where id = auth.uid();
 update public.profiles set bio = 'Ajena' where id = '00000000-0000-0000-0000-000000000102';
 select pg_temp.ok((select bio = '' from public.profiles where id::text like '%0102'),'perfil ajeno solo lectura');
@@ -56,7 +62,7 @@ select pg_temp.fails('select public.community_consume_quota(1)','42501');
 select pg_temp.fails('select public.community_old_list_challenges()','42501');
 select pg_temp.ok((select bool_and(not has_function_privilege('authenticated',p.oid,'EXECUTE') and not has_function_privilege('anon',p.oid,'EXECUTE'))
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and left(p.proname,10)='community_'
-    and p.proname not in ('community_registered','community_visible','community_challenge_visible')),'ningún helper interno tiene EXECUTE del cliente');
+    and p.proname not in ('community_current_registered','community_readable_profile_ids','community_challenge_visible')),'ningún helper interno tiene EXECUTE del cliente');
 -- Invitado pendiente no publica score; aceptar es irreversible.
 select pg_temp.who('00000000-0000-0000-0000-000000000102');
 select pg_temp.fails($$select public.submit_community_score(current_setting('test.community')::uuid,41000)$$,'42501');
@@ -73,6 +79,7 @@ select pg_temp.ok(public.get_community_challenge(current_setting('test.community
 select pg_temp.ok((select count(*)=0 from public.community_challenges),'outsider sin tablas');
 select pg_temp.ok((select count(*)=0 from public.community_challenge_members),'outsider sin miembros');
 select pg_temp.ok((select count(*)=0 from public.community_challenge_scores),'outsider sin cifras');
+select pg_temp.ok((select count(*)=0 from public.list_community_challenges()),'listado parte de las membresías del usuario y excluye retos ajenos');
 select pg_temp.fails($$select public.respond_community_challenge(current_setting('test.community')::uuid,true)$$,'42501');
 select pg_temp.fails($$select public.submit_community_score(current_setting('test.community')::uuid,100000)$$,'42501');
 select pg_temp.fails($$select public.read_community_notification(current_setting('test.notice')::uuid)$$,'42501');
@@ -100,7 +107,10 @@ set local role authenticated;
 select pg_temp.ok(public.get_community_challenge(current_setting('test.segment')::uuid)->'winner_ids' = '["00000000-0000-0000-0000-000000000101"]','segmento gana tiempo menor');
 -- Anónimos autenticados y rol anon: ni perfiles, ni nuevas ni viejas RPC sociales.
 select pg_temp.who('00000000-0000-0000-0000-000000000104');
-select pg_temp.ok(not public.community_registered('00000000-0000-0000-0000-000000000101'),'anónimo no puede sondear existencia de cuentas mediante helper');
+select pg_temp.fails('select public.community_registered(''00000000-0000-0000-0000-000000000101'')','42501');
+select pg_temp.fails('select public.community_visible(''00000000-0000-0000-0000-000000000101'')','42501');
+select pg_temp.ok(not public.community_current_registered(),'envoltorio de sesión rechaza anónimo autenticado');
+select pg_temp.ok((select count(*)=0 from public.community_readable_profile_ids()),'envoltorio no ofrece identidades a anónimo autenticado');
 select pg_temp.ok((select count(*)=0 from public.profiles),'anónimo autenticado no lee perfiles');
 select pg_temp.fails('select * from public.list_cyclists()','42501');
 select pg_temp.fails('select public.touch_community_activity()','42501');
@@ -142,6 +152,7 @@ select pg_temp.who('00000000-0000-0000-0000-000000000102');
 select pg_temp.ok((select count(*)=0 from public.profiles where id::text like '%0101'),'bloqueo inverso perfil directo');
 select pg_temp.ok((select count(*)=0 from public.search_profiles('Uno')),'bloqueo inverso búsqueda');
 select pg_temp.ok((select count(*)=0 from public.profile_posts),'bloqueo inverso cuaderno');
+select pg_temp.ok((select count(*)=0 from storage.objects where bucket_id='fbiketrain-avatars'),'bloqueo inverso avatar bajo RLS');
 select pg_temp.ok((select count(*)=0 from public.list_community_notifications()),'bloqueo oculta avisos');
 select pg_temp.fails($$select public.create_community_challenge('X','rides',1,array['00000000-0000-0000-0000-000000000101']::uuid[])$$,'22023');
 select public.report_cyclist('00000000-0000-0000-0000-000000000101','Conducta inapropiada sintética');
@@ -223,4 +234,59 @@ select pg_temp.ok(public.get_community_challenge('20000000-0000-0000-0000-000000
 -- Las denuncias solo se revisan desde el servicio; el destinatario nunca las recibe.
 set local role service_role;
 select pg_temp.ok((select count(*)=1 from public.community_reports),'servicio puede moderar denuncias');
+
+-- Cuotas de cifras desde aceptar, sin heredar los diez días previos del reto.
+reset role;
+insert into public.community_challenges(id,creator_id,title,kind,created_at,deadline,distance_m)
+  select ('30000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid,'00000000-0000-0000-0000-000000000105',
+    'Límite sintético ' || i,kind,now()-interval '10 days',now()+interval '10 days',case when kind='speed' then 1000 end
+  from (values(1,'distance'),(2,'elevation'),(3,'rides'),(4,'speed')) t(i,kind);
+insert into public.community_challenge_members(challenge_id,user_id,status,accepted_at)
+  select ('30000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid,'00000000-0000-0000-0000-000000000101','accepted',now()
+    from generate_series(1,4) i;
+set local role authenticated;
+select pg_temp.who('00000000-0000-0000-0000-000000000101');
+select public.submit_community_score('30000000-0000-0000-0000-000000000001',400000);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000001',400000.001)$$,'22023');
+select public.submit_community_score('30000000-0000-0000-0000-000000000002',6000);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000002',6000.001)$$,'22023');
+select public.submit_community_score('30000000-0000-0000-0000-000000000003',4);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000003',5)$$,'22023');
+select public.submit_community_score('30000000-0000-0000-0000-000000000004',60.0/3.6);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000004',60.01/3.6)$$,'22023');
+select pg_temp.ok((select score=400000 from public.community_challenge_scores where challenge_id='30000000-0000-0000-0000-000000000001'),'rechazar exceso no recorta ni sobrescribe el snapshot');
+-- Día exacto mantiene una cuota; un segundo después comienza la siguiente ventana de 24 h.
+reset role;
+update public.community_challenge_members set accepted_at=now()-interval '24 hours' where challenge_id::text like '30000000-%' and user_id::text like '%0101';
+set local role authenticated;
+select public.submit_community_score('30000000-0000-0000-0000-000000000001',400000);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000001',400001)$$,'22023');
+reset role;
+update public.community_challenge_members set accepted_at=now()-interval '24 hours 1 second' where challenge_id::text like '30000000-%' and user_id::text like '%0101';
+set local role authenticated;
+select public.submit_community_score('30000000-0000-0000-0000-000000000001',800000);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000001',800001)$$,'22023');
+select public.submit_community_score('30000000-0000-0000-0000-000000000002',12000);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000002',12001)$$,'22023');
+select public.submit_community_score('30000000-0000-0000-0000-000000000003',8);
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000003',9)$$,'22023');
+select pg_temp.fails($$select public.submit_community_score('30000000-0000-0000-0000-000000000004',60.01/3.6)$$,'22023');
+
+-- Cierre perezoso: aceptados reciben finished; pendientes, rechazados y ajenos nunca.
+reset role;
+insert into public.community_challenges(id,creator_id,title,kind,created_at,deadline)
+  select ('40000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid,'00000000-0000-0000-0000-000000000105',
+    'Cierre sintético ' || i,'rides',now()-interval '2 days',now()-interval '1 day' from generate_series(1,4) i;
+insert into public.community_challenge_members(challenge_id,user_id,status,accepted_at)
+  select ('40000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid,'00000000-0000-0000-0000-000000000101',
+    status,case when status='accepted' then now()-interval '2 days' end
+    from (values(1,'accepted'),(2,'pending'),(3,'declined')) t(i,status);
+insert into public.community_challenge_members(challenge_id,user_id,status,accepted_at)
+  select ('40000000-0000-0000-0000-' || lpad(i::text,12,'0'))::uuid,'00000000-0000-0000-0000-000000000105','accepted',now()-interval '2 days'
+    from generate_series(1,4) i;
+set local role authenticated;
+select pg_temp.ok((select count(*)=1 from public.list_community_notifications() where kind='finished' and challenge_id::text like '40000000-%'),'solo accepted recibe aviso de cierre');
+select pg_temp.ok((select count(*)=1 from public.list_community_notifications() where kind='finished' and challenge_id::text like '40000000-%'),'cierre sigue siendo idempotente');
+select pg_temp.ok((select count(*)=0 from public.community_notifications where kind='finished' and challenge_id in ('40000000-0000-0000-0000-000000000002','40000000-0000-0000-0000-000000000003','40000000-0000-0000-0000-000000000004')),'no materializa avisos para pending, declined ni outsiders');
+select pg_temp.ok((select count(*)=3 from public.list_community_challenges(50) q(value) where value->>'id' like '40000000-%'),'paginación conserva las tres membresías y excluye el reto ajeno');
 rollback;

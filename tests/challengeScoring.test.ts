@@ -109,4 +109,47 @@ describe('snapshot idempotente del marcador', () => {
     await syncCommunityScores({ rpc } as unknown as SupabaseClient, 'me');
     expect(rpc).not.toHaveBeenCalledWith('submit_community_score', expect.anything());
   });
+  it('encola otro reto y agrupa las peticiones repetidas de ese reto sin perder su actualización', async () => {
+    const a = challenge(); a.id = 'a';
+    a.members[0].accepted_at = new Date(Date.now() - 86_400_000).toISOString();
+    a.deadline = new Date(Date.now() + 86_400_000).toISOString();
+    const b = { ...a, id: 'b' };
+    await db.activities.put(ride('recent', { startTime: Date.now() - 3_600_000 }));
+    let release!: (value: { data: CommunityChallenge[]; error: null }) => void;
+    const firstRead = new Promise<{ data: CommunityChallenge[]; error: null }>(resolve => { release = resolve; });
+    let reads = 0;
+    const rpc = vi.fn(async (name: string) => {
+      if (name === 'list_community_challenges') return ++reads === 1 ? firstRead : { data: [a, b], error: null };
+      return { data: null, error: null };
+    });
+    const client = { rpc } as unknown as SupabaseClient;
+    const first = syncCommunityScores(client, 'me', { challengeId: 'a' });
+    expect(syncCommunityScores(client, 'me', { challengeId: 'a' })).toBe(first);
+    const second = syncCommunityScores(client, 'me', { challengeId: 'b' });
+    const repeated = syncCommunityScores(client, 'me', { challengeId: 'b' });
+    expect(second).not.toBe(first);
+    release({ data: [a], error: null });
+    await Promise.all([first, second, repeated]);
+    expect(reads).toBe(2);
+    expect(rpc.mock.calls.filter(([name]) => name === 'submit_community_score')).toEqual([
+      ['submit_community_score', { challenge_id: 'a', score: 2000 }],
+      ['submit_community_score', { challenge_id: 'b', score: 2000 }],
+    ]);
+  });
+  it('ejecuta el reto encolado aunque la pasada anterior falle', async () => {
+    let reject!: (reason: Error) => void;
+    const firstRead = new Promise<never>((_, fail) => { reject = fail; });
+    const rpc = vi.fn().mockImplementationOnce(() => firstRead).mockResolvedValue({ data: [], error: null });
+    const client = { rpc } as unknown as SupabaseClient;
+    const first = syncCommunityScores(client, 'me', { challengeId: 'a' });
+    const failed = expect(first).rejects.toThrow('Sin conexión');
+    const next = syncCommunityScores(client, 'me', { challengeId: 'b' });
+    reject(new Error('Sin conexión'));
+    await failed;
+    await next;
+    expect(rpc).toHaveBeenCalledTimes(2);
+    // The queue is released after the retry, so later callers can start normally.
+    await syncCommunityScores(client, 'me', { challengeId: 'b' });
+    expect(rpc).toHaveBeenCalledTimes(3);
+  });
 });

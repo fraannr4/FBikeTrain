@@ -46,3 +46,15 @@ Mensaje de commit propuesto:
 ## Verificación local
 
 Resultado final: `npm run test:db` correcto (13 bloques, PostgreSQL embebido); `npx vitest run --maxWorkers=4 --minWorkers=1` 1.909/1.909 en 150 ficheros; `npx tsc --noEmit` limpio; `npm run build` correcto y Vite repetido después del pulido visual; escáner de secretos limpio. Playwright: 62/62 escenarios de comunidad/perfil/navegación/retos anteriores; repetición final 26/26 de comunidad después de corregir la colisión CSS del marcador y el foco al enviar una denuncia. Último ajuste de compatibilidad de enlaces de biblioteca comprobado con 27/27 unitarias focalizadas y una nueva pasada del formulario de ruta, además de repetir `npm run build`. Incluye una importación GPX real por Worker, deduplicación y protección del marcador frente a un dispositivo vacío. Capturas reales revisadas en 360/390/412/430 px, ambos temas y apaisado. Selección versionable en [capturas](design/comunidad-abierta/README.md). Los avisos de bundle grande y anotaciones de Zod siguen siendo no bloqueantes. Las pruebas y capturas usan exclusivamente datos sintéticos. No se ha accedido al ZIP real ni a las credenciales de servicio.
+
+## Correcciones de revisión sobre 5427d91 — 2026-11-16
+
+La migración sigue siendo `202611160003_community_open.sql`, aún sin aplicar. `submit_community_score` rechaza cifras superiores a 400 km, 6.000 m o 4 salidas por día de participación; la media no supera 60 km/h. Un día es un bloque de 24 horas iniciado desde `accepted_at` (`ceil`, mínimo 1, máximo 30), independiente de medianoche y de los días anteriores a la aceptación. El exceso se rechaza y conserva el snapshot anterior; no se recorta.
+
+El aviso de cierre solo se materializa para miembros aceptados. El listado de retos y el cierre perezoso parten de `community_challenge_members` filtrada por `user_id=auth.uid()`, con el índice existente, antes de unir retos.
+
+`community_registered(uuid)` y `community_visible(uuid)` quedan sin EXECUTE de authenticated/anon/PUBLIC. Para conservar RLS se usan envoltorios definer sin argumentos, ligados a la sesión actual: comprobación de cuenta propia e IDs de perfiles visibles. No permiten sondear un UUID arbitrario. Las funciones definer internas conservan el uso de los predicados privados.
+
+La sincronización del marcador recuerda el usuario y el reto de la pasada activa: peticiones para otro reto esperan y ejecutan una nueva pasada. Las repetidas para el mismo reto se agrupan y una pasada fallida no atasca las siguientes.
+
+Verificación de la revisión: `npm run test:db` 13 bloques correctos; Vitest completo 1.911/1.911 en 150 ficheros; tipos, build y escáner de secretos correctos. Dos nuevas pruebas unitarias cubren la cola concurrente y su recuperación tras error. El usuario autoriza un commit local nuevo; no se hace push ni se aplica la migración remota.

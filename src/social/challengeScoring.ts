@@ -146,13 +146,21 @@ export async function scoreCommunityChallenge(
   return Math.round(score * 1000) / 1000;
 }
 
-const pending = new WeakMap<SupabaseClient, Promise<void>>();
 type SyncOptions = { challengeId?: string; replaceRemote?: boolean };
+type PendingSync = { promise: Promise<void>; userId: string; challengeId?: string };
+const pending = new WeakMap<SupabaseClient, PendingSync>();
 const sourceKey = (challengeId: string) => `community-score-source:${challengeId}`;
 /** A snapshot replaces the previous total, so retries, reimports and local deletions cannot add twice. */
 export function syncCommunityScores(client: SupabaseClient, userId: string, options: SyncOptions = {}): Promise<void> {
   const existing = pending.get(client);
-  if (existing) return options.replaceRemote ? existing.catch(() => {}).then(() => syncCommunityScores(client, userId, options)) : existing;
+  if (existing) {
+    // A different target may have been created/accepted after the running job read its snapshot.
+    // Queued callers for the same target coalesce when the next pass starts.
+    const needsAnotherPass = options.replaceRemote || existing.userId !== userId || existing.challengeId !== options.challengeId;
+    return needsAnotherPass
+      ? existing.promise.catch(() => {}).then(() => syncCommunityScores(client, userId, options))
+      : existing.promise;
+  }
   const job = (async () => {
     const databaseName = db.name;
     const challenges: CommunityChallenge[] = [];
@@ -183,6 +191,6 @@ export function syncCommunityScores(client: SupabaseClient, userId: string, opti
       }
     }
   })().finally(() => { pending.delete(client); });
-  pending.set(client, job);
+  pending.set(client, { promise: job, userId, challengeId: options.challengeId });
   return job;
 }

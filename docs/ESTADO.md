@@ -4,6 +4,9 @@
 
 Worktree `C:/testTrain-comunidad-abierta`, rama `codex/comunidad-abierta`, desde `main` en `e6e6c50`. Modelo propuesto antes de programar: `docs/superpowers/plans/2026-11-16-comunidad-abierta.md`. Guía de comportamiento, límites, integración y publicación: `docs/comunidad-abierta-publicacion.md`.
 
+- **Revisión posterior a `5427d91`, autorizada para un commit local nuevo:** la misma migración 202611160003 limita cifras desde la aceptación (400 km, 6.000 m y 4 salidas por día iniciado de 24 h; media máxima 60 km/h), genera cierre solo para aceptados y consulta desde las membresías propias. Los helpers con UUID quedan privados, con envoltorios RLS ligados a la sesión. El cliente encola una nueva pasada si cambia el reto solicitado mientras hay otra activa. Sin push ni SQL remoto.
+- Verificación de esta revisión: 13 bloques SQL correctos, 1.911/1.911 unitarias en 150 ficheros, `tsc --noEmit`, build y escáner de secretos correctos. Incluye pruebas de límites exactos/excesos, frontera de 24 h, aceptación tardía, permisos RLS y cola de retos con fallo de la pasada anterior. No cambia la interfaz.
+
 - Ciclistas: todas las cuentas registradas, paginación, búsqueda y orden por día de uso reciente. Perfil, amistad y reto a cualquiera; zona sin nuevas coordenadas ni distancias exactas.
 - Retos: distancia, desnivel, salidas, subidas detectadas y mejor media en distancia continua; 1–30 días, duelos y grupos hasta 20, aceptación/rechazo, marcador, historial, empates/ganadores y avisos. Los retos de ruta anteriores se conservan.
 - Solo se envían cifras del marcador. No se sincroniza el historial completo. Un dispositivo nuevo no borra automáticamente una cifra remota positiva; el detalle permite reemplazarla expresamente. Las subidas se reconocen aproximadamente mediante firma local, sin editor de tramos arbitrarios ni certificación de los archivos.

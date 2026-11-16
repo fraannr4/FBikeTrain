@@ -369,3 +369,14 @@ Rama `codex/comunidad-abierta`, worktree `C:/testTrain-comunidad-abierta`. Model
 Se corrigieron durante revisión permisos de helpers dependientes de search_path, carrera de bloqueo/respuesta, validación de plantilla de desnivel, colisión CSS de tarjetas y pérdida de foco tras denuncia. La actualización automática conserva marcadores remotos positivos desde dispositivos sin origen local reconocido; reemplazar ese origen exige una acción explícita. La firma de subida es aproximada y las cifras importadas se basan en confianza.
 
 Pendiente real: aplicar SQL en Supabase y comprobar con dos cuentas registradas y una anónima. El usuario ha autorizado después el commit local del lote. No se ha ejecutado ninguna migración remota, push ni despliegue. El cierre del marcador no necesita cron; el aviso se genera al consultar las notificaciones. Este lote no cierra la sincronización completa del historial.
+
+## Revisión de retos sobre 5427d91 — 2026-11-16
+
+Correcciones en la misma migración `202611160003`, todavía sin aplicar: cifras máximas por bloques de 24 h iniciados desde la aceptación (400 km, 6.000 m y 4 salidas por día; media de hasta 60 km/h), avisos finished solo para aceptados, consultas desde membresías propias y revocación de EXECUTE de los dos helpers con UUID. RLS conserva su funcionamiento mediante envoltorios definer sin argumentos ligados a la sesión. El cliente encola las peticiones de otro reto y agrupa las repetidas; un fallo no bloquea la siguiente pasada.
+
+- `npm run test:db`: 13 bloques correctos. Pruebas de techos exactos, exceso sin sobrescribir snapshot, aceptación tardía, 24 h y 24 h + 1 s, accepted/pending/declined/outsider, helpers privados y regresión de RLS.
+- `npx vitest run --maxWorkers=4 --minWorkers=1`: 1.911/1.911, 150 ficheros.
+- `npx tsc --noEmit`: limpio.
+- `npm run build`: correcto; avisos de dependencias/bundle ya conocidos. Escáner de secretos correcto.
+
+Revisión independiente de la cola sin hallazgos. Sin cambios de interfaz ni nuevas migraciones; sin push ni acciones SQL remotas. El usuario ha autorizado un commit local nuevo.

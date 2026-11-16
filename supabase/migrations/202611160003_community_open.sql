@@ -36,6 +36,16 @@ language sql stable security definer set search_path = '' as $$
       where (b.blocker_id = auth.uid() and b.blocked_id = target_id)
         or (b.blocked_id = auth.uid() and b.blocker_id = target_id))
 $$;
+-- Políticas con envoltorios ligados a la sesión: no exponen un sondeo de UUID arbitrario.
+-- Los predicados internos quedan sin EXECUTE del cliente, también cuando son SECURITY DEFINER.
+create function public.community_current_registered() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select public.community_registered()
+$$;
+create function public.community_readable_profile_ids() returns setof uuid
+language sql stable security definer set search_path = '' as $$
+  select p.id from public.profiles p where public.community_visible(p.id)
+$$;
 create function public.community_require_registered() returns void
 language plpgsql stable security definer set search_path = '' as $$
 begin
@@ -61,21 +71,21 @@ alter table public.community_rate_limits enable row level security;
 revoke all on public.community_blocks, public.community_reports, public.community_presence, public.community_rate_limits from anon, authenticated;
 grant select on public.community_blocks, public.community_reports to authenticated;
 grant select on public.community_reports to service_role;
-create policy community_blocks_owner on public.community_blocks for select to authenticated using(blocker_id = auth.uid() and public.community_registered());
-create policy community_reports_owner on public.community_reports for select to authenticated using(reporter_id = auth.uid() and public.community_registered());
+create policy community_blocks_owner on public.community_blocks for select to authenticated using(blocker_id = auth.uid() and (select public.community_current_registered()));
+create policy community_reports_owner on public.community_reports for select to authenticated using(reporter_id = auth.uid() and (select public.community_current_registered()));
 create policy community_reports_service on public.community_reports for select to service_role using(true);
 
 -- El grant de columnas público existente permanece; las columnas de zona siguen fuera de SELECT.
 drop policy profiles_search on public.profiles;
-create policy profiles_search on public.profiles for select to authenticated using(public.community_visible(id));
+create policy profiles_search on public.profiles for select to authenticated using(id in (select public.community_readable_profile_ids()));
 create policy profiles_registered_edit on public.profiles as restrictive for update to authenticated
-  using(public.community_registered()) with check(public.community_registered());
+  using((select public.community_current_registered())) with check((select public.community_current_registered()));
 create policy friendships_community_guard on public.friendships as restrictive for select to authenticated
-  using(public.community_visible(requester_id) and public.community_visible(recipient_id));
+  using(requester_id in (select public.community_readable_profile_ids()) and recipient_id in (select public.community_readable_profile_ids()));
 create policy journal_community_guard on public.profile_posts as restrictive for select to authenticated
-  using(public.community_visible(author_id));
+  using(author_id in (select public.community_readable_profile_ids()));
 create policy avatars_community_guard on storage.objects as restrictive for select to authenticated
-  using(bucket_id <> 'fbiketrain-avatars' or (public.community_registered()
+  using(bucket_id <> 'fbiketrain-avatars' or ((select public.community_current_registered())
     and exists(select 1 from public.profiles p where name = p.id::text || '/avatar.webp')));
 
 create function public.touch_community_activity() returns void
@@ -191,8 +201,8 @@ grant select on public.community_challenges,public.community_challenge_members,p
 create policy community_challenges_read on public.community_challenges for select to authenticated using(public.community_challenge_visible(id));
 create policy community_members_read on public.community_challenge_members for select to authenticated using(public.community_challenge_visible(challenge_id));
 create policy community_scores_read on public.community_challenge_scores for select to authenticated using(public.community_challenge_visible(challenge_id));
-create policy community_notifications_read on public.community_notifications for select to authenticated using(user_id = auth.uid() and public.community_registered()
-  and (actor_id is null or public.community_visible(actor_id)) and (challenge_id is null or public.community_challenge_visible(challenge_id)));
+create policy community_notifications_read on public.community_notifications for select to authenticated using(user_id = auth.uid() and (select public.community_current_registered())
+  and (actor_id is null or actor_id in (select public.community_readable_profile_ids())) and (challenge_id is null or public.community_challenge_visible(challenge_id)));
 
 create function public.create_community_challenge(title text,kind text,duration_days integer,invited_ids uuid[],target_value double precision default null,distance_m integer default null,segment_key text default null) returns uuid
 language plpgsql security definer set search_path = '' as $$
@@ -243,16 +253,22 @@ end $$;
 create function public.submit_community_score(challenge_id uuid,score double precision) returns void
 language plpgsql security definer set search_path = '' as $$
 #variable_conflict use_column
-declare c public.community_challenges; maximum double precision;
+declare c public.community_challenges; maximum double precision; accepted_from timestamptz; elapsed_days integer;
 begin
   perform public.community_require_registered();
   perform pg_catalog.pg_advisory_xact_lock(611160003);
   select * into c from public.community_challenges where id = challenge_id for update;
-  if not found or not public.community_challenge_visible(challenge_id)
-    or not exists(select 1 from public.community_challenge_members m where m.challenge_id = c.id and m.user_id = auth.uid() and m.status = 'accepted') then
+  if not found or not public.community_challenge_visible(challenge_id) then
     raise exception 'Reto no disponible' using errcode = '42501'; end if;
+  select m.accepted_at into accepted_from from public.community_challenge_members m
+    where m.challenge_id = c.id and m.user_id = auth.uid() and m.status = 'accepted';
+  if not found then raise exception 'Reto no disponible' using errcode = '42501'; end if;
   if c.deadline <= now() then raise exception 'Reto cerrado' using errcode = '22023'; end if;
-  maximum := case c.kind when 'distance' then 150000000 when 'elevation' then 3000000 when 'rides' then 3000 when 'speed' then 40 else 2592000 end;
+  -- Días de 24 h iniciados desde aceptar: el primer día dispone de una cuota completa,
+  -- sin depender de medianoche ni del tiempo que el reto llevaba abierto antes de aceptar.
+  elapsed_days := least(30,greatest(1,ceil(extract(epoch from (now() - accepted_from)) / 86400.0)))::integer;
+  maximum := case c.kind when 'distance' then 400000 * elapsed_days when 'elevation' then 6000 * elapsed_days
+    when 'rides' then 4 * elapsed_days when 'speed' then 60.0 / 3.6 else 2592000 end;
   if score is null or not(score >= 0 and score <= maximum) or (c.kind = 'rides' and score <> trunc(score)) then
     raise exception 'Cifras no válidas' using errcode = '22023'; end if;
   insert into public.community_challenge_scores(challenge_id,user_id,score) values(c.id,auth.uid(),score)
@@ -285,8 +301,10 @@ language plpgsql stable security definer set search_path = '' as $$
 begin
   perform public.community_require_registered();
   if page_offset is null or page_offset < 0 or page_offset > 100000 then raise exception 'Página no válida' using errcode = '22023'; end if;
-  return query select public.community_challenge_json(c.id) from public.community_challenges c
-    where public.community_challenge_visible(c.id) order by c.created_at desc,c.id desc limit 50 offset page_offset;
+  return query select public.community_challenge_json(c.id) from public.community_challenge_members mine
+    join public.community_challenges c on c.id = mine.challenge_id
+    where mine.user_id = auth.uid() and public.community_challenge_visible(c.id)
+    order by c.created_at desc,c.id desc limit 50 offset page_offset;
 end $$;
 create function public.list_community_notifications(page_offset integer default 0)
 returns table(id uuid,kind text,challenge_id uuid,actor_id uuid,created_at timestamptz,read_at timestamptz)
@@ -297,8 +315,9 @@ begin
   if page_offset is null or page_offset < 0 or page_offset > 100000 then raise exception 'Página no válida' using errcode = '22023'; end if;
   -- Cierre perezoso e idempotente: no necesita cron ni permisos del cliente sobre el estado.
   insert into public.community_notifications(user_id,kind,challenge_id)
-    select auth.uid(),'finished',c.id from public.community_challenges c
-    where c.deadline <= now() and public.community_challenge_visible(c.id)
+    select auth.uid(),'finished',c.id from public.community_challenge_members mine
+    join public.community_challenges c on c.id = mine.challenge_id
+    where mine.user_id = auth.uid() and mine.status = 'accepted' and c.deadline <= now() and public.community_challenge_visible(c.id)
     on conflict(user_id,challenge_id) where kind = 'finished' do nothing;
   return query select n.id,n.kind,n.challenge_id,n.actor_id,n.created_at,n.read_at from public.community_notifications n
     where n.user_id = auth.uid() and (n.actor_id is null or public.community_visible(n.actor_id))
@@ -370,7 +389,7 @@ create function public.delete_profile_post(post_id uuid) returns void language p
 begin perform public.community_require_registered(); perform public.community_old_delete_profile_post(post_id); end $$;
 
 create policy legacy_challenges_guard on public.challenges as restrictive for select to authenticated
-  using(public.community_visible(challenger_id) and public.community_visible(challenged_id));
+  using(challenger_id in (select public.community_readable_profile_ids()) and challenged_id in (select public.community_readable_profile_ids()));
 create policy legacy_results_guard on public.challenge_results as restrictive for select to authenticated
   using(exists(select 1 from public.challenges c where c.id = challenge_id));
 alter function public.create_challenge(uuid,text,jsonb,integer,integer) rename to community_old_create_challenge;
@@ -426,7 +445,7 @@ do $$ declare f record; begin
       'request_friendship','accept_friendship','remove_friendship','search_profiles','search_profiles_near','list_friends','my_area','create_profile_post','delete_profile_post',
       'create_challenge','respond_challenge','submit_challenge_result','list_challenges')) loop
     execute format('revoke all on function %s from public,anon,authenticated',f.signature);
-    if left(f.function_name,10) <> 'community_' or f.function_name in ('community_registered','community_visible','community_challenge_visible') then
+    if left(f.function_name,10) <> 'community_' or f.function_name in ('community_current_registered','community_readable_profile_ids','community_challenge_visible') then
       execute format('grant execute on function %s to authenticated',f.signature);
     end if;
   end loop;
