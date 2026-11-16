@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="fixture sintética" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Sin enlace</name></metadata>
+<trk><name>Sin enlace</name><trkseg>
+<trkpt lat="40.900000" lon="2.500000"><ele>20.0</ele></trkpt>
+<trkpt lat="40.900880" lon="2.507365"><ele>24.6</ele></trkpt>
+<trkpt lat="40.903435" lon="2.514008"><ele>28.8</ele></trkpt>
+<trkpt lat="40.907414" lon="2.519281"><ele>32.1</ele></trkpt>
+<trkpt lat="40.912428" lon="2.522666"><ele>34.3</ele></trkpt>
+<trkpt lat="40.917986" lon="2.523832"><ele>35.0</ele></trkpt>
+<trkpt lat="40.923545" lon="2.522666"><ele>34.3</ele></trkpt>
+<trkpt lat="40.928559" lon="2.519281"><ele>32.1</ele></trkpt>
+<trkpt lat="40.932538" lon="2.514008"><ele>28.8</ele></trkpt>
+<trkpt lat="40.935093" lon="2.507365"><ele>24.6</ele></trkpt>
+<trkpt lat="40.935973" lon="2.500000"><ele>20.0</ele></trkpt>
+<trkpt lat="40.935093" lon="2.492635"><ele>15.4</ele></trkpt>
+<trkpt lat="40.932538" lon="2.485992"><ele>11.2</ele></trkpt>
+<trkpt lat="40.928559" lon="2.480719"><ele>7.9</ele></trkpt>
+<trkpt lat="40.923545" lon="2.477334"><ele>5.7</ele></trkpt>
+<trkpt lat="40.917986" lon="2.476168"><ele>5.0</ele></trkpt>
+<trkpt lat="40.912428" lon="2.477334"><ele>5.7</ele></trkpt>
+<trkpt lat="40.907414" lon="2.480719"><ele>7.9</ele></trkpt>
+<trkpt lat="40.903435" lon="2.485992"><ele>11.2</ele></trkpt>
+<trkpt lat="40.900880" lon="2.492635"><ele>15.4</ele></trkpt>
+<trkpt lat="40.900000" lon="2.500000"><ele>20.0</ele></trkpt>
+</trkseg></trk>
+</gpx>

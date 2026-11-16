@@ -159,7 +159,7 @@ describe('proposeNearbyRoutes', () => {
       }) as unknown as typeof fetch,
     };
     const adapt = vi.fn(async (points: LatLng[]): Promise<AdaptedRoute> => ({
-      coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: D_KM * 1000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [],
+      coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: D_KM * 1000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [], requestsUsed: 0,
     }));
     const fetchPath = fakePath();
     const res = await proposeNearbyRoutes(target, deps({ rwgps, adapt, fetchPath }));

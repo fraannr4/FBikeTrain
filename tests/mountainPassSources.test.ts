@@ -23,6 +23,7 @@ const dependencies = (): RouteSourceDependencies => ({
   consumeQuota: vi.fn().mockResolvedValue({ allowed: true, retryAfterS: 0 }),
   readCache: vi.fn().mockResolvedValue(null), writeCache: vi.fn().mockResolvedValue(undefined),
   claim: vi.fn().mockResolvedValue(true), fetch: vi.fn().mockImplementation(async () => Response.json(payload())), now: () => Date.parse(at),
+  routesInBox: vi.fn(), heatCellsInBox: vi.fn(), replaceHeatCells: vi.fn(), upsertRoutes: vi.fn(), rwgpsRouteDetail: vi.fn(),
 });
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());

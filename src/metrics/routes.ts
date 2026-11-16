@@ -1,4 +1,4 @@
-import type { RouteGroup, RouteSig, TrackPoint } from '../domain/types';
+import type { RouteGroup, RouteSig, TrackPoint } from '../domain/types.ts';
 
 /** Lado de la celda de la rejilla con la que se compara el trazado (m). */
 export const ROUTE_CELL_M = 200;

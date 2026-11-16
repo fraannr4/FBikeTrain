@@ -100,7 +100,7 @@ describe('recomendación desde el catálogo', () => {
   };
   const ok = (r: ReferenceRoute, shift = 0): AdaptedRoute => ({
     coords: r.points.map((p) => ({ lat: p.lat, lng: p.lng + shift })), distanceM: r.summary.distanceM, elevGainM: r.summary.elevGainM,
-    connectorM: 0, passesNearM: 0, rotated: false, warnings: [],
+    connectorM: 0, passesNearM: 0, rotated: false, warnings: [], requestsUsed: 0,
   });
   const target = { start: START, distanceKm: 60, elevGainM: 800 };
 

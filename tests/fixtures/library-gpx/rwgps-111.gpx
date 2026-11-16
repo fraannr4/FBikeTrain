@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="fixture sintética" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Vuelta sintética A</name><link href="https://ridewithgps.com/routes/111"><text>Ride with GPS</text></link><desc>distance_m=25000;elev_gain_m=300;unpaved_pct=0;track_type=loop</desc></metadata>
+<trk><name>Vuelta sintética A</name><trkseg>
+<trkpt lat="41.000000" lon="2.500000"><ele>20.0</ele></trkpt>
+<trkpt lat="41.000443" lon="2.507456"><ele>22.3</ele></trkpt>
+<trkpt lat="41.001761" lon="2.514729"><ele>24.6</ele></trkpt>
+<trkpt lat="41.003921" lon="2.521639"><ele>26.8</ele></trkpt>
+<trkpt lat="41.006870" lon="2.528016"><ele>28.8</ele></trkpt>
+<trkpt lat="41.010536" lon="2.533704"><ele>30.6</ele></trkpt>
+<trkpt lat="41.014829" lon="2.538561"><ele>32.1</ele></trkpt>
+<trkpt lat="41.019642" lon="2.542469"><ele>33.4</ele></trkpt>
+<trkpt lat="41.024857" lon="2.545332"><ele>34.3</ele></trkpt>
+<trkpt lat="41.030345" lon="2.547078"><ele>34.8</ele></trkpt>
+<trkpt lat="41.035973" lon="2.547664"><ele>35.0</ele></trkpt>
+<trkpt lat="41.041600" lon="2.547078"><ele>34.8</ele></trkpt>
+<trkpt lat="41.047089" lon="2.545332"><ele>34.3</ele></trkpt>
+<trkpt lat="41.052304" lon="2.542469"><ele>33.4</ele></trkpt>
+<trkpt lat="41.057117" lon="2.538561"><ele>32.1</ele></trkpt>
+<trkpt lat="41.061409" lon="2.533704"><ele>30.6</ele></trkpt>
+<trkpt lat="41.065075" lon="2.528016"><ele>28.8</ele></trkpt>
+<trkpt lat="41.068025" lon="2.521639"><ele>26.8</ele></trkpt>
+<trkpt lat="41.070185" lon="2.514729"><ele>24.6</ele></trkpt>
+<trkpt lat="41.071503" lon="2.507456"><ele>22.3</ele></trkpt>
+<trkpt lat="41.071946" lon="2.500000"><ele>20.0</ele></trkpt>
+<trkpt lat="41.071503" lon="2.492544"><ele>17.7</ele></trkpt>
+<trkpt lat="41.070185" lon="2.485271"><ele>15.4</ele></trkpt>
+<trkpt lat="41.068025" lon="2.478361"><ele>13.2</ele></trkpt>
+<trkpt lat="41.065075" lon="2.471984"><ele>11.2</ele></trkpt>
+<trkpt lat="41.061409" lon="2.466296"><ele>9.4</ele></trkpt>
+<trkpt lat="41.057117" lon="2.461439"><ele>7.9</ele></trkpt>
+<trkpt lat="41.052304" lon="2.457531"><ele>6.6</ele></trkpt>
+<trkpt lat="41.047089" lon="2.454668"><ele>5.7</ele></trkpt>
+<trkpt lat="41.041600" lon="2.452922"><ele>5.2</ele></trkpt>
+<trkpt lat="41.035973" lon="2.452336"><ele>5.0</ele></trkpt>
+<trkpt lat="41.030345" lon="2.452922"><ele>5.2</ele></trkpt>
+<trkpt lat="41.024857" lon="2.454668"><ele>5.7</ele></trkpt>
+<trkpt lat="41.019642" lon="2.457531"><ele>6.6</ele></trkpt>
+<trkpt lat="41.014829" lon="2.461439"><ele>7.9</ele></trkpt>
+<trkpt lat="41.010536" lon="2.466296"><ele>9.4</ele></trkpt>
+<trkpt lat="41.006870" lon="2.471984"><ele>11.2</ele></trkpt>
+<trkpt lat="41.003921" lon="2.478361"><ele>13.2</ele></trkpt>
+<trkpt lat="41.001761" lon="2.485271"><ele>15.4</ele></trkpt>
+<trkpt lat="41.000443" lon="2.492544"><ele>17.7</ele></trkpt>
+<trkpt lat="41.000000" lon="2.500000"><ele>20.0</ele></trkpt>
+</trkseg></trk>
+</gpx>

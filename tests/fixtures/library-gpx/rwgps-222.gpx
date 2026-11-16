@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="fixture sintética" xmlns="http://www.topografix.com/GPX/1/1">
+<metadata><name>Vuelta sintética de tierra</name><link href="https://ridewithgps.com/routes/222"><text>Ride with GPS</text></link><desc>distance_m=20000;elev_gain_m=200;unpaved_pct=40;track_type=loop</desc></metadata>
+<trk><name>Vuelta sintética de tierra</name><trkseg>
+<trkpt lat="41.000000" lon="2.700000"><ele>20.0</ele></trkpt>
+<trkpt lat="41.000590" lon="2.707433"><ele>23.1</ele></trkpt>
+<trkpt lat="41.002333" lon="2.714540"><ele>26.1</ele></trkpt>
+<trkpt lat="41.005153" lon="2.721012"><ele>28.8</ele></trkpt>
+<trkpt lat="41.008927" lon="2.726566"><ele>31.1</ele></trkpt>
+<trkpt lat="41.013490" lon="2.730959"><ele>33.0</ele></trkpt>
+<trkpt lat="41.018642" lon="2.733999"><ele>34.3</ele></trkpt>
+<trkpt lat="41.024159" lon="2.735553"><ele>34.9</ele></trkpt>
+<trkpt lat="41.029800" lon="2.735553"><ele>34.9</ele></trkpt>
+<trkpt lat="41.035317" lon="2.733999"><ele>34.3</ele></trkpt>
+<trkpt lat="41.040469" lon="2.730959"><ele>33.0</ele></trkpt>
+<trkpt lat="41.045033" lon="2.726566"><ele>31.1</ele></trkpt>
+<trkpt lat="41.048807" lon="2.721012"><ele>28.8</ele></trkpt>
+<trkpt lat="41.051627" lon="2.714540"><ele>26.1</ele></trkpt>
+<trkpt lat="41.053370" lon="2.707433"><ele>23.1</ele></trkpt>
+<trkpt lat="41.053959" lon="2.700000"><ele>20.0</ele></trkpt>
+<trkpt lat="41.053370" lon="2.692567"><ele>16.9</ele></trkpt>
+<trkpt lat="41.051627" lon="2.685460"><ele>13.9</ele></trkpt>
+<trkpt lat="41.048807" lon="2.678988"><ele>11.2</ele></trkpt>
+<trkpt lat="41.045033" lon="2.673434"><ele>8.9</ele></trkpt>
+<trkpt lat="41.040469" lon="2.669041"><ele>7.0</ele></trkpt>
+<trkpt lat="41.035317" lon="2.666001"><ele>5.7</ele></trkpt>
+<trkpt lat="41.029800" lon="2.664447"><ele>5.1</ele></trkpt>
+<trkpt lat="41.024159" lon="2.664447"><ele>5.1</ele></trkpt>
+<trkpt lat="41.018642" lon="2.666001"><ele>5.7</ele></trkpt>
+<trkpt lat="41.013490" lon="2.669041"><ele>7.0</ele></trkpt>
+<trkpt lat="41.008927" lon="2.673434"><ele>8.9</ele></trkpt>
+<trkpt lat="41.005153" lon="2.678988"><ele>11.2</ele></trkpt>
+<trkpt lat="41.002333" lon="2.685460"><ele>13.9</ele></trkpt>
+<trkpt lat="41.000590" lon="2.692567"><ele>16.9</ele></trkpt>
+<trkpt lat="41.000000" lon="2.700000"><ele>20.0</ele></trkpt>
+</trkseg></trk>
+</gpx>

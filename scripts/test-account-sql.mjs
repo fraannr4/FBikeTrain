@@ -61,6 +61,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611130007_profile_journal.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/profile_journal.sql', import.meta.url), 'utf8'));
   console.log('PASS: cuaderno social, privacidad por amistad/estadísticas, paginación, cuota y avatares privados autenticados.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611160001_reference_library.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/reference_library.sql', import.meta.url), 'utf8'));
+  console.log('PASS: biblioteca común de rutas: tablas, mapa de calor, RPC y proveedor rwgps solo para el servidor.');
 } finally {
   await db.close();
 }

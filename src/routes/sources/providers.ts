@@ -74,13 +74,15 @@ export async function readLimited(response: Response, maxBytes: number): Promise
 }
 
 /** Cada salto HTTP se cuenta; se rechazan redirecciones para no seguir login/captchas. */
-export function sourceTransport(source: 'wikiloc' | 'osm', deps: {
-  fetch: typeof fetch; claim: (source: 'wikiloc' | 'osm') => Promise<boolean>; signal: AbortSignal;
+export function sourceTransport(source: 'wikiloc' | 'osm' | 'rwgps', deps: {
+  fetch: typeof fetch; claim: (source: 'wikiloc' | 'osm' | 'rwgps') => Promise<boolean>; signal: AbortSignal;
 }): SourceTransport {
   let lastRequest = 0;
   return async (url, init) => {
     deps.signal.throwIfAborted();
     if (source === 'wikiloc' && !safeWikilocUrl(url)) throw new RouteSourceError('blocked');
+    // De Ride with GPS solo se usa el buscador público; los detalles van por la API v1 de la cuenta común.
+    if (source === 'rwgps' && !url.startsWith('https://ridewithgps.com/find/search.json?')) throw new RouteSourceError('blocked');
     const delay = Math.max(0, lastRequest + 1050 - Date.now());
     if (delay) await new Promise<void>((resolve, reject) => {
       const abort = () => { clearTimeout(timer); reject(new RouteSourceError('cancelled')); };
@@ -93,7 +95,7 @@ export function sourceTransport(source: 'wikiloc' | 'osm', deps: {
     deps.signal.throwIfAborted();
     lastRequest = Date.now();
     const response = await deps.fetch(url, { ...init, redirect: 'manual', credentials: 'omit', signal: deps.signal,
-      headers: { ...Object.fromEntries(new Headers(init?.headers)), 'User-Agent': SOURCE_USER_AGENT, Accept: source === 'osm' ? 'application/json' : 'text/html,application/gpx+xml,application/xml' } });
+      headers: { ...Object.fromEntries(new Headers(init?.headers)), 'User-Agent': SOURCE_USER_AGENT, Accept: source !== 'wikiloc' ? 'application/json' : 'text/html,application/gpx+xml,application/xml' } });
     if (!response.ok) {
       await response.body?.cancel();
       throw new RouteSourceError(response.status === 429 ? 'busy' : 'blocked');

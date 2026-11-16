@@ -27,7 +27,7 @@ const HOME: LatLng = { lat: 41, lng: 2.5 };
 const DEG_LAT_M = 111_195;
 const line = (km: number, lng: number) => Array.from({ length: km * 10 + 1 }, (_, i) => ({ lat: 41 + (i * 100) / DEG_LAT_M, lng, ele: 10 + i }));
 const adapted = (lng: number, km: number): AdaptedRoute => ({
-  coords: line(km, lng), distanceM: km * 1000, elevGainM: 640, connectorM: 1_200, passesNearM: 300, rotated: false, warnings: [],
+  coords: line(km, lng), distanceM: km * 1000, elevGainM: 640, connectorM: 1_200, passesNearM: 300, rotated: false, warnings: [], requestsUsed: 0,
 });
 const account = { client: { auth: { getSession: async () => ({ data: { session: { access_token: 'sesion' } }, error: null }) } } as unknown as SupabaseClient, user: { id: 'u1' } as User };
 

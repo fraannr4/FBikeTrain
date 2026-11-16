@@ -1,6 +1,6 @@
-import type { Coord3, TrackPoint } from '../domain/types';
-import { haversineM } from '../import/summary';
-import { cellKey, ROUTE_CELL_M } from './routes';
+import type { Coord3, TrackPoint } from '../domain/types.ts';
+import { haversineM } from '../import/summary.ts';
+import { cellKey, ROUTE_CELL_M } from './routes.ts';
 
 /** Lado de la celda de la rejilla del historial (m): la misma que la de las rutas repetidas. */
 export const CELL_M = ROUTE_CELL_M;

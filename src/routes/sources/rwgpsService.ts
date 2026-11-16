@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { RwgpsIndexRow } from './rwgpsSync.ts';
 
 /**
  * Ride with GPS compartido (función `rwgps`). HTTP portable: la clave de API y el token de la cuenta
@@ -8,6 +7,13 @@ import type { RwgpsIndexRow } from './rwgpsSync.ts';
  * el servidor con una lista cerrada de lecturas GET. Solo importa zod y módulos locales para que Deno lo
  * pueda cargar tal cual.
  */
+
+/** Fila de `public.rwgps_route_index` (operación `nearby`, se retira en la Tarea 8). `line` es `[[lng, lat], ...]`. */
+export type RwgpsIndexRow = {
+  id: number; name: string; author: string; distance_m: number; elev_gain_m: number | null;
+  start_lat: number; start_lng: number; min_lat: number; max_lat: number; min_lng: number; max_lng: number;
+  line: [number, number][]; source: 'seed' | 'user';
+};
 
 export const rwgpsRequestSchema = z.strictObject({
   kind: z.enum(['route', 'collection']),

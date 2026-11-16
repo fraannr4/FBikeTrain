@@ -52,7 +52,7 @@ function fakeShared(byRadius: (radiusKm: number) => Fake[], onTrack?: (id: strin
 
 /** Adaptación simulada: devuelve la ruta tal cual, como un circuito que ya pasa por el inicio. */
 const keep = vi.fn(async (points: { lat: number; lng: number }[], _opts?: unknown, _deps?: unknown): Promise<AdaptedRoute> => ({
-  coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: 60_000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [],
+  coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: 60_000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [], requestsUsed: 0,
 }));
 const target = { start: START, distanceKm: 60, elevGainM: null };
 const circularGap = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));

@@ -5,6 +5,10 @@ import { handleRouteSources, CACHE_TTL_MS, sourceCacheKey, type RouteSourceDepen
 import { sourceTransport, wikilocSearchUrl } from '../src/routes/sources/providers';
 import { parseOverpass } from '../src/routes/sources/overpass';
 import { routeReferenceSchema } from '../src/routes/sources/schema';
+import { findLibrary } from '../src/routes/sources/client';
+import { libraryZoneSchema, encodeLibraryZone, normalizeLibrarySearch } from '../src/routes/library/schema';
+import { buildLibraryZone, circleBox } from '../src/routes/library/zoneResponse';
+import { routeDetailJson, searchHit, searchJson, squareRow } from './fixtures/libraryZone';
 
 const fixture = (name: string) => readFileSync(resolve('tests/fixtures/route-sources', name), 'utf8');
 const search = { lat: 0, lon: 0, radiusM: 2000 };
@@ -18,6 +22,9 @@ const mock = (): RouteSourceDependencies => ({
   authenticate: vi.fn().mockResolvedValue(user), consumeQuota: vi.fn().mockResolvedValue({ allowed: true, retryAfterS: 0 }),
   readCache: vi.fn().mockResolvedValue(null), writeCache: vi.fn().mockResolvedValue(undefined),
   claim: vi.fn().mockResolvedValue(true), fetch: vi.fn().mockImplementation(async () => new Response(fixture('overpass.json'))), now: () => now,
+  routesInBox: vi.fn().mockResolvedValue([]), heatCellsInBox: vi.fn().mockResolvedValue([]), replaceHeatCells: vi.fn().mockResolvedValue(undefined),
+  upsertRoutes: vi.fn().mockImplementation(async (rows: unknown[]) => rows.length),
+  rwgpsRouteDetail: vi.fn().mockImplementation(async (id: number) => ({ status: 200, json: routeDetailJson(id) })),
 });
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -289,5 +296,140 @@ describe('route-sources: puntos de paso', () => {
   it('rechaza radios fuera de 8-35 km y campos extra', async () => {
     expect((await handleRouteSources(request({ ...wp, radiusM: 40_000 }), mock())).status).toBe(400);
     expect((await handleRouteSources(request({ ...wp, track: [] }), mock())).status).toBe(400);
+  });
+});
+
+describe('route-sources: biblioteca común (kind library)', () => {
+  const lib = { source: 'library', kind: 'library', lat: 40.0123, lon: -3.0234, radiusM: 20_000, distanceKm: 60, elevGainM: null };
+  const normalized = normalizeLibrarySearch({ lat: lib.lat, lon: lib.lon, radiusM: lib.radiusM, distanceKm: lib.distanceKm, elevGainM: null });
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => squareRow(i + 1, { km: 50 + i }));
+  const sparse = () => {
+    const deps = mock();
+    deps.routesInBox = vi.fn().mockResolvedValueOnce(rows(3)).mockResolvedValue(rows(5));
+    deps.fetch = vi.fn().mockImplementation(async () => Response.json(searchJson([searchHit(901), searchHit(902)])));
+    return deps;
+  };
+  const respond = async (deps: RouteSourceDependencies) => {
+    vi.useFakeTimers();
+    const pending = handleRouteSources(request(lib), deps);
+    let done = false;
+    void pending.then(() => { done = true; });
+    // crypto.subtle termina en el hilo de Node: se avanza el reloj a pasos hasta que llega la respuesta.
+    await vi.waitFor(async () => { await vi.advanceTimersByTimeAsync(200); if (!done) throw new Error('pendiente'); }, { timeout: 10_000, interval: 5 });
+    const response = await pending;
+    return { status: response.status, zone: libraryZoneSchema.parse((await response.json()).data) };
+  };
+
+  it('rechaza radios de más de 40 km y sesiones anónimas antes de leer nada', async () => {
+    const deps = mock();
+    expect((await handleRouteSources(request({ ...lib, radiusM: 50_000 }), deps)).status).toBe(400);
+    deps.authenticate = vi.fn().mockResolvedValue({ ...user, isAnonymous: true });
+    expect((await handleRouteSources(request(lib), deps)).status).toBe(401);
+    expect(deps.routesInBox).not.toHaveBeenCalled(); expect(deps.consumeQuota).not.toHaveBeenCalled();
+  });
+
+  it('una zona con 20 rutas responde sin buscar en Ride with GPS ni leer la marca', async () => {
+    const deps = mock(); deps.routesInBox = vi.fn().mockResolvedValue(rows(20));
+    const { status, zone } = await respond(deps);
+    expect(status).toBe(200);
+    expect(zone).toMatchObject({ routeCount: 20, fill: 'none' });
+    expect(deps.consumeQuota).toHaveBeenCalledWith(user.id);
+    expect(deps.routesInBox).toHaveBeenCalledWith(circleBox(normalized.lat, normalized.lon, normalized.radiusM));
+    expect(deps.fetch).not.toHaveBeenCalled(); expect(deps.readCache).not.toHaveBeenCalled(); expect(deps.rwgpsRouteDetail).not.toHaveBeenCalled();
+  });
+
+  it('una zona con 3 rutas y sin marca se llena una vez, guarda la marca y recalcula el calor de su caja', async () => {
+    const deps = sparse();
+    const { status, zone } = await respond(deps);
+    expect(status).toBe(200);
+    expect(zone).toMatchObject({ routeCount: 5, fill: 'imported' });
+    expect(deps.fetch).toHaveBeenCalledTimes(1);
+    expect(String(vi.mocked(deps.fetch).mock.calls[0][0])).toMatch(/^https:\/\/ridewithgps\.com\/find\/search\.json\?/);
+    expect(vi.mocked(deps.fetch).mock.calls[0][1]).toMatchObject({ redirect: 'manual', credentials: 'omit', headers: expect.objectContaining({ Accept: 'application/json' }) });
+    expect(deps.claim).toHaveBeenCalledWith('rwgps');
+    expect(deps.rwgpsRouteDetail).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(deps.upsertRoutes).mock.calls[0][0]).toHaveLength(2);
+    const mark = vi.mocked(deps.writeCache).mock.calls[0][0];
+    expect(mark).toMatchObject({ source: 'rwgps', payload: [901, 902] });
+    expect(mark.cache_key.startsWith('v1:rwgps-fill:')).toBe(true);
+    expect(Date.parse(mark.expires_at) - Date.parse(mark.fetched_at)).toBe(CACHE_TTL_MS);
+    const box = circleBox(normalized.lat, normalized.lon, normalized.radiusM);
+    expect(vi.mocked(deps.replaceHeatCells).mock.calls[0][1]).toEqual(box);
+    expect(vi.mocked(deps.replaceHeatCells).mock.calls[0][0].length).toBeGreaterThan(0);
+    for (const c of vi.mocked(deps.replaceHeatCells).mock.calls[0][0]) {
+      expect(c.lat).toBeGreaterThanOrEqual(box.minLat); expect(c.lat).toBeLessThanOrEqual(box.maxLat);
+      expect(c.lng).toBeGreaterThanOrEqual(box.minLng); expect(c.lng).toBeLessThanOrEqual(box.maxLng);
+    }
+  });
+
+  it('con la marca de zona ya llenada no vuelve a buscar', async () => {
+    const deps = sparse();
+    deps.readCache = vi.fn().mockResolvedValue({ payload: [901], fetched_at: at, expires_at: new Date(now + CACHE_TTL_MS).toISOString() });
+    const { zone } = await respond(deps);
+    expect(zone).toMatchObject({ routeCount: 3, fill: 'none' });
+    expect(vi.mocked(deps.readCache).mock.calls[0][0].startsWith('v1:rwgps-fill:')).toBe(true);
+    expect(deps.fetch).not.toHaveBeenCalled(); expect(deps.writeCache).not.toHaveBeenCalled();
+  });
+
+  it('sin resultados en Ride with GPS deja la marca y avisa con nothing-found', async () => {
+    const deps = sparse(); deps.fetch = vi.fn().mockImplementation(async () => Response.json(searchJson([])));
+    deps.routesInBox = vi.fn().mockResolvedValue([]);
+    const { zone } = await respond(deps);
+    expect(zone).toMatchObject({ routeCount: 0, routes: [], cells: [], fill: 'nothing-found' });
+    expect(vi.mocked(deps.writeCache).mock.calls[0][0].payload).toEqual([]);
+    expect(deps.replaceHeatCells).not.toHaveBeenCalled();
+  });
+
+  it('Ride with GPS ocupado, bloqueado o sin credenciales: 200 con lo que había y fill unavailable, sin marca', async () => {
+    const setups: ((d: RouteSourceDependencies) => void)[] = [
+      d => { d.fetch = vi.fn().mockResolvedValue(new Response('', { status: 429 })); },
+      d => { d.fetch = vi.fn().mockResolvedValue(new Response('', { status: 403 })); },
+      d => { d.claim = vi.fn().mockResolvedValue(false); },
+      d => { d.rwgpsRouteDetail = vi.fn().mockResolvedValue({ status: 401, json: null }); },
+    ];
+    for (const setup of setups) {
+      const deps = sparse(); setup(deps);
+      const { status, zone } = await respond(deps);
+      expect(status).toBe(200);
+      expect(zone).toMatchObject({ routeCount: 3, fill: 'unavailable' });
+      expect(deps.writeCache).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    }
+  });
+
+  it('un fallo al leer la biblioteca no filtra el error crudo', async () => {
+    const deps = mock(); deps.routesInBox = vi.fn().mockRejectedValue(new Error('service-role-secret'));
+    const response = await handleRouteSources(request(lib), deps);
+    expect(response.status).toBe(503);
+    expect(await response.text()).not.toContain('service-role-secret');
+  });
+});
+
+describe('transporte de Ride with GPS', () => {
+  it('solo pide al buscador de ridewithgps.com y acepta JSON', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response('{}'));
+    const transport = sourceTransport('rwgps', { fetch: fetchMock, claim: vi.fn().mockResolvedValue(true), signal: new AbortController().signal });
+    await expect(transport('https://evil.invalid/find/search.json?x=1')).rejects.toThrow('blocked');
+    await expect(transport('https://ridewithgps.com/routes/1.json')).rejects.toThrow('blocked');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await transport('https://ridewithgps.com/find/search.json?search%5Blat%5D=40');
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ headers: expect.objectContaining({ Accept: 'application/json' }) });
+  });
+});
+
+describe('findLibrary', () => {
+  const base = { lat: 40, lon: -3, radiusM: 20_000, distanceKm: 60, elevGainM: null };
+  const zone = buildLibraryZone(base, [squareRow(1, { km: 60 })], [], 'none');
+  it('envía la búsqueda normalizada y devuelve la zona validada', async () => {
+    const invoke = vi.fn().mockResolvedValue({ data: { data: JSON.parse(JSON.stringify(encodeLibraryZone(zone))) }, error: null });
+    const result = await findLibrary({ lat: 40.00011, lon: -3.00011, radiusM: 19_500, distanceKm: 60.2, elevGainM: 810 }, { invoke });
+    expect(result).toEqual(zone);
+    expect(invoke).toHaveBeenCalledWith('route-sources', { body: { source: 'library', kind: 'library', lat: 40, lon: -3, radiusM: 20_000, distanceKm: 60, elevGainM: 800 }, signal: undefined });
+  });
+  it('una respuesta que no valida es invalid_response; un error de la función, unavailable o busy', async () => {
+    await expect(findLibrary(base, { invoke: vi.fn().mockResolvedValue({ data: { data: { routeCount: -1 } }, error: null }) })).rejects.toThrow('invalid_response');
+    await expect(findLibrary(base, { invoke: vi.fn().mockResolvedValue({ data: null, error: new Error('x') }) })).rejects.toThrow('unavailable');
+    const quota = Object.assign(new Error('x'), { context: new Response('', { status: 429 }) });
+    await expect(findLibrary(base, { invoke: vi.fn().mockResolvedValue({ data: null, error: quota }) })).rejects.toThrow('busy');
   });
 });

@@ -4,11 +4,17 @@ import { loadOverpass, loadWikiloc, readLimited, sourceTransport } from './provi
 import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } from './limits.ts';
 import { loadWaypoints, normalizeWaypointSearch, osmWaypointsSchema, waypointSearchSchema } from './waypoints.ts';
 import { loadMountainPasses, mountainPassesSchema, normalizePassSearch, passSearchSchema } from './passes.ts';
+import { encodeLibraryZone, librarySearchSchema, normalizeLibrarySearch, SPARSE_ZONE_ROUTES, type LibrarySearch, type LibraryZone } from '../library/schema.ts';
+import { buildLibraryZone, circleBox } from '../library/zoneResponse.ts';
+import { fillCentre, fillZone } from '../library/fill.ts';
+import { buildHeatCells, type HeatCell } from '../library/heat.ts';
+import type { ReferenceRouteRow } from '../library/rows.ts';
 
 const requestSchema = z.union([
   routeSearchSchema.extend({ source: z.enum(['wikiloc', 'osm']).default('wikiloc') }),
   passSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('passes') }),
   waypointSearchSchema.extend({ source: z.literal('osm'), kind: z.literal('waypoints') }),
+  librarySearchSchema.extend({ source: z.literal('library'), kind: z.literal('library') }),
 ]);
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 30_000;
@@ -20,11 +26,18 @@ export type RouteSourceDependencies = {
   authenticate: (token: string) => Promise<{ id: string; isAnonymous: boolean } | null>;
   consumeQuota: (userId: string) => Promise<{ allowed: boolean; retryAfterS: number }>;
   readCache: (key: string) => Promise<SourceCacheRow | null>;
-  writeCache: (row: SourceCacheRow & { cache_key: string; source: 'wikiloc' | 'osm' }) => Promise<void>;
-  claim: (source: 'wikiloc' | 'osm') => Promise<boolean>;
+  writeCache: (row: SourceCacheRow & { cache_key: string; source: 'wikiloc' | 'osm' | 'rwgps' }) => Promise<void>;
+  claim: (source: 'wikiloc' | 'osm' | 'rwgps') => Promise<boolean>;
   fetch: typeof fetch;
   now?: () => number;
+  /** Biblioteca común (rpc de `reference_routes` y `reference_heat_cells`) y API v1 de Ride with GPS. */
+  routesInBox: (box: Box) => Promise<(ReferenceRouteRow & { id: string })[]>;
+  heatCellsInBox: (box: Box) => Promise<HeatCell[]>;
+  replaceHeatCells: (cells: HeatCell[], box: Box) => Promise<void>;
+  upsertRoutes: (rows: ReferenceRouteRow[]) => Promise<number>;
+  rwgpsRouteDetail: (id: number, signal: AbortSignal) => Promise<{ status: number; json: unknown }>;
 };
+type Box = ReturnType<typeof circleBox>;
 type SearchKind = 'routes' | 'passes' | 'waypoints';
 const NORMALIZERS: Record<SearchKind, (search: RouteSearch) => RouteSearch> = {
   routes: normalizeRouteSearch, passes: normalizePassSearch, waypoints: normalizeWaypointSearch,
@@ -62,6 +75,7 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     input = requestSchema.parse(JSON.parse(await readLimited(new Response(request.body), 2048)));
   } catch { return fail(400, 'invalid_request'); }
   if (request.signal.aborted) return fail(499, 'cancelled');
+  if (input.source === 'library') return serveLibrary(request, input, userId, deps, headers, fail);
   if (input.source === 'wikiloc' && (!deps.wikilocAuthorized || !deps.wikilocSearchTemplate)) return fail(503, 'wikiloc_authorization_required');
   const { source, lat, lon, radiusM } = input;
   const passes = 'kind' in input && input.kind === 'passes';
@@ -122,6 +136,72 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     if (request.signal.aborted) return fail(499, 'cancelled');
     if (signal.aborted) return fail(504, 'timeout');
     if (error instanceof RouteSourceError) return fail(error.code === 'busy' ? 429 : 502, error.code);
+    return fail(503, 'unavailable');
+  } finally {
+    clearTimeout(timeout);
+    request.signal.removeEventListener('abort', cancel);
+  }
+}
+
+/** Marca de «zona ya llenada» en la caché de `route-sources`: sin el punto pedido, solo el centro redondeado. */
+async function fillMarkKey(search: LibrarySearch): Promise<string> {
+  const centre = fillCentre(search.lat, search.lon);
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([centre.lat, centre.lng, search.radiusM])));
+  return `v1:rwgps-fill:${Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * Lee la biblioteca de la caja del círculo (sin caché: debe ver lo último importado). Si la zona tiene
+ * pocas rutas y no hay marca de los últimos 7 días, la llena desde Ride with GPS, recalcula el calor
+ * de la caja y vuelve a leer. Un fallo de Ride with GPS deja lo que había con `fill: 'unavailable'`.
+ */
+async function loadLibraryZone(search: LibrarySearch, deps: RouteSourceDependencies, signal: AbortSignal, now: () => number): Promise<LibraryZone> {
+  const box = circleBox(search.lat, search.lon, search.radiusM);
+  const zone = buildLibraryZone(search, await deps.routesInBox(box), await deps.heatCellsInBox(box), 'none');
+  if (zone.routeCount >= SPARSE_ZONE_ROUTES) return zone;
+  signal.throwIfAborted();
+  const key = await fillMarkKey(search);
+  const mark = await deps.readCache(key);
+  if (mark && Date.parse(mark.expires_at) > now()) return zone;
+  try {
+    const transport = sourceTransport('rwgps', { fetch: deps.fetch, claim: deps.claim, signal });
+    const result = await fillZone(search, { transport, claim: deps.claim, routeDetail: deps.rwgpsRouteDetail, upsert: deps.upsertRoutes, signal });
+    signal.throwIfAborted();
+    const fetchedAt = new Date(now()).toISOString();
+    await deps.writeCache({ cache_key: key, source: 'rwgps', payload: result.ids, fetched_at: fetchedAt, expires_at: new Date(Date.parse(fetchedAt) + CACHE_TTL_MS).toISOString() }).catch(() => undefined);
+    if (!result.imported) return { ...zone, fill: 'nothing-found' };
+    const rows = await deps.routesInBox(box);
+    const inBox = (c: HeatCell) => c.lat >= box.minLat && c.lat <= box.maxLat && c.lng >= box.minLng && c.lng <= box.maxLng;
+    const cells = buildHeatCells(rows.map(r => r.line)).filter(inBox);
+    await deps.replaceHeatCells(cells, box);
+    return buildLibraryZone(search, rows, cells, 'imported');
+  } catch (error) {
+    if (signal.aborted) throw error;
+    return { ...zone, fill: 'unavailable' };
+  }
+}
+
+async function serveLibrary(request: Request, input: LibrarySearch, userId: string, deps: RouteSourceDependencies,
+  headers: Record<string, string>, fail: (status: number, code: string, retryAfterS?: number) => Response): Promise<Response> {
+  const search = normalizeLibrarySearch({ lat: input.lat, lon: input.lon, radiusM: input.radiusM, distanceKm: input.distanceKm, elevGainM: input.elevGainM });
+  const controller = new AbortController();
+  const signal = controller.signal;
+  // Un llenado son 1 búsqueda y hasta 15 detalles a 1 por segundo: el mismo margen que los puntos de paso.
+  const timeout = setTimeout(() => controller.abort(), WAYPOINTS_TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  request.signal.addEventListener('abort', cancel, { once: true });
+  if (request.signal.aborted) controller.abort();
+  try {
+    signal.throwIfAborted();
+    const quota = await deps.consumeQuota(userId);
+    signal.throwIfAborted();
+    if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
+    const zone = await loadLibraryZone(search, deps, signal, deps.now ?? Date.now);
+    signal.throwIfAborted();
+    return Response.json({ data: encodeLibraryZone(zone) }, { headers });
+  } catch {
+    if (request.signal.aborted) return fail(499, 'cancelled');
+    if (signal.aborted) return fail(504, 'timeout');
     return fail(503, 'unavailable');
   } finally {
     clearTimeout(timeout);

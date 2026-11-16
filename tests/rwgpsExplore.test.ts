@@ -27,7 +27,7 @@ function fakeShared(answer: (body: { kind: string; id: string }) => Response) {
 }
 
 const keep = vi.fn(async (points: { lat: number; lng: number }[], _opts?: unknown, _deps?: unknown): Promise<AdaptedRoute> => ({
-  coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: 60_000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [],
+  coords: points.map((p) => ({ lat: p.lat, lng: p.lng })), distanceM: 60_000, elevGainM: 500, connectorM: 0, passesNearM: 0, rotated: false, warnings: [], requestsUsed: 0,
 }));
 const target = { start: START, distanceKm: 60, elevGainM: null };
 

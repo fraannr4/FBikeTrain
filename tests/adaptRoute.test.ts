@@ -126,6 +126,21 @@ describe('adaptar una ruta: salida desde mi inicio', () => {
   });
 });
 
+describe('adaptar una ruta: consultas gastadas', () => {
+  it('un circuito que pasa por el inicio no gasta consultas', async () => {
+    const { access } = fakeOrs();
+    const r = await adaptRoute(square(0, 0, 5000), { start: at(5100, 2500), mode: 'mi-inicio', targetKm: 20 }, { ors: access });
+    expect(r.requestsUsed).toBe(0);
+  });
+
+  it('una ruta lejana gasta dos: la entrada y el regreso', async () => {
+    const { access, calls } = fakeOrs();
+    const r = await adaptRoute(square(0, 0, 5000), { start: at(6000, 2500), mode: 'mi-inicio', targetKm: 22 }, { ors: access });
+    expect(r.requestsUsed).toBe(2);
+    expect(calls).toHaveLength(2);
+  });
+});
+
 describe('adaptar una ruta: distancia', () => {
   it('si se pasa más de un 8 %, se recorta y se cierra por carretera desde el punto de corte', async () => {
     const { access, calls } = fakeOrs();

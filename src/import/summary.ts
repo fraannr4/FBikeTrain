@@ -1,4 +1,4 @@
-import type { ActivityTotals, TrackPoint } from '../domain/types';
+import type { ActivityTotals, TrackPoint } from '../domain/types.ts';
 
 /** Por debajo de esta velocidad un tramo cuenta como parada (m/s). */
 export const MOVING_SPEED_THRESHOLD_MS = 1.0;

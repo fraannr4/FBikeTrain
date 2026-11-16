@@ -1,11 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 import { handleRouteSources } from '../../../src/routes/sources/service.ts';
+import type { HeatCell } from '../../../src/routes/library/heat.ts';
+import type { ReferenceRouteRow } from '../../../src/routes/library/rows.ts';
+import { rwgpsApi } from '../_shared/rwgpsApi.ts';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const timedFetch: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(10_000)]) });
 const options = { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch: timedFetch } };
+// Cuenta común de Ride with GPS para el llenado de zonas: los mismos secrets RWGPS_* que la función `rwgps`.
+const rwgps = rwgpsApi({
+  apiKey: Deno.env.get('RWGPS_API_KEY') ?? '',
+  fixedToken: Deno.env.get('RWGPS_AUTH_TOKEN') ?? '',
+  email: Deno.env.get('RWGPS_EMAIL') ?? '',
+  password: Deno.env.get('RWGPS_PASSWORD') ?? '',
+});
+/** Celdas de calor por llamada a `replace_reference_heat_cells`. */
+const HEAT_CHUNK = 3_000;
+type Box = { minLat: number; maxLat: number; minLng: number; maxLng: number };
+const boxArgs = (box: Box) => ({ p_min_lat: box.minLat, p_max_lat: box.maxLat, p_min_lng: box.minLng, p_max_lng: box.maxLng });
+type HeatRow = { cell: string; lat: number; lng: number; routes: number; climb_m_per_km: number | null; ele: number | null };
 
 Deno.serve(request => {
   // Las credenciales de servicio existen solo en el runtime de Supabase.
@@ -38,6 +53,29 @@ Deno.serve(request => {
       if (error) throw new Error('rate_limit');
       return data === true;
     },
+    routesInBox: async box => {
+      const { data, error } = await admin!.rpc('reference_routes_in_box', boxArgs(box));
+      if (error) throw new Error('library');
+      return (data ?? []) as (ReferenceRouteRow & { id: string })[];
+    },
+    heatCellsInBox: async box => {
+      const { data, error } = await admin!.rpc('reference_heat_cells_in_box', boxArgs(box));
+      if (error) throw new Error('library');
+      return ((data ?? []) as HeatRow[]).map((c): HeatCell => ({ cell: c.cell, lat: c.lat, lng: c.lng, routes: c.routes, climbMPerKm: c.climb_m_per_km, ele: c.ele }));
+    },
+    replaceHeatCells: async (cells, box) => {
+      for (let i = 0; i === 0 || i < cells.length; i += HEAT_CHUNK) {
+        const { error } = await admin!.rpc('replace_reference_heat_cells', { p_cells: cells.slice(i, i + HEAT_CHUNK), p_box: box, p_append: i > 0 });
+        if (error) throw new Error('heat');
+      }
+    },
+    upsertRoutes: async rows => {
+      const { data, error } = await admin!.rpc('upsert_reference_routes', { p_rows: rows });
+      if (error || typeof data !== 'number') throw new Error('library');
+      return data;
+    },
+    // Sin la cuenta común configurada, 401: el llenado responde `fill: 'unavailable'`.
+    rwgpsRouteDetail: (id, signal) => rwgps.enabled ? rwgps.get(`/api/v1/routes/${id}.json`, signal) : Promise.resolve({ status: 401, json: null }),
     // Cada consulta a Overpass tiene 55 s; la función corta los puntos de paso a los 60 s (WAYPOINTS_TIMEOUT_MS).
     fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([...(init?.signal ? [init.signal] : []), AbortSignal.timeout(55_000)]) }),
   });

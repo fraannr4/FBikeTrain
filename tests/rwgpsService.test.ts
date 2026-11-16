@@ -1,5 +1,4 @@
-import { handleRwgps, isAllowedRwgpsPath, rwgpsApiPath, type RwgpsServiceDependencies } from '../src/routes/sources/rwgpsService';
-import type { RwgpsIndexRow } from '../src/routes/sources/rwgpsSync';
+import { handleRwgps, isAllowedRwgpsPath, rwgpsApiPath, type RwgpsIndexRow, type RwgpsServiceDependencies } from '../src/routes/sources/rwgpsService';
 
 // Nunca sale a la red: `get` simulado con respuestas sintéticas de la API v1 de Ride with GPS.
 const ORIGIN = 'https://usuario.github.io';

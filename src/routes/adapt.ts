@@ -47,6 +47,8 @@ export type AdaptedRoute = {
   warnings: string[];
   /** Motivo, en castellano, por el que el resultado no es válido; nunca se presenta como bueno. */
   rejected?: string;
+  /** Consultas a ORS gastadas en esta adaptación (de 0 a MAX_ADAPT_REQUESTS). */
+  requestsUsed: number;
 };
 
 const gap = (a: LatLng, b: LatLng) => haversineM(a.lat, a.lng, b.lat, b.lng);
@@ -167,7 +169,7 @@ export async function adaptRoute(points: RoutePoint[], opts: AdaptOptions, deps:
         warnings.push(`Desnivel de ${formatMeters(elevGainM)} frente a ${formatMeters(targetGainM)} pedidos.`);
       }
     }
-    return { coords, distanceM, elevGainM, connectorM, passesNearM, rotated, warnings, ...(reason ? { rejected: reason } : {}) };
+    return { coords, distanceM, elevGainM, connectorM, passesNearM, rotated, warnings, requestsUsed: used, ...(reason ? { rejected: reason } : {}) };
   }
 
   // 1. La ruta orientada: circuito rotado hacia el inicio o ruta lineal por su extremo más próximo.
