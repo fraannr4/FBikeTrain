@@ -185,6 +185,61 @@ it('preserves the connection when Garmin registration revocation fails', async (
   expect(store.removeConnection).not.toHaveBeenCalled();
 });
 
+describe('connection that Garmin no longer honours', () => {
+  const stored = async (setConnection: (value: GarminTokens) => void, over: Partial<GarminTokens>) => setConnection({ garminUserId: 'synthetic-garmin-user', ciphertext: await encryptSecret(JSON.stringify({ accessToken: 'old-access', refreshToken: 'old-refresh' }), secret, user), expiresAt: 0, refreshExpiresAt: 9_000_000, permissions: ['ACTIVITY_EXPORT'], ...over });
+
+  it('still disconnects and erases local data when the refresh token has expired', async () => {
+    const { options, request, store, fetcher, setConnection } = setup();
+    await stored(setConnection, { refreshExpiresAt: 500_000 });
+    const response = await createGarminService(options)(request('/disconnect', 'POST'));
+    expect(response.status).toBe(200);
+    expect(store.removeConnection).toHaveBeenCalledWith(user);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('still disconnects when Garmin already rejects the token (401 on registration delete)', async () => {
+    const { options, request, store, fetcher, setConnection } = setup();
+    await stored(setConnection, { expiresAt: 9_000_000 });
+    fetcher.mockResolvedValue(new Response(null, { status: 401 }));
+    expect((await createGarminService(options)(request('/disconnect', 'POST'))).status).toBe(200);
+    expect(store.removeConnection).toHaveBeenCalledWith(user);
+  });
+
+  it('still disconnects when the refresh is refused as invalid_grant (400)', async () => {
+    const { options, request, store, fetcher, setConnection } = setup();
+    await stored(setConnection, {});
+    fetcher.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }));
+    expect((await createGarminService(options)(request('/disconnect', 'POST'))).status).toBe(200);
+    expect(store.removeConnection).toHaveBeenCalledWith(user);
+  });
+
+  it('acknowledges a push whose refresh is refused as invalid_grant instead of making Garmin retry forever', async () => {
+    const ctx = setup();
+    await stored(ctx.setConnection, {});
+    ctx.fetcher.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }));
+    const response = await createGarminService({ ...ctx.options, webhookSecret: 'synthetic-webhook-secret-0123456789' })(push({ activityFiles: [activityFile()] }));
+    expect(response.status).toBe(200);
+    expect(ctx.store.finishEvent).toHaveBeenCalledWith(user, 'activityFile:1001-file', true);
+  });
+
+  it('keeps retrying a push when the Garmin token service is down (5xx)', async () => {
+    const ctx = setup();
+    await stored(ctx.setConnection, {});
+    ctx.fetcher.mockResolvedValue(new Response(null, { status: 503 }));
+    const response = await createGarminService({ ...ctx.options, webhookSecret: 'synthetic-webhook-secret-0123456789' })(push({ activityFiles: [activityFile()] }));
+    expect(response.status).toBeGreaterThanOrEqual(500);
+    expect(ctx.store.finishEvent).toHaveBeenCalledWith(user, 'activityFile:1001-file', false);
+  });
+
+  it('tells the app to reconnect once the refresh token has expired', async () => {
+    const { options, request, setConnection } = setup();
+    await stored(setConnection, { refreshExpiresAt: 500_000 });
+    expect(await (await createGarminService(options)(request('/status'))).json()).toMatchObject({ connected: true, reconnectRequired: true });
+    await stored(setConnection, { refreshExpiresAt: 9_000_000 });
+    expect(await (await createGarminService(options)(request('/status'))).json()).not.toHaveProperty('reconnectRequired');
+  });
+});
+
 it('denies file access after activity permission is revoked', async () => {
   const { options, request, setConnection, store } = setup();
   setConnection({ garminUserId: 'synthetic-garmin-user', ciphertext: 'encrypted', expiresAt: 9_000_000, refreshExpiresAt: 9_000_000, permissions: [] });

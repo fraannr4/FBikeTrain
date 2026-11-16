@@ -66,3 +66,12 @@ it('never calls the server while the build flag is off: pending approval', async
   expect(await screen.findByText('ready pending disconnected')).toBeVisible();
   expect(client.status).not.toHaveBeenCalled();
 });
+
+it('does not collect deliveries while the link needs to be renewed', async () => {
+  vi.stubEnv('VITE_GARMIN_ENABLED', 'true');
+  const client = api();
+  vi.mocked(client.status).mockResolvedValue({ available: true, connected: true, backfillAvailable: false, reconnectRequired: true });
+  render(<GarminProvider api={client}><Probe /></GarminProvider>);
+  expect(await screen.findByText('ready available connected')).toBeVisible();
+  expect(client.list).not.toHaveBeenCalled();
+});

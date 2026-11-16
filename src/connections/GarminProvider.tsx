@@ -91,7 +91,7 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
       knownConnected.current = remote.connected;
       let local = await loadGarminSyncState(db);
       if (mounted.current) { setStatus({ ...remote, lastSyncAt: local.lastSyncAt ?? remote.lastSyncAt }); setResult(local.result); }
-      if (operation === 'refresh' || !remote.available || !remote.connected || remote.permissionRequired) return;
+      if (operation === 'refresh' || !remote.available || !remote.connected || remote.permissionRequired || remote.reconnectRequired) return;
       importing = true;
       const imported = await syncGarmin(db, importer, api, ctrl.signal);
       // Otra conexión (Intervals) tenía el candado compartido: reintentar enseguida, no esperar al minuto.

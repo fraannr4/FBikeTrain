@@ -11,6 +11,7 @@ const statusSchema = z.object({
   receptionAvailable: z.boolean().optional(),
   courseAvailable: z.boolean().optional(),
   permissionRequired: z.boolean().optional(),
+  reconnectRequired: z.boolean().optional(),
 });
 const entrySchema = z.object({ id, deviceName: z.string().max(200).optional(), createdAt: z.number().nonnegative() });
 const listSchema = z.object({ activities: z.array(entrySchema).max(1000), backfillAvailable: z.boolean() });

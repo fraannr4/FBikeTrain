@@ -51,3 +51,15 @@ it('warns when the account is linked but push reception is not active yet', () =
   expect(screen.getByText(/La recepción de salidas de Garmin todavía no está activa/)).toBeVisible();
   expect(screen.queryByText(/llegan solas/)).not.toBeInTheDocument();
 });
+
+it.each([
+  ['reconnectRequired', /La conexión con Garmin ha caducado/],
+  ['permissionRequired', /Garmin no ha dado acceso a las actividades/],
+])('asks to authorize again when %s, instead of claiming rides arrive by themselves', (flag, message) => {
+  const connection = setup({ available: true, connected: true, [flag]: true });
+  expect(screen.getByText(message)).toBeVisible();
+  expect(screen.queryByText(/llegan solas/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Conectar con Garmin' }));
+  expect(connection.connect).toHaveBeenCalledOnce();
+  expect(screen.getByRole('button', { name: 'Desconectar Garmin' })).toBeVisible();
+});

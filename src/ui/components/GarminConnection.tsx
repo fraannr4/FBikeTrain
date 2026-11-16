@@ -16,6 +16,7 @@ export function GarminConnection() {
   }
   const report = garmin.result?.report;
   const pending = garmin.ready && !garmin.available;
+  const renew = garmin.reconnectRequired || garmin.permissionRequired;
   return <section className="activity-connection garmin-connection" aria-labelledby="garmin-connect-title">
     <h2 className="sub-h" id="garmin-connect-title">Garmin Connect</h2>
     {!garmin.ready ? <p role="status">Comprobando la conexión con Garmin…</p> : null}
@@ -30,7 +31,12 @@ export function GarminConnection() {
     </> : <>
       <div className="connection-status" aria-live="polite">
         <p>Cuenta Garmin conectada.</p>
-        {garmin.receptionAvailable === false
+        {renew ? <>
+          <p>{garmin.reconnectRequired
+            ? 'La conexión con Garmin ha caducado. Vuelve a autorizarla para recibir tus salidas.'
+            : 'Garmin no ha dado acceso a las actividades. Vuelve a autorizarlo para recibir tus salidas.'}</p>
+          <button type="button" className="btn btn--primary btn--block" disabled={blocked} onClick={() => void run(garmin.connect)}>Conectar con Garmin</button>
+        </> : garmin.receptionAvailable === false
           ? <p>La recepción de salidas de Garmin todavía no está activa. Mientras tanto, importa el FIT a mano.</p>
           : <p>Las salidas nuevas llegan solas: se importan al abrir la app.</p>}
         <p>{garmin.lastSyncAt ? `Última sincronización: ${new Date(garmin.lastSyncAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}.` : 'Todavía no ha llegado ninguna salida desde Garmin.'}</p>

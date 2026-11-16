@@ -158,7 +158,10 @@ export function createGarminService(options: GarminServiceOptions) {
   const available = !!(options.clientId && options.clientSecret && options.encryptionKey && options.callbackUrl && options.appUrl);
   const remote = (url: string, init: RequestInit) => fetcher(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(15_000) });
   const tokenRequest = async (params: Record<string, string>) => {
-    const value = record(await jsonResponse(await remote(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: options.clientId, client_secret: options.clientSecret, ...params }) })));
+    const response = await remote(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ client_id: options.clientId, client_secret: options.clientSecret, ...params }) });
+    // 400/401 (invalid_grant, token revocado o caducado) no se arreglan reintentando: hay que reconectar.
+    if (response.status === 400 || response.status === 401) { await response.body?.cancel().catch(() => {}); throw new SafeError(401, 'La conexión Garmin ha caducado. Vuelve a conectar.'); }
+    const value = record(await jsonResponse(response));
     if (typeof value.access_token !== 'string' || typeof value.refresh_token !== 'string' || typeof value.expires_in !== 'number' || value.expires_in <= 0 || typeof value.refresh_token_expires_in !== 'number' || value.refresh_token_expires_in <= 0) throw new SafeError(502, 'Garmin devolvió credenciales no válidas.');
     // Garmin recomienda restar 600 s o más a la caducidad para renovar a tiempo.
     return { accessToken: value.access_token, refreshToken: value.refresh_token, expiresAt: now() + Math.max(0, value.expires_in - 600) * 1000, refreshExpiresAt: now() + value.refresh_token_expires_in * 1000 };
@@ -289,6 +292,7 @@ export function createGarminService(options: GarminServiceOptions) {
         return json({ available, connected: !!connection, backfillAvailable: false, pending: store.pendingCount ? await store.pendingCount(userId) : 0,
           ...(connection?.lastSyncAt ? { lastSyncAt: connection.lastSyncAt } : {}),
           ...(connection && !connection.permissions.includes('ACTIVITY_EXPORT') ? { permissionRequired: true } : {}),
+          ...(connection && connection.refreshExpiresAt <= now() ? { reconnectRequired: true } : {}),
           courseAvailable: !!connection?.permissions.includes('COURSE_IMPORT'), receptionAvailable: !!options.webhookSecret });
       }
       if (!available) throw new SafeError(503, 'Garmin Connect todavía no está disponible.');
@@ -321,10 +325,13 @@ export function createGarminService(options: GarminServiceOptions) {
         await store.withAccountLock(userId, async () => {
           const connection = await store.loadConnection(userId);
           if (connection) {
-            const tokens = await credentials(userId, connection);
-            // Obligatorio según Garmin cuando la app ofrece «Desconectar».
-            const response = await remote(`${USER_URL}registration`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.accessToken}` } });
-            if (!response.ok && response.status !== 404) throw new SafeError(502, 'No se pudo revocar Garmin. Reintenta en unos minutos.');
+            // Obligatorio según Garmin cuando la app ofrece «Desconectar». Si Garmin ya no honra el token
+            // (caducado, revocado desde Garmin Connect), no hay nada que revocar: se borra lo local igualmente.
+            const tokens = await credentials(userId, connection).catch(error => { if (error instanceof SafeError && error.status === 401) return null; throw error; });
+            if (tokens) {
+              const response = await remote(`${USER_URL}registration`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.accessToken}` } });
+              if (!response.ok && ![401, 403, 404].includes(response.status)) throw new SafeError(502, 'No se pudo revocar Garmin. Reintenta en unos minutos.');
+            }
           }
           await store.removeConnection(userId);
         });
