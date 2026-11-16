@@ -29,6 +29,15 @@ const store: GarminStore = {
     const row = checked(await server.rpc('garmin_consume_state', { state_key: hash }))?.[0];
     return row ? { userId: row.user_id, verifier: row.verifier, expiresAt: Date.parse(row.expires_at) } : undefined;
   },
+  putCompletion: async (hash, value) => {
+    checked(await server.from('garmin_pending_connections').delete().lte('expires_at', iso(Date.now())));
+    const c = value.connection;
+    checked(await server.from('garmin_pending_connections').upsert({ code_hash: hash, user_id: value.userId, garmin_user_id: c.garminUserId, ciphertext: c.ciphertext, token_expires_at: iso(c.expiresAt), refresh_expires_at: iso(c.refreshExpiresAt), permissions: c.permissions, expires_at: iso(value.expiresAt) }, { onConflict: 'user_id' }));
+  },
+  consumeCompletion: async hash => {
+    const row = checked(await server.rpc('garmin_consume_completion', { code_key: hash }))?.[0];
+    return row ? { userId: row.user_id, expiresAt: Date.parse(row.expires_at), connection: { garminUserId: row.garmin_user_id, ciphertext: row.ciphertext, expiresAt: Date.parse(row.token_expires_at), refreshExpiresAt: Date.parse(row.refresh_expires_at), permissions: row.permissions } } : undefined;
+  },
   loadConnection: async userId => {
     const row = checked(await server.from('garmin_connections').select('*').eq('user_id', userId).maybeSingle());
     return row ? tokens(row) : undefined;
@@ -49,6 +58,7 @@ const store: GarminStore = {
     await purge(userId, true);
     checked(await server.from('garmin_connections').delete().eq('user_id', userId));
     checked(await server.from('garmin_oauth_states').delete().eq('user_id', userId));
+    checked(await server.from('garmin_pending_connections').delete().eq('user_id', userId));
     checked(await server.from('garmin_notification_queue').delete().eq('user_id', userId));
   },
   userForGarmin: async id => checked(await server.from('garmin_connections').select('user_id').eq('garmin_user_id', id).maybeSingle())?.user_id,

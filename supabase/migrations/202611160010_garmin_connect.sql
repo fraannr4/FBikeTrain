@@ -15,6 +15,18 @@ create table public.garmin_oauth_states (
   verifier text not null,
   expires_at timestamptz not null
 );
+-- Tokens already exchanged by the public /callback, waiting for /complete from the signed-in account
+-- that started the flow (OAuth CSRF). One use, 5 minutes; code_hash is the SHA-256 of the browser code.
+create table public.garmin_pending_connections (
+  code_hash text primary key,
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+  garmin_user_id text not null,
+  ciphertext text not null,
+  token_expires_at timestamptz not null,
+  refresh_expires_at timestamptz not null,
+  permissions text[] not null default '{}',
+  expires_at timestamptz not null
+);
 create table public.garmin_account_locks (
   user_id uuid primary key references auth.users(id) on delete cascade,
   owner uuid not null,
@@ -41,12 +53,13 @@ create table public.garmin_notification_queue (
 
 alter table public.garmin_connections enable row level security;
 alter table public.garmin_oauth_states enable row level security;
+alter table public.garmin_pending_connections enable row level security;
 alter table public.garmin_account_locks enable row level security;
 alter table public.garmin_activity_files enable row level security;
 alter table public.garmin_notification_queue enable row level security;
 -- Deliberately no anon/authenticated policy. Ownership is checked by the server from auth.getUser.
-revoke all on public.garmin_connections, public.garmin_oauth_states, public.garmin_account_locks, public.garmin_activity_files, public.garmin_notification_queue from anon, authenticated;
-grant all on public.garmin_connections, public.garmin_oauth_states, public.garmin_account_locks, public.garmin_activity_files, public.garmin_notification_queue to service_role;
+revoke all on public.garmin_connections, public.garmin_oauth_states, public.garmin_pending_connections, public.garmin_account_locks, public.garmin_activity_files, public.garmin_notification_queue from anon, authenticated;
+grant all on public.garmin_connections, public.garmin_oauth_states, public.garmin_pending_connections, public.garmin_account_locks, public.garmin_activity_files, public.garmin_notification_queue to service_role;
 
 insert into storage.buckets(id, name, public, file_size_limit, allowed_mime_types)
 values ('garmin-originals', 'garmin-originals', false, 20971520, array['application/octet-stream'])
@@ -57,6 +70,12 @@ create function public.garmin_consume_state(state_key text)
 returns table(user_id uuid, verifier text, expires_at timestamptz)
 language sql security definer set search_path = public
 as $$ delete from public.garmin_oauth_states where state_hash = state_key returning user_id, verifier, expires_at $$;
+
+create function public.garmin_consume_completion(code_key text)
+returns table(user_id uuid, garmin_user_id text, ciphertext text, token_expires_at timestamptz, refresh_expires_at timestamptz, permissions text[], expires_at timestamptz)
+language sql security definer set search_path = public
+as $$ delete from public.garmin_pending_connections where code_hash = code_key
+  returning user_id, garmin_user_id, ciphertext, token_expires_at, refresh_expires_at, permissions, expires_at $$;
 
 create function public.garmin_acquire_lock(account_id uuid, lock_owner uuid)
 returns boolean language plpgsql security definer set search_path = public as $$
@@ -84,5 +103,5 @@ begin
   return claimed is not null;
 end $$;
 
-revoke all on function public.garmin_consume_state(text), public.garmin_acquire_lock(uuid,uuid), public.garmin_claim_event(uuid,text,text) from public, anon, authenticated;
-grant execute on function public.garmin_consume_state(text), public.garmin_acquire_lock(uuid,uuid), public.garmin_claim_event(uuid,text,text) to service_role;
+revoke all on function public.garmin_consume_state(text), public.garmin_consume_completion(text), public.garmin_acquire_lock(uuid,uuid), public.garmin_claim_event(uuid,text,text) from public, anon, authenticated;
+grant execute on function public.garmin_consume_state(text), public.garmin_consume_completion(text), public.garmin_acquire_lock(uuid,uuid), public.garmin_claim_event(uuid,text,text) to service_role;

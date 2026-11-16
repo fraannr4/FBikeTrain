@@ -38,6 +38,22 @@ it('only follows the official Garmin consent page', async () => {
   await expect(api.connect(signal())).rejects.toThrow(/oficial/);
 });
 
+it('completes the Garmin link with the FBikeTrain session and the one-use code', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ connected: true }));
+  const api = createGarminClient(async () => 'synthetic-session', fetcher);
+  await api.complete('synthetic-code', signal());
+  const [url, init] = fetcher.mock.calls[0];
+  expect(String(url)).toMatch(/\/functions\/v1\/garmin\/complete$/);
+  expect(init?.method).toBe('POST');
+  expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer synthetic-session');
+  expect(JSON.parse(String(init?.body))).toEqual({ code: 'synthetic-code' });
+});
+
+it('explains a link started from another account', async () => {
+  const api = createGarminClient(async () => 'synthetic-session', vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: 'x' }, { status: 403 })));
+  await expect(api.complete('synthetic-code', signal())).rejects.toThrow(/otra cuenta/);
+});
+
 it('is off unless VITE_GARMIN_ENABLED is true', () => {
   vi.stubEnv('VITE_GARMIN_ENABLED', 'false');
   expect(garminEnabled()).toBe(false);

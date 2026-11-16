@@ -76,6 +76,15 @@ export function createGarminClient(getToken: () => Promise<string | null>, fetch
       }
       return url.href;
     },
+    /** Vincula la Garmin canjeada en /callback: el servidor solo la guarda si esta sesión es la que inició «Conectar». */
+    async complete(code: string, signal: AbortSignal): Promise<void> {
+      try { await request('complete', signal, 'POST', async response => { await response.body?.cancel(); }, { code }); }
+      catch (error) {
+        signal.throwIfAborted();
+        if (error instanceof Error && /sesión/.test(error.message)) throw error;
+        throw new Error('No se pudo vincular Garmin: la autorización ha caducado o se inició desde otra cuenta. Vuelve a pulsar «Conectar con Garmin».');
+      }
+    },
     async disconnect(signal: AbortSignal): Promise<void> { await request('disconnect', signal, 'POST', async response => { await response.body?.cancel(); }); },
     async sendCourse(course: GarminCourse, signal: AbortSignal): Promise<{ courseId: number | string }> {
       return z.object({ courseId: z.union([z.number(), z.string()]) }).parse(await json('course', signal, 'POST', course));
