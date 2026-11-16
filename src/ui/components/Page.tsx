@@ -1,3 +1,4 @@
+import { GarminHistoryAttribution } from './ActivitySource';
 import type { ReactNode } from 'react';
 import { AppBar } from './AppBar';
 import { PageHead } from './PageHead';
@@ -41,6 +42,7 @@ export function Page(props: Props) {
       <AppBar title={barTitle ?? title} back={back} actions={actions} />
       <div className={cls} aria-busy={busy || undefined}>
         <PageHead title={title} kicker={kicker} lead={nav ? undefined : lead} />
+        <GarminHistoryAttribution />
         {nav}
         {nav && lead ? <p className="page-lead page-lead--sub">{lead}</p> : null}
         {withMap ? (

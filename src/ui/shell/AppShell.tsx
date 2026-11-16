@@ -1,3 +1,4 @@
+import { GarminAttributionProvider } from '../components/ActivitySource';
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../components/Toast';
@@ -6,6 +7,7 @@ import { isSheetState } from './sheetRoute';
 import { TabBar } from './TabBar';
 import { usePlanBadge } from './usePlanBadge';
 import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
+import { GarminProvider } from '../../connections/GarminProvider';
 
 /**
  * Armazón: «Saltar al contenido», contenido, barra inferior de cinco pestañas (carril lateral
@@ -40,12 +42,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
       <ToastProvider>
         <ConnectionsProvider>
-        <NavHistoryProvider>
+        <GarminProvider>
+        <GarminAttributionProvider><NavHistoryProvider>
           <main id="contenido" ref={mainRef} tabIndex={-1} className="main">
             {children}
           </main>
-        </NavHistoryProvider>
+        </NavHistoryProvider></GarminAttributionProvider>
         <TabBar pathname={pathname} planBadge={planBadge} />
+        </GarminProvider>
         </ConnectionsProvider>
       </ToastProvider>
     </div>

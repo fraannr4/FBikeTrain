@@ -201,3 +201,110 @@ for (const theme of ['dark', 'light']) {
     });
   }
 }
+
+async function garminApi(page: Page, available: boolean, initiallyConnected = false) {
+  const remote = { connected: initiallyConnected, connects: 0, files: 0, disconnects: 0, consents: 0 };
+  const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization,apikey', 'access-control-allow-methods': 'GET,POST,OPTIONS' };
+  await page.route('https://*.supabase.co/functions/v1/garmin/**', async route => {
+    const request = route.request();
+    if (request.method() === 'OPTIONS') { await route.fulfill({ status: 200, headers }); return; }
+    expect(request.headers()['authorization']).toBe(`Bearer ${TEST_SESSION.access_token}`);
+    const path = new URL(request.url()).pathname.split('/garmin/')[1];
+    if (path === 'status') {
+      await route.fulfill({ json: { available, connected: remote.connected, backfillAvailable: false, receptionAvailable: true }, headers });
+    } else if (path === 'connect') {
+      expect(request.method()).toBe('POST'); remote.connects++;
+      await route.fulfill({ json: { authorizationUrl: 'https://connect.garmin.com/oauth2Confirm?state=synthetic-state' }, headers });
+    } else if (path === 'activities') {
+      await route.fulfill({ json: { activities: remote.connected ? [{ id: 'synthetic-garmin', deviceName: 'Garmin Edge 530', createdAt: NOW.getTime() }] : [], backfillAvailable: false }, headers });
+    } else if (path === 'activities/synthetic-garmin/file') {
+      remote.files++;
+      await route.fulfill({ contentType: 'application/octet-stream', body: FIT, headers });
+    } else if (path === 'disconnect') {
+      expect(request.method()).toBe('POST'); remote.disconnects++; remote.connected = false;
+      await route.fulfill({ json: { disconnected: true }, headers });
+    } else throw new Error(`Unexpected synthetic Garmin endpoint: ${path}`);
+  });
+  return remote;
+}
+
+for (const theme of ['dark', 'light']) {
+  for (const [width, height] of [[390, 844]]) {
+    test(`Garmin directo ${theme} ${width}: consentimiento, importación y desconexión`, async ({ page }, testInfo) => {
+      // La build tiene que llevar el interruptor encendido: VITE_GARMIN_ENABLED=true npx playwright test.
+      test.skip(process.env.VITE_GARMIN_ENABLED !== 'true', 'Build sin VITE_GARMIN_ENABLED=true');
+      const artifacts = (await import('node:path')).resolve(process.env.FBIKETRAIN_ARTIFACTS_DIR ?? testInfo.outputPath('garmin-directo'));
+      mkdirSync(artifacts, { recursive: true });
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(theme => localStorage.setItem('fbt-theme', theme), theme);
+      const remote = await garminApi(page, true);
+      await open(page);
+      const connect = page.getByRole('button', { name: 'Conectar con Garmin', exact: true });
+      await expect(connect).toBeEnabled();
+      const section = page.locator('.garmin-connection');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await section.screenshot({ path: `${artifacts}/${theme}-${width}-garmin-directo-desconectado.png` });
+      const returnUrl = page.url();
+      await page.route('https://connect.garmin.com/oauth2Confirm**', async route => {
+        remote.consents++; remote.connected = true;
+        await route.fulfill({ status: 302, headers: { location: returnUrl } });
+      });
+      await connect.click();
+      await expect(section.getByText('Cuenta Garmin conectada.', { exact: true })).toBeVisible();
+      await expect(section.getByText('1 salida nueva de Garmin. 0 ya estaban guardadas.', { exact: true })).toBeVisible();
+      expect(remote.connects).toBe(1); expect(remote.consents).toBe(1); expect(remote.files).toBe(1);
+      await expect(section.getByText(/Última sincronización:/)).toBeVisible();
+      await expect(section.getByText(/Las salidas nuevas llegan solas/)).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await section.screenshot({ path: `${artifacts}/${theme}-${width}-garmin-directo-conectado.png` });
+      await page.reload();
+      await expect(section.getByText('Cuenta Garmin conectada.', { exact: true })).toBeVisible();
+      expect(remote.files).toBe(1);
+      await page.goto('#/historial');
+      const row = page.locator('a[href^="#/historial/"]').filter({ hasText: 'Garmin Edge 530' }).first();
+      await expect(row).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `${artifacts}/${theme}-${width}-garmin-directo-lista.png` });
+      await row.click();
+      await expect(page.locator('.ride-head').getByText('Garmin Edge 530', { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `${artifacts}/${theme}-${width}-garmin-directo-detalle.png` });
+      await page.goto('#/ajustes?abrir=conexiones');
+      await page.getByRole('button', { name: 'Desconectar Garmin', exact: true }).click();
+      await expect(connect).toBeEnabled();
+      expect(remote.disconnects).toBe(1);
+      await page.goto('#/historial');
+      await expect(page.locator('a[href^="#/historial/"]').filter({ hasText: 'Garmin Edge 530' }).first()).toBeVisible();
+    });
+
+    test(`Garmin pendiente de aprobación ${theme} ${width}`, async ({ page }, testInfo) => {
+      const artifacts = (await import('node:path')).resolve(process.env.FBIKETRAIN_ARTIFACTS_DIR ?? testInfo.outputPath('garmin-directo'));
+      mkdirSync(artifacts, { recursive: true });
+      await page.setViewportSize({ width, height });
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(theme => localStorage.setItem('fbt-theme', theme), theme);
+      await garminApi(page, false);
+      await open(page);
+      const section = page.locator('.garmin-connection');
+      await expect(section.getByText('Pendiente de la aprobación de Garmin', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Conectar con Garmin', exact: true })).toBeDisabled();
+      await expect(section.getByText(/Exporta el FIT desde Garmin Connect y súbelo en Importar/)).toBeVisible();
+      await expect(section.getByRole('link', { name: 'Ir a Importar' })).toHaveAttribute('href', '#/importar');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await section.screenshot({ path: `${artifacts}/${theme}-${width}-garmin-directo-pendiente.png` });
+    });
+  }
+}
+
+test('la política de privacidad se abre sin cuenta', async ({ browser, baseURL }) => {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await page.route('https://*.supabase.co/**', route => route.abort());
+    await page.goto(new URL('#/privacidad', baseURL).href);
+    await expect(page.getByRole('heading', { name: 'Privacidad', exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Garmin Connect', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Vuelve a tu ritmo' })).not.toBeVisible();
+  } finally { await context.close(); }
+});

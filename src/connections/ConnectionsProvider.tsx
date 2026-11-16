@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import { useImporter } from '../ui/importer';
 import { useToast } from '../ui/components/Toast';
 import { IntervalsError } from './intervalsClient';
+import { useGarminConnections } from './GarminProvider';
 import { loadConnection, loadSyncState, saveConnection, syncIntervals, type IntervalsConnection, type SyncState } from './intervalsSync';
 
 type Connections = {
@@ -20,7 +21,7 @@ type Connections = {
 };
 const Context = createContext<Connections | null>(null);
 export const useConnections = () => useContext(Context);
-export const useConnectionRevision = () => useConnections()?.revision ?? 0;
+export const useConnectionRevision = () => (useConnections()?.revision ?? 0) + (useGarminConnections()?.revision ?? 0);
 
 export function ConnectionsProvider({ children }: { children: ReactNode }) {
   const importer = useImporter();

@@ -11,3 +11,5 @@
 .connection-steps li::marker { color: var(--acc-dist); font-weight: 700; }
 .connection-status { display: grid; gap: 6px; padding: 12px; background: var(--surface-2); border-radius: 8px; font-size: 14px; color: var(--ink-2); }
 .activity-connection > .btn { min-height: 44px; white-space: normal; }
+.garmin-connection { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 24px; }
+.connection-privacy { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }

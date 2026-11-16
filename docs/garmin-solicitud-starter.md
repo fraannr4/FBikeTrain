@@ -1,51 +1,40 @@
-# Garmin Connect Developer Program: solicitud de acceso Starter
+# Solicitud Garmin Starter: lista para enviar
 
-> Revisión del 2026-11-10, conector: consultar [conectores-actividades.md](conectores-actividades.md) antes de enviar. Courses API documenta **publicar** recorridos en Garmin; la lectura de la biblioteca privada no está confirmada. Intervals.icu ya incluye iGPSPORT en su catálogo oficial, pendiente de comprobar disponibilidad en el móvil; quedan descartados los puentes con contraseña descritos al final de este borrador. Intervals avisa de restricciones para redistribuir datos Garmin: usar Personal/Starter directo.
+Revisada el **2026-11-16**. Detalle técnico y fuentes: [garmin-directo.md](garmin-directo.md). Garmin usa hoy **OAuth 2.0 con PKCE**. Starter incluye Activity API y Courses API, solo por push y sin histórico.
 
-Fecha: 2026-11-10. Decisión del usuario: pedir el nivel **Starter** para conectar Garmin desde FBikeTrain y recibir salidas nuevas. Courses permite publicar recorridos en Garmin; confirmar por separado con Garmin si existe lectura de los recorridos privados del usuario.
+## Antes de enviar
 
-## Por qué Starter y no «login como otras apps»
+1. Publicar la build con la página de privacidad. Comprobar que https://fraannr4.github.io/FBikeTrain/#/privacidad se abre sin iniciar sesión.
+2. Comprobar que el correo de contacto fbiketrain@gmail.com recibe mensajes.
 
-- Las apps que piden tu usuario y contraseña de Garmin usan la web privada de Garmin Connect sin permiso: incumplen sus condiciones, se rompen con cada cambio o con la verificación en dos pasos, y obligan a guardar contraseñas ajenas en nuestro servidor. No lo hacemos.
-- El camino oficial es el programa de desarrolladores. Con Starter, la app muestra un botón «Conectar con Garmin»: el usuario inicia sesión **en la web de Garmin**, autoriza FBikeTrain y Garmin nos envía sus datos. Nosotros nunca vemos su contraseña. Es el mismo flujo que usan Strava, intervals.icu o TrainingPeaks.
-- Niveles, según [developer.garmin.com](https://developer.garmin.com/gc-developer-program/overview/) (consultado el 2026-11-10):
-  - **Personal**: solo los datos de uno mismo, con clave propia. Salidas en JSON y FIT. Sin rutas.
-  - **Starter**: para «organizaciones, desde desarrolladores individuales y startups hasta empresas». Incluye Activity API (JSON y FIT), **Courses API**, Health API y Training API. Entrega por push (Garmin llama a nuestro servidor). Sin histórico y con un número limitado de usuarios.
-  - **Enterprise**: lo mismo más histórico de 1 mes, usuarios ilimitados y soporte. Condiciones a medida.
-- Garmin no publica precios en esa página; Starter se concede por aprobación.
+## Campos del formulario (en inglés)
 
-## Qué tiene que hacer el usuario (Claude no puede crear cuentas ni enviar formularios)
-
-1. Entrar en el portal con una cuenta Garmin y abrir el formulario de Starter enlazado en la página del programa.
-2. Rellenarlo con los textos de abajo. Guardar las credenciales de aplicación que Garmin entregue en `.local-secrets/credenciales.md`, nunca en el repositorio ni en el chat.
-3. Avisar cuando llegue la aprobación. Entonces se planifica el módulo «Conectar con Garmin».
-
-## Textos propuestos para el formulario (en inglés, que es el idioma del portal)
-
-- **Company / organization**: AT Infoserveis (o el nombre con el que se quiera firmar; los desarrolladores individuales también pueden solicitarlo).
-- **Application name**: FBikeTrain.
+- **Company / organization**: FBikeTrain (individual developer).
+- **Application name**: FBikeTrain
 - **Website**: https://fraannr4.github.io/FBikeTrain/
+- **Privacy policy URL**: https://fraannr4.github.io/FBikeTrain/#/privacidad
+- **Contact email**: fbiketrain@gmail.com
+- **APIs requested**: Activity API (FIT files) and Courses API. Health, Training and Women's Health are not needed.
+- **Expected users**: fewer than 100 in the first year (friends and club members).
+- **Platform**: Progressive web app on GitHub Pages with a Supabase backend (Edge Functions).
 - **Application description**:
-  FBikeTrain is a free, personal cycling training web app. Riders import their rides, see their progression against their own level, plan workouts and generate road-cycling routes (GPX) for bike computers. We want riders to connect their Garmin account so that their activities and courses flow into the app without manual exports. Data is used only for the rider's own statistics and route planning and is stored per account; nothing is sold or shared with third parties.
-- **APIs requested**: Activity API (JSON and FIT), Courses API. Health and Training APIs are not needed.
-- **Expected number of users**: fewer than 100 in the first year (friends and club members).
-- **Platform**: Web application (progressive web app), hosted on GitHub Pages with a Supabase backend (Edge Functions receive Garmin push notifications).
-- **Data handling**: Activities are stored under the rider's own account and can be deleted by the rider at any time from the app. Garmin tokens are stored server-side, encrypted, and revoked when the rider disconnects.
-- **Support contact**: el correo del usuario.
 
-## Requisitos que faltan antes de enviar
+  > FBikeTrain is a free, personal cycling training web app. Riders import their rides, track their progression against their own level and plan road-cycling routes. With Garmin, a rider taps "Connect with Garmin", authorizes FBikeTrain on Garmin's website (OAuth 2.0 PKCE), and new cycling activities arrive automatically: our server receives the push notification, downloads the FIT file and the app imports it into the rider's history. Riders can also send a planned route to Garmin Connect as a course to follow on their device. Garmin tokens are stored only on the server, encrypted, and never reach the browser. "Disconnect" calls the user registration delete endpoint and erases tokens and pending files. Data is used only for the rider's own statistics and routes; nothing is sold or shared.
 
-- **Política de privacidad pública.** La app no tiene ninguna página de privacidad y los programas de este tipo suelen pedir su URL. Hay que añadir `#/privacidad` (qué se guarda, dónde, cómo borrarlo, terceros: Supabase, Groq, OpenRouteService, Nominatim, Garmin) antes de solicitar. Es una tarea pequeña; se puede incluir en el lote de Amigos.
-- **Endpoint de recepción.** Starter entrega por push: necesitaremos una Edge Function pública que reciba las notificaciones de Garmin y descargue cada salida. Se implementa cuando llegue la aprobación.
+## URLs que pide el portal
 
-## Mientras tanto
+- **OAuth redirect / callback URL**: `https://btmsakyhkxrndvscmxqs.supabase.co/functions/v1/garmin/callback`
+- **Push endpoint (Activity Files, Deregistrations, User Permissions Change)**: `https://btmsakyhkxrndvscmxqs.supabase.co/functions/v1/garmin/notifications/<GARMIN_WEBHOOK_SECRET>`. Se rellena después de la aprobación, en el paso 5, con el secreto real. Ese secreto no se pega nunca en el chat ni en el repositorio.
 
-- **Nivel Personal** para el propio usuario: crear la clave en Garmin Connect y guardarla en `credenciales.md`. Con ella se puede probar la descarga de salidas (JSON y FIT) y comprobar si el navegador puede llamar directo o hace falta un proxy. Las rutas no están en este nivel.
-- **Compartir desde la app de Garmin Connect o de iGPSPORT** al instalar FBikeTrain como PWA (rama `codex/pwa-compartir`): sirve para FIT, GPX y TCX, sin API.
-- **Exportación manual**: GPX desde la web de Garmin Connect y FIT desde iGPSPORT, importados en la app como hoy.
+## Qué hacer en Garmin, en orden
 
-## iGPSPORT
+1. Abrir https://developer.garmin.com/gc-developer-program/overview/ y pulsar el botón de solicitud del nivel Business (Starter) («Request now»).
+2. Rellenar el formulario con los campos de arriba y enviarlo.
+3. Esperar el correo de aprobación. Entonces entrar en https://developerportal.garmin.com/ y crear la app (**Create App**) con las APIs **Activity** y **Courses**, y los permisos **Activity Export** y **Course Import**.
+4. Copiar el **Consumer key** (client id) y el **Consumer secret** a `.local-secrets/credenciales.md`. Nunca al chat ni al repositorio.
+5. En la herramienta de endpoints (https://apis.garmin.com/tools/endpoints), marcar la entrega **Push** y poner la URL de notificaciones con el secreto para **Activity Files**, **Deregistrations** y **User Permissions Change**. Dejar desactivados los demás tipos. En https://apis.garmin.com/tools/apiConfiguration, comprobar que la app tiene Activity y Courses.
+6. Registrar la **redirect URL** de arriba.
+7. Descargar los PDF de **Activity API** y **Courses API** del portal y guardarlos fuera del repositorio. Con ellos se comprueban los campos marcados como pendientes en [garmin-directo.md](garmin-directo.md).
+8. Avisar para desplegar (migración, función, secretos e interruptor `VITE_GARMIN_ENABLED`), y probar con una salida propia.
 
-No se ha localizado una API pública general para FBikeTrain. Opciones compatibles:
-- Compartir el FIT/GPX desde su app a FBikeTrain (PWA, en curso con Codex).
-- Conexión nativa con Intervals.icu, si la ofrece la app/región del usuario: el catálogo oficial de Intervals ya incluye iGPSPORT. Pendiente comprobar una salida real en el móvil. FBikeTrain lee originales mediante la API oficial de Intervals; no se usan herramientas que pidan contraseña de iGPSPORT. Investigación y conector personal en `docs/conectores-actividades.md`.
+Mientras tanto, la app muestra el botón desactivado («Pendiente de la aprobación de Garmin») y el camino manual: exportar el FIT desde Garmin Connect y subirlo en Importar.

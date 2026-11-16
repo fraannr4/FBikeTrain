@@ -2,12 +2,14 @@ import { createContext, useContext } from 'react';
 import type { FolderFile, ImportPhase, ImportReport } from '../import/importService';
 import type { ImportRequest, ImportWorkerMessage } from '../import/import.worker';
 import { db } from '../db/db';
+import type { ActivityProvenance } from '../domain/types';
 
 /** La fase es opcional para que los importadores simulados de las pruebas sigan valiendo. */
 export type Importer = (
   files: (File | FolderFile)[],
   onProgress: (done: number, total: number, phase?: ImportPhase) => void,
   signal?: AbortSignal,
+  provenance?: ActivityProvenance,
 ) => Promise<ImportReport>;
 
 const aborted = () => new DOMException('Importación cancelada', 'AbortError');
@@ -16,7 +18,7 @@ const aborted = () => new DOMException('Importación cancelada', 'AbortError');
  * Importa en un Web Worker para no congelar la pantalla. Un Worker por importación.
  * Cancelar termina el Worker; lo ya guardado se queda y la deduplicación evita duplicarlo al repetir.
  */
-export const workerImporter: Importer = (files, onProgress, signal) =>
+export const workerImporter: Importer = (files, onProgress, signal, provenance) =>
   new Promise((resolve, reject) => {
     if (signal?.aborted) {
       reject(aborted());
@@ -49,7 +51,7 @@ export const workerImporter: Importer = (files, onProgress, signal) =>
       finish();
       reject(new Error('mensaje del Worker ilegible'));
     };
-    worker.postMessage({ files, databaseName: db.name } satisfies ImportRequest);
+    worker.postMessage({ files, databaseName: db.name, provenance } satisfies ImportRequest);
   });
 
 // Las pruebas sustituyen el Worker con un Provider.

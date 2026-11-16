@@ -1,3 +1,4 @@
+import { ActivitySource, GarminHistoryAttribution } from '../components/ActivitySource';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getActivity, getTrack, listActivities, listClimbEfforts, listRouteSigs } from '../../db/repo';
@@ -194,6 +195,8 @@ export function Salida() {
           ) : null}
           <div className="ride-head">
             <RideTitle name={name} />
+            <ActivitySource activity={ride} />
+            <GarminHistoryAttribution />
             <p className="ride-when">{whenLabel(ride.startTime, loaded.now)}</p>
             {level || (here?.route && here.route.rank <= 3) ? (
               <div className="cluster ride-chips">
@@ -236,6 +239,7 @@ export function Salida() {
 
       {withMap ? (
         <Sheet open={mapOpen} onClose={() => setMapOpen(false)} title="Recorrido" closeLabel="Cerrar el mapa" className="sheet--map">
+          <ActivitySource activity={ride} />
           <RideMap points={gps} label="Mapa ampliado de la salida" climbs={mapClimbs} className="ride-map--big" />
         </Sheet>
       ) : null}
@@ -642,7 +646,7 @@ const SimilarSection = memo(function SimilarSection({ route, similar }: { route:
               to={`/historial/${encodeURIComponent(act.id)}`}
               lead={<RideThumb id={act.id} />}
               title={<span dir="auto">{act.name?.trim() || UNTITLED}</span>}
-              meta={<span className="share">Coincide en un {formatCount(share * 100)}{NNB}%</span>}
+              meta={<><ActivitySource activity={act} /><span className="share">Coincide en un {formatCount(share * 100)}{NNB}%</span></>}
               value={formatNumber(act.totals.distanceM / 1000, 1)}
               unit="km"
             />

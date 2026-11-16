@@ -33,6 +33,7 @@ jobs:
           VITE_SHARED_AI_ENABLED: ${{ vars.VITE_SHARED_AI_ENABLED || 'false' }}
           VITE_SHARED_ORS_ENABLED: ${{ vars.VITE_SHARED_ORS_ENABLED || 'false' }}
           VITE_ROUTE_SOURCES_ENABLED: ${{ vars.VITE_ROUTE_SOURCES_ENABLED || 'false' }}
+          VITE_GARMIN_ENABLED: ${{ vars.VITE_GARMIN_ENABLED || 'false' }}
       - run: node scripts/check-bundle-secrets.mjs dist
       - uses: actions/upload-pages-artifact@v3
         with:

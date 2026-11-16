@@ -62,7 +62,8 @@ export class ParseError extends Error {
 }
 
 /** Actividad guardada en IndexedDB (sin puntos; el track va aparte). */
-export type StoredActivity = {
+export type ActivityProvenance = { origin: 'garmin-connect'; sourceDevice?: string };
+export type StoredActivity = Partial<ActivityProvenance> & {
   id: string;
   startTime: number;
   sport: 'cycling';

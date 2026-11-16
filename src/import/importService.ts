@@ -1,4 +1,4 @@
-import type { ParsedActivity, StoredActivity, TrackPoint } from '../domain/types';
+import type { ActivityProvenance, ParsedActivity, StoredActivity, TrackPoint } from '../domain/types';
 import { analyzeActivity, saveAnalysis } from '../analysis/analysis';
 import { syncCalendar } from '../calendar/sync';
 import { listActivities, saveActivity, setLastImportAt } from '../db/repo';
@@ -88,6 +88,7 @@ const isZip = (name: string) => name.toLowerCase().endsWith('.zip');
 export async function importFiles(
   files: (File | FolderFile)[],
   onProgress?: (done: number, total: number, phase: ImportPhase) => void,
+  provenance?: ActivityProvenance,
 ): Promise<ImportReport> {
   const report: ImportReport = { added: 0, duplicates: 0, notCycling: 0, tooShort: 0, skipped: [], noGps: [], withCadence: 0, routesAdded: 0 };
   const folder = files.filter((f): f is FolderFile => !(f instanceof File));
@@ -113,7 +114,10 @@ export async function importFiles(
     }
     // Basta con mirar las del mismo día: el índice `startTime` evita leer todo el historial.
     const sameDay = await listActivities({ from: a.startTime - DAY_MS, to: a.startTime + DAY_MS });
-    if (isDuplicate(a, sameDay)) {
+    // Garmin y otros exportadores pueden calcular distancias distintas del mismo original.
+    const sameDuration = provenance?.origin === 'garmin-connect' && sameDay.some(e =>
+      Math.abs(e.startTime - a.startTime) <= 1000 && Math.abs(e.totals.elapsedTimeS - a.totals.elapsedTimeS) <= 1);
+    if (isDuplicate(a, sameDay) || sameDuration) {
       report.duplicates++;
       return;
     }
@@ -126,6 +130,7 @@ export async function importFiles(
       totals: a.totals,
       hasTrack: track.length > 0,
       source: a.source,
+      ...provenance,
       importedAt: Date.now(),
     };
     await saveActivity(activity, track);

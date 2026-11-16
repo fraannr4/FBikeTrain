@@ -1,3 +1,4 @@
+import { PublicAccess } from './auth/PublicAccess';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -39,6 +40,6 @@ import './ui/styles/escritorio.css';
 rememberSharedLocation();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AccountBoundary client={accountClient} initialize={initializeAccount}><App /></AccountBoundary>
+    <PublicAccess><AccountBoundary client={accountClient} initialize={initializeAccount}><App /></AccountBoundary></PublicAccess>
   </StrictMode>,
 );

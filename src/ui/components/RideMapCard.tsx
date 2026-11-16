@@ -1,3 +1,4 @@
+import { ActivitySource } from './ActivitySource';
 import { memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import type { LatLng, StoredActivity, TrackPoint } from '../../domain/types';
@@ -116,6 +117,7 @@ export const RideMapCard = memo(function RideMapCard({ activity, track, profile,
       ) : null}
       <div className="lastride-body">
         {activity.name?.trim() ? <h3 className="lastride-name ride-name" dir="auto">{activity.name}</h3> : null}
+        <ActivitySource activity={activity} />
         <p className="lastride-date">{rideDayLabel(activity.startTime, now)}</p>
         {!loading && !withMap ? <p className="lastride-nomap">Esta salida no tiene GPS, así que no tiene mapa.</p> : null}
         <dl className="lastride-stats">
