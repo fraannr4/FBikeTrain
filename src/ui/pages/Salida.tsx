@@ -46,6 +46,7 @@ import {
   Mountain,
   Repeat,
   Sparkles,
+  Swords,
   Timer,
   TrendingUp,
   type LucideIcon,
@@ -206,6 +207,12 @@ export function Salida() {
             ) : null}
           </div>
           <Figures ride={ride} />
+          {withMap && !ride.id.startsWith('demo-') ? (
+            <Link className="btn btn--secondary btn--block ride-challenge" to={`/retos/nuevo?tipo=ruta&salida=${encodeURIComponent(ride.id)}`}>
+              <Swords className="ic" aria-hidden="true" />
+              Retar con esta ruta
+            </Link>
+          ) : null}
         </div>
 
         {!ride.hasTrack ? (

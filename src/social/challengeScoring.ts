@@ -4,7 +4,8 @@ import { db } from '../db/db';
 import { getTrack, listActivities } from '../db/repo';
 import { detectClimbs } from '../metrics/climbs';
 import { haversineM } from '../import/summary';
-import { listCommunityChallenges, submitCommunityScore, type CommunityChallenge } from './communityChallenges';
+import { getRouteChallengeGeometry, listCommunityChallenges, submitCommunityScore, submitRouteResult, type CommunityChallenge } from './communityChallenges';
+import { bestRouteResult } from './routeChallenge';
 
 type TrackReader = (id: string) => Promise<TrackPoint[] | undefined>;
 const finite = (n: number | undefined): n is number => n !== undefined && Number.isFinite(n);
@@ -146,6 +147,20 @@ export async function scoreCommunityChallenge(
   return Math.round(score * 1000) / 1000;
 }
 
+/**
+ * Reto de ruta: el servidor guarda el mejor tiempo, así que solo se envía un tiempo mejor que el remoto.
+ * Un dispositivo vacío no borra nada y borrar la salida local no retira el resultado ya enviado.
+ */
+async function syncRouteResult(client: SupabaseClient, c: CommunityChallenge, userId: string, activities: StoredActivity[], remote: number | null): Promise<void> {
+  const member = c.members.find(m => m.id === userId);
+  if (!member?.accepted_at) return;
+  const geometry = await getRouteChallengeGeometry(client, c.id);
+  if (!geometry) return;
+  const window = { from: Date.parse(member.accepted_at), to: Math.min(Date.parse(c.deadline), Date.now()) };
+  const result = await bestRouteResult(geometry.points, geometry.distanceM, activities, getTrack, window);
+  if (result && (!remote || result.movingTimeS < remote)) await submitRouteResult(client, c.id, result);
+}
+
 type SyncOptions = { challengeId?: string; replaceRemote?: boolean };
 type PendingSync = { promise: Promise<void>; userId: string; challengeId?: string };
 const pending = new WeakMap<SupabaseClient, PendingSync>();
@@ -176,6 +191,10 @@ export function syncCommunityScores(client: SupabaseClient, userId: string, opti
     for (const c of active) {
       if (db.name !== databaseName) return;
       const remote = c.members.find(m => m.id === userId)?.score;
+      if (c.kind === 'route') {
+        await syncRouteResult(client, c, userId, activities, remote ?? null);
+        continue;
+      }
       const previous = (await db.meta.get(sourceKey(c.id)))?.value as { userId?: string; score?: number } | undefined;
       // A fresh device must not erase (or replace) another device's submitted history.
       // Local provenance is a convenience guard, not proof of sporting authenticity.

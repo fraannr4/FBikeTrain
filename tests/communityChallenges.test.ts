@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createCommunityChallenge, formatCommunityScore, getCommunityChallenge, listCommunityChallenges, listCommunityNotifications, rankedCommunityMembers, readCommunityNotification, respondCommunityChallenge, submitCommunityScore, type CommunityChallenge, type CommunityMember } from '../src/social/communityChallenges';
+import { createCommunityChallenge, createRouteChallenge, formatCommunityScore, getRouteChallengeGeometry, submitRouteResult, getCommunityChallenge, listCommunityChallenges, listCommunityNotifications, rankedCommunityMembers, readCommunityNotification, respondCommunityChallenge, submitCommunityScore, type CommunityChallenge, type CommunityMember } from '../src/social/communityChallenges';
 
 const fake = (data: unknown = null, error: { message: string } | null = null) => {
   const rpc = vi.fn().mockResolvedValue({ data, error });
@@ -51,5 +51,32 @@ describe('retos de comunidad', () => {
     expect(formatCommunityScore('segment', 119.9)).toBe('2:00');
     expect(formatCommunityScore('segment', 0)).toBe('Sin registro');
     expect(formatCommunityScore('distance', null)).toBe('Sin registro');
+  });
+});
+
+describe('retos de ruta', () => {
+  it('crea el reto con la ruta ya recortada y solo cifras; el resultado no lleva track', async () => {
+    const { client, rpc } = fake('r1');
+    const points: [number, number][] = [[41.0, 2.5], [41.01, 2.5]];
+    expect(await createRouteChallenge(client, { title: 'Faro', duration_days: 7, invited_ids: ['u2'], points, distance_m: 1112 })).toBe('r1');
+    expect(rpc).toHaveBeenCalledWith('create_route_challenge', { title: 'Faro', duration_days: 7, invited_ids: ['u2'], route_points: points, distance_m: 1112 });
+    await submitRouteResult(client, 'r1', { movingTimeS: 3600, coverage: 0.95, riddenAt: Date.parse('2026-11-16T09:00:00Z'), activityRef: '1700000000000-20000' });
+    expect(rpc).toHaveBeenLastCalledWith('submit_route_result', { challenge_id: 'r1', moving_time_s: 3600, coverage: 0.95, ridden_at: '2026-11-16T09:00:00.000Z', activity_ref: '1700000000000-20000' });
+  });
+  it('lee la geometría del reto bajo RLS y la devuelve como puntos', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { points: [[41.0, 2.5], [41.01, 2.5, 3]], distance_m: 1112 }, error: null });
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+    const geometry = await getRouteChallengeGeometry({ from } as unknown as SupabaseClient, 'r1');
+    expect(from).toHaveBeenCalledWith('community_route_challenges');
+    expect(eq).toHaveBeenCalledWith('challenge_id', 'r1');
+    expect(geometry).toEqual({ points: [{ lat: 41.0, lng: 2.5 }, { lat: 41.01, lng: 2.5, ele: 3 }], distanceM: 1112 });
+  });
+  it('gana el menor tiempo y el tiempo se muestra con horas', () => {
+    const challenge = { kind: 'route', members: [member('lento', 4000), member('rapido', 3700), member('sin', null)] } as CommunityChallenge;
+    expect(rankedCommunityMembers(challenge).map(m => m.id)).toEqual(['rapido', 'lento', 'sin']);
+    expect(formatCommunityScore('route', 3725)).toBe('1:02:05');
+    expect(formatCommunityScore('route', null)).toBe('Sin registro');
   });
 });

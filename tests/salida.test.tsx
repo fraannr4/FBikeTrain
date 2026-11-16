@@ -113,6 +113,17 @@ describe('Salida', () => {
     expect(screen.getByRole('slider', { name: 'Punto del perfil' })).toBeInTheDocument();
   });
 
+  it('offers to challenge someone on this ride route, but not for a ride without GPS', async () => {
+    await seed([r1, ride('r5', '2026-10-27T16:40:00Z', { hasTrack: false })]);
+    const { unmount } = renderAt('#/historial/r1');
+    const link = await screen.findByRole('link', { name: 'Retar con esta ruta' });
+    expect(link).toHaveAttribute('href', '#/retos/nuevo?tipo=ruta&salida=r1');
+    unmount();
+    renderAt('#/historial/r5');
+    await screen.findByText(/no tiene GPS/);
+    expect(screen.queryByRole('link', { name: 'Retar con esta ruta' })).not.toBeInTheDocument();
+  });
+
   it('a long clamped name keeps the heading name clean', async () => {
     const name = 'Vuelta larguísima por el Montseny con Turó de l’Home, Santa Fe, Collformic y vuelta a casa por Collsuspina';
     await seed([ride('long', '2026-11-05T08:12:00Z', { name })]);
