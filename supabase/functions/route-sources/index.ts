@@ -28,6 +28,26 @@ function background(task: () => Promise<unknown>): void {
   (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime?.waitUntil?.(running);
 }
 
+/** Filas por página: el tope de filas por respuesta de la API de datos de Supabase. */
+const PAGE_ROWS = 1000;
+const MAX_PAGES = 20;
+
+/**
+ * Todas las filas de una RPC de la biblioteca. La API de datos corta cada respuesta en 1.000 filas:
+ * sin paginar, de las celdas del mapa de calor solo llegaban las 1.000 más transitadas, todas junto
+ * al centro, y los anillos de las vueltas largas se quedaban sin puntos de paso.
+ */
+async function allRows<T>(client: ReturnType<typeof createClient>, fn: string, box: Box): Promise<T[]> {
+  const rows: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data, error } = await client.rpc(fn, boxArgs(box)).range(page * PAGE_ROWS, (page + 1) * PAGE_ROWS - 1);
+    if (error) throw new Error('library');
+    rows.push(...((data ?? []) as T[]));
+    if ((data ?? []).length < PAGE_ROWS) break;
+  }
+  return rows;
+}
+
 Deno.serve(request => {
   // Las credenciales de servicio existen solo en el runtime de Supabase.
   const admin = url && serviceKey ? createClient(url, serviceKey, options) : null;
@@ -59,15 +79,9 @@ Deno.serve(request => {
       if (error) throw new Error('rate_limit');
       return data === true;
     },
-    routesInBox: async box => {
-      const { data, error } = await admin!.rpc('reference_routes_in_box', boxArgs(box));
-      if (error) throw new Error('library');
-      return (data ?? []) as (ReferenceRouteRow & { id: string })[];
-    },
+    routesInBox: box => allRows<ReferenceRouteRow & { id: string }>(admin!, 'reference_routes_in_box', box),
     heatCellsInBox: async box => {
-      const { data, error } = await admin!.rpc('reference_heat_cells_in_box', boxArgs(box));
-      if (error) throw new Error('library');
-      return ((data ?? []) as HeatRow[]).map((c): HeatCell => ({ cell: c.cell, lat: c.lat, lng: c.lng, routes: c.routes, climbMPerKm: c.climb_m_per_km, ele: c.ele }));
+      return (await allRows<HeatRow>(admin!, 'reference_heat_cells_in_box', box)).map((c): HeatCell => ({ cell: c.cell, lat: c.lat, lng: c.lng, routes: c.routes, climbMPerKm: c.climb_m_per_km, ele: c.ele }));
     },
     replaceHeatCells: async (cells, box) => {
       for (let i = 0; i === 0 || i < cells.length; i += HEAT_CHUNK) {

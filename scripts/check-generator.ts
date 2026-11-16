@@ -29,7 +29,9 @@ const MINUTE_LIMIT = 38;
 const CALDES: LatLng = { lat: 41.6327, lng: 2.1677 };
 
 const verbose = process.argv.includes('-v');
-const args = process.argv.slice(2).filter(a => a !== '-v');
+/** `--local`: la biblioteca sale de los GPX de `.rutas/` (como `library-import.ts`), sin token ni red de Supabase. */
+const local = process.argv.includes('--local');
+const args = process.argv.slice(2).filter(a => a !== '-v' && a !== '--local');
 type Case = { distanceKm: number; elevGainM: number | null; start: LatLng };
 const cases: Case[] = args.length === 0
   ? [{ distanceKm: 60, elevGainM: null, start: CALDES }, { distanceKm: 60, elevGainM: 800, start: CALDES }]
@@ -45,7 +47,7 @@ async function main() {
   const key = process.env.ORS_API_KEY;
   if (!key) throw new Error('Falta la variable de entorno ORS_API_KEY (tu clave de openrouteservice). No se ha consultado nada.');
   const token = existsSync(TOKEN_FILE) ? readFileSync(TOKEN_FILE, 'utf8').trim() : '';
-  if (!token) throw new Error(`Falta el token de la Management API en ${TOKEN_FILE}. No se ha consultado nada.`);
+  if (!token && !local) throw new Error(`Falta el token de la Management API en ${TOKEN_FILE}. No se ha consultado nada.`);
   if (cases.some(c => !(c.distanceKm >= 5 && c.distanceKm <= 300) || (c.elevGainM !== null && !(c.elevGainM >= 0)) || !Number.isFinite(c.start.lat) || !Number.isFinite(c.start.lng))) {
     throw new Error('Argumentos no válidos. Uso: [km de 5 a 300] [desnivel en m o -] [lat] [lng] [-v]');
   }
@@ -72,10 +74,42 @@ async function main() {
     return response.json() as Promise<T[]>;
   }
 
+  /** Filas y celdas de `.rutas/`, con las mismas reglas que `library-import.ts`. */
+  async function localLibrary() {
+    const { readdirSync } = await import('node:fs');
+    const { parseReferenceRoute } = await import('../src/routes/library');
+    const { descFields, gpxSource } = await import('../src/routes/library/importList');
+    const { MAX_UNPAVED_PCT, pointsReferenceRow } = await import('../src/routes/library/rows');
+    const { cellSetOverlap, lineCells } = await import('../src/routes/library/cells');
+    const { buildHeatCells } = await import('../src/routes/library/heat');
+    const accepted: { row: ReferenceRouteRow & { id: string }; cells: Set<string> }[] = [];
+    for (const file of readdirSync('.rutas').filter(f => /\.gpx$/i.test(f)).sort()) {
+      const text = readFileSync(`.rutas/${file}`, 'utf8');
+      let parsed: ReturnType<typeof parseReferenceRoute>;
+      try { parsed = parseReferenceRoute(text, file); } catch { continue; }
+      const origin = gpxSource(file, text);
+      const desc = descFields(text);
+      if (!origin.url || (desc.unpavedPct ?? 0) > MAX_UNPAVED_PCT) continue;
+      const row = { ...pointsReferenceRow({ source: origin.source, sourceId: origin.sourceId ?? file, url: origin.url, name: parsed.name, author: parsed.author, points: parsed.points, unpavedPct: desc.unpavedPct ?? null }), id: file };
+      if (desc.distanceM !== undefined) row.distance_m = Math.round(desc.distanceM);
+      if (desc.elevGainM !== undefined) row.elev_gain_m = Math.round(desc.elevGainM);
+      const cells = lineCells(row.line.map(([lng, lat]) => ({ lat, lng })));
+      if (accepted.some(a => cellSetOverlap(cells, a.cells) >= 0.9)) continue;
+      accepted.push({ row, cells });
+    }
+    const rows = accepted.map(a => a.row);
+    return { rows, cells: buildHeatCells(rows.map(r => r.line)) };
+  }
+  const localData = local ? await localLibrary() : null;
+
   /** Lo mismo que la operación `library` de `route-sources`, sin caché ni llenado automático. */
   async function library(search: LibrarySearch) {
     const s = normalizeLibrarySearch(search);
     const b = circleBox(s.lat, s.lon, s.radiusM);
+    if (localData) {
+      const inBox = (lat: number, lng: number) => lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
+      return buildLibraryZone(s, localData.rows.filter(r => r.max_lat >= b.minLat && r.min_lat <= b.maxLat && r.max_lng >= b.minLng && r.min_lng <= b.maxLng), localData.cells.filter(c => inBox(c.lat, c.lng)).sort((x, y) => y.routes - x.routes || x.cell.localeCompare(y.cell)).slice(0, Number(process.env.CELL_CAP) || Infinity), 'none');
+    }
     const box = [b.minLat, b.maxLat, b.minLng, b.maxLng].map(v => v.toFixed(6)).join(', ');
     const rows = await sql<ReferenceRouteRow & { id: string }>(`select * from public.reference_routes_in_box(${box})`);
     type HeatRow = { cell: string; lat: number; lng: number; routes: number; climb_m_per_km: number | null; ele: number | null };
