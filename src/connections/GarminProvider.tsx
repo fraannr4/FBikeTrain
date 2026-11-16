@@ -18,6 +18,18 @@ const Context = createContext<GarminConnections | null>(null);
 export const useGarminConnections = () => useContext(Context);
 const inactive: GarminStatus = { available: false, connected: false, backfillAvailable: false };
 
+/** Código de un solo uso con el que el servidor devuelve de Garmin (`#/ajustes?…&garmin_code=`). Se retira de la dirección al leerlo. */
+function takeGarminCode(): string | null {
+  const [route, query = ''] = window.location.hash.split('?');
+  const params = new URLSearchParams(query);
+  const code = params.get('garmin_code');
+  if (!code) return null;
+  params.delete('garmin_code');
+  const rest = params.toString();
+  window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${route}${rest ? `?${rest}` : ''}`);
+  return code;
+}
+
 /** Garmin llama al servidor con la app cerrada; el navegador recoge las entregas al abrir/reanudar. */
 export function GarminProvider({ children, api: supplied }: { children: ReactNode; api?: GarminClient }) {
   const api = useMemo(() => supplied ?? createGarminClient(async () => (await accountClient.auth.getSession()).data.session?.access_token ?? null), [supplied]);
@@ -46,6 +58,7 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
     if (mounted.current) { setBusy(true); setError(undefined); }
     let importing = false;
     let retryLater = false;
+    let completing = false;
     try {
       if (operation === 'connect') {
         const redirect = await withConnectionLock(db, () => api.connect(ctrl.signal));
@@ -66,6 +79,13 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
         if (mounted.current) { setStatus(previous => ({ ...previous, connected: false, lastSyncAt: undefined })); setResult(undefined); }
         return;
       }
+      const code = takeGarminCode();
+      if (code) {
+        completing = true;
+        await api.complete(code, ctrl.signal);
+        ctrl.signal.throwIfAborted();
+        completing = false;
+      }
       const remote = await api.status(ctrl.signal);
       ctrl.signal.throwIfAborted();
       knownConnected.current = remote.connected;
@@ -80,7 +100,7 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
       if (mounted.current && imported) { setResult(imported); setStatus({ ...remote, lastSyncAt: local.lastSyncAt ?? remote.lastSyncAt }); }
     } catch (err) {
       // Antes de desplegar/aprobar el servicio, la conexión permanece deshabilitada.
-      if (mounted.current && !ctrl.signal.aborted && (!automatic || knownConnected.current)) {
+      if (mounted.current && !ctrl.signal.aborted && (!automatic || knownConnected.current || completing)) {
         setError(err instanceof Error ? err.message : 'No se pudo completar la conexión Garmin.');
       }
     } finally {

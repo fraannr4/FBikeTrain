@@ -16,13 +16,20 @@ const MAX_COURSE_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_COURSE_POINTS = 10_000;
 const MAX_COURSE_SPACING_M = 100;
 const THIRTY_DAYS = 30 * 86_400_000;
+/** Vida del código que /callback entrega al navegador para que la app complete la vinculación. */
+const COMPLETION_MS = 5 * 60_000;
 type PendingState = { userId: string; verifier: string; expiresAt: number };
 export type GarminTokens = { garminUserId: string; ciphertext: string; expiresAt: number; refreshExpiresAt: number; permissions: string[]; lastSyncAt?: number };
+/** Conexión canjeada en /callback pero aún sin guardar: solo la guarda /complete con la sesión de `userId`. */
+export type PendingCompletion = { userId: string; expiresAt: number; connection: GarminTokens };
 export type GarminFile = { id: string; deviceName?: string; createdAt: number };
 export type GarminStore = {
   putState: (hash: string, value: PendingState) => Promise<void>;
   /** Atomic DELETE ... RETURNING, including expired entries, makes state strictly one use. */
   consumeState: (hash: string) => Promise<PendingState | undefined>;
+  putCompletion: (hash: string, value: PendingCompletion) => Promise<void>;
+  /** Atomic DELETE ... RETURNING, including expired entries: the completion code is strictly one use. */
+  consumeCompletion: (hash: string) => Promise<PendingCompletion | undefined>;
   loadConnection: (userId: string) => Promise<GarminTokens | undefined>;
   saveConnection: (userId: string, tokens: GarminTokens) => Promise<void>;
   removeConnection: (userId: string) => Promise<void>;
@@ -253,26 +260,24 @@ export function createGarminService(options: GarminServiceOptions) {
         const pending = await store.consumeState(await digest(state));
         const code = url.searchParams.get('code');
         if (!pending || pending.expiresAt <= now() || !code || code.length > 2048 || url.searchParams.has('error')) throw new SafeError(400, 'La autorización ha caducado o se ha cancelado. Vuelve a conectar.');
-        await store.withAccountLock(pending.userId, async () => {
-          const verifier = await decryptSecret(pending.verifier, options.encryptionKey, pending.userId);
-          const tokens = await tokenRequest({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: options.callbackUrl });
-          const auth = { Authorization: `Bearer ${tokens.accessToken}` };
-          const identity = record(await jsonResponse(await remote(`${USER_URL}id`, { headers: auth })));
-          const permissions = validPermissions(await jsonResponse(await remote(`${USER_URL}permissions`, { headers: auth })));
-          if (typeof identity.userId !== 'string' || !identity.userId || identity.userId.length > 256) throw new SafeError(502, 'Garmin no identificó la cuenta.');
-          if (!permissions.includes('ACTIVITY_EXPORT')) {
-            const revoked = await remote(`${USER_URL}registration`, { method: 'DELETE', headers: auth });
-            if (!revoked.ok && revoked.status !== 404) throw new SafeError(502, 'Garmin no concedió actividades y no se pudo revocar la autorización. Revócala desde Garmin Connect.');
-            throw new SafeError(403, 'Autoriza el acceso a las actividades en Garmin Connect.');
-          }
-          const previous = await store.loadConnection(pending.userId);
-          if (previous && previous.garminUserId !== identity.userId) {
-            await remote(`${USER_URL}registration`, { method: 'DELETE', headers: auth });
-            throw new SafeError(409, 'Desconecta la cuenta Garmin anterior antes de conectar otra.');
-          }
-          await store.saveConnection(pending.userId, { garminUserId: identity.userId, ciphertext: await encryptSecret(JSON.stringify(tokens), options.encryptionKey, pending.userId), expiresAt: tokens.expiresAt, refreshExpiresAt: tokens.refreshExpiresAt, permissions });
-        });
-        const redirect = new URL(options.appUrl); redirect.hash = '/ajustes?abrir=conexiones&garmin=connected';
+        const verifier = await decryptSecret(pending.verifier, options.encryptionKey, pending.userId);
+        const tokens = await tokenRequest({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: options.callbackUrl });
+        const auth = { Authorization: `Bearer ${tokens.accessToken}` };
+        const identity = record(await jsonResponse(await remote(`${USER_URL}id`, { headers: auth })));
+        const permissions = validPermissions(await jsonResponse(await remote(`${USER_URL}permissions`, { headers: auth })));
+        if (typeof identity.userId !== 'string' || !identity.userId || identity.userId.length > 256) throw new SafeError(502, 'Garmin no identificó la cuenta.');
+        if (!permissions.includes('ACTIVITY_EXPORT')) {
+          const revoked = await remote(`${USER_URL}registration`, { method: 'DELETE', headers: auth });
+          if (!revoked.ok && revoked.status !== 404) throw new SafeError(502, 'Garmin no concedió actividades y no se pudo revocar la autorización. Revócala desde Garmin Connect.');
+          throw new SafeError(403, 'Autoriza el acceso a las actividades en Garmin Connect.');
+        }
+        // OAuth CSRF: este navegador puede no ser el que inició /connect. No se guarda nada en la cuenta:
+        // la app completa con su sesión en /complete, y solo si es la misma cuenta que inició el flujo.
+        const completion = randomSecret();
+        await store.putCompletion(await digest(completion), { userId: pending.userId, expiresAt: now() + COMPLETION_MS, connection: {
+          garminUserId: identity.userId, ciphertext: await encryptSecret(JSON.stringify(tokens), options.encryptionKey, pending.userId),
+          expiresAt: tokens.expiresAt, refreshExpiresAt: tokens.refreshExpiresAt, permissions } });
+        const redirect = new URL(options.appUrl); redirect.hash = `/ajustes?abrir=conexiones&garmin_code=${completion}`;
         return new Response(null, { status: 303, headers: { Location: redirect.href, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
       }
       const bearer = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
@@ -293,6 +298,24 @@ export function createGarminService(options: GarminServiceOptions) {
         const authorization = new URL(AUTHORIZE_URL);
         authorization.search = new URLSearchParams({ response_type: 'code', client_id: options.clientId, redirect_uri: options.callbackUrl, state, code_challenge_method: 'S256', code_challenge: await digest(verifier) }).toString();
         return json({ authorizationUrl: authorization.href });
+      }
+      if (request.method === 'POST' && path === '/complete') {
+        const code = record(await requestJson(request, 4096)).code;
+        if (typeof code !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(code)) throw new SafeError(400, 'La autorización ha caducado. Vuelve a conectar.');
+        // Se consume siempre: un intento desde otra cuenta descarta la vinculación pendiente.
+        const pending = await store.consumeCompletion(await digest(code));
+        if (!pending || pending.expiresAt <= now()) throw new SafeError(400, 'La autorización ha caducado. Vuelve a conectar.');
+        if (pending.userId !== userId) throw new SafeError(403, 'Esta autorización de Garmin se inició desde otra cuenta. Vuelve a conectar.');
+        await store.withAccountLock(userId, async () => {
+          const previous = await store.loadConnection(userId);
+          if (previous && previous.garminUserId !== pending.connection.garminUserId) {
+            const tokens = JSON.parse(await decryptSecret(pending.connection.ciphertext, options.encryptionKey, userId)) as { accessToken: string };
+            await remote(`${USER_URL}registration`, { method: 'DELETE', headers: { Authorization: `Bearer ${tokens.accessToken}` } });
+            throw new SafeError(409, 'Desconecta la cuenta Garmin anterior antes de conectar otra.');
+          }
+          await store.saveConnection(userId, pending.connection);
+        });
+        return json({ connected: true });
       }
       if (request.method === 'POST' && path === '/disconnect') {
         await store.withAccountLock(userId, async () => {

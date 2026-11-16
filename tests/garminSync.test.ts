@@ -12,7 +12,7 @@ const importer: Importer = (files, _progress, _signal, provenance) => importFile
 const signal = () => new AbortController().signal;
 const json = (data: unknown) => new Response(JSON.stringify(data));
 function client(): GarminClient {
-  return { status: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), sendCourse: vi.fn(),
+  return { status: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), sendCourse: vi.fn(), complete: vi.fn(),
     list: vi.fn().mockResolvedValue({ activities: [entry], backfillAvailable: false }),
     file: vi.fn().mockImplementation(async () => new File([bytes], 'synthetic.fit')) };
 }

@@ -23,7 +23,7 @@ Revisado el **2026-11-16** (rama `garmin-directo`, sin commit ni despliegue). Su
 ## Cómo funciona en FBikeTrain
 
 1. **Ajustes → Conexiones → «Conectar con Garmin».** La Edge Function genera PKCE y `state` (un solo uso, 10 min, verificador cifrado) y el navegador abre la página oficial de Garmin.
-2. Garmin vuelve a `/garmin/callback`. El servidor canjea el código, lee identidad y permisos, exige `ACTIVITY_EXPORT` y guarda los tokens **cifrados (AES-GCM, clave `GARMIN_TOKEN_ENCRYPTION_KEY`, ligados a la cuenta)**. El navegador nunca recibe tokens de Garmin; tampoco van a IndexedDB ni a las copias.
+2. Garmin vuelve a `/garmin/callback`. El servidor canjea el código, lee identidad y permisos, exige `ACTIVITY_EXPORT` y deja los tokens **cifrados (AES-GCM, clave `GARMIN_TOKEN_ENCRYPTION_KEY`, ligados a la cuenta)** como vinculación pendiente, sin guardar todavía la conexión. Redirige a `#/ajustes?abrir=conexiones&garmin_code=<código>`: un código de un solo uso y 5 minutos de vida, del que el servidor guarda solo el hash. La app lo retira de la dirección y llama a `POST /garmin/complete` con su sesión; el servidor guarda la conexión **solo si esa sesión es la cuenta que pulsó «Conectar»**. Si es otra cuenta, descarta la vinculación y responde 403. Así se evita el CSRF de OAuth: un atacante no puede iniciar el flujo con su cuenta y hacer que la víctima lo complete para quedarse con su Garmin. El navegador nunca recibe tokens de Garmin; tampoco van a IndexedDB ni a las copias.
 3. Al sincronizar una salida, Garmin hace push a `/garmin/notifications/<secreto>`. El servidor comprueba el secreto y `garmin-client-id`, descarga el FIT (solo desde `apis.garmin.com/wellness-api/rest/activityFile`, sin redirecciones, 20 MB como máximo), comprueba la cabecera FIT y lo deja 30 días en el bucket privado `garmin-originals`. Cada entrega se procesa una sola vez (`garmin_claim_event`). Un fallo transitorio responde 503 para que Garmin reintente.
 4. La app, al abrirse o al volver a primer plano, pide `/garmin/activities` y descarga cada FIT por `/garmin/activities/{id}/file`. Lo importa con el Worker y el importador de siempre, con descarte de duplicados y `origin: 'garmin-connect'` (atribución «Garmin» en lista y detalle).
 5. **«Desconectar»** llama a `DELETE user/registration` y borra tokens, archivos y cola. Si Garmin manda una baja (`deregistrations`), se borra igual. Las salidas ya importadas se quedan.
@@ -42,6 +42,7 @@ Base: `https://btmsakyhkxrndvscmxqs.supabase.co/functions/v1/garmin`.
 | `POST /notifications/<GARMIN_WEBHOOK_SECRET>` | pública (secreto + `garmin-client-id`) | Push de Garmin. Sin secreto configurado responde 503. |
 | `GET /status` | sesión FBikeTrain | `available`, `connected`, `courseAvailable`, `receptionAvailable`. |
 | `POST /connect` | sesión, no anónima | Devuelve la URL de consentimiento. |
+| `POST /complete` | sesión de la cuenta que inició `/connect` | Cuerpo `{code}` con el `garmin_code` de la redirección. Guarda la conexión pendiente; 403 con otra cuenta, 400 si el código no existe, ya se usó o caducó. |
 | `POST /disconnect` | sesión | Revoca en Garmin y borra todo. |
 | `POST /course` | sesión, `COURSE_IMPORT` | Publica un recorrido. |
 | `GET /activities`, `GET /activities/{id}/file` | sesión, `ACTIVITY_EXPORT` | FIT pendientes de importar (30 días). |
@@ -65,7 +66,7 @@ Pasos:
 
 ## Pruebas
 
-- `tests/garminServer.test.ts`: PKCE, callback de un solo uso, refresco con rotación, revocación, receptor push (secreto, cabecera, hosts permitidos, idempotencia, 503 transitorio, bajas y permisos), Courses y rechazo de anónimos.
+- `tests/garminServer.test.ts`: PKCE, callback de un solo uso, vinculación solo desde la cuenta que inició el flujo (otra cuenta, código reutilizado o caducado: rechazado), refresco con rotación, revocación, receptor push (secreto, cabecera, hosts permitidos, idempotencia, 503 transitorio, bajas y permisos), Courses y rechazo de anónimos.
 - `tests/garminClient.test.ts`, `garminProvider.test.tsx`, `garminConnection.test.tsx`, `sendToGarmin.test.tsx`, `garminSync.test.ts`, `privacy.test.tsx`.
 - SQL: `supabase/tests/garmin_connect.sql` en `npm run test:db`.
 - E2E: `e2e/conexiones.spec.ts` (390 px). El flujo conectado necesita una build con `VITE_GARMIN_ENABLED=true`.

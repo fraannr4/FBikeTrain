@@ -3,12 +3,17 @@ import { decryptSecret, digest, encryptSecret } from '../src/connections/garminS
 
 const secret = btoa(String.fromCharCode(...new Uint8Array(32).fill(7)));
 const user = 'synthetic-account';
+const otherUser = 'synthetic-other-account';
 function setup() {
   let pending: { userId: string; verifier: string; expiresAt: number } | undefined;
   let connection: GarminTokens | undefined;
+  const completions = new Map<string, { userId: string; expiresAt: number; connection: GarminTokens }>();
+  let clock = 1_000_000;
   const store: GarminStore = {
     putState: vi.fn(async (_hash, value) => { pending = value; }),
     consumeState: vi.fn(async () => { const value = pending; pending = undefined; return value; }),
+    putCompletion: vi.fn(async (hash, value) => { completions.set(hash, value); }),
+    consumeCompletion: vi.fn(async hash => { const value = completions.get(hash); completions.delete(hash); return value; }),
     loadConnection: vi.fn(async () => connection),
     saveConnection: vi.fn(async (_userId, value) => { connection = value; }),
     removeConnection: vi.fn(async () => { connection = undefined; }),
@@ -26,11 +31,13 @@ function setup() {
   });
   const options = { clientId: 'synthetic-client', clientSecret: 'synthetic-client-secret', encryptionKey: secret,
     callbackUrl: 'https://project.example/functions/v1/garmin/callback', appUrl: 'https://app.example/FBikeTrain/',
-    allowedOrigins: ['https://app.example'], authenticate: async (token: string) => token === 'synthetic-jwt' ? user : null,
-    store, fetcher, now: () => 1_000_000,
+    allowedOrigins: ['https://app.example'],
+    authenticate: async (token: string) => token === 'synthetic-jwt' ? user : token === 'synthetic-jwt-other' ? otherUser : null,
+    store, fetcher, now: () => clock,
   };
   const request = (path: string, method = 'GET', auth = true) => new Request(`https://project.example/functions/v1/garmin${path}`, { method, headers: auth ? { Authorization: 'Bearer synthetic-jwt', Origin: 'https://app.example' } : {} });
-  return { store, options, request, fetcher, getConnection: () => connection, setConnection: (value: GarminTokens) => { connection = value; } };
+  const complete = (code: string, jwt = 'synthetic-jwt') => new Request('https://project.example/functions/v1/garmin/complete', { method: 'POST', headers: { Authorization: `Bearer ${jwt}`, Origin: 'https://app.example', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+  return { store, options, request, complete, fetcher, getConnection: () => connection, setConnection: (value: GarminTokens) => { connection = value; }, advance: (ms: number) => { clock += ms; } };
 }
 
 it('encrypts tokens with account binding and never returns plaintext at rest', async () => {
@@ -57,8 +64,83 @@ it('starts PKCE with encrypted verifier, binds state to account and consumes cal
   expect(await digest(verifier)).toBe(url.searchParams.get('code_challenge'));
   const state = url.searchParams.get('state');
   expect((await handle(request(`/callback?code=synthetic-code&state=${state}`, 'GET', false))).status).toBe(303);
-  expect(store.saveConnection).toHaveBeenCalledWith(user, expect.objectContaining({ garminUserId: 'synthetic-garmin-user' }));
   expect((await handle(request(`/callback?code=synthetic-code&state=${state}`, 'GET', false))).status).toBe(400);
+});
+
+/** Recorre /connect y /callback y devuelve el código de un solo uso que el navegador lleva a la app. */
+async function returnFromGarmin(ctx: ReturnType<typeof setup>, handle: ReturnType<typeof createGarminService>) {
+  const start = await (await handle(ctx.request('/connect', 'POST'))).json();
+  const state = new URL(start.authorizationUrl).searchParams.get('state');
+  const back = await handle(ctx.request(`/callback?code=synthetic-code&state=${state}`, 'GET', false));
+  expect(back.status).toBe(303);
+  const location = new URL(back.headers.get('Location')!);
+  expect(location.origin + location.pathname).toBe('https://app.example/FBikeTrain/');
+  const params = new URLSearchParams(location.hash.split('?')[1]);
+  expect(params.get('abrir')).toBe('conexiones');
+  return params.get('garmin_code')!;
+}
+
+describe('completing the link from the browser that started it (OAuth CSRF)', () => {
+  it('the public callback stores nothing: only the signed-in account that started the flow completes it', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    expect(code).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(ctx.store.saveConnection).not.toHaveBeenCalled();
+    expect(ctx.store.putCompletion).toHaveBeenCalledWith(await digest(code), expect.objectContaining({ userId: user, expiresAt: 1_000_000 + 300_000 }));
+    const stored = vi.mocked(ctx.store.putCompletion).mock.calls[0][1];
+    expect(stored.connection.ciphertext).not.toContain('synthetic-access');
+    const done = await handle(ctx.complete(code));
+    expect(done.status).toBe(200);
+    expect(ctx.store.saveConnection).toHaveBeenCalledWith(user, expect.objectContaining({ garminUserId: 'synthetic-garmin-user', permissions: ['ACTIVITY_EXPORT'] }));
+    expect(JSON.parse(await decryptSecret(ctx.getConnection()!.ciphertext, secret, user))).toMatchObject({ accessToken: 'synthetic-access' });
+  });
+
+  it('rejects a different signed-in account and discards the pending link', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    expect((await handle(ctx.complete(code, 'synthetic-jwt-other'))).status).toBe(403);
+    expect(ctx.store.saveConnection).not.toHaveBeenCalled();
+    expect((await handle(ctx.complete(code))).status).toBe(400);
+    expect(ctx.store.saveConnection).not.toHaveBeenCalled();
+  });
+
+  it('rejects a reused code', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    expect((await handle(ctx.complete(code))).status).toBe(200);
+    expect((await handle(ctx.complete(code))).status).toBe(400);
+    expect(ctx.store.saveConnection).toHaveBeenCalledOnce();
+  });
+
+  it('rejects an expired code (5 minutes)', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    ctx.advance(300_001);
+    expect((await handle(ctx.complete(code))).status).toBe(400);
+    expect(ctx.store.saveConnection).not.toHaveBeenCalled();
+  });
+
+  it('requires a session and a well-formed code', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    expect((await handle(ctx.complete(code, 'forged-jwt'))).status).toBe(401);
+    expect((await handle(ctx.complete('x'.repeat(300)))).status).toBe(400);
+    expect((await handle(ctx.complete(code))).status).toBe(200);
+  });
+
+  it('refuses to replace a different Garmin account already linked', async () => {
+    const ctx = setup();
+    const handle = createGarminService(ctx.options);
+    const code = await returnFromGarmin(ctx, handle);
+    ctx.setConnection({ garminUserId: 'synthetic-garmin-previous', ciphertext: 'encrypted', expiresAt: 9_000_000, refreshExpiresAt: 9_000_000, permissions: ['ACTIVITY_EXPORT'] });
+    expect((await handle(ctx.complete(code))).status).toBe(409);
+    expect(ctx.store.saveConnection).not.toHaveBeenCalled();
+  });
 });
 
 it('requires a valid session for account routes', async () => {

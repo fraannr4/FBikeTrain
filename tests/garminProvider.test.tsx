@@ -12,9 +12,31 @@ function Probe() {
 const api = (): GarminClient => ({
   status: vi.fn().mockResolvedValue({ available: true, connected: true, backfillAvailable: false }),
   list: vi.fn().mockResolvedValue({ activities: [], backfillAvailable: false }),
-  connect: vi.fn(), disconnect: vi.fn(), file: vi.fn(), sendCourse: vi.fn(),
+  connect: vi.fn(), disconnect: vi.fn(), file: vi.fn(), sendCourse: vi.fn(), complete: vi.fn().mockResolvedValue(undefined),
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.unstubAllEnvs(); window.history.replaceState(null, '', '/'); });
+
+it('completes the Garmin link once on return, removes the code from the address, then checks status', async () => {
+  vi.stubEnv('VITE_GARMIN_ENABLED', 'true');
+  window.history.replaceState(null, '', '/#/ajustes?abrir=conexiones&garmin_code=synthetic-code');
+  const client = api();
+  render(<StrictMode><GarminProvider api={client}><Probe /></GarminProvider></StrictMode>);
+  expect(await screen.findByText('ready available connected')).toBeVisible();
+  expect(client.complete).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(client.complete).mock.calls[0][0]).toBe('synthetic-code');
+  expect(window.location.hash).toBe('#/ajustes?abrir=conexiones');
+  expect(vi.mocked(client.complete).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(client.status).mock.invocationCallOrder[0]);
+});
+
+it('shows why the link was refused', async () => {
+  vi.stubEnv('VITE_GARMIN_ENABLED', 'true');
+  window.history.replaceState(null, '', '/#/ajustes?abrir=conexiones&garmin_code=synthetic-code');
+  const client = api();
+  vi.mocked(client.complete).mockRejectedValue(new Error('Esta autorización se inició desde otra cuenta.'));
+  function ErrorProbe() { return <p>{useGarminConnections()?.error ?? 'sin error'}</p>; }
+  render(<GarminProvider api={client}><ErrorProbe /></GarminProvider>);
+  expect(await screen.findByText('Esta autorización se inició desde otra cuenta.')).toBeVisible();
+});
 
 it('checks Garmin and collects new deliveries once when mounted in StrictMode', async () => {
   vi.stubEnv('VITE_GARMIN_ENABLED', 'true');
