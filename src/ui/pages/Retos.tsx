@@ -13,7 +13,7 @@ import '../styles/social.css';
 export function Retos() {
   const account = useAccount();
   return (
-    <Page title="Retos" back="/mas" variant="narrow" className="page--retos" lead="Una ruta contra un amigo. Solo vosotros dos veis las cifras.">
+    <Page title="Retos anteriores" back="/retos" variant="narrow" className="page--retos" lead="Tus duelos de ruta anteriores. Solo vosotros dos veis las cifras.">
       {account ? <RetosList account={account} /> : <p>Inicia sesión para ver tus retos.</p>}
     </Page>
   );

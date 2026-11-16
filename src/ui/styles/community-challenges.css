@@ -1,0 +1,88 @@
+.page--community { --community-accent: var(--trace); }
+.page--community .card { min-width: 0; }
+/* The legacy .card:not(:has(> .card-h)) grid must not override these compositions. */
+.page--community .card.community-hero,
+.page--community .card.community-detail-hero,
+.page--community .card.community-challenge,
+.page--community .card.community-empty,
+.page--community .card.community-pending,
+.page--community .card.community-rules { display: block; }
+.page--community .card.community-form-section { display: grid; gap: 18px; }
+.page--community .card.community-notice { display: flex; }
+.community-stack { display: grid; gap: 16px; min-width: 0; }
+.community-hero, .community-detail-hero { padding: 24px 20px; background: linear-gradient(145deg, color-mix(in srgb, var(--community-accent) 12%, var(--surface)), var(--surface)); border-top: 3px solid var(--community-accent); }
+.community-hero h2, .community-detail-hero h2 { font-family: var(--font-display, inherit); font-size: clamp(25px, 7vw, 36px); line-height: 1.08; letter-spacing: -.025em; overflow-wrap: anywhere; margin: 12px 0; }
+.community-hero p, .community-detail-hero > p { margin: 12px 0 20px; color: var(--ink-3); line-height: 1.6; }
+.community-eyebrow { font-size: 10px; letter-spacing: .14em; font-weight: 800; color: var(--ink-3); }
+.community-template { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; margin-top: 12px; color: inherit; font-weight: 600; text-decoration: none; font-size: 14px; }
+.community-template span { color: var(--community-accent); font-size: 22px; }
+.community-tabs { display: flex; min-width: 0; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.community-tabs .btn { flex: 1; min-width: 0; padding: 10px 6px; min-height: 44px; font-size: 12px; white-space: nowrap; }
+.community-tabs .btn[aria-pressed=true] { background: var(--ink); color: var(--surface); box-shadow: none; border-color: transparent; }
+.community-refresh { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-3); font-size: 11px; line-height: 1.5; }
+.community-refresh .btn { font-size: 12px; flex: 0 0 auto; }
+.community-challenge { display: block; text-decoration: none; color: inherit; padding: 20px; transition: border-color .15s; }
+.community-challenge:hover { border-color: var(--community-accent); }
+.community-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.community-card-top .chip { font-size: 10px; flex-shrink: 0; }
+.community-challenge h2 { font-size: 21px; line-height: 1.2; margin: 14px 0 8px; overflow-wrap: anywhere; }
+.community-challenge p { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 8px 0; }
+.community-card-result { display: block; margin: 18px 0 12px; font-size: 23px; font-weight: 700; overflow-wrap: anywhere; }
+.community-card-result span { font-size: 13px; font-weight: 400; color: var(--ink-3); }
+.community-card-link { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--community-accent); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.community-challenge progress, .community-score-row progress { display: block; width: 100%; height: 5px; border: 0; border-radius: 6px; overflow: hidden; accent-color: var(--community-accent); background: var(--line); }
+.community-challenge progress::-webkit-progress-bar, .community-score-row progress::-webkit-progress-bar { background: var(--line); }
+.community-challenge progress::-webkit-progress-value, .community-score-row progress::-webkit-progress-value { background: var(--community-accent); }
+.community-empty { padding: 28px 20px; }
+.community-empty h2 { font-size: 22px; line-height: 1.2; }
+.community-empty p, .community-footnote { color: var(--ink-3); font-size: 12px; line-height: 1.7; }
+.community-notice { display: flex; flex-wrap: wrap; gap: 8px; padding: 18px; }
+.community-notice > div { width: 100%; min-width: 0; }
+.community-notice strong { font-size: 14px; }
+.community-notice p { color: var(--ink-3); font-size: 12px; }
+.community-notice[data-unread=true] { border-left: 3px solid var(--community-accent); }
+.community-form-section { display: grid; gap: 18px; padding: 24px 18px; margin: 0; min-inline-size: 0; }
+.community-form-section legend { padding: 0 8px; font-weight: 700; font-size: 15px; }
+.community-form-section .field { display: grid; gap: 8px; min-width: 0; }
+.community-form-section .input { width: 100%; max-width: 100%; box-sizing: border-box; min-height: 48px; }
+.community-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.community-quick .btn { padding-inline: 12px; font-size: 12px; }
+.community-selected { display: flex; gap: 8px; flex-wrap: wrap; }
+.community-selected .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; gap: 8px; font-size: 12px; text-align: left; }
+.community-pick-list { max-height: 330px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.community-pick { display: flex; align-items: center; gap: 12px; padding: 14px 2px; border-bottom: 1px solid var(--line); min-height: 52px; cursor: pointer; }
+.community-pick input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--community-accent); }
+.community-pick span { min-width: 0; }
+.community-pick strong, .community-pick small { display: block; overflow-wrap: anywhere; }
+.community-pick strong { font-size: 14px; line-height: 1.5; }
+.community-pick small { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
+.community-goal, .community-my-score { display: grid; gap: 8px; margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--line); }
+.community-goal small, .community-my-score small { font-size: 10px; font-weight: 700; letter-spacing: .14em; color: var(--ink-3); }
+.community-goal strong, .community-my-score strong { font-size: 38px; line-height: 1.1; }
+.community-my-score p { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.community-invitation, .community-winner { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 22px; }
+.community-invitation h3, .community-winner h3 { font-size: 23px; line-height: 1.2; overflow-wrap: anywhere; }
+.community-invitation p, .community-winner p { font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+.community-invitation .btn-row > .btn { flex: 1; }
+.community-score-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.community-score-heading h2 { font-size: 20px; }
+.community-score-heading .btn { font-size: 12px; }
+.community-scoreboard { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.page--community .community-scoreboard > .community-score-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 10px; padding: 18px 14px; }
+.community-score-row[data-mine=true] { border-color: var(--community-accent); }
+.community-score-row[data-winner=true] { background: color-mix(in srgb, var(--community-accent) 8%, var(--surface)); }
+.community-place { font-size: 21px; font-weight: 700; color: var(--ink-3); }
+.community-score-person { min-width: 0; }
+.community-score-person a { display: flex; align-items: center; min-height: 44px; color: inherit; font-weight: 700; font-size: 14px; text-decoration: none; overflow-wrap: anywhere; }
+.community-score-person small { display: block; font-size: 10px; line-height: 1.6; color: var(--ink-3); margin-top: 5px; }
+.community-score-person progress { margin-top: 9px; }
+.community-score-row > strong { grid-column: 2; font-size: 23px; }
+.community-pending, .community-rules { padding: 20px; }
+.community-pending h3, .community-rules h3 { font-size: 15px; margin-top: 0; }
+.community-pending ul { list-style: none; margin: 0; padding: 0; }
+.community-pending li { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.5; padding: 12px 0; border-top: 1px solid var(--line); }
+.community-pending li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.community-pending li span:last-child { color: var(--ink-3); flex: 0 0 auto; }
+.community-rules p { color: var(--ink-3); font-size: 12px; line-height: 1.7; }
+@media (min-width: 430px) { .page--community .community-scoreboard > .community-score-row { grid-template-columns: 28px minmax(0, 1fr) auto; } .community-score-row > strong { grid-column: auto; align-self: center; font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) { .community-challenge { transition: none; } }

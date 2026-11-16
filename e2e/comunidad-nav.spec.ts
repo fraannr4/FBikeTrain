@@ -29,6 +29,9 @@ for (const [width, height] of sizes) for (const theme of ['light', 'dark'] as co
       const group = nav.getByRole('group', { name: 'Comunidad' });
       await expect(group).toBeVisible();
       await expect(group.getByRole('link', { name: 'Tu perfil', exact: true })).toHaveAttribute('aria-current', 'page');
+      await group.getByRole('link', { name: 'Ciclistas', exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Ciclistas', exact: true })).toBeVisible();
+      await expect(group.getByRole('link', { name: 'Ciclistas', exact: true })).toHaveAttribute('aria-current', 'page');
       await group.getByRole('link', { name: 'Amigos', exact: true }).click();
       await expect(page.getByRole('heading', { name: 'Amigos', exact: true })).toBeVisible();
       await expect(group.getByRole('link', { name: 'Amigos', exact: true })).toHaveAttribute('aria-current', 'page');

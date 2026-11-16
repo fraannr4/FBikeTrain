@@ -44,7 +44,7 @@ describe('Tu perfil', () => {
     expect(within(identity).getByText('@ana_ruta')).toBeInTheDocument();
     expect(within(identity).getByText('La bici y los puertos.')).toBeInTheDocument();
     expect(screen.queryByRole('form', { name: 'Editar perfil' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Buscar ciclistas/ })).toHaveAttribute('href', '/amigos');
+    expect(screen.getByRole('link', { name: 'Ciclistas' })).toHaveAttribute('href', '/ciclistas');
     expect(screen.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '/amigos?vista=amigos');
     expect(screen.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '/retos');
     expect(screen.getByRole('link', { name: /Tu zona/ })).toHaveAttribute('href', '/zona');

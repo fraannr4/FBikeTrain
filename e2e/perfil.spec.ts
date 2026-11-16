@@ -19,10 +19,12 @@ for (const width of [360, 430]) {
       });
       await page.route('https://*.supabase.co/rest/v1/rpc/list_profile_posts', route => route.fulfill({ headers: CORS, json: [] }));
       await page.route('https://*.supabase.co/rest/v1/rpc/list_friends', route => route.fulfill({ headers: CORS, json: [] }));
+      await page.route('https://*.supabase.co/rest/v1/rpc/list_community_challenges', route => route.fulfill({ headers: CORS, json: [] }));
+      await page.route('https://*.supabase.co/rest/v1/rpc/touch_community_activity', route => route.fulfill({ status: 204, headers: CORS }));
       await page.goto('./#/perfil');
       await expect(page.getByRole('region', { name: 'Tu identidad pública' })).toContainText('@maximiliana_de_los_santos_inoce');
       await expect(page.getByRole('link', { name: /Mis amigos/ })).toHaveAttribute('href', '#/amigos?vista=amigos');
-      await expect(page.getByRole('link', { name: /Buscar ciclistas/ })).toHaveAttribute('href', '#/amigos');
+      await expect(page.getByRole('link', { name: 'Ciclistas' }).first()).toHaveAttribute('href', '#/ciclistas');
       await expect(page.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '#/retos');
       await expect(page.getByText(/comparativas entre perfiles siguen pendientes/)).toBeVisible();
       await expect(page.getByRole('button', { name: 'Editar perfil', exact: true })).toBeVisible();

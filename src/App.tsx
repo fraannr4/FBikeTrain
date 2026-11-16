@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { AppShell } from './ui/shell/AppShell';
 import { Inicio } from './ui/pages/Inicio';
 import { Importar } from './ui/pages/Importar';
@@ -24,6 +24,10 @@ import { Amigos } from './ui/pages/Amigos';
 import { Retos } from './ui/pages/Retos';
 import { NuevoReto } from './ui/pages/NuevoReto';
 import { Reto } from './ui/pages/Reto';
+import { Ciclistas } from './ui/pages/Ciclistas';
+import { CommunityRetos } from './ui/pages/CommunityRetos';
+import { CommunityNuevoReto } from './ui/pages/CommunityNuevoReto';
+import { CommunityReto } from './ui/pages/CommunityReto';
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -31,6 +35,12 @@ import { Reto } from './ui/pages/Reto';
  */
 function Legacy({ children }: { children: ReactNode }) {
   return <div className="legacy">{children}</div>;
+}
+
+/** Existing library links carry a selected route; preserve their route-duel flow. */
+function NewChallengeRoute() {
+  const [params] = useSearchParams();
+  return params.has('ruta') ? <NuevoReto /> : <CommunityNuevoReto />;
 }
 
 export function App() {
@@ -71,8 +81,12 @@ export function App() {
           <Route path="/ajustes" element={<Ajustes />} />
           <Route path="/zona" element={<Zona />} />
           <Route path="/amigos" element={<Amigos />} />
-          <Route path="/retos" element={<Retos />} />
-          <Route path="/retos/nuevo" element={<NuevoReto />} />
+          <Route path="/ciclistas" element={<Ciclistas />} />
+          <Route path="/retos" element={<CommunityRetos />} />
+          <Route path="/retos/nuevo" element={<NewChallengeRoute />} />
+          <Route path="/retos/comunidad/:id" element={<CommunityReto />} />
+          <Route path="/retos/anteriores" element={<Retos />} />
+          <Route path="/retos/anterior/nuevo" element={<NuevoReto />} />
           <Route path="/retos/:id" element={<Reto />} />
         </Routes>
       </AppShell>

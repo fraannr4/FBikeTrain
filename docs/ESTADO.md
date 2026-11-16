@@ -1,5 +1,19 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-16): comunidad abierta y retos, preparados sin publicar
+
+Worktree `C:/testTrain-comunidad-abierta`, rama `codex/comunidad-abierta`, desde `main` en `e6e6c50`. Modelo propuesto antes de programar: `docs/superpowers/plans/2026-11-16-comunidad-abierta.md`. Guía de comportamiento, límites, integración y publicación: `docs/comunidad-abierta-publicacion.md`.
+
+- **Revisión posterior a `5427d91`, autorizada para un commit local nuevo:** la misma migración 202611160003 limita cifras desde la aceptación (400 km, 6.000 m y 4 salidas por día iniciado de 24 h; media máxima 60 km/h), genera cierre solo para aceptados y consulta desde las membresías propias. Los helpers con UUID quedan privados, con envoltorios RLS ligados a la sesión. El cliente encola una nueva pasada si cambia el reto solicitado mientras hay otra activa. Sin push ni SQL remoto.
+- Verificación de esta revisión: 13 bloques SQL correctos, 1.911/1.911 unitarias en 150 ficheros, `tsc --noEmit`, build y escáner de secretos correctos. Incluye pruebas de límites exactos/excesos, frontera de 24 h, aceptación tardía, permisos RLS y cola de retos con fallo de la pasada anterior. No cambia la interfaz.
+
+- Ciclistas: todas las cuentas registradas, paginación, búsqueda y orden por día de uso reciente. Perfil, amistad y reto a cualquiera; zona sin nuevas coordenadas ni distancias exactas.
+- Retos: distancia, desnivel, salidas, subidas detectadas y mejor media en distancia continua; 1–30 días, duelos y grupos hasta 20, aceptación/rechazo, marcador, historial, empates/ganadores y avisos. Los retos de ruta anteriores se conservan.
+- Solo se envían cifras del marcador. No se sincroniza el historial completo. Un dispositivo nuevo no borra automáticamente una cifra remota positiva; el detalle permite reemplazarla expresamente. Las subidas se reconocen aproximadamente mediante firma local, sin editor de tramos arbitrarios ni certificación de los archivos.
+- Migración nueva `202611160003_community_open.sql` y suite SQL registrada: RLS, rechazo de anónimos, bloqueo en ambos sentidos, denuncia privada y cuota atómica de 20 destinatarios por 24 h, también protegidas las RPC antiguas. No se modifican biblioteca, route-sources, rwgps ni migraciones 202611160001/2.
+- Verificación: 13 bloques SQL correctos, 1.909/1.909 unitarias (150 ficheros), tipos/build y escáner de secretos correctos. Playwright 62/62; repetición final 26/26 tras el pulido de comunidad, incluida importación por Worker y protección entre dispositivos. Capturas reales revisadas en 360/390/412/430 px, temas claro/oscuro y apaisado. Selección: `docs/design/comunidad-abierta/README.md`.
+- **Commit local autorizado por el usuario; sin push, despliegue ni migración remota.** Falta coordinar el runner SQL con el lote de biblioteca, aplicar la nueva migración tras autorización y probar con cuentas reales. El frontend depende de esas RPC: publicar primero el SQL. Mensaje propuesto: `feat: abrir comunidad y renovar retos con grupos, marcadores y protección anti-spam`.
+
 ## Retomar aquí (2026-11-13): perfil ciclista y Cuaderno de ruta
 
 El usuario pide un perfil que destaque con foto, descripción y feed. Eligió expresamente **cuaderno propio y feed de amigos**. Plan: `docs/superpowers/plans/2026-11-13-perfil-cuaderno.md`.

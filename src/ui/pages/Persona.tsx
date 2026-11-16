@@ -7,6 +7,7 @@ import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
 import { ProfileHero } from '../profile/ProfileHero';
 import { JournalFeed } from '../profile/JournalFeed';
+import { CommunitySafety } from '../profile/CommunitySafety';
 import '../styles/profile.css';
 import '../styles/social.css';
 
@@ -17,8 +18,8 @@ export function Persona() {
   const account = useAccount();
   const { id = '' } = useParams();
   if (account?.user.id === id) return <Navigate to="/perfil" replace />;
-  return <Page title="Perfil del ciclista" back="/amigos" className="page--profile">
-    {account ? <PersonaView key={id} account={account} id={id} /> : <p>Inicia sesión para ver este perfil.</p>}
+  return <Page title="Perfil del ciclista" back="/ciclistas" className="page--profile">
+    {account && !account.user.is_anonymous ? <PersonaView key={id} account={account} id={id} /> : <p>Necesitas una cuenta registrada para ver este perfil.</p>}
   </Page>;
 }
 
@@ -53,13 +54,12 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
   return <>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={busy} onClick={() => setAttempt(n => n + 1)}>Reintentar</button>}>{error}</Banner>}
     {!data ? !error && <p role="status">Cargando el perfil…</p> : !data.profile ? <section className="card reto-card">
-      <h2>Perfil no disponible</h2><p>Este ciclista ya no está disponible.</p><Link className="btn btn--secondary" to="/amigos">Buscar ciclistas</Link>
+      <h2>Perfil no disponible</h2><p>Este ciclista ya no está disponible.</p><Link className="btn btn--secondary" to="/ciclistas">Buscar ciclistas</Link>
     </section> : <>
       <ProfileHero client={account.client} profile={data.profile}>
         {f?.profile.locality && <p className="help">{f.profile.locality}</p>}
         {f?.status === 'accepted' ? <>
           <p className="person-state" data-tone="good">Sois amigos</p>
-          <Link className="btn btn--primary btn--block" to={`/retos/nuevo?amigo=${encodeURIComponent(id)}`} aria-label={`Retar a ${data.profile.display_name}`}>Retar a este amigo</Link>
           <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Amistad retirada.')}>Quitar de amigos</button>
         </> : f?.direction === 'received' ? <>
           <p>Te ha enviado una solicitud de amistad.</p>
@@ -69,8 +69,10 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
           <p>Solicitud de amistad pendiente</p>
           <button className="btn btn--secondary" disabled={busy} onClick={() => void act(() => removeFriendship(account.client, f.friendship_id), 'Solicitud cancelada.')}>Cancelar solicitud</button>
         </> : <button className="btn btn--primary" disabled={busy} onClick={() => void act(() => requestFriendship(account.client, id), 'Solicitud de amistad enviada.')}>Solicitar amistad</button>}
+        <Link className="btn btn--primary btn--block" to={`/retos/nuevo?ciclista=${encodeURIComponent(id)}`} aria-label={`Retar a ${data.profile.display_name}`}>Lanzar un reto</Link>
       </ProfileHero>
       <section className="profile-public-journal" aria-label="Cuaderno del ciclista"><div className="profile-journal-heading"><span className="profile-eyebrow">KILÓMETROS CON HISTORIA</span><h2>Su cuaderno de ruta</h2><p>Las historias que ha elegido compartir.</p></div><JournalFeed client={account.client} userId={account.user.id} targetId={data.profile.id} /></section>
+      <CommunitySafety client={account.client} targetId={id} name={data.profile.display_name} onBlocked={() => { setData({ profile: null, friendship: null }); setNotice('Ciclista bloqueado. Puedes desbloquearlo desde Ciclistas.'); }} />
     </>}
     {notice && <p role="status">{notice}</p>}
   </>;

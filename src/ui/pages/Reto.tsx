@@ -26,7 +26,7 @@ export function Reto() {
   const account = useAccount();
   const { id } = useParams();
   return (
-    <Page title="Reto" back="/retos" variant="narrow" className="page--reto">
+    <Page title="Reto de ruta" back="/retos/anteriores" variant="narrow" className="page--reto">
       {account ? <RetoView key={id} account={account} /> : <p>Inicia sesión para ver tus retos.</p>}
     </Page>
   );

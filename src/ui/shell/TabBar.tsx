@@ -27,7 +27,8 @@ export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
   const current = tabOf(pathname);
   const account = useAccount();
   const inProfile = pathname === '/perfil' || pathname === '/zona';
-  const inFriends = pathname.startsWith('/amigos') || pathname.startsWith('/personas/');
+  const inFriends = pathname.startsWith('/amigos');
+  const inCyclists = pathname.startsWith('/ciclistas') || pathname.startsWith('/personas/');
   const inChallenges = pathname.startsWith('/retos');
   return (
     <nav className="tabbar" aria-label="Menú principal">
@@ -61,10 +62,11 @@ export const TabBar = memo(function TabBar({ pathname, planBadge }: Props) {
         <div className="nav-community" role="group" aria-label="Comunidad">
           <h2 className="rail-section">Comunidad</h2>
           <CommunityLink to="/perfil" label="Tu perfil" icon={User} current={inProfile} />
+          <CommunityLink to="/ciclistas" label="Ciclistas" icon={Users} current={inCyclists} />
           <CommunityLink to="/amigos" label="Amigos" icon={Users} current={inFriends} />
           <CommunityLink to="/retos" label="Retos" icon={Swords} current={inChallenges} />
         </div>
-        <CommunityLink to="/mas" label="Más" icon={Ellipsis} current={current === 'mas' && !inProfile && !inFriends && !inChallenges} className="tab--desktop" />
+        <CommunityLink to="/mas" label="Más" icon={Ellipsis} current={current === 'mas' && !inProfile && !inFriends && !inCyclists && !inChallenges} className="tab--desktop" />
       </>}
     </nav>
   );

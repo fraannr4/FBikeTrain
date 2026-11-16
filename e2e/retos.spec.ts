@@ -59,6 +59,7 @@ test('aceptar un reto y elegir a mano la salida: solo suben las cifras', async (
   await seed(page, { activities: RIDES, settings: settings() });
   await page.goto('./#/mas');
   await page.getByRole('link', { name: /Retos/ }).click();
+  await page.getByRole('link', { name: 'Retos anteriores de ruta' }).click();
   await page.getByRole('link', { name: /Vuelta sintética/ }).click();
   await page.getByRole('button', { name: 'Aceptar' }).click();
   expect(state.responded).toEqual([{ challenge_id: 'r1', accept: true }]);
@@ -92,7 +93,7 @@ for (const width of [360, 430]) {
         challenge('r5', 'declined', { route_name: 'Interior sintético', i_am_challenger: true }),
       ]);
       await seed(page, { activities: RIDES, settings: settings() });
-      await page.goto('./#/retos');
+      await page.goto('./#/retos/anteriores');
       await expect(page.getByText('Caducado')).toBeVisible();
       expect(await overflow(page)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/retos-lista-${tag}.png`, fullPage: true });
@@ -119,10 +120,10 @@ for (const width of [360, 430]) {
 test('nuevo reto sin amigos aceptados, a 360 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
   await fakeRpc(page, []);
-  await page.goto('./#/retos');
+  await page.goto('./#/retos/anteriores');
   await expect(page.getByText('Sin retos todavía')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/retos-vacio-360.png`, fullPage: true });
-  await page.goto('./#/retos/nuevo');
+  await page.goto('./#/retos/anterior/nuevo');
   await expect(page.getByText('Necesitas un amigo aceptado para retarle')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/nuevo-reto-sin-amigos-360.png`, fullPage: true });
 });

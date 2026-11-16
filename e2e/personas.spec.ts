@@ -28,13 +28,13 @@ test('buscador → perfil → aceptar amistad → retar al mismo ciclista', asyn
   await page.getByRole('search').getByRole('button', { name: 'Buscar' }).click();
   await page.getByRole('link', { name: PERSON.display_name, exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Perfil del ciclista' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Retar a/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: `Retar a ${PERSON.display_name}` })).toHaveAttribute('href', `#/retos/nuevo?ciclista=${PERSON.id}`);
   await page.getByRole('button', { name: 'Aceptar solicitud' }).click();
-  await expect(page.getByRole('link', { name: `Retar a ${PERSON.display_name}` })).toHaveAttribute('href', `#/retos/nuevo?amigo=${PERSON.id}`);
+  await expect(page.getByRole('link', { name: `Retar a ${PERSON.display_name}` })).toHaveAttribute('href', `#/retos/nuevo?ciclista=${PERSON.id}`);
   expect(state.status).toBe('accepted');
   expect(state.requested).toBe(0);
   await page.getByRole('link', { name: /Retar a/ }).click();
-  await expect(page).toHaveURL(new RegExp(`amigo=${PERSON.id}$`));
+  await expect(page).toHaveURL(new RegExp(`ciclista=${PERSON.id}$`));
 });
 
 for (const [width, height] of [[360, 780], [390, 844], [412, 915], [430, 932], [844, 390]]) {

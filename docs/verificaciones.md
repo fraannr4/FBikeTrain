@@ -365,3 +365,33 @@ Mensaje de commit propuesto: `fix(connections): endurecer sincronización de Int
 - `GET https://ridewithgps.com/find/search.json` con el centro de Caldes redondeado a 0,05° (41,65 / 2,15), sin sesión ni clave: 200, `application/json`, unos 19 kB para 20 resultados. Parámetros que funcionan: `search[lat]`, `search[lng]`, `search[start_distance]` (radio del inicio **en km**: con 10, el inicio más lejano estaba a 9,9 km; con 5 en otra zona, a 4,9 km), `search[length_min]` y `search[length_max]` (**en km**: con 20, el más corto medía 21,1 km), `search[offset]`, `search[limit]`, `search[model_types]=route`, `search[sort_by]=relevance desc`, `search[keywords]` (vacío).
 - Respuesta: `{ results: [{ type: 'route', route: {...} }], results_count }` (`results_count` es un total global, no de la zona). Campos de cada ruta: `distance` (m), `elevation_gain` (m), `track_type` (`loop`, `out_and_back`…), `unpaved_pct` (número), `activity_types` (`['cycling:road']`, `cycling:gravel`, `cycling:mountain`, `cycling:generic`), `visibility` (numérico, 0 = pública), `is_trip` (false), `first_lat/first_lng` y caja `sw_*/ne_*`. En la muestra de 20, 5 eran de gravel/montaña o con 22-73 % sin asfaltar: el filtro `cycling:road` + `unpaved_pct ≤ 5` las deja fuera.
 - Conclusión: `fillZone` queda **activo**, con `find/search.json` y el ritmo de 1 petición por segundo del proveedor `rwgps`.
+
+## Comunidad abierta y retos — 2026-11-16 (local, sin publicar)
+
+Rama `codex/comunidad-abierta`, worktree `C:/testTrain-comunidad-abierta`. Modelo y pasos: `docs/comunidad-abierta-publicacion.md`. Datos de prueba exclusivamente sintéticos.
+
+| Comprobación | Resultado |
+|---|---|
+| PostgreSQL embebido (`npm run test:db`) | 13 bloques correctos; migración nueva aplicada bajo `search_path=pg_catalog` para comprobar permisos de helpers; Auth/Storage simulados |
+| Vitest completo, estado estable (`--maxWorkers=4 --minWorkers=1`) | 1.909/1.909, 150 ficheros |
+| `npx tsc --noEmit` | Limpio |
+| `npm run build` y Vite tras pulido | Correctos; avisos no bloqueantes de bundle grande/anotaciones de dependencia |
+| Escáner `check-bundle-secrets.mjs dist` | Correcto |
+| Playwright comunidad/perfil/navegación/retos anteriores | 62/62 |
+| Repetición final de comunidad tras CSS/foco | 26/26; incluye columnas reales de marcador, foco dentro de denuncia, importación por Worker y deduplicación |
+| Capturas reales | 360/390/412/430 px, claro/oscuro, apaisado; revisadas visualmente. Selección en `docs/design/comunidad-abierta/README.md` |
+
+Se corrigieron durante revisión permisos de helpers dependientes de search_path, carrera de bloqueo/respuesta, validación de plantilla de desnivel, colisión CSS de tarjetas y pérdida de foco tras denuncia. La actualización automática conserva marcadores remotos positivos desde dispositivos sin origen local reconocido; reemplazar ese origen exige una acción explícita. La firma de subida es aproximada y las cifras importadas se basan en confianza.
+
+Pendiente real: aplicar SQL en Supabase y comprobar con dos cuentas registradas y una anónima. El usuario ha autorizado después el commit local del lote. No se ha ejecutado ninguna migración remota, push ni despliegue. El cierre del marcador no necesita cron; el aviso se genera al consultar las notificaciones. Este lote no cierra la sincronización completa del historial.
+
+## Revisión de retos sobre 5427d91 — 2026-11-16
+
+Correcciones en la misma migración `202611160003`, todavía sin aplicar: cifras máximas por bloques de 24 h iniciados desde la aceptación (400 km, 6.000 m y 4 salidas por día; media de hasta 60 km/h), avisos finished solo para aceptados, consultas desde membresías propias y revocación de EXECUTE de los dos helpers con UUID. RLS conserva su funcionamiento mediante envoltorios definer sin argumentos ligados a la sesión. El cliente encola las peticiones de otro reto y agrupa las repetidas; un fallo no bloquea la siguiente pasada.
+
+- `npm run test:db`: 13 bloques correctos. Pruebas de techos exactos, exceso sin sobrescribir snapshot, aceptación tardía, 24 h y 24 h + 1 s, accepted/pending/declined/outsider, helpers privados y regresión de RLS.
+- `npx vitest run --maxWorkers=4 --minWorkers=1`: 1.911/1.911, 150 ficheros.
+- `npx tsc --noEmit`: limpio.
+- `npm run build`: correcto; avisos de dependencias/bundle ya conocidos. Escáner de secretos correcto.
+
+Revisión independiente de la cola sin hallazgos. Sin cambios de interfaz ni nuevas migraciones; sin push ni acciones SQL remotas. El usuario ha autorizado un commit local nuevo.

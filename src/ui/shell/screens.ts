@@ -17,7 +17,7 @@ export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/historial')) return 'historial';
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
-  if (pathname.startsWith('/perfil') || pathname.startsWith('/personas')) return 'mas';
+  if (pathname.startsWith('/perfil') || pathname.startsWith('/personas') || pathname.startsWith('/ciclistas')) return 'mas';
   if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos')) return 'mas';
   return 'inicio';
 }
@@ -41,6 +41,8 @@ const NAMES: Record<string, string> = {
   '/ajustes': 'Ajustes',
   '/zona': 'Tu zona',
   '/amigos': 'Amigos',
+  '/ciclistas': 'Ciclistas',
+  '/retos/anteriores': 'Retos anteriores',
   '/retos': 'Retos',
   '/retos/nuevo': 'Nuevo reto',
 };
