@@ -318,6 +318,9 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
     if (second) consider(second.f, second.c, corrected);
   }
 
+  // Sin desnivel pedido, los anillos se ordenan por la subida habitual de quien busca, no solo por lo transitado.
+  const ref = deps.reference;
+  const usualClimbMPerKm = ref && ref.avgDistanceM > 0 ? ref.avgElevGainM / (ref.avgDistanceM / 1000) : null;
   async function ringPasses() {
     const sparse = zone.routeCount < SPARSE_ZONE_ROUTES;
     const tried = new Set<string>();
@@ -325,7 +328,7 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
     for (const broad of [false, true]) {
       if (broad && total() >= MIN_PROPOSALS) return;
       while (total() < MAX_PROPOSALS && used < GENERATOR_ORS_BUDGET) {
-        const opts: RingOptions = { distanceKm, factor: factors.length ? median(factors) : zone.zoneFactor, elevGainM, sparse, broad };
+        const opts: RingOptions = { distanceKm, factor: factors.length ? median(factors) : zone.zoneFactor, elevGainM, sparse, broad, usualClimbMPerKm };
         const ring = candidateRings(start, zone.cells, opts).find(r => !tried.has(`${broad}:${r.axisDeg}:${r.k}`));
         if (!ring) break;
         tried.add(`${broad}:${ring.axisDeg}:${ring.k}`);

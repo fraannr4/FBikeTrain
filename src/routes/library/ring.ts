@@ -10,7 +10,16 @@ import type { HeatCellLite } from './schema.ts';
 type LatLng = { lat: number; lng: number };
 
 export type Ring = { axisDeg: number; k: number; radiusM: number; waypoints: HeatCellLite[]; estimateKm: number; popularity: number; climbMPerKm: number | null };
-export type RingOptions = { distanceKm: number; factor: number; elevGainM: number | null; sparse: boolean; broad: boolean };
+export type RingOptions = {
+  distanceKm: number; factor: number; elevGainM: number | null; sparse: boolean; broad: boolean;
+  /** Sin desnivel pedido: subida habitual de quien busca (m/km), para no proponer siempre lo más montañoso. */
+  usualClimbMPerKm?: number | null;
+};
+
+/** Subida por km que se busca: la pedida o, sin ella, la habitual; `null` si no hay ninguna. */
+function wantedClimb(opts: RingOptions): number | null {
+  return opts.elevGainM !== null ? opts.elevGainM / opts.distanceKm : opts.usualClimbMPerKm ?? null;
+}
 
 /** Ninguna celda elegida a menos de esto del inicio (m). */
 const MIN_START_GAP_M = 1500;
@@ -69,7 +78,7 @@ function meanClimb(cells: HeatCellLite[]): number | null {
 /** Celda de cada ventana con más `log(1 + routes)` menos, con desnivel pedido, el desajuste de subida. */
 function pickVertices(start: LatLng, cells: HeatCellLite[], axisDeg: number, k: number, radiusM: number, opts: RingOptions): HeatCellLite[] | null {
   const window = (opts.broad ? WINDOW.broad : WINDOW.normal) * radiusM;
-  const wanted = opts.elevGainM === null ? null : opts.elevGainM / opts.distanceKm;
+  const wanted = wantedClimb(opts);
   const chosen: HeatCellLite[] = [];
   const dLat = (window / EARTH_RADIUS_M) * (180 / Math.PI);
   for (const ideal of idealVertices(start, axisDeg, radiusM, k)) {
@@ -134,7 +143,7 @@ export function candidateRings(start: LatLng, cells: HeatCellLite[], opts: RingO
       rings.push(ring);
     }
   }
-  const wanted = opts.elevGainM === null ? null : opts.elevGainM / opts.distanceKm;
+  const wanted = wantedClimb(opts);
   return rings.sort((a, b) =>
     (wanted === null ? 0 : climbFit(a.climbMPerKm, wanted) - climbFit(b.climbMPerKm, wanted)) || b.popularity - a.popularity);
 }

@@ -172,7 +172,9 @@ async function main() {
     const retraced = new Map<string, RouteCandidate | null>();
     const access = new Map<string, { unpavedM: number; trackM: number }>();
     const res = await generateProposals(target, {
-      ors, library, reference: null, visited: new Set(),
+      ors, library, visited: new Set(),
+      // USUAL_CLIMB (m/km): simula el nivel de quien busca; sin ella, sin referencia.
+      reference: process.env.USUAL_CLIMB ? { source: 'declared', weeks: null, rides: 10, ridesPerWeek: 2, avgDistanceM: 60_000, avgElevGainM: 60 * Number(process.env.USUAL_CLIMB), avgMovingTimeS: 9000, avgSpeedMs: 6.7, longestDistanceM: 100_000, maxElevGainM: 1500 } : null,
       onUpdate: u => {
         if (u.kind === 'waiting') console.log(`Esperando ${u.seconds} s por el límite por minuto...`);
         else if (u.kind === 'card') { access.set(u.card.id, lastAccess); if (u.card.kind === 'biblioteca') retraced.set(u.card.id, lastCandidate); }
