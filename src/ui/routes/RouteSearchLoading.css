@@ -77,7 +77,8 @@
   }
   .route-search-overlay .route-search-loading__heading { padding: 28px 24px 0; }
   .route-search-overlay .route-search-loading__heading h3 { font-size: 36px; }
-  .route-search-overlay .route-loading-scene { flex: 1; display: grid; align-items: center; }
+  /* Sin fondo propio: a pantalla completa la escena se estira y su degradado dejaba una banda lisa sobre el estado. */
+  .route-search-overlay .route-loading-scene { flex: 1; display: grid; align-items: center; background: none; }
   .route-search-overlay .route-search-loading__body { padding: 22px 24px 24px; }
 }
 

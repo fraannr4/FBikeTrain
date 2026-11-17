@@ -17,6 +17,9 @@
 /* En el pie del cuaderno el corazón queda a la derecha, junto a «Borrar». */
 .journal-footer .like { margin-left: auto; }
 
-/* En la lista de retos la tarjeta entera es un enlace: el botón va debajo, fuera del enlace. */
-.community-challenge-item { display: grid; gap: 4px; }
-.community-challenge-item .like { justify-self: end; }
+/* En la lista de retos la tarjeta entera es un enlace y un botón no puede ir dentro de un enlace:
+   el corazón sigue fuera en el marcado, pero se coloca en el pie de la tarjeta, a la derecha de
+   «Ver marcador», como en el cuaderno. 20 px es el relleno de la tarjeta. */
+.community-challenge-item { position: relative; }
+.community-challenge-item .like { position: absolute; right: 20px; bottom: 20px; }
+.community-challenge-item .community-card-link { justify-content: flex-start; gap: 6px; padding-right: 96px; }
