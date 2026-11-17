@@ -42,6 +42,9 @@ const MAX_UNKNOWN_OFFROAD_PCT = 20;
 /** Esperas por el límite por minuto como mucho en una búsqueda. */
 const MAX_WAITS = 2;
 const MAX_WAIT_S = 60;
+/** Fallos del servidor de ORS seguidos, sin ninguna respuesta buena antes, que dan el motor por caído. */
+const OUTAGE_FAILS = 3;
+export const ORS_DOWN = 'El motor de rutas (openrouteservice) no responde ahora mismo. No depende de ti ni de tu zona: prueba de nuevo en unos minutos.';
 
 export function libraryRadiusM(distanceKm: number): number {
   return Math.round(Math.min(40_000, Math.max(8_000, 0.45 * distanceKm * 1000)));
@@ -197,6 +200,8 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
    * Reglas ante un fallo de ORS: el límite por minuto espera lo que dice el servicio (`'retry'`);
    * sin ruta o un fallo del servidor dan `'skip'` (se pasa a la siguiente); el resto corta la búsqueda.
    */
+  let serverFails = 0;
+  let answered = false;
   async function onOrsError(e: unknown): Promise<'retry' | 'skip'> {
     if (isAbort(e) || signal?.aborted) throw abortError();
     if (!(e instanceof OrsError)) throw e;
@@ -207,6 +212,8 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
       await wait(seconds * 1000, signal);
       return 'retry';
     }
+    // Un fallo suelto del servidor se salta; varios seguidos sin una sola respuesta son una caída: no se gasta el resto.
+    if (e.kind === 'server' && !answered && ++serverFails >= OUTAGE_FAILS) throw new StopSearch(new OrsError('server', ORS_DOWN, e.code));
     if (e.kind === 'no_route' || e.kind === 'server' || e.kind === 'bad_request') return 'skip';
     throw new StopSearch(e);
   }
@@ -230,7 +237,9 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
       used++;
       onUpdate?.({ kind: 'trying', used, budget: GENERATOR_ORS_BUDGET });
       try {
-        return await fetchPath(ors, waypoints, signal);
+        const feature = await fetchPath(ors, waypoints, signal);
+        answered = true;
+        return feature;
       } catch (e) {
         if (e instanceof OrsError && e.kind === 'rate_minute') used--;
         throw e;
@@ -345,16 +354,19 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
     }
   }
 
+  let down = false;
   try {
     await libraryPass();
     await ringPasses();
   } catch (e) {
     if (!(e instanceof StopSearch)) throw e;
     warnings.push(e.error.message);
+    down = e.error.message === ORS_DOWN;
   }
 
   const cards: GeneratorCard[] = [...libraryCards, ...newCards.sort((a, b) => b.route.score - a.route.score)];
-  if (cards.length < MIN_PROPOSALS) {
+  // Con el motor caído no se ha podido juzgar ninguna vuelta: no se culpa a la distancia ni a la carretera.
+  if (cards.length < MIN_PROPOSALS && !down) {
     const km = `«${formatNumber(distanceKm, Number.isInteger(distanceKm) ? 0 : 1)} km ±10 %»`;
     const goal = elevGainM === null ? km : `${km} y «${formatMeters(elevGainM)} ±25 %»`;
     const n = cards.length;

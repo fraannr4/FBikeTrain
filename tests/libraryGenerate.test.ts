@@ -271,6 +271,17 @@ describe('generador: presupuesto y errores', () => {
     expect(res.warnings.join(' ')).toMatch(/60 km ±10 %/);
   });
 
+  it('si ORS está caído corta tras 3 fallos seguidos y lo dice, sin culpar a la carretera', async () => {
+    const { fake, result } = run(zoneOf({ cells: gridCells() }), { fail: () => new OrsError('server', 'ORS ha respondido HTTP 500.', 500) });
+    const res = await result;
+    // Dos anillos a la vez: el cuarto ya estaba en vuelo cuando falla el tercero.
+    expect(fake.calls.length).toBeLessThanOrEqual(4);
+    expect(res.cards).toEqual([]);
+    expect(res.warnings).toHaveLength(1);
+    expect(res.warnings[0]).toMatch(/no responde/);
+    expect(res.warnings[0]).not.toMatch(/asfaltada/);
+  });
+
   it('con el límite por minuto espera lo que dice ORS y sigue sin gastar presupuesto', async () => {
     const limit = new OrsError('rate_minute', 'Límite por minuto', 429, 5);
     const { fake, wait, updates, result } = run(zoneOf({ cells: gridCells() }), { fail: n => (n === 2 ? limit : undefined) });

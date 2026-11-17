@@ -15,8 +15,7 @@ import {
   SOURCE_NAMES,
   toParsedReference,
   type GeneratorCard,
-  type GeneratorUpdate,
-} from '../../routes/library/generate';
+  type GeneratorUpdate, ORS_DOWN } from '../../routes/library/generate';
 import { OrsError } from '../../routes/ors';
 import { chooseOrsAccess, sharedOrsEnabled } from '../../routes/orsProxy';
 import { findLibrary } from '../../routes/sources/client';
@@ -435,7 +434,7 @@ export function Rutas() {
             <section className="card nb-notice" aria-label="Avisos de la búsqueda">
               <StateView
                 icon={Info}
-                title={search.cards.length < MIN_PROPOSALS ? 'Menos vueltas de las buscadas' : 'Para tener en cuenta'}
+                title={warnings.includes(ORS_DOWN) ? 'El motor de rutas no responde' : search.cards.length < MIN_PROPOSALS ? 'Menos vueltas de las buscadas' : 'Para tener en cuenta'}
                 text={warnings.map((w) => (
                   <span key={w} className="nb-warning">
                     {w}
