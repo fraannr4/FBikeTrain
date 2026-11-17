@@ -1,7 +1,8 @@
 -- Sincronización entre dispositivos de una misma cuenta.
 -- Cada fila es un dato del usuario (salida, track, entreno, objetivo, ruta propia o ajustes) cifrado en
--- el navegador con la clave de `sync_keys`. El servidor nunca ve el contenido en claro, solo el tipo,
--- el identificador, la fecha del cambio y el tamaño.
+-- el navegador con la clave de `sync_keys`. La clave se guarda en la misma cuenta (decisión del usuario:
+-- sin contraseña extra), así que NO es cifrado de extremo a extremo: protege frente a lecturas de la
+-- tabla de datos por separado, no frente a quien administre la base entera.
 -- Sin permisos directos sobre las tablas: todo pasa por funciones que actúan solo sobre auth.uid().
 begin;
 

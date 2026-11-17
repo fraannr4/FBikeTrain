@@ -97,9 +97,11 @@ describe('push: texto del aviso', () => {
   ])('%s: con nombre público, el aviso dice quién', (kind, title, body) => {
     expect(pushMessage(kind, CHALLENGE, 'Ana')).toMatchObject({ title, body });
   });
-  it('limpia el nombre: sin saltos ni caracteres de control, recortado a 60 y nulo si queda vacío', () => {
+  it('limpia el nombre: sin saltos ni caracteres de control, recortado a 40 y nulo si queda vacío o parece un enlace', () => {
     expect(cleanActorName('  Ana\n\u202eGarcía\t ')).toBe('Ana García');
-    expect(cleanActorName('x'.repeat(200))).toHaveLength(60);
+    expect(cleanActorName('x'.repeat(200))).toHaveLength(40);
+    for (const bait of ['Entra en evil.com', 'http://x', 'www.premio', 'soporte@fbiketrain', 'a/b']) expect(cleanActorName(bait)).toBeNull();
+    expect(cleanActorName('Ana M. García')).toBe('Ana M. García');
     expect(cleanActorName(' \n ')).toBeNull();
     expect(cleanActorName(42)).toBeNull();
   });

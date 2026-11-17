@@ -4,7 +4,7 @@ Fecha: 2026-11-17. Estado: implementado, pendiente de probar con dos dispositivo
 
 ## Decisiones del usuario (cerradas)
 
-- Sin contraseña extra: basta iniciar sesión. Los datos van cifrados y la clave se guarda en la cuenta.
+- Sin contraseña extra: basta iniciar sesión. Los datos van cifrados y la clave se guarda en la cuenta. No es cifrado de extremo a extremo: quien administre la base entera podría leerlos.
 - Se sincroniza todo: salidas con su track, rutas propias, plan, objetivos y ajustes (nombre, Casa, FTP y pulso).
 - Activada para todas las cuentas registradas. Las cuentas anónimas no sincronizan.
 - Automática: al abrir, al volver a la app, al recuperar la red y poco después de cada cambio.

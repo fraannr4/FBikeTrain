@@ -34,12 +34,14 @@ export function isAllowedPushEndpoint(endpoint: string): boolean {
   return PUSH_HOSTS.includes(url.hostname) || PUSH_HOST_SUFFIXES.some(suffix => url.hostname.endsWith(suffix));
 }
 
-const MAX_NAME_LENGTH = 60;
-/** Nombre público listo para el aviso: sin caracteres de control ni saltos, recortado. `null` si no queda nada. */
+const MAX_NAME_LENGTH = 40;
+// Un nombre con pinta de enlace, dominio o correo no se enseña: el aviso no debe servir de anuncio ni de cebo.
+const LINK_LIKE = /[/@:]|www\.|[a-z0-9-]\.[a-z]{2,}/i;
+/** Nombre público listo para el aviso: sin caracteres de control ni saltos, recortado. `null` si no queda nada o parece un enlace; entonces el aviso usa el texto genérico. */
 export function cleanActorName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const name = value.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim();
-  return name ? [...name].slice(0, MAX_NAME_LENGTH).join('') : null;
+  return name && !LINK_LIKE.test(name) ? [...name].slice(0, MAX_NAME_LENGTH).join('') : null;
 }
 
 /** Texto y ruta según el tipo de aviso. Con `actor`, el título nombra a quien lo provoca. `null`: ese tipo no genera aviso push. */
