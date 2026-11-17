@@ -1,31 +1,38 @@
-import type { ReactNode } from 'react';
+import { Suspense, useEffect, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { AppShell } from './ui/shell/AppShell';
-import { Inicio } from './ui/pages/Inicio';
-import { Importar } from './ui/pages/Importar';
-import { Compartido } from './ui/pages/Compartido';
-import { Ajustes } from './ui/pages/Ajustes';
-import { HistoryWorkspace } from './ui/historial/HistoryWorkspace';
-import { Subidas } from './ui/pages/Subidas';
-import { Repetidas } from './ui/pages/Repetidas';
-import { Rutas } from './ui/pages/Rutas';
-import { Calendario } from './ui/pages/Calendario';
-import { Objetivos } from './ui/pages/Objetivos';
-import { Mas } from './ui/pages/Mas';
-import { Perfil } from './ui/pages/Perfil';
-import { PerfilNuevo } from './ui/pages/PerfilNuevo';
-import { Persona } from './ui/pages/Persona';
-import { BibliotecaRutas } from './ui/pages/BibliotecaRutas';
-import { RutaCompartida } from './ui/pages/RutaCompartida';
-import { Zona } from './ui/pages/Zona';
-import { Amigos } from './ui/pages/Amigos';
-import { Retos } from './ui/pages/Retos';
-import { NuevoReto } from './ui/pages/NuevoReto';
-import { Reto } from './ui/pages/Reto';
-import { Ciclistas } from './ui/pages/Ciclistas';
-import { CommunityRetos } from './ui/pages/CommunityRetos';
-import { CommunityNuevoReto } from './ui/pages/CommunityNuevoReto';
-import { CommunityReto } from './ui/pages/CommunityReto';
+import { lazyPage, preloadWhenIdle } from './ui/shell/lazyPage';
+import { CyclingLoader } from './ui/components/CyclingLoader';
+
+// Cada pantalla es un fragmento aparte: la primera carga solo trae la que se abre.
+const Inicio = lazyPage(() => import('./ui/pages/Inicio').then((m) => ({ default: m.Inicio })));
+const Importar = lazyPage(() => import('./ui/pages/Importar').then((m) => ({ default: m.Importar })));
+const Compartido = lazyPage(() => import('./ui/pages/Compartido').then((m) => ({ default: m.Compartido })));
+const Ajustes = lazyPage(() => import('./ui/pages/Ajustes').then((m) => ({ default: m.Ajustes })));
+const HistoryWorkspace = lazyPage(() => import('./ui/historial/HistoryWorkspace').then((m) => ({ default: m.HistoryWorkspace })));
+const Subidas = lazyPage(() => import('./ui/pages/Subidas').then((m) => ({ default: m.Subidas })));
+const Repetidas = lazyPage(() => import('./ui/pages/Repetidas').then((m) => ({ default: m.Repetidas })));
+const Rutas = lazyPage(() => import('./ui/pages/Rutas').then((m) => ({ default: m.Rutas })));
+const Calendario = lazyPage(() => import('./ui/pages/Calendario').then((m) => ({ default: m.Calendario })));
+const Objetivos = lazyPage(() => import('./ui/pages/Objetivos').then((m) => ({ default: m.Objetivos })));
+const Mas = lazyPage(() => import('./ui/pages/Mas').then((m) => ({ default: m.Mas })));
+const Perfil = lazyPage(() => import('./ui/pages/Perfil').then((m) => ({ default: m.Perfil })));
+const PerfilNuevo = lazyPage(() => import('./ui/pages/PerfilNuevo').then((m) => ({ default: m.PerfilNuevo })));
+const Persona = lazyPage(() => import('./ui/pages/Persona').then((m) => ({ default: m.Persona })));
+const BibliotecaRutas = lazyPage(() => import('./ui/pages/BibliotecaRutas').then((m) => ({ default: m.BibliotecaRutas })));
+const RutaCompartida = lazyPage(() => import('./ui/pages/RutaCompartida').then((m) => ({ default: m.RutaCompartida })));
+const Zona = lazyPage(() => import('./ui/pages/Zona').then((m) => ({ default: m.Zona })));
+const Amigos = lazyPage(() => import('./ui/pages/Amigos').then((m) => ({ default: m.Amigos })));
+const Retos = lazyPage(() => import('./ui/pages/Retos').then((m) => ({ default: m.Retos })));
+const NuevoReto = lazyPage(() => import('./ui/pages/NuevoReto').then((m) => ({ default: m.NuevoReto })));
+const Reto = lazyPage(() => import('./ui/pages/Reto').then((m) => ({ default: m.Reto })));
+const Ciclistas = lazyPage(() => import('./ui/pages/Ciclistas').then((m) => ({ default: m.Ciclistas })));
+const CommunityRetos = lazyPage(() => import('./ui/pages/CommunityRetos').then((m) => ({ default: m.CommunityRetos })));
+const CommunityNuevoReto = lazyPage(() => import('./ui/pages/CommunityNuevoReto').then((m) => ({ default: m.CommunityNuevoReto })));
+const CommunityReto = lazyPage(() => import('./ui/pages/CommunityReto').then((m) => ({ default: m.CommunityReto })));
+
+// Destinos de la barra de pestañas: se descargan en un rato libre, después de pintar la primera pantalla.
+const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, Mas];
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -42,9 +49,11 @@ function NewChallengeRoute() {
 }
 
 export function App() {
+  useEffect(() => preloadWhenIdle(TAB_PAGES), []);
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppShell>
+        <Suspense fallback={<CyclingLoader label="Cargando pantalla" />}>
         <Routes>
           <Route
             path="/"
@@ -88,6 +97,7 @@ export function App() {
           <Route path="/retos/anterior/nuevo" element={<NuevoReto />} />
           <Route path="/retos/:id" element={<Reto />} />
         </Routes>
+        </Suspense>
       </AppShell>
     </HashRouter>
   );

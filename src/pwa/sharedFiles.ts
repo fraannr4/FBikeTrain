@@ -1,4 +1,3 @@
-import { descendants, parseXml } from '../import/xml';
 
 export const SHARE_CACHE = 'fbiketrain-shares-v1';
 export type SharedDestination = 'route' | 'activity';
@@ -11,6 +10,8 @@ export async function sharedDestination(file: File): Promise<SharedDestination> 
   if (file.size > 10 * 1024 * 1024) throw new Error('El fichero XML supera el límite de 10 MB.');
   const xml = await file.text();
   if (/<!\s*(?:DOCTYPE|ENTITY)\b/i.test(xml)) throw new Error('No se admiten declaraciones DOCTYPE ni entidades.');
+  // El lector XML (xmldom) pesa mucho y solo hace falta al compartir un fichero: no va en el arranque.
+  const { descendants, parseXml } = await import('../import/xml');
   const doc = parseXml(xml);
   if (extension === 'gpx' && doc.documentElement?.localName === 'gpx') {
     const tracks = descendants(doc, 'trk');

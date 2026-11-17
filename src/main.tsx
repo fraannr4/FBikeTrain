@@ -1,7 +1,8 @@
 import { PublicAccess } from './auth/PublicAccess';
-import { StrictMode } from 'react';
+import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { lazyPage, preloadWhenIdle } from './ui/shell/lazyPage';
+import { CyclingLoader } from './ui/components/CyclingLoader';
 import { AccountBoundary } from './auth/AccountBoundary';
 import { accountClient, initializeAccount } from './auth/client';
 import { rememberSharedLocation } from './pwa/sharedFiles';
@@ -37,9 +38,13 @@ import './ui/styles/mas.css';
 import './ui/styles/account.css';
 import './ui/styles/escritorio.css';
 
+// La app (pantallas, mapas, gráficas) no hace falta para iniciar sesión: se descarga aparte.
+const App = lazyPage(() => import('./App').then((m) => ({ default: m.App })));
+preloadWhenIdle([App]);
+
 rememberSharedLocation();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <PublicAccess><AccountBoundary client={accountClient} initialize={initializeAccount}><App /></AccountBoundary></PublicAccess>
+    <PublicAccess><AccountBoundary client={accountClient} initialize={initializeAccount}><Suspense fallback={<CyclingLoader label="Cargando" />}><App /></Suspense></AccountBoundary></PublicAccess>
   </StrictMode>,
 );

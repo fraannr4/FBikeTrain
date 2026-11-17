@@ -1,13 +1,16 @@
-import { render, screen, within } from '@testing-library/react';
+import { configure, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../src/App';
+
+// Cada pantalla llega en su propio chunk: la primera carga en pruebas supera el segundo por defecto.
+configure({ asyncUtilTimeout: 8000 });
 
 describe('App', () => {
   afterEach(() => {
     window.location.hash = '';
   });
 
-  it('pinta la barra de cinco pestañas e Inicio', () => {
+  it('pinta la barra de cinco pestañas e Inicio', async () => {
     render(<App />);
     const nav = screen.getByRole('navigation', { name: 'Menú principal' });
     const tabs = within(nav)
@@ -15,7 +18,7 @@ describe('App', () => {
       .filter((a) => a.classList.contains('tab'))
       .map((a) => a.textContent);
     expect(tabs).toEqual(['Inicio', 'Historial', 'Rutas', 'Plan', 'Más']);
-    expect(screen.getByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument();
   });
 
   it('#/ajustes muestra Ajustes', async () => {
