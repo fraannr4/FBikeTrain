@@ -68,7 +68,12 @@ export async function setLastBackupAt(t: number): Promise<void> {
   await db.meta.put({ key: LAST_BACKUP_KEY, value: t });
 }
 
-/** «Borrar todo»: vacía todas las tablas de la base en una sola transacción. */
+/**
+ * «Borrar todo»: vacía todas las tablas de datos en una sola transacción. El estado de sincronización
+ * se conserva: así el borrado se anota y llega a la cuenta y a los demás dispositivos.
+ */
 export async function clearAllData(): Promise<void> {
-  await db.transaction('rw', db.tables, () => Promise.all(db.tables.map((t) => t.clear())));
+  await db.transaction('rw', db.tables, () =>
+    Promise.all(db.tables.filter((t) => t.name !== 'syncState').map((t) => t.clear())),
+  );
 }

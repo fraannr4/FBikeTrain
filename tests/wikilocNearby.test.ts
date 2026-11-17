@@ -65,7 +65,7 @@ describe('restos del marcador retirado', () => {
     expect((await db.wikilocNearby.toCollection().primaryKeys()).sort()).toEqual(['request']);
     expect(await loadWikilocRequest()).toEqual(request);
   });
-  it('la base v5 se abre desde una v4 sin perder datos', async () => {
+  it('la base actual se abre desde una v4 sin perder datos', async () => {
     const name = 'test-wikiloc-nearby-upgrade';
     const old = new Dexie(name);
     old.version(4).stores({ activities: 'id,startTime', tracks: 'activityId', settings: 'key', meta: 'key', climbEfforts: 'id,activityId', routeSigs: 'activityId,distanceM', calendar: 'id,date', goals: 'id,kind', referenceRoutes: 'id,updatedAt' });
@@ -74,7 +74,7 @@ describe('restos del marcador retirado', () => {
     const upgraded = new CyclingDb(name);
     try {
       expect((await upgraded.meta.get('keep'))?.value).toBe(42);
-      expect(upgraded.verno).toBe(5);
+      expect(upgraded.verno).toBe(6);
     } finally { await upgraded.delete(); }
   });
 });

@@ -1,3 +1,4 @@
+import { useSyncRevision } from '../sync/status';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { db } from '../db/db';
 import { useImporter } from '../ui/importer';
@@ -21,7 +22,8 @@ type Connections = {
 };
 const Context = createContext<Connections | null>(null);
 export const useConnections = () => useContext(Context);
-export const useConnectionRevision = () => (useConnections()?.revision ?? 0) + (useGarminConnections()?.revision ?? 0);
+/** Sube cuando llegan salidas nuevas: de una conexión o de otro dispositivo de la cuenta. */
+export const useConnectionRevision = () => (useConnections()?.revision ?? 0) + (useGarminConnections()?.revision ?? 0) + useSyncRevision();
 
 export function ConnectionsProvider({ children }: { children: ReactNode }) {
   const importer = useImporter();

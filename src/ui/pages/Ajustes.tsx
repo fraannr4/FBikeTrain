@@ -38,6 +38,7 @@ import {
   User,
 } from '../icons';
 import { AvisosSection } from '../ajustes/AvisosSection';
+import { SyncSection } from '../ajustes/SyncSection';
 import { ThresholdsSection } from '../ajustes/ThresholdsSection';
 import { Banner } from '../components/Banner';
 import { Disclosure } from '../components/Disclosure';
@@ -60,7 +61,7 @@ const GROQ_URL = DEFAULT_SETTINGS.llm.baseUrl;
 const ORS_SIGNUP = 'https://openrouteservice.org/dev/#/signup';
 const GROQ_KEYS = 'https://console.groq.com/keys';
 const STORAGE_DOWN = 'el almacenamiento de este navegador no está disponible.';
-const SECTIONS = ['perfil', 'casa', 'umbrales', 'zona', 'avisos', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
+const SECTIONS = ['perfil', 'casa', 'umbrales', 'zona', 'avisos', 'sincronizacion', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
 
 function probeMessage(r: ProbeResult): string {
   if (r.ok) return 'Conexión correcta.';
@@ -420,6 +421,7 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
 
           {account ? <ZonaSection account={account} defaultOpen={isOpen('zona')} /> : null}
           {account && !account.user.is_anonymous ? <AvisosSection client={account.client} defaultOpen={isOpen('avisos')} /> : null}
+          {account && !account.user.is_anonymous ? <SyncSection defaultOpen={isOpen('sincronizacion')} /> : null}
 
           <Disclosure
             id="claves"
@@ -1098,6 +1100,8 @@ function BackupSection({
 }
 
 function DeleteSection({ rides, onDeleted }: { rides: number; onDeleted: () => Promise<void> }) {
+  const account = useAccount();
+  const synced = account !== null && !account.user.is_anonymous;
   const connections = useConnections();
   const garmin = useGarminConnections();
   const toast = useToast();
@@ -1157,6 +1161,11 @@ function DeleteSection({ rides, onDeleted }: { rides: number; onDeleted: () => P
           )}
           , los objetivos, Casa y las claves. <b>No se puede deshacer.</b>
         </p>
+        {synced ? (
+          <p className="help">
+            <b>También se borran de tu cuenta y de tus otros dispositivos</b> la próxima vez que se sincronicen.
+          </p>
+        ) : null}
         <p className="help">Las salidas vuelven importando el archivo de Strava; el resto, solo con una copia.</p>
         {failed ? (
           <Banner tone="error">

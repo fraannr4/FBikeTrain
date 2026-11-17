@@ -10,6 +10,7 @@ import { useCommunityBadge } from './useCommunityBadge';
 import { useAccount } from '../../auth/AccountBoundary';
 import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 import { CommunitySync } from '../../social/CommunitySync';
+import { DeviceSync } from '../../sync/DeviceSync';
 import { GarminProvider } from '../../connections/GarminProvider';
 
 /**
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </a>
       <ToastProvider>
         <CommunitySync />
+        <DeviceSync />
         <ConnectionsProvider>
         <GarminProvider>
         <GarminAttributionProvider><NavHistoryProvider>

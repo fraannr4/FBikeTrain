@@ -10,6 +10,24 @@ export type TrackRow = { activityId: string; points: TrackPoint[] };
 /** Firma del trazado guardada, con la versión del análisis que la calculó. */
 export type RouteSigRow = RouteSig & { analysisVersion: number };
 
+/**
+ * Estado de sincronización de un dato (`tipo:id`) en este dispositivo. `hash` es la huella con la que
+ * se anotó; `changedAt`, cuándo cambió aquí (o en el dispositivo del que llegó). `dirty`: falta subirlo.
+ * `pull`: hay una versión más nueva en la cuenta que falta descargar. Las filas `#…` guardan el cursor
+ * y la clave de la cuenta en `value`.
+ */
+export type SyncStateRow = {
+  key: string;
+  hash: string;
+  changedAt: number;
+  dirty: 0 | 1;
+  pull: 0 | 1;
+  deleted: boolean;
+  /** Ruta del catálogo precargado: se anota para no volver a leerla, y nunca se sube. */
+  skip?: boolean;
+  value?: unknown;
+};
+
 export class CyclingDb extends Dexie {
   activities!: Table<StoredActivity, string>;
   tracks!: Table<TrackRow, string>;
@@ -21,6 +39,7 @@ export class CyclingDb extends Dexie {
   goals!: Table<Goal, string>;
   referenceRoutes!: Table<ReferenceRoute, string>;
   wikilocNearby!: Table<WikilocRow, string>;
+  syncState!: Table<SyncStateRow, string>;
 
   constructor(name = 'ciclismo') {
     super(name);
@@ -43,6 +62,9 @@ export class CyclingDb extends Dexie {
     });
     this.version(5).stores({
       wikilocNearby: 'key',
+    });
+    this.version(6).stores({
+      syncState: 'key, dirty, pull',
     });
   }
 }
