@@ -16,6 +16,11 @@ type Props = {
   heading?: ReactNode;
   /** El punto del perfil bajo el dedo (con su posición) o `null` al empezar. */
   onCursor?: (p: ProfilePoint | null) => void;
+  /**
+   * Variante de franja, pegada al mapa: sin título ni pista, y la lectura del punto va bajo el eje
+   * (así las chinchetas de las subidas no se pisan con ella). Sin esto, el perfil de siempre.
+   */
+  compact?: boolean;
 };
 
 /** Puntos del perfil como mucho: de sobra para 430 px y para recorrerlo con las flechas. */
@@ -91,7 +96,7 @@ const fmtGrade = (g: number) => formatNumber(Math.round(g * 10) / 10 === 0 ? 0 :
  * mapa lo siga. Las subidas van sombreadas y numeradas. El SVG es la imagen con el resumen; encima, un
  * control deslizante accesible.
  */
-export const ElevationProfile = memo(function ElevationProfile({ points, climbs = [], heading, onCursor }: Props) {
+export const ElevationProfile = memo(function ElevationProfile({ points, climbs = [], heading, onCursor, compact = false }: Props) {
   const full = useMemo(() => buildProfile(points), [points]);
   const prof = useMemo(() => sample(full), [full]);
   const box = useRef<HTMLDivElement>(null);
@@ -173,36 +178,42 @@ export const ElevationProfile = memo(function ElevationProfile({ points, climbs 
     `con la cima en el km ${fmtKm(prof[top].distM - geo.d0)}.` +
     (climbs.length === 1 ? ' Una subida, sombreada.' : climbs.length > 1 ? ` ${climbs.length} subidas, sombreadas y numeradas.` : '');
 
+  const readout = (
+    <p className="scrub-read" aria-hidden="true">
+      {p ? (
+        <>
+          <span>
+            km <b>{fmtKm(p.distM - geo.d0)}</b>
+          </span>
+          <span>
+            <b>{formatCount(p.ele)}</b>m
+          </span>
+          <span>
+            <i className={`sw sw-${gradeClass(g)}`} />
+            <b>{fmtGrade(g)}</b>%
+          </span>
+        </>
+      ) : (
+        <>
+          <span>
+            Cima <b>{formatCount(max)}</b>m
+          </span>
+          <span>
+            en el km <b>{fmtKm(prof[top].distM - geo.d0)}</b>
+          </span>
+        </>
+      )}
+    </p>
+  );
+
   return (
     <>
-      <div className="section-h">
-        {heading}
-        <p className="scrub-read" aria-hidden="true">
-          {p ? (
-            <>
-              <span>
-                km <b>{fmtKm(p.distM - geo.d0)}</b>
-              </span>
-              <span>
-                <b>{formatCount(p.ele)}</b>m
-              </span>
-              <span>
-                <i className={`sw sw-${gradeClass(g)}`} />
-                <b>{fmtGrade(g)}</b>%
-              </span>
-            </>
-          ) : (
-            <>
-              <span>
-                Cima <b>{formatCount(max)}</b>m
-              </span>
-              <span>
-                en el km <b>{fmtKm(prof[top].distM - geo.d0)}</b>
-              </span>
-            </>
-          )}
-        </p>
-      </div>
+      {compact ? null : (
+        <div className="section-h">
+          {heading}
+          {readout}
+        </div>
+      )}
       <div ref={box} className={cur >= 0 ? 'scrub is-on' : 'scrub'}>
         <div className="scrub-grid" aria-hidden="true">
           {geo.lines.map((v) => (
@@ -289,6 +300,16 @@ export const ElevationProfile = memo(function ElevationProfile({ points, climbs 
           {NB}km
         </span>
       </div>
+      {compact ? (
+        <div className="scrub-bar">
+          {readout}
+          {p ? null : (
+            <span className="scrub-tip" aria-hidden="true">
+              Desliza por el perfil
+            </span>
+          )}
+        </div>
+      ) : null}
       <p className="legend" aria-hidden="true">
         {bands.present.map((c) => (
           <span key={c}>
@@ -297,10 +318,12 @@ export const ElevationProfile = memo(function ElevationProfile({ points, climbs 
           </span>
         ))}
       </p>
-      <p className="scrub-hint">
-        <Info className="ic" aria-hidden="true" />
-        <span>Desliza el dedo por el perfil: el punto te sigue también en el mapa.</span>
-      </p>
+      {compact ? null : (
+        <p className="scrub-hint">
+          <Info className="ic" aria-hidden="true" />
+          <span>Desliza el dedo por el perfil: el punto te sigue también en el mapa.</span>
+        </p>
+      )}
     </>
   );
 });

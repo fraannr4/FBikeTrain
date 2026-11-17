@@ -49,11 +49,10 @@
   .home .hero { min-width: 0; }
   .home .hero-scene { max-width: 100%; }
   .duo .next { min-width: 0; }
-  .scrub, .climb, .passes > svg { min-height: 480px; }
+  .climb, .passes > svg { min-height: 480px; }
   .trend-chart { min-height: 360px; }
-  .rmap, .start-map, .ride-hero, .lastride-map { min-height: 480px; }
-  .ride-hero { height: 480px; }
-  .ride-hero-map { height: 100%; }
+  .rmap, .start-map, .lastride-map { min-height: 480px; }
+  .ride-hero-map { height: 100%; min-height: 0; }
   .rcard .profile, .rmap-sheet .profile { min-height: 320px; }
   .page--ajustes { width: 100%; max-width: 720px; grid-template-columns: minmax(0, 1fr); }
   .page--ajustes .settings { grid-template-columns: minmax(0, 1fr); }
@@ -121,8 +120,6 @@
     .history-workspace .hist-tools { grid-template-columns: minmax(0, 1fr); }
     .history-workspace .ride { padding-inline: 20px; }
     .history-workspace .ride-screen { border-left: 1px solid var(--line); }
-    .history-workspace .ride-head { padding-top: 24px; }
-    .history-workspace .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (hover: hover) and (pointer: fine) {
     .tab:hover, .row:hover, .icon-btn:hover, .choice:hover { background-color: var(--surface-2); }

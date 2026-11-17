@@ -1,24 +1,40 @@
 /* Pantalla Salida (salida.html del prototipo). El kit vive en kit.css; el mapa (RideMap), en map.css. */
 html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
 
-/* ---- Mapa a todo el ancho, bajo la barra transparente ---- */
+/* ---- Escenario: mapa y perfil juntos, a la vista sin desplazarse ----
+   Móvil: el mapa llena el ancho bajo la barra transparente (44 % del alto visible) y el perfil queda
+   pegado debajo, en el mismo contenedor redondeado; título, cifras y reto van después.
+   PC: título y cifras arriba, y el escenario ocupa el resto del alto visible.
+   Apaisado en teléfono: mapa a la izquierda; perfil y cifras a la derecha. */
+.ride-fold { display: grid; gap: 14px; min-width: 0; }
 .ride-top { display: grid; gap: 14px; min-width: 0; }
-.ride-hero {
-  position: relative; overflow: hidden; isolation: isolate; background: var(--map-under);
+.ride-stage {
+  --stage-map: clamp(240px, 44dvh, 520px);
+  position: relative; display: grid; min-width: 0; overflow: hidden; isolation: isolate;
   margin: calc(-1 * (var(--appbar-h) + var(--safe-t))) calc(-1 * (var(--gutter) + var(--safe-r))) 0 calc(-1 * (var(--gutter) + var(--safe-l)));
-  height: calc(clamp(200px, 58vw, 300px) + var(--appbar-h) + var(--safe-t));
+  border-radius: 0 0 var(--r-xl) var(--r-xl); background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.ride-hero {
+  position: relative; overflow: hidden; isolation: isolate; background: var(--map-under); min-width: 0;
+  height: calc(var(--stage-map) + var(--appbar-h) + var(--safe-t));
 }
 .ride-hero-map { position: absolute; inset: 0; z-index: 0; }
-.ride-hero::after {   /* el mapa se funde con la página: el título queda pegado a su recorrido */
-  content: ""; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 44px; pointer-events: none;
-  background: linear-gradient(to bottom, transparent, var(--bg));
-}
-.map-max { position: absolute; z-index: 2; right: calc(var(--gutter) - 4px + var(--safe-r)); bottom: 14px; }
+.map-max { position: absolute; z-index: 2; right: calc(var(--gutter) - 4px + var(--safe-r)); bottom: 10px; }
 .map-attr {
-  position: absolute; z-index: 2; left: calc(var(--gutter) + var(--safe-l)); bottom: 20px;
+  position: absolute; z-index: 2; left: calc(var(--gutter) + var(--safe-l)); bottom: 14px;
   padding: 4px 8px; border-radius: var(--r-pill); background: var(--glass-strong);
   font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2);
 }
+/* Franja del perfil: pegada al mapa, sin hueco; la lectura del punto va bajo el eje */
+.ride-prof { min-width: 0; padding: 4px calc(var(--gutter) + var(--safe-r)) 8px calc(var(--gutter) + var(--safe-l)); background: var(--surface); }
+.ride-prof .scrub { height: 84px; margin-top: 28px; }
+.ride-prof .scrub-axis { margin-top: 2px; }
+.ride-prof .legend { display: none; }
+.scrub-bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 26px; padding-top: 6px; min-width: 0; }
+.scrub-bar .scrub-read { justify-content: flex-start; }
+.scrub-tip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-sm); color: var(--ink-3); }
+.ride-stage--solo { border-bottom: 0; }
+.ride-stage + .ride-top { margin-top: -2px; }
 /* Sobre el mapa, la flecha de volver va en vidrio para leerse sobre cualquier tesela */
 .ride-screen--map .appbar:not([data-scrolled]) .appbar-lead .icon-btn {
   background: var(--glass-strong); color: var(--ink); border: 1px solid var(--line-strong);
@@ -26,19 +42,50 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
   box-shadow: var(--shadow-float);
 }
 @media (min-width: 600px) {
-  .ride-hero { margin-left: 0; margin-right: 0; border-radius: 0 0 var(--r-xl) var(--r-xl); }
-  .ride-hero::after { display: none; }
+  .ride-stage { margin-left: 0; margin-right: 0; }
   /* El botón de volver queda dentro del mapa redondeado, no en su esquina */
   .ride-screen--map .appbar { padding-left: calc(var(--gutter) + 8px + var(--safe-l)); }
 }
-/* Apaisado en teléfono: mapa a la izquierda, de arriba abajo; título y cifras a la derecha */
+@media (min-width: 600px) and (max-width: 899px) { .ride-prof .scrub { height: 104px; } }
+/* PC: la barra ya no cubre el mapa; el escenario toma el alto que queda bajo título y cifras */
+@media (min-width: 900px) and (min-height: 501px) {
+  .ride-screen--map .appbar { padding-left: calc(var(--gutter) - 8px + var(--safe-l)); }
+  .ride-screen--map .appbar:not([data-scrolled]) .appbar-lead .icon-btn { background: none; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ride-screen--map .ride-fold { display: flex; flex-direction: column; gap: 14px; height: calc(100dvh - var(--appbar-h) - var(--safe-t) - 16px); min-height: 560px; }
+  .ride-fold > .ride-top { order: 1; }
+  .ride-fold > .ride-stage { order: 2; flex: 1 1 0; min-height: 0; }
+  .ride-stage { margin: 0; grid-template-rows: minmax(0, 1fr) auto; border: 1px solid var(--line); border-radius: var(--r-xl); }
+  .ride-stage--solo { grid-template-rows: minmax(0, 1fr); }
+  .ride-hero { height: auto; min-height: 0; }
+  .ride-stage + .ride-top { margin-top: 0; }
+  .ride-prof { padding-inline: 16px; padding-bottom: 10px; border-top: 1px solid var(--line); }
+  .ride-prof .scrub { height: clamp(96px, 15dvh, 150px); }
+  .ride-prof .legend { display: flex; margin-top: 4px; }
+  .map-attr { left: 14px; }
+  .map-max { right: 10px; }
+  /* Cabecera compacta: título y reto arriba, las cuatro cifras en una fila */
+  .ride-top { grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 20px; row-gap: 8px; }
+  .ride-top > .ride-head { grid-column: 1; grid-row: 1; }
+  .ride-top > .ride-challenge { grid-column: 2; grid-row: 1; width: auto; align-self: start; }
+  .ride-top > .ride-figs-wrap, .ride-top > .sk-figs { grid-column: 1 / -1; grid-row: 2; }
+  .ride-fold .ride-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .ride-fold .ride-head > .page-title { flex: 1 0 100%; }
+  .ride-fold .ride-chips { margin-top: 0; }
+  .ride-fold .page-title, .ride-fold .page-title.is-long { font-size: 28px; }
+  .ride-fold .salida-figs { padding: 8px 0; }
+  .ride-fold .salida-figs dd { margin-top: 4px; font-size: 24px; }
+}
+/* Apaisado en teléfono: mapa a la izquierda, de arriba abajo; perfil, título y cifras a la derecha */
 @media (orientation: landscape) and (max-height: 500px) {
-  .ride-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 12px; }
-  .ride-hero { grid-row: span 2; height: calc(100dvh - var(--nav-space)); }
-  .ride-head, .ride-top > .ride-figs-wrap, .ride-top > .sk-figs, .ride-top > .ride-challenge { grid-column: 2; }
-  .ride-head { padding-top: 4px; }
-  .ride .page-title { font-size: clamp(24px, 3.4vw, 30px); }
-  .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .ride-fold { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 10px; }
+  .ride-stage { display: contents; }
+  .ride-hero { grid-column: 1; grid-row: 1 / span 2; height: calc(100dvh - var(--nav-space)); margin: calc(-1 * (var(--appbar-h) + var(--safe-t))) 0 0 calc(-1 * (var(--gutter) + var(--safe-l))); border-radius: 0 var(--r-xl) var(--r-xl) 0; }
+  .ride-prof { grid-column: 2; grid-row: 1; padding-inline: 0; background: none; padding-top: 0; }
+  .ride-prof .scrub { height: 64px; margin-top: 24px; }
+  .ride-top { grid-column: 2; grid-row: 2; gap: 10px; }
+  .ride-stage + .ride-top { margin-top: 0; }
+  .ride-fold .page-title, .ride-fold .page-title.is-long { font-size: clamp(22px, 3.4vw, 28px); }
+  .ride-fold .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
 }
 
 /* ---- Cabecera de la salida ---- */
@@ -149,11 +196,15 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
 .similar.list--inset > li + li::before { margin-left: 74px; }
 .row-meta .share { color: var(--ink-2); font-weight: 500; }
 
-/* ---- Hoja del mapa ---- */
+/* ---- Hoja del mapa: el mapa y la misma franja del perfil, con el mismo cursor ---- */
 .sheet--map .sheet-body { padding: 0 0 calc(12px + var(--safe-b)); }
 .ride-map--big { height: min(66dvh, 560px); }
+.ride-map--with-prof { height: min(52dvh, 500px); }
+.ride-prof--sheet { padding-top: 0; }
+.ride-prof--sheet .scrub { height: 80px; }
 
 /* ---- Carga ---- */
 .ride-hero .sk-map { display: block; height: 100%; border-radius: 0; }
+.ride-prof .sk-prof { display: block; height: 148px; margin-top: 4px; border-radius: var(--r-md); }
 .sk-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .sk-figs .sk { width: auto; height: 46px; }

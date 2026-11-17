@@ -178,41 +178,50 @@ export function Salida() {
     <div className={withMap ? 'ride-screen ride-screen--map' : 'ride-screen'}>
       <AppBar title={name} back="/historial" />
       <div className={withMap ? 'page ride' : 'page ride ride--plain'}>
-        <div className="ride-top">
+        <div className="ride-fold">
           {withMap ? (
-            <div className="ride-hero">
-              <RideMap points={gps} label="Mapa de la salida" climbs={mapClimbs} cursor={cursor} interactive={false} className="ride-hero-map" />
-              <p className="map-attr">© OpenStreetMap, CyclOSM</p>
-              <button
-                type="button"
-                className="icon-btn icon-btn--glass map-max"
-                aria-label="Ver el mapa a pantalla completa"
-                aria-haspopup="dialog"
-                onClick={() => setMapOpen(true)}
-              >
-                <Maximize className="ic" aria-hidden="true" />
-              </button>
+            <div className={hasProfile ? 'ride-stage' : 'ride-stage ride-stage--solo'}>
+              <div className="ride-hero">
+                <RideMap points={gps} label="Mapa de la salida" climbs={mapClimbs} cursor={cursor} interactive={false} className="ride-hero-map" />
+                <p className="map-attr">© OpenStreetMap, CyclOSM</p>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--glass map-max"
+                  aria-label="Ver el mapa a pantalla completa"
+                  aria-haspopup="dialog"
+                  onClick={() => setMapOpen(true)}
+                >
+                  <Maximize className="ic" aria-hidden="true" />
+                </button>
+              </div>
+              {hasProfile ? (
+                <section className="ride-prof" aria-label="Perfil de la salida">
+                  <ElevationProfile points={track} climbs={profileClimbs} onCursor={onCursor} compact />
+                </section>
+              ) : null}
             </div>
           ) : null}
-          <div className="ride-head">
-            <RideTitle name={name} />
-            <ActivitySource activity={ride} />
-            <GarminHistoryAttribution />
-            <p className="ride-when">{whenLabel(ride.startTime, loaded.now)}</p>
-            {level || (here?.route && here.route.rank <= 3) ? (
-              <div className="cluster ride-chips">
-                {level ? <DifficultyChip level={level} /> : null}
-                {here?.route && here.route.rank <= 3 ? <RouteRankChip rank={here.route.rank} /> : null}
-              </div>
+          <div className="ride-top">
+            <div className="ride-head">
+              <RideTitle name={name} />
+              <ActivitySource activity={ride} />
+              <GarminHistoryAttribution />
+              <p className="ride-when">{whenLabel(ride.startTime, loaded.now)}</p>
+              {level || (here?.route && here.route.rank <= 3) ? (
+                <div className="cluster ride-chips">
+                  {level ? <DifficultyChip level={level} /> : null}
+                  {here?.route && here.route.rank <= 3 ? <RouteRankChip rank={here.route.rank} /> : null}
+                </div>
+              ) : null}
+            </div>
+            <Figures ride={ride} />
+            {withMap && !ride.id.startsWith('demo-') ? (
+              <Link className="btn btn--secondary btn--block ride-challenge" to={`/retos/nuevo?tipo=ruta&salida=${encodeURIComponent(ride.id)}`}>
+                <Swords className="ic" aria-hidden="true" />
+                Retar con esta ruta
+              </Link>
             ) : null}
           </div>
-          <Figures ride={ride} />
-          {withMap && !ride.id.startsWith('demo-') ? (
-            <Link className="btn btn--secondary btn--block ride-challenge" to={`/retos/nuevo?tipo=ruta&salida=${encodeURIComponent(ride.id)}`}>
-              <Swords className="ic" aria-hidden="true" />
-              Retar con esta ruta
-            </Link>
-          ) : null}
         </div>
 
         {!ride.hasTrack ? (
@@ -220,21 +229,6 @@ export function Salida() {
             <b>Esta salida no tiene GPS, así que no tiene mapa.</b> Tampoco tiene perfil ni subidas, pero sus cifras cuentan en tu
             historial y en tus objetivos.
           </Banner>
-        ) : null}
-
-        {hasProfile ? (
-          <section className="section" aria-labelledby="s-perfil">
-            <ElevationProfile
-              points={track}
-              climbs={profileClimbs}
-              onCursor={onCursor}
-              heading={
-                <h2 className="section-title" id="s-perfil">
-                  Perfil
-                </h2>
-              }
-            />
-          </section>
         ) : null}
 
         {ride.hasTrack ? <ClimbsSection analysis={analysis} climbs={here?.climbs ?? null} now={loaded.now} /> : null}
@@ -247,7 +241,12 @@ export function Salida() {
       {withMap ? (
         <Sheet open={mapOpen} onClose={() => setMapOpen(false)} title="Recorrido" closeLabel="Cerrar el mapa" className="sheet--map">
           <ActivitySource activity={ride} />
-          <RideMap points={gps} label="Mapa ampliado de la salida" climbs={mapClimbs} className="ride-map--big" />
+          <RideMap points={gps} label="Mapa ampliado de la salida" climbs={mapClimbs} cursor={cursor} className={hasProfile ? 'ride-map--big ride-map--with-prof' : 'ride-map--big'} />
+          {hasProfile ? (
+            <div className="ride-prof ride-prof--sheet">
+              <ElevationProfile points={track} climbs={profileClimbs} onCursor={onCursor} compact />
+            </div>
+          ) : null}
         </Sheet>
       ) : null}
     </div>
@@ -291,28 +290,31 @@ function analyse(base: Base, efforts: ClimbEffort[], sigs: Awaited<ReturnType<ty
 
 function Loading() {
   return (
-    <div className="ride-screen">
+    <div className="ride-screen ride-screen--map">
       <AppBar title="" back="/historial" />
       <div className="page ride" aria-busy="true">
         <span className="sr-only">Cargando la salida…</span>
-        <div className="ride-top" aria-hidden="true">
-          <div className="ride-hero">
-            <Skeleton variant="box" className="sk-map" />
+        <div className="ride-fold" aria-hidden="true">
+          <div className="ride-stage">
+            <div className="ride-hero">
+              <Skeleton variant="box" className="sk-map" />
+            </div>
+            <div className="ride-prof">
+              <Skeleton variant="box" className="sk-prof" />
+            </div>
           </div>
-          <div className="ride-head">
-            <Skeleton variant="title" width="70%" height={34} />
-            <Skeleton width="58%" />
+          <div className="ride-top">
+            <div className="ride-head">
+              <Skeleton variant="title" width="70%" height={34} />
+              <Skeleton width="58%" />
+            </div>
+            <div className="sk-figs">
+              <Skeleton variant="fig" />
+              <Skeleton variant="fig" />
+              <Skeleton variant="fig" />
+              <Skeleton variant="fig" />
+            </div>
           </div>
-          <div className="sk-figs">
-            <Skeleton variant="fig" />
-            <Skeleton variant="fig" />
-            <Skeleton variant="fig" />
-            <Skeleton variant="fig" />
-          </div>
-        </div>
-        <div className="section" aria-hidden="true">
-          <Skeleton variant="title" width="30%" />
-          <Skeleton variant="box" height={150} />
         </div>
       </div>
     </div>
