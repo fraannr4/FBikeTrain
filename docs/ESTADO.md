@@ -1,5 +1,26 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-17, última hora): sincronización entre dispositivos publicada
+
+Publicado en `main` (GitHub Pages):
+
+- `7c620bd`: en escritorio (desde 1024 px) `#/plan` enseña el mes y oculta la tira semanal.
+- `c08323a` y `1681676`: los avisos push dicen quién («Ana te ha retado»). El trigger añade el nombre público. Un nombre con pinta de enlace, dominio o correo no se enseña y el aviso usa el texto genérico. Migración `202611170005`. Función `push` redesplegada.
+- `de7ee78`: sincronización entre dispositivos. Salidas con track, rutas propias, plan, objetivos y ajustes (nombre, Casa, umbrales). Diseño y decisiones: `docs/superpowers/plans/2026-11-17-sincronizacion-dispositivos.md`. Migración `202611170006`, aplicada en producción. Base local en versión 6 (tabla `syncState`).
+
+Comprobado: 2030 pruebas unitarias, SQL embebido y la suite completa de Playwright de una pasada (362 pasan, 2 omitidas) contra el build anterior a las últimas correcciones; después, las specs afectadas.
+
+Sin comprobar con datos reales:
+
+- La sincronización con dos dispositivos reales y la misma cuenta. Solo está probada con dos bases simuladas y una cuenta en memoria.
+- Un aviso push real en un móvil, ahora con nombre.
+
+Pendiente:
+
+- Auditoría de diseño móvil: `docs/design/2026-11-17-auditoria-movil/README.md`. El usuario elige qué lotes se aplican.
+- `202611170004` y `202611170005` no entran en `scripts/test-account-sql.mjs`: necesitan `pg_net`.
+- Garmin: falta enviar la solicitud (`docs/garmin-solicitud-starter.md`).
+
 ## Retomar aquí (2026-11-17, noche): carga y forma, «me gusta» y avisos push publicados
 
 Publicado en `main` (GitHub Pages) y comprobado en producción:
