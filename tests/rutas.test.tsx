@@ -239,7 +239,8 @@ describe('Rutas', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(run.deps?.signal?.aborted).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
+    // La búsqueda se corta al momento; el recuadro tarda lo que dura su animación de salida.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull());
     expect(screen.queryByText(/Esperando/)).toBeNull();
     expect(screen.getAllByRole('article')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Proponer rutas' })).toBeEnabled();

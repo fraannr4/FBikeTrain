@@ -24,3 +24,67 @@
   .route-search-loading__heading h3 { font-size: 27px; }
   .route-search-loading__body { padding: 20px 22px 22px; }
 }
+
+.route-search-loading__found { margin-top: 12px; color: var(--trace); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- En grande: la búsqueda ocupa la pantalla mientras dura ----------
+   Entrada (420 ms, curva de hoja): el fondo se funde y la tarjeta sube y crece; después
+   aparecen, escalonados, el título, la escena y el estado. Salida (260 ms): el mismo
+   camino al revés y sin escalonado, para dejar ver las rutas cuanto antes. */
+.route-search-overlay { position: fixed; inset: 0; z-index: 700; display: grid; place-items: center; padding: 24px; outline: 0; }
+.route-search-overlay[data-state="closed"] { pointer-events: none; }
+.route-search-overlay__backdrop { position: absolute; inset: 0; background: var(--scrim); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); opacity: 0; transition: opacity 260ms var(--ease-out); }
+.route-search-overlay[data-state="open"] .route-search-overlay__backdrop { opacity: 1; transition-duration: 420ms; }
+
+.route-search-overlay .card.route-search-loading {
+  position: relative;
+  max-width: 640px;
+  max-height: calc(100dvh - 48px);
+  margin: 0;
+  overflow: hidden auto;
+  border-radius: 28px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .45);
+  opacity: 0;
+  transform: translateY(32px) scale(.94);
+  transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out);
+}
+.route-search-overlay[data-state="open"] .card.route-search-loading { opacity: 1; transform: none; transition-duration: 420ms; transition-timing-function: var(--ease-drawer); }
+
+.route-search-overlay .route-search-loading__heading,
+.route-search-overlay .route-loading-scene,
+.route-search-overlay .route-search-loading__body { opacity: 0; transform: translateY(14px); transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.route-search-overlay[data-state="open"] .route-search-loading__heading,
+.route-search-overlay[data-state="open"] .route-loading-scene,
+.route-search-overlay[data-state="open"] .route-search-loading__body { opacity: 1; transform: none; transition-duration: 420ms; transition-timing-function: var(--ease-drawer); }
+.route-search-overlay[data-state="open"] .route-search-loading__heading { transition-delay: 90ms; }
+.route-search-overlay[data-state="open"] .route-loading-scene { transition-delay: 150ms; }
+.route-search-overlay[data-state="open"] .route-search-loading__body { transition-delay: 210ms; }
+
+.route-search-overlay .route-search-loading__heading { padding: 34px 34px 0; }
+.route-search-overlay .route-search-loading__heading h3 { font-size: clamp(34px, 5vw, 44px); letter-spacing: -1px; }
+.route-search-overlay .route-search-loading__body { padding: 26px 34px 30px; }
+.route-search-overlay .route-search-loading__message { font-size: 16px; }
+
+/* Móvil: a pantalla completa, con la escena ocupando el alto que sobra. */
+@media (max-width: 600px) {
+  .route-search-overlay { padding: 0; place-items: stretch; }
+  .route-search-overlay .card.route-search-loading {
+    display: flex; flex-direction: column;
+    max-width: none; max-height: none; min-height: 100dvh;
+    border: 0; border-radius: 0; box-shadow: none;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+    transform: translateY(6%) scale(.96);
+  }
+  .route-search-overlay .route-search-loading__heading { padding: 28px 24px 0; }
+  .route-search-overlay .route-search-loading__heading h3 { font-size: 36px; }
+  .route-search-overlay .route-loading-scene { flex: 1; display: grid; align-items: center; }
+  .route-search-overlay .route-search-loading__body { padding: 22px 24px 24px; }
+}
+
+/* Sin movimiento: mismo ritmo, solo opacidad. */
+@media (prefers-reduced-motion: reduce) {
+  .route-search-overlay .card.route-search-loading,
+  .route-search-overlay .route-search-loading__heading,
+  .route-search-overlay .route-loading-scene,
+  .route-search-overlay .route-search-loading__body { transform: none !important; }
+}

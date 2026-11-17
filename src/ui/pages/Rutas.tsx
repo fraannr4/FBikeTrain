@@ -36,7 +36,7 @@ import { formatCount } from '../format';
 import { ChevronDown, CircleAlert, ExternalLink, Folder, Info, KeyRound, RefreshCw, Route, Share2, SlidersHorizontal, Upload } from '../icons';
 import { NewRouteCard } from '../routes/NewRouteCard';
 import { ProposalCard } from '../routes/ProposalCard';
-import { RouteSearchLoading } from '../routes/RouteSearchLoading';
+import { RouteSearchOverlay } from '../routes/RouteSearchLoading';
 import { referenceRange } from '../routes/routeView';
 import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
 import { useRideWeather, WeatherRow } from '../routes/WeatherRow';
@@ -416,16 +416,16 @@ export function Rutas() {
               <SearchCard key={`${search.n}-${c.id}`} card={c} start={search.start} weather={weather.hour} />
             ))}
           </div>
-          {search.state === 'running' ? (
-            <RouteSearchLoading
-              message={waitLeft !== null ? waitingText(waitLeft) : search.status}
-              elapsed={elapsed}
-              used={used}
-              budget={GENERATOR_ORS_BUDGET}
-              help={!search.libraryReady && elapsed >= SLOW_LIBRARY_S ? SLOW_LIBRARY : undefined}
-              onCancel={cancel}
-            />
-          ) : null}
+          <RouteSearchOverlay
+            open={search.state === 'running'}
+            message={waitLeft !== null ? waitingText(waitLeft) : search.state === 'running' ? search.status : ''}
+            elapsed={elapsed}
+            used={used}
+            budget={GENERATOR_ORS_BUDGET}
+            found={search.cards.length}
+            help={search.state === 'running' && !search.libraryReady && elapsed >= SLOW_LIBRARY_S ? SLOW_LIBRARY : undefined}
+            onCancel={cancel}
+          />
           {search.state === 'error' ? (
             <p className="library-error" role="alert">
               {search.message}
