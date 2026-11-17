@@ -407,7 +407,7 @@ export function Calendario() {
                   <Week key={monday} monday={monday} byDay={byDay} today={today} selected={selected} onPick={select} />
                 ))}
               </div>
-              <WeekSummary monday={shownMonday} byDay={byDay} acts={load.data.acts} />
+              <WeekSummary monday={shownMonday} byDay={byDay} acts={load.data.acts} agendaEmpty={empty} />
               <Legend className="cal-legend" />
             </div>
             {aiReady ? (
@@ -629,12 +629,16 @@ function WeekSummary({
   monday,
   byDay,
   acts,
+  agendaEmpty,
 }: {
   monday: LocalDate;
   byDay: Map<LocalDate, PlannedWorkout[]>;
   acts: Map<string, StoredActivity>;
+  /** Sin nada en toda la agenda, el estado vacío ya lo dice: la línea sobra. */
+  agendaEmpty: boolean;
 }) {
   const ws = Array.from({ length: 7 }, (_, i) => byDay.get(addDays(monday, i)) ?? []).flat();
+  if (ws.length === 0 && agendaEmpty) return null;
   if (ws.length === 0) {
     return (
       <p className="cal-foot" aria-live="polite">

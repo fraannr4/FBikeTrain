@@ -4,12 +4,13 @@ import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { CHALLENGE_LABELS, formatCommunityScore, getCommunityChallenge, getRouteChallengeGeometry, lowerWins, rankedCommunityMembers, respondCommunityChallenge, type CommunityChallenge } from '../../social/communityChallenges';
 import { routePointsToGpx, type RoutePoint } from '../../routes/library';
 import { formatKm } from '../format';
-import { Download } from '../icons';
+import { Download, Info } from '../icons';
 import { RideMap } from '../components/RideMap';
 import { downloadText } from '../routes/sendGpx';
 import { syncCommunityScores } from '../../social/challengeScoring';
 import { timeLeftLabel } from '../../social/challengeStatus';
 import { Banner } from '../components/Banner';
+import { Disclosure } from '../components/Disclosure';
 import { Page } from '../components/Page';
 import { Skeleton } from '../components/Skeleton';
 import { LikeFor } from '../likes/LikeButton';
@@ -123,7 +124,7 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
         })}</ol>
         {row.members.some(m => m.status !== 'accepted') && <div className="card community-pending"><h3>La invitación</h3><ul>{row.members.filter(m => m.status !== 'accepted').map(m => <li key={m.id}><span>{m.display_name}</span><span>{m.status === 'declined' ? 'Rechazado' : row.status === 'finished' ? 'Sin respuesta' : 'Pendiente'}</span></li>)}</ul></div>}
       </section>
-      <aside className="card community-rules"><h3>Así cuenta tu esfuerzo</h3><p>Solo cuentan salidas completas desde tu aceptación hasta el cierre e importadas antes del plazo. Los datos de ejemplo quedan fuera. Actualiza desde el dispositivo donde guardas tus salidas.</p><p>{isRoute ? 'Cuenta una salida que recorra al menos el 90 % de la ruta en su sentido, con una media de 60 km/h como mucho. El tiempo es en movimiento, entre el paso más cercano al inicio y el más cercano al final. Se calcula en tu dispositivo y se guarda tu mejor tiempo; de la salida solo se comparten el tiempo, la cobertura, la fecha y su id local, nunca el track.' : row.kind === 'segment' ? 'Se comparan subidas detectadas equivalentes mediante una firma. El reconocimiento es aproximado; no se comparte el track.' : row.kind === 'speed' ? 'La mejor media usa un tramo continuo de la distancia elegida y tiempo transcurrido, incluidas las paradas. Los tracks sin información suficiente no puntúan.' : 'El marcador suma las cifras de las salidas importadas dentro de tu ventana de participación.'}</p><p>Compartimos solo tu cifra y su actualización. Los archivos importados no tienen una verificación independiente: estos retos se basan en la confianza.</p></aside>
+      <Disclosure title="Así cuenta tu esfuerzo" icon={Info}><div className="community-rules"><p>Solo cuentan salidas completas desde tu aceptación hasta el cierre e importadas antes del plazo. Los datos de ejemplo quedan fuera. Actualiza desde el dispositivo donde guardas tus salidas.</p><p>{isRoute ? 'Cuenta una salida que recorra al menos el 90 % de la ruta en su sentido, con una media de 60 km/h como mucho. El tiempo es en movimiento, entre el paso más cercano al inicio y el más cercano al final. Se calcula en tu dispositivo y se guarda tu mejor tiempo; de la salida solo se comparten el tiempo, la cobertura, la fecha y su id local, nunca el track.' : row.kind === 'segment' ? 'Se comparan subidas detectadas equivalentes mediante una firma. El reconocimiento es aproximado; no se comparte el track.' : row.kind === 'speed' ? 'La mejor media usa un tramo continuo de la distancia elegida y tiempo transcurrido, incluidas las paradas. Los tracks sin información suficiente no puntúan.' : 'El marcador suma las cifras de las salidas importadas dentro de tu ventana de participación.'}</p><p>Compartimos solo tu cifra y su actualización. Los archivos importados no tienen una verificación independiente: estos retos se basan en la confianza.</p></div></Disclosure>
     </>}
   </>;
 }

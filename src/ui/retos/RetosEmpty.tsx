@@ -46,8 +46,8 @@ export function RetosEmpty({ account }: { account: Account }) {
         </ul>
       ) : null}
       <div className="retos-templates" role="group" aria-label="Plantillas rápidas">
-        <Link className="btn btn--primary" to="/retos/nuevo?plantilla=100km">+100 km esta semana</Link>
-        <Link className="btn btn--ghost" to="/retos/nuevo">Reto a medida</Link>
+        <Link className="btn btn--primary btn--block" to="/retos/nuevo?plantilla=100km">+100 km esta semana</Link>
+        <Link className="btn btn--secondary btn--block" to="/retos/nuevo">Reto a medida</Link>
       </div>
     </div>
   );

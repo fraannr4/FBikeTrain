@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import type { LatLng } from '../../domain/types';
@@ -7,12 +7,11 @@ import type { LibraryCatalog } from '../../routes/library/catalog';
 import { activeFilterCount, applyCatalogFilter, NO_FILTER, sourcesOf, type CatalogFilter } from '../../routes/library/catalogView';
 import type { ReferenceRoute } from '../../routes/library';
 import { findLibraryCatalog } from '../../routes/sources/client';
-import { Field } from '../components/Field';
 import { Skeleton } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { formatCount } from '../format';
-import { ListFilter, MapPin, RefreshCw, Route as RouteIcon, WifiOff, Lock } from '../icons';
+import { ListFilter, MapPin, RefreshCw, Route as RouteIcon, Search, WifiOff, Lock } from '../icons';
 import { CatalogCard } from './CatalogCard';
 import { CatalogDetail } from './CatalogDetail';
 import { FilterControls, FilterSheet } from './CatalogFilters';
@@ -92,6 +91,7 @@ function Browser({ account, centre, savedUrls, onSaved }: { account: Account; ce
   const [sheetOpen, setSheetOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const desktop = useDesktopLayout();
+  const searchId = useId();
   const patch = useCallback((p: Partial<CatalogFilter>) => setFilter(f => ({ ...f, ...p })), []);
 
   const routes = load.state === 'ready' ? load.catalog.routes : null;
@@ -104,9 +104,18 @@ function Browser({ account, centre, savedUrls, onSaved }: { account: Account; ce
   const controls = <FilterControls filter={filter} onChange={patch} sources={sources} radiusKm={radiusKm} onRadius={setRadiusKm} />;
   return (
     <div className="lib-common">
-      <div className="lib-bar">
-        <Field label="Buscar por nombre o autor" type="search" inputMode="search" maxLength={80} autoComplete="off" placeholder="Pantano, Navacerrada…" value={filter.text} onChange={e => patch({ text: e.target.value })} />
-        {desktop ? null : <button type="button" className="btn btn--secondary lib-filter-btn" onClick={() => setSheetOpen(true)}><ListFilter className="ic" aria-hidden="true" />{active > 0 ? `Filtrar y ordenar (${active})` : 'Filtrar y ordenar'}</button>}
+      <div className="toolbar">
+        <div className="search">
+          <Search className="ic" aria-hidden="true" />
+          <label className="sr-only" htmlFor={searchId}>Buscar por nombre o autor</label>
+          <input id={searchId} className="input" type="search" inputMode="search" maxLength={80} autoComplete="off" placeholder="Pantano, Navacerrada…" value={filter.text} onChange={e => patch({ text: e.target.value })} />
+        </div>
+        {desktop ? null : (
+          <button type="button" className="icon-btn icon-btn--filled" aria-label={active > 0 ? `Filtrar y ordenar (${active})` : 'Filtrar y ordenar'} aria-haspopup="dialog" onClick={() => setSheetOpen(true)}>
+            <ListFilter className="ic" aria-hidden="true" />
+            {active > 0 ? <span className="dot" aria-hidden="true" /> : null}
+          </button>
+        )}
       </div>
       {desktop ? <section className="card lib-filters" aria-label="Filtros y orden">{controls}</section> : null}
 

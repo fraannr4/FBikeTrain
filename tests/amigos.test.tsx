@@ -82,15 +82,28 @@ describe('Amigos dentro del perfil', () => {
     expect(await screen.findByText('Todavía no tienes amigos.')).toBeInTheDocument();
   });
 
-  it('el buscador filtra tu lista de amigos', async () => {
+  it('con pocos amigos no hay buscador', async () => {
     const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [
       { friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana },
       { friendship_id: 'f2', status: 'accepted', direction: 'received', profile: bea },
     ]);
     renderWith(client);
+    await screen.findByRole('region', { name: 'Tus amigos' });
+    expect(screen.queryByRole('searchbox', { name: 'Buscar entre tus amigos' })).not.toBeInTheDocument();
+  });
+
+  it('el buscador filtra tu lista de amigos', async () => {
+    const extra = (n: number): FriendRow => ({ friendship_id: `fx${n}`, status: 'accepted', direction: 'sent', profile: { id: `px${n}`, username: `otro_${n}`, display_name: `Otro ${n}`, locality: null, distance_km: null } });
+    const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [
+      { friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana },
+      { friendship_id: 'f2', status: 'accepted', direction: 'received', profile: bea },
+      extra(1), extra(2), extra(3), extra(4),
+    ]);
+    renderWith(client);
     const user = userEvent.setup();
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
     const box = screen.getByRole('searchbox', { name: 'Buscar entre tus amigos' });
+    expect(box).toHaveAttribute('placeholder', 'Nombre o @usuario');
     await user.type(box, 'puer');
     expect(within(mine).queryByText('Ana Ruta')).not.toBeInTheDocument();
     expect(within(mine).getByText('Bea Puerto')).toBeInTheDocument();

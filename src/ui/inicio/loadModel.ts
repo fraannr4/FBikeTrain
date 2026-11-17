@@ -15,7 +15,7 @@ import { formatCount, formatNumber } from '../format';
 export const LOAD_CHART_DAYS = 84;
 /** Salidas de los últimos días que se leen para calcular la carga. */
 export const LOAD_WINDOW_DAYS = 140;
-export const LOAD_NO_DATA = 'Tus salidas no traen pulso ni potencia, así que no se puede medir la carga ni la forma. Con un pulsómetro o un potenciómetro verías aquí cuánto te cuesta cada salida.';
+export const LOAD_NO_DATA = 'Tus salidas no traen pulso ni potencia.';
 
 export type SensorPresence = { power: boolean; hr: boolean };
 

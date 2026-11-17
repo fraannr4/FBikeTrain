@@ -446,6 +446,13 @@ export function Rutas() {
         </section>
       ) : null}
 
+      <section className="section" aria-label="Más formas de conseguir una ruta">
+        <List inset>
+          <ListRow to="/rutas/biblioteca" icon={Folder} accent="dist" title="Biblioteca de rutas" meta="Tus rutas guardadas y los GPX que abras: analiza, recorta y exporta" />
+          <ListRow to="/rutas/compartida" icon={Share2} accent="time" title="Ruta de Ride with GPS Explore" meta="Búscala en Explore, compártela con FBikeTrain o pega su enlace, y se adapta a tu inicio" />
+        </List>
+      </section>
+
       {settings ? (
         <details className="section disclosure nb-wikiloc">
           <summary>
@@ -510,13 +517,6 @@ export function Rutas() {
           />
         </section>
       ) : null}
-
-      <section className="section" aria-label="Más formas de conseguir una ruta">
-        <List inset>
-          <ListRow to="/rutas/biblioteca" icon={Folder} accent="dist" title="Biblioteca de rutas" meta="Tus rutas guardadas y los GPX que abras: analiza, recorta y exporta" />
-          <ListRow to="/rutas/compartida" icon={Share2} accent="time" title="Ruta de Ride with GPS Explore" meta="Búscala en Explore, compártela con FBikeTrain o pega su enlace, y se adapta a tu inicio" />
-        </List>
-      </section>
     </Page>
   );
 }

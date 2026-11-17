@@ -8,6 +8,9 @@
 .load .card-h { margin-bottom: 0; }
 
 .load-empty { display: grid; gap: 12px; justify-items: start; color: var(--ink-2); font-size: 15px; line-height: 1.5; text-wrap: pretty; max-width: 60ch; }
+.load-compact { display: flex; align-items: center; gap: 12px; min-height: 44px; min-width: 0; }
+.load-compact-txt { min-width: 0; }
+.load-compact-txt p { margin: 2px 0 0; color: var(--ink-2); font-size: 13px; line-height: 1.4; }
 .load-sk { display: grid; gap: 10px; }
 
 .load-week { display: grid; gap: 8px; }

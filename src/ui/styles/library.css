@@ -16,8 +16,7 @@
 
 /* ---------- Biblioteca común: rejilla de tarjetas, filtros y detalle ---------- */
 .lib-common{display:grid;gap:16px;min-width:0}
-.lib-bar{display:grid;gap:10px}
-.lib-filter-btn{width:100%}
+.lib-common .toolbar > .icon-btn{position:relative}
 .lib-filters{padding:16px}
 .lib-controls{display:grid;gap:20px;min-width:0}
 .lib-filters .lib-controls{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:start}

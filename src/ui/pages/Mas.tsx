@@ -189,7 +189,7 @@ export function Mas() {
       ) : null}
       <List inset className={off ? 'list--off' : undefined}>
         {account && <ListRow to="/perfil" icon={User} title="Tu perfil" meta="Nombre, privacidad y cuenta" />}
-        {account && <ListRow to="/ciclistas" icon={Users} title="Ciclistas" meta="Toda la comunidad, por actividad reciente" />}
+        {account && <ListRow to="/ciclistas" icon={Users} title="Ciclistas" meta="Toda la comunidad" />}
         {account && <ListRow to="/amigos" icon={Users} accent="time" title="Amigos" meta="Buscar personas y solicitudes" />}
         {account && <ListRow to="/retos" icon={Swords} accent="elev" title="Retos" meta="Duelos y retos de grupo de 1 a 30 días" />}
         <ListRow to="/ajustes" icon={SlidersHorizontal} title="Ajustes" meta="Nombre, Casa, claves y tema" />

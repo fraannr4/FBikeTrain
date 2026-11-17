@@ -23,6 +23,7 @@ import '../styles/social.css';
 
 const NO_AREA = 'Indica tu zona en Ajustes para buscar cerca.';
 const MAX_SUGGESTIONS = 8;
+const SEARCH_MIN_FRIENDS = 5;
 const message = (e: unknown) => (e instanceof Error ? e.message : 'No se ha podido completar.');
 const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es');
 
@@ -102,7 +103,9 @@ function AmigosView({ account }: { account: Account }) {
   const received = rows.filter((f) => f.status === 'pending' && f.direction === 'received');
   const sent = rows.filter((f) => f.status === 'pending' && f.direction === 'sent');
   const accepted = rows.filter((f) => f.status === 'accepted');
-  const term = fold(q.trim());
+  // Con pocos amigos el buscador sobra.
+  const searchable = accepted.length > SEARCH_MIN_FRIENDS;
+  const term = searchable ? fold(q.trim()) : '';
   const shown = term ? accepted.filter((f) => fold(`${f.profile.display_name} ${f.profile.username}`).includes(term)) : accepted;
   const relation = new Set(rows.map((f) => f.profile.id));
   const suggested = (suggestions?.rows ?? [])
@@ -130,7 +133,7 @@ function AmigosView({ account }: { account: Account }) {
           {accepted.length ? (
             <section className="amigos-group" aria-label="Tus amigos">
               <h2>Tus amigos · {formatCount(accepted.length)}</h2>
-              <Field label="Buscar entre tus amigos" type="search" value={q} maxLength={60} autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" onChange={(e) => setQ(e.target.value)} />
+              {searchable ? <Field label="Buscar entre tus amigos" placeholder="Nombre o @usuario" type="search" value={q} maxLength={60} autoComplete="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" onChange={(e) => setQ(e.target.value)} /> : null}
               {shown.length ? (
                 <ul className="amigos-list">
                   {shown.map((f) => (

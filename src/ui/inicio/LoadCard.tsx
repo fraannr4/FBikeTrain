@@ -47,6 +47,22 @@ export function LoadCard({ acts, thresholds, now }: Props) {
   const titleId = `${uid}-t`;
   const gate = useMemo(() => loadGate(sensorPresence(acts), thresholds), [acts, thresholds]);
 
+  if (gate.state === 'empty') {
+    return (
+      <section className="load-compact" aria-labelledby={titleId} data-testid="load-card" data-state="empty">
+        <span className="card-ic">
+          <Activity className="ic" aria-hidden="true" />
+        </span>
+        <div className="load-compact-txt">
+          <h2 className="card-title" id={titleId}>
+            Carga y forma
+          </h2>
+          <p>{LOAD_NO_DATA}</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="card load" aria-labelledby={titleId} data-testid="load-card">
       <div className="card-h">
@@ -57,11 +73,7 @@ export function LoadCard({ acts, thresholds, now }: Props) {
           Carga y forma
         </h2>
       </div>
-      {gate.state === 'empty' ? (
-        <p className="load-empty" data-state="empty">
-          {LOAD_NO_DATA}
-        </p>
-      ) : gate.state === 'needs-thresholds' ? (
+      {gate.state === 'needs-thresholds' ? (
         <div className="load-empty" data-state="needs-thresholds">
           <p>{THRESHOLDS_PROMPT[gate.missing]}</p>
           <Link className="btn btn--secondary" to="/ajustes?abrir=umbrales">

@@ -586,7 +586,9 @@ function CompareRowView({ r }: { r: CompareRow }) {
   const up = Math.round(r.deltaPct) >= 0;
   const lo = Math.min(r.me, ...r.others);
   const hi = Math.max(r.me, ...r.others);
-  const X = (v: number) => (((v - lo) / (hi - lo || 1)) * 100).toFixed(2);
+  // Todas iguales: no hay rango que repartir; punto y media van al centro de una línea.
+  const flat = hi === lo;
+  const X = (v: number) => (flat ? '50.00' : (((v - lo) / (hi - lo)) * 100).toFixed(2));
   const dots = swarm(r.others, lo, hi);
   const tail = `de tus ${formatCount(r.total)} salidas en 12 meses.`;
   return (
@@ -602,11 +604,11 @@ function CompareRowView({ r }: { r: CompareRow }) {
         </p>
       </div>
       <div
-        className="cmp-strip"
+        className={flat ? 'cmp-strip cmp-strip--flat' : 'cmp-strip'}
         role="img"
         aria-label={`${m.label}: ${m.fmt(r.me)}, la ${r.rank} ${tail} Tu media es ${m.fmt(r.mean)}.`}
       >
-        {dots.map((d, i) => (
+        {(flat ? [] : dots).map((d, i) => (
           <i key={i} style={{ left: `${d.x.toFixed(2)}%`, top: 5 + d.lane * 6 }} />
         ))}
         <b style={{ left: `${X(r.mean)}%` }} />

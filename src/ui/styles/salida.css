@@ -181,6 +181,9 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
 .cmp-strip { position: relative; height: 34px; margin: 10px 7px 6px; }
 .cmp-strip > i { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: color-mix(in srgb, var(--track) 80%, transparent); }
 .cmp-strip > b { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); }
+/* Sin rango (todas las salidas iguales): línea horizontal, el punto en el centro y la media como anillo, sin trazos verticales */
+.cmp-strip--flat::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: color-mix(in srgb, var(--track) 80%, transparent); }
+.cmp-strip--flat > b { top: 50%; bottom: auto; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: transparent; border: 2px solid var(--ink); box-sizing: border-box; }
 /* «Esta salida», siempre el mismo azul que en la leyenda (no el color de cada métrica) */
 .cmp-strip > em { position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--acc-dist); box-shadow: 0 0 0 2.5px var(--surface); }
 .cmp-foot { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }

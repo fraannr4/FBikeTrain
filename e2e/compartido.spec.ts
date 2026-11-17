@@ -38,7 +38,7 @@ test('un envío mixto guarda referencias y usa el informe habitual de duplicados
 test('Ajustes ofrece el aviso de instalación disponible y lo consume una sola vez', async ({ page }) => {
   await page.goto('#/ajustes');
   const button = page.getByRole('button', { name: 'Instalar la app', exact: true });
-  await expect(button).toBeVisible();
+  await expect(button).toHaveCount(0);
   await page.evaluate(() => {
     const event = new Event('beforeinstallprompt', { cancelable: true });
     Object.assign(event, {
@@ -50,7 +50,7 @@ test('Ajustes ofrece el aviso de instalación disponible y lo consume una sola v
   await expect(button).toBeEnabled();
   await button.click();
   await expect(page.locator('html')).toHaveAttribute('data-install-prompt', 'shown');
-  await expect(button).toBeDisabled();
+  await expect(button).toHaveCount(0);
 });
 
 test('recargar antes de importar conserva el GPX y permite guardarlo como ruta aunque incluya horas', async ({ page }) => {

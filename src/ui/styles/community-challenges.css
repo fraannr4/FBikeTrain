@@ -5,8 +5,7 @@
 .page--community .card.community-detail-hero,
 .page--community .card.community-challenge,
 .page--community .card.community-empty,
-.page--community .card.community-pending,
-.page--community .card.community-rules { display: block; }
+.page--community .card.community-pending { display: block; }
 .page--community .card.community-form-section { display: grid; gap: 18px; }
 .page--community .card.community-notice { display: flex; }
 .community-stack { display: grid; gap: 16px; min-width: 0; }
@@ -19,23 +18,23 @@
 .community-tabs { display: flex; min-width: 0; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .community-tabs .btn { flex: 1; min-width: 0; padding: 10px 6px; min-height: 44px; font-size: 12px; white-space: nowrap; }
 .community-tabs .btn[aria-pressed=true] { background: var(--ink); color: var(--surface); box-shadow: none; border-color: transparent; }
-.community-refresh { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-3); font-size: 11px; line-height: 1.5; }
+.community-refresh { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
 .community-refresh .btn { font-size: 12px; flex: 0 0 auto; }
 .community-challenge { display: block; text-decoration: none; color: inherit; padding: 20px; transition: border-color .15s; }
 .community-challenge:hover { border-color: var(--community-accent); }
 .community-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .community-card-top .chip { font-size: 10px; flex-shrink: 0; }
 .community-challenge h2 { font-size: 21px; line-height: 1.2; margin: 14px 0 8px; overflow-wrap: anywhere; }
-.community-challenge p { font-size: 12px; color: var(--ink-3); line-height: 1.6; margin: 8px 0; }
+.community-challenge p { font-size: 13px; color: var(--ink-2); line-height: 1.6; margin: 8px 0; }
 .community-card-result { display: block; margin: 18px 0 12px; font-size: 23px; font-weight: 700; overflow-wrap: anywhere; }
 .community-card-result span { font-size: 13px; font-weight: 400; color: var(--ink-3); }
-.community-card-link { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--community-accent); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.community-card-link { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--community-accent); margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .community-challenge progress, .community-score-row progress { display: block; width: 100%; height: 5px; border: 0; border-radius: 6px; overflow: hidden; accent-color: var(--community-accent); background: var(--line); }
 .community-challenge progress::-webkit-progress-bar, .community-score-row progress::-webkit-progress-bar { background: var(--line); }
 .community-challenge progress::-webkit-progress-value, .community-score-row progress::-webkit-progress-value { background: var(--community-accent); }
 .community-empty { padding: 28px 20px; }
 .community-empty h2 { font-size: 22px; line-height: 1.2; }
-.community-empty p, .community-footnote { color: var(--ink-3); font-size: 12px; line-height: 1.7; }
+.community-empty p, .community-footnote { color: var(--ink-3); font-size: 13px; line-height: 1.7; }
 .community-notice { display: flex; flex-wrap: wrap; gap: 8px; padding: 18px; }
 .community-notice > div { width: 100%; min-width: 0; }
 .community-notice strong { font-size: 14px; }
@@ -68,7 +67,7 @@
 .community-score-heading h2 { font-size: 20px; }
 .community-score-heading .btn { font-size: 12px; }
 .community-scoreboard { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
-.page--community .community-scoreboard > .community-score-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 10px; padding: 18px 14px; }
+.page--community .community-scoreboard > .community-score-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 10px; padding: 14px; }
 .community-score-row[data-mine=true] { border-color: var(--community-accent); }
 .community-score-row[data-winner=true] { background: color-mix(in srgb, var(--community-accent) 8%, var(--surface)); }
 .community-place { font-size: 21px; font-weight: 700; color: var(--ink-3); }
@@ -77,13 +76,13 @@
 .community-score-person small { display: block; font-size: 10px; line-height: 1.6; color: var(--ink-3); margin-top: 5px; }
 .community-score-person progress { margin-top: 9px; }
 .community-score-row > strong { grid-column: 2; font-size: 23px; }
-.community-pending, .community-rules { padding: 20px; }
-.community-pending h3, .community-rules h3 { font-size: 15px; margin-top: 0; }
+.community-pending { padding: 20px; }
+.community-pending h3 { font-size: 15px; margin-top: 0; }
 .community-pending ul { list-style: none; margin: 0; padding: 0; }
 .community-pending li { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; line-height: 1.5; padding: 12px 0; border-top: 1px solid var(--line); }
 .community-pending li span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .community-pending li span:last-child { color: var(--ink-3); flex: 0 0 auto; }
-.community-rules p { color: var(--ink-3); font-size: 12px; line-height: 1.7; }
+.community-rules p { color: var(--ink-3); font-size: 13px; line-height: 1.7; }
 @media (min-width: 430px) { .page--community .community-scoreboard > .community-score-row { grid-template-columns: 28px minmax(0, 1fr) auto; } .community-score-row > strong { grid-column: auto; align-self: center; font-size: 22px; } }
 @media (prefers-reduced-motion: reduce) { .community-challenge { transition: none; } }
 
@@ -157,7 +156,7 @@
 .retos-templates { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* Progreso y plazo a la vista: quién va por delante, cuánto queda y cómo terminó. */
-.page--community .community-challenge .community-time { margin: 10px 0 0; font-size: 12px; font-weight: 700; color: var(--community-accent); }
+.page--community .community-challenge .community-time { margin: 10px 0 0; font-size: 13px; font-weight: 700; color: var(--community-accent); }
 .community-time-left { color: var(--community-accent); font-weight: 700; }
 .community-card-result[data-result="won"] { color: var(--good); }
 .community-card-result[data-result="lost"] { color: var(--ink-2); }
