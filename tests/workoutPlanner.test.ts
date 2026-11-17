@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import type { LevelSummary } from '../src/ai/contracts';
+import { MAX_NOTES_CHARS, type LevelSummary } from '../src/ai/contracts';
 import { chatJson } from '../src/ai/llm';
 import { buildWorkoutMessages } from '../src/ai/prompts';
 import type { WorkoutWeek } from '../src/ai/schema';
@@ -78,12 +78,12 @@ describe('entrenos de la semana: lo que ve la IA', () => {
     expect(busyDays([w('2026-11-05'), w('2026-11-06'), w('2026-11-09'), w('2026-11-09'), w('2026-11-13')], TODAY)).toEqual([0, 3]);
   });
 
-  it('el mensaje no lleva coordenadas ni el nombre del objetivo; las notas, como mucho 200 caracteres', () => {
-    const msgs = buildWorkoutMessages(summary, { objetivo: nextGoal(goals, TODAY), ocupados: [0], disponibles: [1, 2], notas: 'x'.repeat(300) });
+  it('el mensaje no lleva coordenadas ni el nombre del objetivo; las notas, como mucho MAX_NOTES_CHARS caracteres', () => {
+    const msgs = buildWorkoutMessages(summary, { objetivo: nextGoal(goals, TODAY), ocupados: [0], disponibles: [1, 2], notas: 'x'.repeat(MAX_NOTES_CHARS + 100) });
     const text = JSON.stringify(msgs);
     expect(text).not.toMatch(/Puigcerd|Marcha|"lat"|"lng"|"lon"|coordinates/);
     const user = JSON.parse(msgs[1].content);
-    expect(user).toEqual({ resumen: summary, objetivo: { diasHasta: 14, distanciaKm: 92.4, desnivelM: 1650 }, diasOcupados: [0], diasDisponibles: [1, 2], notas: 'x'.repeat(200) });
+    expect(user).toEqual({ resumen: summary, objetivo: { diasHasta: 14, distanciaKm: 92.4, desnivelM: 1650 }, diasOcupados: [0], diasDisponibles: [1, 2], notas: 'x'.repeat(MAX_NOTES_CHARS) });
     expect(msgs[0].content).toMatch(/descanso/);
   });
 });
@@ -166,16 +166,34 @@ describe('entrenos de la semana: guardado', () => {
 describe('entrenos de la semana por el servicio común', () => {
   const input = { operation: 'workouts', summary, objetivo: { diasHasta: 14, distanciaKm: 92.4, desnivelM: 1650 }, ocupados: [0], disponibles: [1, 2, 5], notas: '' };
 
-  it('el servidor acepta la operación con cifras y rechaza campos extra o notas libres', () => {
+  it('el servidor acepta la operación con cifras y rechaza campos extra', () => {
     expect(sharedAiRequestSchema.safeParse(input).success).toBe(true);
     expect(sharedAiRequestSchema.safeParse({ ...input, objetivo: null }).success).toBe(true);
     expect(sharedAiRequestSchema.safeParse({ ...input, home: { lat: 41, lng: 2 } }).success).toBe(false);
     expect(sharedAiRequestSchema.safeParse({ ...input, objetivo: { ...input.objetivo, titulo: 'Marcha' } }).success).toBe(false);
-    expect(sharedAiRequestSchema.safeParse({ ...input, notas: 'Calle privada 7' }).success).toBe(false);
     expect(sharedAiRequestSchema.safeParse({ ...input, disponibles: [7] }).success).toBe(false);
   });
 
-  it('el cliente envía la operación sin notas, cuenta una vez contra la cuota y valida la respuesta', async () => {
+  it('las notas viajan como texto plano recortado: el servidor las acepta, las recorta y rechaza lo que no es texto plano', () => {
+    const parsed = (notas: unknown) => sharedAiRequestSchema.safeParse({ ...input, notas });
+    const ok = parsed('  Prefiero salir temprano y sin prisa.  ');
+    expect(ok.success && ok.data.notas).toBe('Prefiero salir temprano y sin prisa.');
+    expect(parsed('x'.repeat(MAX_NOTES_CHARS)).success).toBe(true);
+    expect(parsed('x'.repeat(MAX_NOTES_CHARS + 1)).success).toBe(false);
+    expect(parsed('línea 1\nlínea 2').success).toBe(false);
+    expect(parsed('hola\u0000').success).toBe(false);
+    expect(parsed(42).success).toBe(false);
+    expect(sharedAiRequestSchema.safeParse({ ...input, notas: undefined }).success).toBe(true);
+  });
+
+  it('el servidor acepta ftpW en el resumen, opcional y numérico', () => {
+    expect(sharedAiRequestSchema.safeParse({ ...input, summary: { ...summary, ftpW: 240 } }).success).toBe(true);
+    expect(sharedAiRequestSchema.safeParse({ ...input, summary: { ...summary, ftpW: null } }).success).toBe(true);
+    expect(sharedAiRequestSchema.safeParse({ ...input, summary: { ...summary, ftpW: 9000 } }).success).toBe(false);
+    expect(sharedAiRequestSchema.safeParse({ ...input, summary: { ...summary, ftpW: '240' } }).success).toBe(false);
+  });
+
+  it('el cliente envía las notas limpias, cuenta una vez contra la cuota y valida la respuesta', async () => {
     const consumeQuota = vi.fn().mockResolvedValue({ allowed: true, retryAfterS: 0 });
     const data = week(e(1, 40, 400));
     const server = vi.fn<typeof fetch>(async (_url, init) => handleSharedAi(new Request('https://example.invalid/ai-routes', init), {
@@ -183,8 +201,10 @@ describe('entrenos de la semana por el servicio común', () => {
       complete: async () => data, validateOutput: () => true,
     }));
     const planner = createSharedWorkoutPlanner(async () => 'jwt', server);
-    expect(await planner.workouts(summary, { objetivo: input.objetivo, ocupados: [0], disponibles: [1, 2, 5], notas: 'Calle privada 7' })).toEqual(data);
-    expect(JSON.parse(String(server.mock.calls[0][1]!.body))).toEqual(input);
+    const notas = '  Prefiero\nsalir  temprano. ' + 'x'.repeat(MAX_NOTES_CHARS);
+    expect(await planner.workouts(summary, { objetivo: input.objetivo, ocupados: [0], disponibles: [1, 2, 5], notas })).toEqual(data);
+    const sent = JSON.parse(String(server.mock.calls[0][1]!.body));
+    expect(sent).toEqual({ ...input, notas: ('Prefiero salir temprano. ' + 'x'.repeat(MAX_NOTES_CHARS)).slice(0, MAX_NOTES_CHARS) });
     expect(consumeQuota).toHaveBeenCalledTimes(1);
   });
 });

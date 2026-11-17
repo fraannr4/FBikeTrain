@@ -6,11 +6,11 @@ Contratos:
 
 Solo queda la operación de la semana con IA (generador de rutas de 2026-11-13: la IA ya no interviene en las rutas). `plan`, `explain`, `splice` y `waypoints` se han retirado y responden 400. La función conserva su nombre porque ya está desplegada.
 
-- `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: '' }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar y las notas vacías. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
+- `{ operation: 'workouts', summary: LevelSummary, objetivo: { diasHasta, distanciaKm, desnivelM } | null, ocupados: number[], disponibles: number[], notas: string, ftpW opcional en summary }`: entrenos de los próximos 7 días. Los días son índices desde hoy (0-6); el objetivo va sin nombre ni lugar ; las notas son texto plano recortado a 500 caracteres. Devuelve `WorkoutWeekSchema` (`{ entrenos: [{ dia, titulo, distanciaKm, desnivelM, notas }], motivo }`); el navegador recorta las cifras y los días.
 - Éxito: `{ data: ... }` con el esquema de la operación.
 - Error: `{ error: { code, message }, retryAfterS? }`. Códigos: unauthorized, invalid_request, quota_exceeded, unavailable, provider_error, timeout, cancelled, invalid_response. No se devuelven errores crudos ni claves.
 
-La validación es estricta: sin coordenadas, tracks ni campos extras. No admite URL, modelo ni prompt del cliente. Las notas van vacías por diseño para evitar enviar direcciones en texto libre. El servidor reutiliza los prompts/esquemas existentes, controla el modelo (`openai/gpt-oss-20b`), no reintenta automáticamente y limita salida a 1.600 tokens y petición de proveedor a 20 segundos.
+La validación es estricta: sin coordenadas, tracks ni campos extras. No admite URL, modelo ni prompt del cliente. Las notas son texto plano (máx. 500 caracteres, sin caracteres de control); el prompt las trata como preferencias y la app avisa de no escribir direcciones ni datos personales. El servidor reutiliza los prompts/esquemas existentes, controla el modelo (`openai/gpt-oss-20b`), no reintenta automáticamente y limita salida a 1.600 tokens y petición de proveedor a 20 segundos.
 
 ## Activación y secretos
 

@@ -1,4 +1,5 @@
 import { ACCOUNT_PROJECT_URL, ACCOUNT_PUBLIC_KEY } from '../auth/config';
+import { MAX_NOTES_CHARS } from './contracts';
 import type { LevelSummary } from './levelSummary';
 import { LlmError } from './llm';
 import type { WeekInput } from './prompts';
@@ -9,6 +10,7 @@ export const SHARED_AI_ENABLED = import.meta.env.VITE_SHARED_AI_ENABLED === 'tru
 
 function numericSummary(s: LevelSummary): LevelSummary {
   return {
+    ...(typeof s.ftpW === 'number' ? { ftpW: s.ftpW } : {}),
     fuente: s.fuente, semanas: s.semanas, salidas: s.salidas, salidasPorSemana: s.salidasPorSemana,
     distanciaMediaKm: s.distanciaMediaKm, desnivelMedioM: s.desnivelMedioM, tiempoMedioMin: s.tiempoMedioMin,
     velocidadMediaKmh: s.velocidadMediaKmh, distanciaMaxKm: s.distanciaMaxKm, desnivelMaxM: s.desnivelMaxM,
@@ -51,14 +53,17 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
 
 export type SharedWorkoutPlanner = { workouts: (summary: LevelSummary, input: WeekInput, signal?: AbortSignal) => Promise<WorkoutWeek> };
 
-/** Entrenos de la semana por el servicio común: cifras y días; las notas libres no se envían. */
+/** Texto plano de una sola línea y de largo acotado: lo que acepta el servidor en las notas. */
+const cleanNotes = (notas: string) => notas.replace(/[\p{Cc}\p{Cf}\s]+/gu, ' ').trim().slice(0, MAX_NOTES_CHARS).trim();
+
+/** Entrenos de la semana por el servicio común: cifras, días y las notas del usuario como texto plano. */
 export function createSharedWorkoutPlanner(getToken: () => Promise<string | null>, fetchImpl: typeof fetch = fetch): SharedWorkoutPlanner {
   const request = sharedRequest(getToken, fetchImpl);
   return {
     workouts: async (summary, input, signal) => {
       const o = input.objetivo;
       const objetivo = o ? { diasHasta: o.diasHasta, distanciaKm: o.distanciaKm, desnivelM: o.desnivelM } : null;
-      const data = await request({ operation: 'workouts', summary: numericSummary(summary), objetivo, ocupados: input.ocupados, disponibles: input.disponibles, notas: '' }, signal);
+      const data = await request({ operation: 'workouts', summary: numericSummary(summary), objetivo, ocupados: input.ocupados, disponibles: input.disponibles, notas: cleanNotes(input.notas) }, signal);
       const parsed = WorkoutWeekSchema.safeParse(data);
       if (!parsed.success) throw new LlmError('invalid_json', 'El servicio no ha devuelto entrenos válidos.');
       return parsed.data;

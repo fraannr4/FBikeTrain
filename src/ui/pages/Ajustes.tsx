@@ -7,7 +7,7 @@ import { BackupError, exportBackup, getBackupMeta, needsBackup, restoreBackup } 
 import { clearAllData } from '../../db/repo';
 import { db } from '../../db/db';
 import { clearDemoData, hasDemoData } from '../../demo/demoData';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../../settings/settings';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, thresholdsOf } from '../../settings/settings';
 import { probeLlm, probeOrs } from '../../settings/probes';
 import { daysAgoLabel, formatCount } from '../format';
 import { localDay } from '../../metrics/calendar';
@@ -37,6 +37,7 @@ import {
   Upload,
   User,
 } from '../icons';
+import { ThresholdsSection } from '../ajustes/ThresholdsSection';
 import { Banner } from '../components/Banner';
 import { Disclosure } from '../components/Disclosure';
 import { Field } from '../components/Field';
@@ -58,7 +59,7 @@ const GROQ_URL = DEFAULT_SETTINGS.llm.baseUrl;
 const ORS_SIGNUP = 'https://openrouteservice.org/dev/#/signup';
 const GROQ_KEYS = 'https://console.groq.com/keys';
 const STORAGE_DOWN = 'el almacenamiento de este navegador no está disponible.';
-const SECTIONS = ['perfil', 'casa', 'zona', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
+const SECTIONS = ['perfil', 'casa', 'umbrales', 'zona', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
 
 function probeMessage(r: ProbeResult): string {
   if (r.ok) return 'Conexión correcta.';
@@ -405,6 +406,16 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
               {missingHome ? 'Elegir Casa' : 'Cambiar Casa'}
             </button>
           </Disclosure>
+
+          <ThresholdsSection
+            value={thresholdsOf(settings)}
+            defaultOpen={isOpen('umbrales')}
+            onSave={async (thresholds) => {
+              const next = { ...settings, thresholds };
+              setSettings(next);
+              return persist(next, 'Umbrales guardados');
+            }}
+          />
 
           {account ? <ZonaSection account={account} defaultOpen={isOpen('zona')} /> : null}
 

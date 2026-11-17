@@ -1,0 +1,68 @@
+/* =====================================================================
+   Inicio: «Carga y forma» (LoadCard). Todo color sale de tokens.css.
+   Fitness: línea continua en --series-1. Fatiga: línea discontinua en --series-2.
+   Forma: barras sobre y bajo el cero (la posición lleva el signo, no el color).
+   ===================================================================== */
+
+.load { display: grid; gap: 12px; }
+.load .card-h { margin-bottom: 0; }
+
+.load-empty { display: grid; gap: 12px; justify-items: start; color: var(--ink-2); font-size: 15px; line-height: 1.5; text-wrap: pretty; max-width: 60ch; }
+.load-sk { display: grid; gap: 10px; }
+
+.load-week { display: grid; gap: 8px; }
+.load-week-fig { color: var(--ink-2); }
+.load-week-fig .fig { color: var(--ink); font-size: 34px; line-height: 1; }
+.load-week-fig .unit { font-size: 15px; }
+.load-sentence { color: var(--ink-2); font-size: var(--t-sm); line-height: 1.4; text-wrap: pretty; }
+
+.load-figs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.load-figs > div { min-width: 0; padding: 10px 12px; background: var(--surface-2); border-radius: var(--r-md); }
+.load-figs dt { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: var(--t-sm); }
+.load-figs dd { margin: 2px 0 0; font: italic 700 26px/1.1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.sw { flex: none; width: 14px; height: 0; border-top: 3px solid; border-radius: 2px; }
+.sw--fit { border-color: var(--series-1); }
+.sw--fat { border-top-style: dashed; border-color: var(--series-2); }
+.sw--form { height: 8px; border-top: 0; border-radius: 2px; background: var(--acc-time); width: 8px; }
+
+.load-read { min-height: 44px; color: var(--ink-2); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
+.load-read b { color: var(--ink); font-weight: 600; }
+
+.load-box { min-width: 0; }
+.load-chart {
+  display: block; width: 100%;
+  touch-action: pan-y; cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.load-chart text { font: 500 12px var(--font-ui); fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.load-chart .grid { stroke: var(--line); stroke-width: 1; }
+.load-chart .base { stroke: var(--line-strong); stroke-width: 1; }
+.load-chart .panel-t { fill: var(--ink-2); font-weight: 600; }
+.load-chart .fit { fill: none; stroke: var(--series-1); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.load-chart .fat { fill: none; stroke: var(--series-2); stroke-width: 2; stroke-dasharray: 6 4; stroke-linejoin: round; stroke-linecap: round; }
+.load-chart .fbar { fill: var(--acc-time); opacity: 0.55; }
+.load-chart .fbar.is-on { opacity: 1; }
+.load-chart .cursor { stroke: var(--ink-3); stroke-width: 1; }
+.load-chart .dot { stroke: var(--surface); stroke-width: 2.5; }
+.load-chart .dot--fit { fill: var(--series-1); }
+.load-chart .dot--fat { fill: var(--series-2); }
+/* Rótulo directo al final de cada línea: en tinta de texto, con la marca de color al lado */
+.load-chart .dl { fill: var(--ink); font-weight: 600; }
+.load-chart .xl-now { fill: var(--ink-2); font-weight: 600; }
+
+.load-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.load-foot .trend-nav { display: flex; gap: 4px; margin-left: -4px; }
+.load-foot .btn--ghost { margin-right: -12px; }
+.load .trend-table-wrap { overflow-x: auto; }
+.load-how, .load-note { text-wrap: pretty; }
+
+@media (max-width: 379px) {
+  .load-figs { gap: 6px; }
+  .load-figs > div { padding: 8px 8px; }
+  .load-figs dd { font-size: 23px; }
+  .load-foot .trend-tbl { min-width: var(--target, 44px); padding-inline: 10px; margin-right: -10px; }
+}
+@media (min-width: 900px) {
+  .load-figs dd { font-size: 30px; }
+}

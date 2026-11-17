@@ -26,7 +26,7 @@ const round1 = (x: number) => Math.round(x * 10) / 10;
  * `climbs` deben ser los de la ventana de la referencia (ver `climbsInWindow`); sin esfuerzos,
  * la VAM y la subida más larga van en `null`. La pendiente se da con 1 decimal.
  */
-export function buildLevelSummary(ref: UserReference, climbs: ClimbEffort[]): LevelSummary {
+export function buildLevelSummary(ref: UserReference, climbs: ClimbEffort[], ftpW?: number | null): LevelSummary {
   let longest: ClimbEffort | null = null;
   let vamSum = 0;
   for (const c of climbs) {
@@ -48,6 +48,8 @@ export function buildLevelSummary(ref: UserReference, climbs: ClimbEffort[]): Le
     subidaMasLarga: longest
       ? { km: round1(longest.lengthM / 1000), pendienteMediaPct: round1(longest.avgGradePct) }
       : null,
+    // Solo con FTP conocido; sin él, la clave no existe y la IA habla de sensaciones.
+    ...(typeof ftpW === 'number' && ftpW > 0 ? { ftpW: Math.round(ftpW) } : {}),
   };
 }
 

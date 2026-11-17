@@ -12,7 +12,9 @@ for (const theme of ['light', 'dark']) {
       await page.setViewportSize(viewport);
       await page.addInitScript(theme => localStorage.setItem('fbt-theme', theme), theme);
       await page.goto('#/rutas/biblioteca');
-      const input = page.getByLabel('Elegir GPX o TCX', { exact: true });
+      // Sin rutas propias la pantalla abre en «Biblioteca común»: el fichero se elige en «Mis rutas».
+      await page.getByRole('button', { name: 'Mis rutas' }).click();
+      const input = page.getByLabel('Elegir GPX, TCX o ZIP', { exact: true });
       await expect(input).toBeEnabled();
       await page.screenshot({ path: `test-results/fuentes-externas/biblioteca-vacia-${theme}-${viewport.width}.png`, fullPage: true });
       await input.setInputFiles({ name: 'wikiloc-sintetico.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from(xml) });
@@ -42,7 +44,8 @@ for (const theme of ['light', 'dark']) {
 test('un GPX inválido muestra el error y permite elegir otro sin crear una ruta', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('#/rutas/biblioteca');
-  const input = page.getByLabel('Elegir GPX o TCX', { exact: true });
+  await page.getByRole('button', { name: 'Mis rutas' }).click();
+  const input = page.getByLabel('Elegir GPX, TCX o ZIP', { exact: true });
   await expect(input).toBeEnabled();
   await input.setInputFiles({ name: 'sin-track.gpx', mimeType: 'application/gpx+xml', buffer: Buffer.from('<gpx/>') });
   await expect(page.getByRole('alert')).toContainText('Selecciona un GPX con un solo track.');

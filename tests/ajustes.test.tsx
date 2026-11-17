@@ -60,7 +60,7 @@ describe('Ajustes', () => {
     renderAjustes();
     await screen.findByLabelText('Nombre');
     const titles = Array.from(document.querySelectorAll('details.disclosure > summary .row-title')).map((n) => n.textContent);
-    expect(titles).toEqual(['Perfil', 'Casa', 'Claves de servicio', 'Apariencia', 'Copia de seguridad', 'Borrar datos']);
+    expect(titles).toEqual(['Perfil', 'Casa', 'Tu forma: FTP y pulso', 'Claves de servicio', 'Apariencia', 'Copia de seguridad', 'Borrar datos']);
   });
 
   it('saves each change when leaving the field', async () => {

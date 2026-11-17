@@ -485,7 +485,7 @@ export function Calendario() {
               today={today}
               busy={busyDays(workouts, today)}
               propose={proposeWeek}
-              notesHelp={sharedAi ? 'El servicio común no envía las notas; solo se usan con tu propia clave de IA.' : undefined}
+              notesHelp={sharedAi ? 'No escribas direcciones ni datos personales.' : undefined}
               onAdded={(ws) => void onAiAdded(ws)}
             />
           ) : null}

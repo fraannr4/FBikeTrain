@@ -28,11 +28,26 @@ export type ActivityTotals = {
   avgPower?: number;
 };
 
+/**
+ * Umbrales fisiológicos del ciclista, escritos por él o estimados desde su historial (y editables).
+ * `null` es «no lo sé»: nunca se rellena con un valor inventado. Los indicadores `*Estimated` solo
+ * dicen que la cifra salió de una estimación, para rotularla como tal.
+ */
+export type RiderThresholds = {
+  ftpW: number | null;
+  maxHr: number | null;
+  thresholdHr: number | null;
+  ftpEstimated?: boolean;
+  maxHrEstimated?: boolean;
+};
+
 export type Settings = {
   displayName: string;
   home: LatLng | null;
   ors: { apiKey: string };
   llm: { baseUrl: string; apiKey: string; model: string };
+  /** Ausente en ajustes guardados antes de existir; equivale a «sin umbrales». */
+  thresholds?: RiderThresholds;
 };
 
 export type ProbeResult =

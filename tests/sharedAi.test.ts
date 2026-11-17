@@ -23,10 +23,11 @@ describe('IA compartida: límites y privacidad', () => {
     { ...week, model: 'arbitrary' },
     { ...week, url: 'https://example.test' },
     { ...week, summary: { ...summary, home: { lat: 41, lng: 2 } } },
-    { ...week, notas: 'Calle privada 7' },
+    { ...week, notas: 'dos\nlíneas' },
+    { ...week, notas: 'x'.repeat(501) },
     { ...week, objetivo: { ...week.objetivo, distanciaKm: -1 } },
     { ...week, disponibles: [7] },
-  ])('rechaza entradas no permitidas y notas libres', async body => {
+  ])('rechaza entradas no permitidas y notas que no son texto plano o pasan de 500 caracteres', async body => {
     const deps = mock();
     expect((await handleSharedAi(request(body), deps)).status).toBe(400);
     expect(deps.consumeQuota).not.toHaveBeenCalled();

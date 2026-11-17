@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_NOTES_CHARS } from '../contracts.ts';
 
 const finite = (max: number) => z.number().finite().min(0).max(max);
 const summarySchema = z.strictObject({
@@ -7,6 +8,8 @@ const summarySchema = z.strictObject({
   desnivelMedioM: finite(30_000), tiempoMedioMin: finite(30_000), velocidadMediaKmh: finite(150),
   distanciaMaxKm: finite(10_000), desnivelMaxM: finite(100_000), vamMediaMh: finite(20_000).nullable(),
   subidaMasLarga: z.strictObject({ km: finite(1000), pendienteMediaPct: finite(100) }).nullable(),
+  // FTP en vatios: solo cifra, y solo si el ciclista lo conoce.
+  ftpW: finite(600).nullable().optional(),
 });
 const dayIndex = z.number().int().min(0).max(6);
 const uniqueDays = (min: number) => z.array(dayIndex).min(min).max(7).refine(days => new Set(days).size === days.length);
@@ -14,10 +17,11 @@ const weekGoalSchema = z.strictObject({
   diasHasta: z.number().int().min(0).max(3650), distanciaKm: finite(2000).nullable(), desnivelM: finite(30_000).nullable(),
 });
 // Solo queda la semana con IA: las operaciones de rutas (plan, explain, splice, waypoints) se han retirado.
-// Como antes, las notas libres no salen del navegador por el servicio común.
+// Las notas libres viajan como texto plano: recortadas, sin saltos de línea ni caracteres de control, de hasta MAX_NOTES_CHARS.
+const notesSchema = z.string().trim().max(MAX_NOTES_CHARS).regex(/^[^\p{Cc}\p{Cf}]*$/u).default('');
 export const sharedAiRequestSchema = z.discriminatedUnion('operation', [
   z.strictObject({ operation: z.literal('workouts'), summary: summarySchema, objetivo: weekGoalSchema.nullable(),
-    ocupados: uniqueDays(0), disponibles: uniqueDays(1), notas: z.literal('').default('') }),
+    ocupados: uniqueDays(0), disponibles: uniqueDays(1), notas: notesSchema }),
 ]);
 export type SharedAiRequest = z.infer<typeof sharedAiRequestSchema>;
 export type SharedAiDependencies = {

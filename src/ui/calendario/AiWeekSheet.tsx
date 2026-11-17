@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isAbort } from '../../ai/abort';
+import { MAX_NOTES_CHARS } from '../../ai/contracts';
 import { buildLevelSummary, climbsInWindow, resolveReference, saveDeclaredReference, type InitialAnswers } from '../../ai/levelSummary';
 import { createSharedWorkoutPlanner, SHARED_AI_ENABLED } from '../../ai/sharedClient';
 import { nextGoal, proposeWeek, toPlannedWorkouts, type ProposedWorkout, type WeekProposal } from '../../ai/workoutPlanner';
@@ -21,7 +22,6 @@ import { referenceRange } from '../routes/routeView';
 export type WeekAsk = { disponibles: number[]; ocupados: number[]; notas: string };
 export type ProposeWeekFn = (req: WeekAsk, signal: AbortSignal) => Promise<WeekProposal>;
 
-const MAX_NOTES = 200;
 const UNEXPECTED = 'No se ha podido preparar la semana. Vuelve a intentarlo.';
 const SAVE_FAILED = 'No se han podido guardar todos los entrenos. Vuelve a pulsar «Añadir» para guardar los que faltan.';
 const NO_LEVEL = 'Aún no conocemos tu nivel: importa tus salidas o contesta las tres preguntas.';
@@ -47,7 +47,7 @@ export function createWeekProposer(client: SupabaseClient | null): ProposeWeekFn
       resolveReference(acts, now),
     ]);
     if (!reference) return { ok: false, cause: 'other', message: NO_LEVEL };
-    const summary = buildLevelSummary(reference, climbsInWindow(climbs, reference, now));
+    const summary = buildLevelSummary(reference, climbsInWindow(climbs, reference, now), settings.thresholds?.ftpW);
     const shared = SHARED_AI_ENABLED && client ? createSharedWorkoutPlanner(sessionToken(client)) : undefined;
     return proposeWeek(
       { summary, objetivo: nextGoal(goals, localDay(now)), ...req },
@@ -154,7 +154,7 @@ export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, on
     const ctrl = (abort.current = new AbortController());
     setState({ kind: 'loading' });
     try {
-      const p = await propose({ disponibles, ocupados: busy, notas: notes.trim().slice(0, MAX_NOTES) }, ctrl.signal);
+      const p = await propose({ disponibles, ocupados: busy, notas: notes.trim().slice(0, MAX_NOTES_CHARS) }, ctrl.signal);
       if (ctrl.signal.aborted) return;
       setState(p.ok ? { kind: 'result', proposal: p, picked: new Set(p.entrenos.map((e) => e.dia)), saving: false } : { kind: 'error', message: p.message });
     } catch (e) {
@@ -308,7 +308,7 @@ export function AiWeekSheet({ open, onClose, today, busy, propose, notesHelp, on
               id={`${ids}-notes`}
               className="input wo-notes-input"
               rows={2}
-              maxLength={MAX_NOTES}
+              maxLength={MAX_NOTES_CHARS}
               placeholder="Por ejemplo, el jueves voy justo de tiempo"
               aria-describedby={notesHelp ? `${ids}-notes-help` : undefined}
               value={notes}

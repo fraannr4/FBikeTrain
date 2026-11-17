@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
-import type { Goal, PlannedWorkout, StoredActivity, TrackPoint } from '../../domain/types';
+import type { Goal, PlannedWorkout, RiderThresholds, StoredActivity, TrackPoint } from '../../domain/types';
 import { countActivities, firstActivity, getMeta, getTrack, lastActivity, listActivities } from '../../db/repo';
 import { listGoals, listWorkouts } from '../../calendar/calendarRepo';
-import { loadSettings } from '../../settings/settings';
+import { loadSettings, thresholdsOf } from '../../settings/settings';
 import { isTooShort } from '../../import/summary';
 import { currentWeekVsAverage, type PeriodTotals } from '../../metrics/aggregate';
 import { volumeProgress } from '../../metrics/calendar';
@@ -25,6 +25,7 @@ import { heroDate, heroSentence } from '../inicio/heroCopy';
 import { lastData, rememberData, rememberScroll, savedScroll } from '../inicio/inicioMemory';
 import { heroLead, pickGoals, pickUpcoming, volumeGlance, weekCaption, weekDeltas } from '../inicio/inicioPlan';
 import { KpiCard } from '../inicio/KpiCard';
+import { LoadCard } from '../inicio/LoadCard';
 import { NextWorkout } from '../inicio/NextWorkout';
 import { TrendCard } from '../inicio/TrendCard';
 import { weeklyTrend } from '../inicio/trend';
@@ -60,6 +61,7 @@ type Data = {
   lastImportAt?: number;
   lastBackupAt?: number;
   displayName: string;
+  thresholds: RiderThresholds;
   now: number;
 };
 
@@ -141,6 +143,7 @@ export function Inicio() {
           lastImportAt: meta.lastImportAt,
           lastBackupAt: meta.lastBackupAt,
           displayName: settings.displayName,
+          thresholds: thresholdsOf(settings),
           now: Date.now(),
         };
         setData(rememberData(next));
@@ -277,7 +280,7 @@ const REF_SUMS = 'frente a tus semanas a estas alturas';
 const REF_SPEED = 'frente a tu media';
 
 function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => void }) {
-  const { acts, total, firstStart, lastRide, workouts, goals, lastImportAt, lastBackupAt, displayName, now } = data;
+  const { acts, total, firstStart, lastRide, workouts, goals, lastImportAt, lastBackupAt, displayName, thresholds, now } = data;
   const desktop = useDesktopLayout();
   const [metric, setMetric] = useState<Accent>('dist');
   // La métrica de partida (Distancia) no se recalca con el borde de color hasta que eliges una.
@@ -400,6 +403,8 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
       ) : null}
 
       <TrendCard id="progreso" trend={trend} metric={metric} onMetricChange={pick} />
+
+      <LoadCard acts={acts} thresholds={thresholds} now={now} />
 
       <YourData
         rides={total}

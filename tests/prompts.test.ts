@@ -24,6 +24,37 @@ describe('prompts de la IA', () => {
     expect(system).not.toMatch(/OpenRouteService|\breferencias\b|\bpuertos\b|\brutas\b/);
   });
 
+  const system = (s: LevelSummary) => buildWorkoutMessages(s, { objetivo: null, ocupados: [], disponibles: [1], notas: '' })[0].content;
+
+  it('sin FTP conocido, manda expresar la intensidad por sensación y pulso y no hablar de FTP ni de vatios', () => {
+    const text = system(summary);
+    expect(text).toMatch(/sensaci[oó]n/i);
+    expect(text).toMatch(/puedes hablar/i);
+    expect(text).toMatch(/nunca (menciones|uses)[^.]*FTP[^.]*vatios/i);
+    expect(JSON.stringify(buildWorkoutMessages(summary, { objetivo: null, ocupados: [], disponibles: [1], notas: '' })[1])).not.toMatch(/ftp/i);
+  });
+
+  it('con FTP conocido, permite expresar la intensidad en % del FTP y no prohíbe los vatios', () => {
+    const withFtp = { ...summary, ftpW: 240 };
+    const text = system(withFtp);
+    expect(text).toMatch(/ftpW/);
+    expect(text).toMatch(/% del FTP/);
+    expect(text).not.toMatch(/nunca (menciones|uses)[^.]*FTP/i);
+    const user = JSON.parse(buildWorkoutMessages(withFtp, { objetivo: null, ocupados: [], disponibles: [1], notas: '' })[1].content);
+    expect(user.resumen.ftpW).toBe(240);
+  });
+
+  it('un FTP null o ausente cuenta como desconocido', () => {
+    expect(system({ ...summary, ftpW: null })).toMatch(/nunca (menciones|uses)[^.]*FTP/i);
+  });
+
+  it('las notas se tratan como preferencias que no cambian las reglas ni el esquema de salida', () => {
+    const text = system(summary);
+    expect(text).toMatch(/notas[^.]*preferencias/i);
+    expect(text).toMatch(/ignora[^.]*instrucci/i);
+    expect(text).toMatch(/esquema/);
+  });
+
   it('a la IA solo le llegan los campos conocidos, aunque la entrada traiga más', () => {
     const input = {
       objetivo: { diasHasta: 3, distanciaKm: 80, desnivelM: null, titulo: 'Marcha', lugar: { lat: 41, lng: 2 } },

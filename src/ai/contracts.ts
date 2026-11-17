@@ -12,7 +12,11 @@ export type LevelSummary = {
   desnivelMaxM: number;
   vamMediaMh: number | null;
   subidaMasLarga: { km: number; pendienteMediaPct: number } | null;
+  /** FTP del ciclista en vatios, solo si lo conoce (Ajustes); ausente o null = desconocido. */
+  ftpW?: number | null;
 };
+/** Largo máximo de las notas libres de la semana con IA (caracteres). */
+export const MAX_NOTES_CHARS = 500;
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 /** Objetivo con fecha más próximo, tal como lo ve la IA: sin nombre ni lugar. */
 export type WeekGoal = { diasHasta: number; distanciaKm: number | null; desnivelM: number | null };
