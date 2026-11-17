@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
-import { listCommunityChallenges, listCommunityNotifications, readCommunityNotification, respondCommunityChallenge, CHALLENGE_LABELS, formatCommunityScore, rankedCommunityMembers, type CommunityChallenge, type CommunityNotification } from '../../social/communityChallenges';
+import { listCommunityChallenges, listCommunityNotifications, readCommunityNotification, respondCommunityChallenge, CHALLENGE_LABELS, formatCommunityScore, lowerWins, rankedCommunityMembers, type CommunityChallenge, type CommunityNotification } from '../../social/communityChallenges';
 import { syncCommunityScores } from '../../social/challengeScoring';
 import { timeLeftLabel } from '../../social/challengeStatus';
 import { notifyCommunityChanged } from '../../social/communityBadge';
@@ -162,7 +162,7 @@ function ChallengeCard({ challenge: c, account }: { challenge: CommunityChalleng
     <h2>{c.title}</h2><p>{c.members.length === 2 ? 'Duelo' : 'Grupeta'} · {c.members.filter(m => m.status === 'accepted').length}/{c.members.length} participantes · Hasta {communityDate(c.deadline)}</p>
     {c.members.length === 2 && <DuelComparison client={account.client} userId={userId} challenge={c} compact />}
     {c.status === 'finished' ? <strong className="community-card-result" data-result={winner.length === 0 ? 'none' : winner.some(m => m.id === userId) ? 'won' : 'lost'}>{winner.length ? `${winner.length > 1 ? 'Empate: ' : 'Gana '}${winner.map(m => m.id === userId ? 'tú' : m.display_name).join(', ')}` : c.members.filter(m => m.status === 'accepted').length < 2 ? 'Sin ganador: faltó rival' : 'Sin ganador: no hubo registros'}</strong> : c.members.length > 2 && <div className="community-card-result"><strong>{formatCommunityScore(c.kind, mine?.score ?? null)}</strong>{c.target_value && <span> / {formatCommunityScore(c.kind, c.target_value)}</span>}</div>}
-    {c.members.length > 2 && c.target_value && c.kind !== 'segment' && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
+    {c.members.length > 2 && c.target_value && !lowerWins(c.kind) && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
     {leader && c.status !== 'finished' && c.members.length > 2 && <p className="community-leader">En cabeza: {leader.id === userId ? 'tú' : leader.display_name} · {formatCommunityScore(c.kind, leader.score)}</p>}
     <span className="community-card-link">{mine?.status === 'pending' && c.status !== 'finished' ? 'Ver invitación' : 'Ver marcador'} <span aria-hidden="true">→</span></span>
   </Link>;

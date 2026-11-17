@@ -182,3 +182,9 @@
 }
 @media (prefers-reduced-motion: reduce) { .community-duel-track > span { transition: none; } }
 
+/* Reto de ruta: origen, mapa CyclOSM y cifra de la ruta. */
+.community-route-source, .community-route { display: grid; gap: 14px; min-width: 0; }
+.community-route { margin: 4px 0 18px; }
+.community-route-map { position: relative; height: 240px; border-radius: var(--r-md); border: 1px solid var(--line); overflow: hidden; }
+.community-route-figure { margin: 0; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+.community-route-figure strong { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }

@@ -35,7 +35,7 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
 @media (orientation: landscape) and (max-height: 500px) {
   .ride-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: start; column-gap: 20px; row-gap: 12px; }
   .ride-hero { grid-row: span 2; height: calc(100dvh - var(--nav-space)); }
-  .ride-head, .ride-top > .ride-figs-wrap, .ride-top > .sk-figs { grid-column: 2; }
+  .ride-head, .ride-top > .ride-figs-wrap, .ride-top > .sk-figs, .ride-top > .ride-challenge { grid-column: 2; }
   .ride-head { padding-top: 4px; }
   .ride .page-title { font-size: clamp(24px, 3.4vw, 30px); }
   .salida-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }

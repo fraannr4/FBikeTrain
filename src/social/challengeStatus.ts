@@ -1,4 +1,4 @@
-import { formatCommunityScore, type CommunityChallenge } from './communityChallenges';
+import { formatCommunityScore, lowerWins, type CommunityChallenge } from './communityChallenges';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -29,7 +29,7 @@ export function duelLead(challenge: CommunityChallenge, userId: string): DuelLea
   if (a <= 0 || b <= 0) return null;
   if (a === b) return { tone: 'tied', text: 'Empatados' };
   const gap = formatCommunityScore(challenge.kind, Math.abs(a - b));
-  const ahead = challenge.kind === 'segment' ? a < b : a > b;
+  const ahead = lowerWins(challenge.kind) ? a < b : a > b;
   return ahead ? { tone: 'ahead', text: `Vas por delante: +${gap}` } : { tone: 'behind', text: `${rival.display_name} te saca ${gap}` };
 }
 

@@ -153,3 +153,43 @@ describe('snapshot idempotente del marcador', () => {
     expect(rpc).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('reto de ruta: sincronización del resultado', () => {
+  // Ruta sintética de 5,5 km en el mar (lat 41.0, lng 2.5) y una salida que la recorre a 8 m/s.
+  const route = Array.from({ length: 101 }, (_, i) => [41.0 + i * 0.0005, 2.5] as [number, number]);
+  const track = (t0: number): TrackPoint[] => Array.from({ length: 700 }, (_, i) => ({ t: t0 + i * 1000, lat: 41.0 + i * 8 / 111_195, lng: 2.5 }));
+  const routeChallenge = (score: number | null) => {
+    const c = challenge('route'); c.id = 'rc'; c.distance_m = null; c.route_distance_m = 5560;
+    c.members[0].accepted_at = new Date(Date.now() - 86_400_000).toISOString(); c.members[0].score = score;
+    c.deadline = new Date(Date.now() + 86_400_000).toISOString();
+    return c;
+  };
+  const fakeClient = (c: CommunityChallenge) => {
+    const rpc = vi.fn(async (name: string) => ({ data: name === 'list_community_challenges' ? [c] : null, error: null }));
+    const maybeSingle = vi.fn(async () => ({ data: { points: route, distance_m: 5560 }, error: null }));
+    const from = vi.fn(() => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }));
+    return { client: { rpc, from } as unknown as SupabaseClient, rpc, from };
+  };
+  beforeEach(async () => {
+    await Promise.all([db.activities.clear(), db.tracks.clear(), db.meta.clear()]);
+    const start = Date.now() - 3_600_000;
+    await db.activities.put(ride('salida-1', { startTime: start, totals: { distanceM: 5600, elevGainM: 0, elapsedTimeS: 700, movingTimeS: 699, avgSpeedMs: 8, maxSpeedMs: 8 } }));
+    await db.tracks.put({ activityId: 'salida-1', points: track(start) });
+  });
+  afterEach(async () => { await Promise.all([db.activities.clear(), db.tracks.clear(), db.meta.clear()]); });
+  it('envía el mejor tiempo detectado con su cobertura e id local, nunca el track ni el marcador genérico', async () => {
+    const { client, rpc } = fakeClient(routeChallenge(null));
+    await syncCommunityScores(client, 'me');
+    const call = rpc.mock.calls.find(([name]) => name === 'submit_route_result') as unknown as [string, Record<string, unknown>];
+    expect(call[1]).toMatchObject({ challenge_id: 'rc', activity_ref: 'salida-1' });
+    expect(call[1].moving_time_s).toBeGreaterThan(680);
+    expect(call[1].coverage).toBeGreaterThanOrEqual(0.9);
+    expect(rpc).not.toHaveBeenCalledWith('submit_community_score', expect.anything());
+    expect(JSON.stringify(rpc.mock.calls)).not.toMatch(/lat|lng|points/);
+  });
+  it('no reenvía si el servidor ya tiene un tiempo igual o mejor', async () => {
+    const { client, rpc } = fakeClient(routeChallenge(600));
+    await syncCommunityScores(client, 'me');
+    expect(rpc).not.toHaveBeenCalledWith('submit_route_result', expect.anything());
+  });
+});

@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { listCyclists, type Cyclist } from '../../social/community';
-import { CHALLENGE_LABELS, createCommunityChallenge, type ChallengeKind } from '../../social/communityChallenges';
+import { CHALLENGE_LABELS, createCommunityChallenge, createRouteChallenge, type ChallengeKind } from '../../social/communityChallenges';
 import { segmentOptions } from '../../social/challengeScoring';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { RouteChallengeSource, type ChosenRoute } from '../retos/RouteChallengeSource';
 import { communityError } from './CommunityRetos';
 import '../styles/community-challenges.css';
 
@@ -19,8 +20,10 @@ function ChallengeForm({ account }: { account: Account }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const template = params.get('plantilla') === '100km';
+  // `?tipo=ruta&salida=<id>` llega desde el detalle de una salida propia (`?ruta=` es del reto anterior).
+  const routeRide = params.get('tipo') === 'ruta' ? params.get('salida') : null;
   const [title, setTitle] = useState(template ? '+100 km esta semana' : '');
-  const [kind, setKind] = useState<ChallengeKind>('distance');
+  const [kind, setKind] = useState<ChallengeKind>(params.get('tipo') === 'ruta' ? 'route' : 'distance');
   const [days, setDays] = useState(7);
   const [target, setTarget] = useState(template ? '100' : '');
   const [distance, setDistance] = useState('10');
@@ -39,6 +42,16 @@ function ChallengeForm({ account }: { account: Account }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [route, setRoute] = useState<ChosenRoute | null>(null);
+  const autoTitle = useRef('');
+  const chooseRoute = useCallback((next: ChosenRoute | null) => {
+    setRoute(next);
+    // El nombre de la ruta propone el del reto, sin pisar uno escrito a mano.
+    if (!next) return;
+    const before = autoTitle.current, auto = next.name.slice(0, 120);
+    autoTitle.current = auto;
+    setTitle(previous => (!previous.trim() || previous === before ? auto : previous));
+  }, []);
   useEffect(() => {
     let live = true;
     setLoading(true); setSearchError('');
@@ -73,8 +86,14 @@ function ChallengeForm({ account }: { account: Account }) {
     e.preventDefault(); setError('');
     if (!chosen.length || (!group && chosen.length !== 1) || (group && chosen.length < 2)) { setError(group ? 'Elige al menos dos ciclistas para un reto de grupo.' : 'Elige a un ciclista para el duelo.'); return; }
     if (kind === 'segment' && !segment) { setError('Elige una subida detectada de tu historial.'); return; }
+    if (kind === 'route' && !route) { setError('Elige la ruta del reto.'); return; }
     setSending(true);
     try {
+      if (kind === 'route' && route) {
+        const id = await createRouteChallenge(account.client, { title: title.trim(), duration_days: days, invited_ids: chosen.map(p => p.id), points: route.points, distance_m: route.distanceM });
+        navigate(`/retos/comunidad/${id}`);
+        return;
+      }
       const selected = segments.find(s => s.key === segment);
       const id = await createCommunityChallenge(account.client, {
         title: title.trim(), kind, duration_days: days, invited_ids: chosen.map(p => p.id),
@@ -113,7 +132,7 @@ function ChallengeForm({ account }: { account: Account }) {
         {Object.entries(CHALLENGE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
       </select></label>
       {kind === 'speed' && <label className="field"><span className="field-label">Distancia de la mejor media (km)</span><input className="input" type="number" min={1} max={500} step={0.1} required value={distance} onChange={e => setDistance(e.target.value)} /><span className="help">Se busca el tramo continuo más rápido de esta distancia. El tiempo incluye las paradas.</span></label>}
-      {kind === 'segment' ? <>
+      {kind === 'route' ? <RouteChallengeSource account={account} rideId={routeRide} onChange={chooseRoute} /> : kind === 'segment' ? <>
         {segmentError && <Banner tone="error">{segmentError}</Banner>}
         <label className="field"><span className="field-label">Subida de referencia</span><select className="input" required value={segment} onChange={e => setSegment(e.target.value)}><option value="">Elige una subida</option>{segments.map(s => <option key={s.key} value={s.key}>{s.name} · {(s.distanceM / 1000).toLocaleString('es-ES', { maximumFractionDigits: 1 })} km</option>)}</select></label>
         {!segments.length && <p className="help">Importa una salida con una subida detectada para crear este reto.</p>}
@@ -121,7 +140,9 @@ function ChallengeForm({ account }: { account: Account }) {
       </> : <label className="field"><span className="field-label">Objetivo ({unit}, opcional)</span><input className="input" type="number" min={kind === 'rides' || kind === 'elevation' ? 1 : 0.1} step={kind === 'rides' || kind === 'elevation' ? 1 : 0.1} value={target} onChange={e => setTarget(e.target.value)} placeholder="Sin objetivo fijo" /><span className="help">El objetivo guía el progreso. Gana quien consiga la mayor cifra al terminar el plazo.</span></label>}
       <label className="field"><span className="field-label">Duración (días)</span><input className="input" type="number" min={1} max={30} step={1} required value={days} onChange={e => setDays(Number(e.target.value))} /><span className="help">De 1 a 30 días desde que creas el reto.</span></label>
     </fieldset>
-    <p className="community-footnote">Al crear o aceptar compartes únicamente tu marcador con los participantes. Cuentan las salidas desde tu aceptación hasta el cierre, importadas antes del plazo. Actualiza desde el dispositivo donde guardas tus salidas.</p>
+    <p className="community-footnote">{kind === 'route'
+      ? 'Gana el menor tiempo en movimiento de una salida que recorra al menos el 90 % de la ruta, en su sentido, desde tu aceptación hasta el cierre. Se calcula en tu dispositivo y solo se comparte el resultado, nunca el track.'
+      : 'Al crear o aceptar compartes únicamente tu marcador con los participantes. Cuentan las salidas desde tu aceptación hasta el cierre, importadas antes del plazo. Actualiza desde el dispositivo donde guardas tus salidas.'}</p>
     {error && <Banner tone="error">{error}</Banner>}
     <button className="btn btn--primary btn--block" disabled={sending}>{sending ? 'Enviando invitaciones…' : `Lanzar ${group ? 'reto de grupo' : 'duelo'}`}</button>
   </form>;
