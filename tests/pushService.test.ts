@@ -1,4 +1,4 @@
-import { handlePush, isAllowedPushEndpoint, pushMessage, type PushDependencies, type PushSubscriptionRow } from '../src/push/service';
+import { cleanActorName, handlePush, isAllowedPushEndpoint, pushMessage, type PushDependencies, type PushSubscriptionRow } from '../src/push/service';
 
 const SECRET = 's'.repeat(40);
 const USER = '00000000-0000-0000-0000-000000000011';
@@ -89,7 +89,29 @@ describe('push: texto del aviso', () => {
     expect(pushMessage('friendship_accepted', null)).toBeNull();
     expect(pushMessage('otra', null)).toBeNull();
   });
-  it('la carga cifrada solo lleva título, texto, ruta y etiqueta: ni nombres ni cuentas ni ubicaciones', async () => {
+  it.each([
+    ['invitation', 'Ana te ha retado', 'Tienes una invitación a un reto. Ábrela para aceptarla o rechazarla.'],
+    ['accepted', 'Reto aceptado', 'Ana ha aceptado tu reto.'],
+    ['declined', 'Reto rechazado', 'Ana ha rechazado tu reto.'],
+    ['friendship', 'Solicitud de amistad', 'Ana quiere añadirte a sus amistades.'],
+  ])('%s: con nombre público, el aviso dice quién', (kind, title, body) => {
+    expect(pushMessage(kind, CHALLENGE, 'Ana')).toMatchObject({ title, body });
+  });
+  it('limpia el nombre: sin saltos ni caracteres de control, recortado a 60 y nulo si queda vacío', () => {
+    expect(cleanActorName('  Ana\n\u202eGarcía\t ')).toBe('Ana García');
+    expect(cleanActorName('x'.repeat(200))).toHaveLength(60);
+    expect(cleanActorName(' \n ')).toBeNull();
+    expect(cleanActorName(42)).toBeNull();
+  });
+  it('el nombre del webhook llega al título y la carga sigue sin cuentas ni ubicaciones', async () => {
+    const deps = mock();
+    await handlePush(webhook({ user_id: USER, kind: 'invitation', challenge_id: CHALLENGE, actor_id: ACTOR, actor_name: 'Ana' }), deps);
+    const payload = JSON.parse(new TextDecoder().decode((deps.encrypt as ReturnType<typeof vi.fn>).mock.calls[0][0] as Uint8Array));
+    expect(payload.title).toBe('Ana te ha retado');
+    expect(Object.keys(payload).sort()).toEqual(['body', 'tag', 'title', 'url']);
+    expect(JSON.stringify(payload)).not.toContain(ACTOR);
+  });
+  it('sin nombre, la carga cifrada solo lleva título, texto, ruta y etiqueta: ni cuentas ni ubicaciones', async () => {
     const deps = mock();
     await handlePush(webhook(), deps);
     const plain = (deps.encrypt as ReturnType<typeof vi.fn>).mock.calls[0][0] as Uint8Array;

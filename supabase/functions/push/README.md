@@ -6,7 +6,7 @@ Avisa al móvil (Web Push, cifrado aes128gcm de RFC 8291 y VAPID de RFC 8292, so
 
 Un Database Webhook de Supabase hace POST a la función en cada INSERT de `public.community_notifications`. El webhook lleva la cabecera `x-push-secret` con un secreto de servidor; la función lo compara en tiempo constante y rechaza (401) cualquier otra llamada. Ningún navegador puede invocarla con éxito: no declara CORS y el secreto nunca llega a la app.
 
-La carga cifrada solo lleva `{ title, body, url, tag }` con texto fijo en castellano y la ruta hash a abrir (`#/retos/comunidad/<id>`, `#/retos`, `#/perfil/amigos`). Nunca nombres, tracks ni ubicaciones.
+La carga cifrada solo lleva `{ title, body, url, tag }` con texto corto en castellano, el nombre público de quien provoca el aviso (lo añade el trigger como `actor_name`) y la ruta hash a abrir (`#/retos/comunidad/<id>`, `#/retos`, `#/perfil/amigos`). Nunca tracks, ubicaciones ni identificadores de cuenta.
 
 ## Configuración
 

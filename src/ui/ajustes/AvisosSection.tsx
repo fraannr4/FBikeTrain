@@ -77,7 +77,7 @@ export function AvisosSection({ client, defaultOpen }: { client: SupabaseClient;
         <label className="switch-line">
           <span className="row-main">
             <span className="row-title" id="sw-avisos">Recibir avisos en este dispositivo</span>
-            <span className="row-meta" id="sw-avisos-d">Te avisamos de retos y de solicitudes de amistad. Los avisos no llevan nombres ni ubicaciones.</span>
+            <span className="row-meta" id="sw-avisos-d">Te avisamos de retos y de solicitudes de amistad. Los avisos dicen quién te reta o te escribe, con su nombre público. Nunca llevan ubicaciones ni tracks.</span>
           </span>
           <input
             type="checkbox" className="switch-input" checked={view === 'on'} disabled={busy}

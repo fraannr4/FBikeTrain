@@ -3,7 +3,8 @@ import type { VapidKeys } from './webpush.ts';
 /**
  * Avisos push de la comunidad. La función la dispara un Database Webhook de Supabase al insertar en
  * `community_notifications`; el webhook se identifica con un secreto compartido de servidor.
- * La carga solo lleva texto fijo en castellano y una ruta de la app: ningún nombre, track ni ubicación.
+ * La carga lleva un texto corto en castellano, el nombre público de quien provoca el aviso y una ruta
+ * de la app: nunca tracks, ubicaciones ni identificadores de cuenta.
  */
 export type PushSubscriptionRow = { id: string; endpoint: string; p256dh: string; auth: string };
 export type PushDependencies = {
@@ -33,14 +34,22 @@ export function isAllowedPushEndpoint(endpoint: string): boolean {
   return PUSH_HOSTS.includes(url.hostname) || PUSH_HOST_SUFFIXES.some(suffix => url.hostname.endsWith(suffix));
 }
 
-/** Texto y ruta según el tipo de aviso. `null`: ese tipo no genera aviso push. */
-export function pushMessage(kind: string, challengeId: string | null): PushMessage | null {
+const MAX_NAME_LENGTH = 60;
+/** Nombre público listo para el aviso: sin caracteres de control ni saltos, recortado. `null` si no queda nada. */
+export function cleanActorName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const name = value.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim();
+  return name ? [...name].slice(0, MAX_NAME_LENGTH).join('') : null;
+}
+
+/** Texto y ruta según el tipo de aviso. Con `actor`, el título nombra a quien lo provoca. `null`: ese tipo no genera aviso push. */
+export function pushMessage(kind: string, challengeId: string | null, actor: string | null = null): PushMessage | null {
   const reto = challengeId ? `#/retos/comunidad/${challengeId}` : '#/retos';
   switch (kind) {
-    case 'invitation': return { title: 'Te han retado', body: 'Tienes una invitación a un reto. Ábrela para aceptarla o rechazarla.', url: reto, tag: 'reto' };
-    case 'accepted': return { title: 'Reto aceptado', body: 'Han aceptado tu reto.', url: reto, tag: 'reto' };
-    case 'declined': return { title: 'Reto rechazado', body: 'Han rechazado tu reto.', url: reto, tag: 'reto' };
-    case 'friendship': return { title: 'Solicitud de amistad', body: 'Tienes una nueva solicitud de amistad.', url: '#/perfil/amigos', tag: 'amistad' };
+    case 'invitation': return { title: actor ? `${actor} te ha retado` : 'Te han retado', body: 'Tienes una invitación a un reto. Ábrela para aceptarla o rechazarla.', url: reto, tag: 'reto' };
+    case 'accepted': return { title: 'Reto aceptado', body: actor ? `${actor} ha aceptado tu reto.` : 'Han aceptado tu reto.', url: reto, tag: 'reto' };
+    case 'declined': return { title: 'Reto rechazado', body: actor ? `${actor} ha rechazado tu reto.` : 'Han rechazado tu reto.', url: reto, tag: 'reto' };
+    case 'friendship': return { title: 'Solicitud de amistad', body: actor ? `${actor} quiere añadirte a sus amistades.` : 'Tienes una nueva solicitud de amistad.', url: '#/perfil/amigos', tag: 'amistad' };
     default: return null;
   }
 }
@@ -81,14 +90,14 @@ export async function handlePush(request: Request, deps: PushDependencies): Prom
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) return reply(400, { error: 'invalid_request' });
   const raw = await readBody(request);
   if (raw === null) return reply(413, { error: 'too_large' });
-  let event: { type?: unknown; table?: unknown; record?: { user_id?: unknown; kind?: unknown; challenge_id?: unknown } | null };
+  let event: { type?: unknown; table?: unknown; record?: { user_id?: unknown; kind?: unknown; challenge_id?: unknown; actor_name?: unknown } | null };
   try { event = JSON.parse(raw); } catch { return reply(400, { error: 'invalid_request' }); }
   if (event?.type !== 'INSERT' || event.table !== 'community_notifications') return reply(200, { ignored: true });
   const record = event.record;
   const challengeId = record?.challenge_id ?? null;
   if (typeof record?.user_id !== 'string' || !UUID.test(record.user_id) || typeof record.kind !== 'string'
     || (challengeId !== null && (typeof challengeId !== 'string' || !UUID.test(challengeId)))) return reply(400, { error: 'invalid_request' });
-  const message = pushMessage(record.kind, challengeId);
+  const message = pushMessage(record.kind, challengeId, cleanActorName(record.actor_name));
   if (!message) return reply(200, { ignored: true });
 
   const plaintext = encoder.encode(JSON.stringify(message));
