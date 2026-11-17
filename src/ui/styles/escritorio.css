@@ -69,6 +69,10 @@
   /* Cabecera y margen inferior caben también antes de que el panel alcance su posición sticky. */
   .route-map-panel .rmap, .route-map-panel .start-map { height: max(320px, calc(100dvh - 200px)); min-height: 320px; border-radius: var(--r-card); }
   .page--cal > .desktop-month { grid-row: 3; }
+  /* En escritorio el mes ya está a la vista: la tira semanal sobra. Queda la propuesta con IA. */
+  .page--cal > .wk-sec > .cal { display: none; }
+  .page--cal > .wk-sec > .aiw-open { margin-top: 0; width: auto; }
+  .page--cal > .wk-sec:not(:has(.aiw-open)) { display: none; }
   .desktop-month { display: grid; gap: 16px; }
   .desktop-month .mo-grid { width: 100%; margin: 0; }
   .desktop-month .mo-grid .day { min-height: 88px; border-radius: var(--r-md); border: 1px solid var(--line); }

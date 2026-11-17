@@ -49,3 +49,21 @@ test('plan creates an event goal, shows it and deletes it', async ({ page }) => 
   await page.getByRole('button', { name: 'Borrar objetivo' }).click();
   await expect(page.locator('.ev-name')).toHaveCount(0);
 });
+
+test.describe('plan en escritorio', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false });
+
+  test('enseña el mes y oculta la tira semanal', async ({ page }) => {
+    await page.goto('#/plan');
+    await expect(page.getByRole('region', { name: 'Calendario mensual' })).toBeVisible();
+    await expect(page.locator('.wk-scroller')).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Semana siguiente' })).toBeHidden();
+    expect(await noOverflow(page)).toBe(true);
+    if (process.env.PLAN_SHOT) await page.screenshot({ path: process.env.PLAN_SHOT, fullPage: true });
+  });
+});
+
+test('plan en el móvil conserva la tira semanal', async ({ page }) => {
+  await page.goto('#/plan');
+  await expect(page.locator('.wk-scroller')).toBeVisible();
+});
