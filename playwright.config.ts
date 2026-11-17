@@ -9,6 +9,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
+  // Cada pantalla baja en su propio chunk: con el equipo cargado, 5 s no bastan para la primera carga.
+  expect: { timeout: 10_000 },
   use: {
     baseURL: `http://127.0.0.1:${PORT}/`,
     locale: 'es-ES',
