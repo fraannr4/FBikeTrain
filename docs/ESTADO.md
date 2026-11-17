@@ -10,6 +10,10 @@ Publicado en `main` (GitHub Pages) y comprobado en producción:
 - `f81b387` y `c60f2a6`: «me gusta» en retos y cuaderno. Cada cuenta solo lee sus propios «me gusta»; el recuento sale de `like_counts`. Migraciones `202611170001` y `202611170002`.
 - `3cd98de`: avisos push de retos y solicitudes de amistad. Interruptor en Ajustes, función `push`, trigger sobre `community_notifications`. Migraciones `202611170003` y `202611170004`. El secreto compartido vive en `private.push_config`, fuera del repositorio.
 
+- `13c8d15`: la búsqueda de rutas ocupa la pantalla, con animación de entrada y salida.
+- `5c6d15d`: si openrouteservice está caído, el generador corta a los 3 fallos seguidos y lo dice (antes culpaba a la carretera).
+- `087778a`: tiempo y viento en el detalle de las rutas de la biblioteca común y de las subidas.
+
 Pendiente:
 
 - Prueba real de un aviso push en un móvil (en iPhone, con la app instalada).
