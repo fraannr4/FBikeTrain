@@ -1,0 +1,25 @@
+.route-loading-scene {
+  --cv-paper: var(--surface);
+  --cv-ink: var(--ink);
+  --cv-muted: var(--ink-3);
+  --cv-contour: var(--line-strong);
+  --cv-sage: var(--surface-2);
+  --cv-blue: var(--trace);
+  --cv-jersey: var(--trace);
+  --cv-highlight: color-mix(in srgb, var(--trace) 75%, var(--surface));
+  --cv-shade: color-mix(in srgb, var(--trace) 75%, var(--ink));
+  --cv-skin: var(--rider-skin);
+  --cv-skin-shade: var(--rider-skin-shade);
+  --cv-carbon: var(--ink);
+  --cv-kit: color-mix(in srgb, var(--ink) 88%, var(--surface));
+  --cv-tyre: color-mix(in srgb, var(--ink) 85%, var(--surface));
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--cv-paper), color-mix(in srgb, var(--cv-sage) 70%, var(--cv-paper)) 95%);
+}
+
+.route-loading-scene__svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.route-loading-scene .cv-small-route { fill: none; stroke: var(--cv-blue); stroke-width: 1.2; opacity: .26; stroke-linecap: round; }
+.route-loading-scene .cv-tyre { fill: none; stroke: var(--cv-tyre); stroke-width: 2.6; }
+.route-loading-scene .cv-rim { fill: none; stroke: var(--cv-carbon); stroke-width: 1.1; opacity: .55; }
+.route-loading-scene .cv-spokes { fill: none; stroke: var(--cv-carbon); stroke-width: .55; opacity: .3; }

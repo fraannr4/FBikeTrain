@@ -61,6 +61,9 @@
   --acc-time: #6CD2CB;
   --acc-speed: #DF9DC3;
   --trace: #80B4F5;
+  /* Ilustración del ciclista en las esperas de rutas. */
+  --rider-skin: #CDA387;
+  --rider-skin-shade: #A87E65;
   /* Trazado geográfico cálido sobre la cartografía azul/morada. La marca conserva --trace. */
   --map-route: #FF8756;
   --map-route-edge: #28332B;
@@ -187,6 +190,8 @@
   --acc-time: #006E72;
   --acc-speed: #9B4377;
   --trace: #2465D5;
+  --rider-skin: #CDA387;
+  --rider-skin-shade: #A87E65;
   --map-route: #DD4215;
   --map-route-edge: #28332B;
   --map-route-halo: #FFFFFF;

@@ -1,6 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../src/App';
+// La carga del fragmento se cubre en lazyPage; aquí se comprueban los datos de Inicio.
+import '../src/ui/pages/Inicio';
 import { db } from '../src/db/db';
 import { saveActivity, setLastBackupAt, setLastImportAt } from '../src/db/repo';
 import { saveGoal, saveWorkout } from '../src/calendar/calendarRepo';

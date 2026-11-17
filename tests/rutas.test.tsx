@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Mock } from 'vitest';
 import { App } from '../src/App';
+// La carga del fragmento se cubre en lazyPage; aquí se comprueba la búsqueda ya montada.
+import '../src/ui/pages/Rutas';
 import { AccountContext } from '../src/auth/AccountBoundary';
 import { db } from '../src/db/db';
 import type { Coord3, LatLng } from '../src/domain/types';
@@ -175,9 +177,14 @@ describe('Rutas', () => {
     const run = pending();
     await open();
     await ask(userEvent.setup());
-    const status = await screen.findByRole('status', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
+    const status = await screen.findByRole('region', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
+    const scene = status.querySelector('svg');
+    expect(scene).not.toBeNull();
+    expect(within(status).getByRole('status')).not.toHaveTextContent('transcurridos');
     const bar = within(status).getByRole('progressbar');
-    expect(bar).toHaveAttribute('max', '20');
+    expect(bar).toHaveAttribute('aria-valuemax', '20');
+    // Sin consultas todavía, la barra es indeterminada: no anuncia un valor.
+    expect(bar).not.toHaveAttribute('aria-valuenow');
 
     run.update({ kind: 'library' });
     expect(within(status).getByText('Cargando las rutas de la zona…')).toBeInTheDocument();
@@ -185,7 +192,10 @@ describe('Rutas', () => {
     expect(within(status).getByText('12 rutas y 3400 tramos en la zona. Montando vueltas…')).toBeInTheDocument();
     run.update({ kind: 'trying', used: 6, budget: 20 });
     expect(within(status).getByText('Probando 6 de 20…')).toBeInTheDocument();
-    expect(bar).toHaveAttribute('value', '6');
+    expect(bar).toHaveAttribute('aria-valuenow', '6');
+    expect(bar).toHaveAttribute('aria-valuetext', '6 de 20 consultas consumidas');
+    // Los mensajes reales avanzan sin desmontar la escena ni reiniciar el pedaleo.
+    expect(status.querySelector('svg')).toBe(scene);
     run.update({ kind: 'card', card: nueva(90) });
     expect(screen.getAllByRole('article')).toHaveLength(1);
 
@@ -196,7 +206,7 @@ describe('Rutas', () => {
     expect(within(status).getByText('Probando 7 de 20…')).toBeInTheDocument();
 
     run.finish(result([nueva(90), nueva(200), nueva(300)]));
-    await waitFor(() => expect(screen.queryByRole('status', { name: 'Progreso de la búsqueda' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Progreso de la búsqueda' })).toBeNull());
     expect(screen.getAllByRole('article')).toHaveLength(3);
   });
 
@@ -205,13 +215,13 @@ describe('Rutas', () => {
     const run = pending();
     await open();
     await ask(userEvent.setup({ advanceTimers: vi.advanceTimersByTime }));
-    const status = await screen.findByRole('status', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
+    const status = await screen.findByRole('region', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
     run.update({ kind: 'library' });
     expect(within(status).queryByText(/la primera búsqueda tarda más/)).toBeNull();
     await act(async () => {
       vi.advanceTimersByTime(9_000);
     });
-    expect(within(status).getByText(/Llevas \d+ s\./)).toBeInTheDocument();
+    expect(within(status).getByText(/\d+ s transcurridos/)).toBeInTheDocument();
     expect(within(status).getByText('Si la zona es nueva, la primera búsqueda tarda más: estamos buscando rutas en Ride with GPS.')).toBeInTheDocument();
     run.update({ kind: 'library-ready', routes: 12, cells: 3_400, fill: 'imported' });
     expect(within(status).queryByText(/la primera búsqueda tarda más/)).toBeNull();
@@ -222,7 +232,7 @@ describe('Rutas', () => {
     await open();
     const user = userEvent.setup();
     await ask(user);
-    await screen.findByRole('status', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
+    await screen.findByRole('region', { name: 'Progreso de la búsqueda' }, { timeout: 5000 });
     run.update({ kind: 'card', card: biblioteca(0) });
     run.update({ kind: 'card', card: nueva(90) });
     run.update({ kind: 'waiting', seconds: 60 });

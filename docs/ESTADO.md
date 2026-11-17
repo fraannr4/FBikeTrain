@@ -1,5 +1,18 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-17): carga de rutas Cartografía viva refinada, sin publicar
+
+El usuario aprobó la referencia gráfica refinada y encargó revisar lo adelantado por Claude e integrarlo sin romper la búsqueda. Plan: `docs/superpowers/plans/2026-11-17-loading-cartografia-viva.md`. Referencia aprobada y capturas reales: `docs/design/2026-11-17-loading-cartografia/README.md`.
+
+- Nueva tarjeta `RouteSearchLoading` y escena decorativa `RouteLoadingScene`: ciclista de carretera detallado, pedaleo articulado, bicicleta estable y curvas de nivel en movimiento. Tokens de ambos temas, IDs SVG independientes, un solo RAF por instancia y limpieza/pausa con pestaña oculta o movimiento reducido.
+- `Rutas.tsx` cambia únicamente la presentación de la búsqueda. Conserva eventos, biblioteca, generador, cuotas, mensajes, esperas, AbortController y tarjetas aceptadas al cancelar. Los segundos quedan fuera del anuncio de estado. El presupuesto accesible dice «N de 20 consultas consumidas», sin presentarlo como porcentaje de finalización.
+- Sustituye el panel/barra que Claude había comenzado. No modifica la adaptación de GPX, el cargador compartido ni los cambios pendientes de navegación/carga diferida. Las pruebas de contenido de Inicio y Rutas precargan sus módulos para no confundir la compilación diferida de Vitest con la carga de datos; las pruebas específicas de `lazyPage` siguen ejecutándose.
+- Validación final: **81/81 pruebas focalizadas en 7 archivos**, `tsc --noEmit` limpio y build de producción correcto. Navegador: **13 escenarios del cargador** (360/390/412/430 px, apaisado 844×390 y escritorio 1280×900, ambos temas, pedaleo/movimiento reducido y fin de carga) y regresión de propuestas/cancelación a 360 y 430 px comprobados. Salida de build y servidor aislados; servicios externos y service workers bloqueados en la verificación final.
+- La suite completa previa recorrió **1.905 pruebas en 170 archivos**: 166 archivos pasaron y cuatro requirieron revisión. Se corrigió la declaración explícita de tokens en claro; se repitió Rutas con el atributo accesible final y se ajustó la preparación de Inicio/Rutas ante la carga diferida. Un fallo de Intervals por 1 ms no se reprodujo en dos pasadas aisladas; no se cambió ese servicio. Los cuatro archivos están incluidos en los 81/81 finales. No presentar esta evidencia como una única pasada completa en verde.
+- Playwright inicial tuvo cierres de contexto agotando 30 s bajo carga; la pasada aislada aprobó los 13 casos del cargador. La regresión de Cancelar esperaba prematuramente la consulta 3: ahora espera a la petición lenta y comprueba el mensaje real; ambas resoluciones pasaron de nuevo.
+
+El usuario autorizó el commit local de este lote tras revisar el resultado. Sin push ni despliegue. Los cambios pendientes de otros lotes se conservan.
+
 ## Retomar aquí (2026-11-16): diseño A de Ciclistas y duelos, commit local autorizado
 
 El usuario eligió la propuesta A y pidió limitarse al diseño para conservar presupuesto. Aplicado sobre `9557040` en `codex/comunidad-abierta`: buscador integrado y lista compacta, propio fuera de candidatos, Retar junto a cada ciclista, pareja Tú/rival con cifras alineadas y creación con rival primero. Contratos, SQL y cálculos intactos. Cambiar de dispositivo queda en un desplegable secundario. Fotos de perfil disponibles en Ciclistas; en duelos se usan iniciales mientras la respuesta de miembros no incluya versión de avatar.

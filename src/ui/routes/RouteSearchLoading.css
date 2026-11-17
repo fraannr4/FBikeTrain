@@ -1,0 +1,26 @@
+/* Cartografía viva: tarjeta elegida por el usuario. Alcance exclusivo de la búsqueda de rutas. */
+.card.route-search-loading {
+  width: 100%;
+  max-width: 460px;
+  margin: 16px auto 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 22px;
+}
+.route-search-loading__heading { padding: 25px 25px 0; }
+.route-search-loading__eyebrow { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: 1.7px; text-transform: uppercase; }
+.route-search-loading__eyebrow > span { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--trace); box-shadow: 0 0 0 4px color-mix(in srgb, var(--trace) 8%, transparent); }
+.route-search-loading__heading h3 { margin-top: 13px; font-family: var(--font-ui); font-size: 28px; font-weight: 600; line-height: 1.12; letter-spacing: -.65px; }
+.route-search-loading__body { padding: 21px 25px 23px; }
+.route-search-loading__message { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.route-search-loading__signal { display: flex; align-items: center; gap: 3px; flex: none; height: 20px; color: var(--trace); }
+.route-search-loading__signal i { display: block; width: 3px; height: 3px; border-radius: 50%; background: currentColor; }
+.route-search-loading__help { margin-top: 12px; color: var(--ink-2); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.route-search-loading__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); }
+.route-search-loading__elapsed { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.route-search-loading__footer .btn { flex: none; min-height: 44px; border: 0; border-radius: 11px; padding-inline: 18px; background: var(--surface-2); color: var(--ink); font-size: 13px; font-weight: 600; }
+@media (max-width: 420px) {
+  .route-search-loading__heading { padding: 23px 22px 0; }
+  .route-search-loading__heading h3 { font-size: 27px; }
+  .route-search-loading__body { padding: 20px 22px 22px; }
+}

@@ -364,8 +364,10 @@ for (const size of SIZES) {
       await propose(page);
       const cards = page.getByRole('article');
       await expect(cards).toHaveCount(2, { timeout: 30_000 });
-      const status = page.getByRole('status', { name: 'Progreso de la búsqueda' });
-      await expect(status).toContainText(/Probando 3 de 20/);
+      const status = page.getByRole('region', { name: 'Progreso de la búsqueda' });
+      await expect.poll(mocks.orsCalls).toBeGreaterThanOrEqual(3);
+      // La consulta en curso puede haber avanzado mientras el navegador prepara las tarjetas.
+      await expect(status).toContainText(/Probando \d+ de 20/);
       await page.screenshot({ path: `${DIR}/buscando-${size.width}.png`, fullPage: true });
 
       await page.getByRole('button', { name: 'Cancelar' }).click();

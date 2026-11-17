@@ -36,6 +36,7 @@ import { formatCount } from '../format';
 import { ChevronDown, CircleAlert, ExternalLink, Folder, Info, KeyRound, RefreshCw, Route, Share2, SlidersHorizontal, Upload } from '../icons';
 import { NewRouteCard } from '../routes/NewRouteCard';
 import { ProposalCard } from '../routes/ProposalCard';
+import { RouteSearchLoading } from '../routes/RouteSearchLoading';
 import { referenceRange } from '../routes/routeView';
 import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
 import { useRideWeather, WeatherRow } from '../routes/WeatherRow';
@@ -416,16 +417,14 @@ export function Rutas() {
             ))}
           </div>
           {search.state === 'running' ? (
-            <div className="card library-panel cat-status" role="status" aria-label="Progreso de la búsqueda">
-              <CyclingLoader compact />
-              <p>{waitLeft !== null ? waitingText(waitLeft) : search.status}</p>
-              <progress className="cat-progress" aria-label="Consultas al motor de rutas" max={GENERATOR_ORS_BUDGET} value={used} />
-              <p className="cat-elapsed">{`Llevas ${formatCount(elapsed)} s.`}</p>
-              {!search.libraryReady && elapsed >= SLOW_LIBRARY_S ? <p className="help">{SLOW_LIBRARY}</p> : null}
-              <button type="button" className="btn btn--secondary" onClick={cancel}>
-                Cancelar
-              </button>
-            </div>
+            <RouteSearchLoading
+              message={waitLeft !== null ? waitingText(waitLeft) : search.status}
+              elapsed={elapsed}
+              used={used}
+              budget={GENERATOR_ORS_BUDGET}
+              help={!search.libraryReady && elapsed >= SLOW_LIBRARY_S ? SLOW_LIBRARY : undefined}
+              onCancel={cancel}
+            />
           ) : null}
           {search.state === 'error' ? (
             <p className="library-error" role="alert">
