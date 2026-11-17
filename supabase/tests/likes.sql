@@ -30,7 +30,8 @@ select pg_temp.fails('update public.likes set object_id = object_id','42501');
 
 -- B ve el reto y la nota pública; la nota privada (no son amigos) no.
 select pg_temp.who('00000000-0000-0000-0000-000000000302');
-select pg_temp.ok((select count(*) = 2 from public.likes),'B lee los me gusta de lo que ve');
+select pg_temp.ok((select count(*) = 0 from public.likes),'B no lee quién dio me gusta');
+select pg_temp.ok((select count(*) = 2 from public.like_counts),'B lee el recuento de lo que ve');
 select pg_temp.fails($$insert into public.likes(user_id,object_type,object_id) values (auth.uid(),'post',current_setting('test.privada')::uuid)$$,'42501');
 insert into public.likes(user_id,object_type,object_id) values (auth.uid(),'challenge',current_setting('test.reto')::uuid);
 -- Recuento y marca propia en una sola consulta.
@@ -43,18 +44,21 @@ select pg_temp.fails($$select * from public.list_likes('post',(select array_agg(
 
 -- C no ve el reto ni sus me gusta; sí la nota pública.
 select pg_temp.who('00000000-0000-0000-0000-000000000303');
-select pg_temp.ok((select count(*) = 1 from public.likes),'C solo lee los me gusta de la nota pública');
+select pg_temp.ok((select count(*) = 0 from public.likes),'C no lee me gusta ajenos');
+select pg_temp.ok((select count(*) = 1 from public.like_counts),'C solo lee el recuento de la nota pública');
 select pg_temp.fails($$insert into public.likes(user_id,object_type,object_id) values (auth.uid(),'challenge',current_setting('test.reto')::uuid)$$,'42501');
 select pg_temp.ok((select like_count = 0 and not liked from public.list_likes('challenge',array[current_setting('test.reto')::uuid])),'el reto ajeno no revela recuento');
 -- Cuenta anónima: ni dar ni leer.
 select pg_temp.who('00000000-0000-0000-0000-000000000304');
-select pg_temp.ok((select count(*) = 0 from public.likes),'anónima no lee');
+select pg_temp.ok((select count(*) = 0 from public.likes) and (select count(*) = 0 from public.like_counts),'anónima no lee');
+select pg_temp.fails('update public.like_counts set like_count = 99','42501');
 select pg_temp.fails($$insert into public.likes(user_id,object_type,object_id) values (auth.uid(),'post',current_setting('test.publica')::uuid)$$,'42501');
 -- Nadie borra el de otro; cada cual quita el suyo.
 select pg_temp.who('00000000-0000-0000-0000-000000000303');
 delete from public.likes;
 select pg_temp.who('00000000-0000-0000-0000-000000000302');
-select pg_temp.ok((select count(*) = 3 from public.likes),'borrar ajenos no hace nada');
+select pg_temp.ok((select count(*) = 1 from public.likes),'B solo ve el suyo');
+select pg_temp.ok((select like_count = 2 from public.list_likes('challenge',array[current_setting('test.reto')::uuid])),'borrar ajenos no hace nada');
 delete from public.likes where user_id = auth.uid() and object_type = 'challenge';
 select pg_temp.ok((select like_count = 1 and not liked from public.list_likes('challenge',array[current_setting('test.reto')::uuid])),'quitar el propio baja el recuento');
 select pg_temp.fails('update public.likes set created_at = now()','42501');
