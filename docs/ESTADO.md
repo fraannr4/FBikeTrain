@@ -1,5 +1,23 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-17, noche): carga y forma, «me gusta» y avisos push publicados
+
+Publicado en `main` (GitHub Pages) y comprobado en producción:
+
+- `4948d38`: tarjeta «Carga y forma» en Inicio, «Tu forma: FTP y pulso» en Ajustes, notas de la semana enviadas a la IA común. `ai-routes` redesplegada.
+- `ebed2b3`: cada pantalla en su propio chunk; el de entrada baja de 1,36 MB a 538 kB.
+- `3f3c192` y `a1cf58c`: carga de rutas «Cartografía viva» y bordes fundidos del ciclista.
+- `f81b387` y `c60f2a6`: «me gusta» en retos y cuaderno. Cada cuenta solo lee sus propios «me gusta»; el recuento sale de `like_counts`. Migraciones `202611170001` y `202611170002`.
+- `3cd98de`: avisos push de retos y solicitudes de amistad. Interruptor en Ajustes, función `push`, trigger sobre `community_notifications`. Migraciones `202611170003` y `202611170004`. El secreto compartido vive en `private.push_config`, fuera del repositorio.
+
+Pendiente:
+
+- Prueba real de un aviso push en un móvil (en iPhone, con la app instalada).
+- Suite completa de Playwright de una pasada: hoy solo se pasaron las specs de cada cambio, porque el equipo iba saturado. `expect` espera ahora 10 s.
+- `202611170004_push_trigger.sql` no entra en `scripts/test-account-sql.mjs`: necesita `pg_net`.
+- Sincronizar datos entre dispositivos, mejora de diseño y usabilidad, `#/plan` en escritorio, viento en rutas subidas de Wikiloc.
+- Garmin: falta enviar la solicitud (`docs/garmin-solicitud-starter.md`).
+
 ## Retomar aquí (2026-11-17): carga de rutas Cartografía viva refinada, sin publicar
 
 El usuario aprobó la referencia gráfica refinada y encargó revisar lo adelantado por Claude e integrarlo sin romper la búsqueda. Plan: `docs/superpowers/plans/2026-11-17-loading-cartografia-viva.md`. Referencia aprobada y capturas reales: `docs/design/2026-11-17-loading-cartografia/README.md`.
