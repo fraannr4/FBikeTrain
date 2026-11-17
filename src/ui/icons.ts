@@ -83,4 +83,4 @@ export {
   X,
 } from 'lucide-react';
 // Pulso y potencia de la última salida: solo aparecen si el fichero los trae.
-export { HeartPulse, Zap } from 'lucide-react';
+export { Heart, HeartPulse, Zap } from 'lucide-react';

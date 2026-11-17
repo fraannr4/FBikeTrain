@@ -174,10 +174,10 @@
 @keyframes community-card-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes community-track-fill { from { transform: scaleX(0); } }
 @media (prefers-reduced-motion: no-preference) {
-  .community-stack > .community-challenge { animation: community-card-in .24s var(--ease-out) both; }
-  .community-stack > .community-challenge:nth-child(2) { animation-delay: 45ms; }
-  .community-stack > .community-challenge:nth-child(3) { animation-delay: 90ms; }
-  .community-stack > .community-challenge:nth-child(n+4) { animation-delay: 135ms; }
+  .community-stack > .community-challenge, .community-stack > .community-challenge-item { animation: community-card-in .24s var(--ease-out) both; }
+  .community-stack > .community-challenge:nth-child(2), .community-stack > .community-challenge-item:nth-child(2) { animation-delay: 45ms; }
+  .community-stack > .community-challenge:nth-child(3), .community-stack > .community-challenge-item:nth-child(3) { animation-delay: 90ms; }
+  .community-stack > .community-challenge:nth-child(n+4), .community-stack > .community-challenge-item:nth-child(n+4) { animation-delay: 135ms; }
   .community-duel-track > span { animation: community-track-fill .5s var(--ease-out) .1s both; }
 }
 @media (prefers-reduced-motion: reduce) { .community-duel-track > span { transition: none; } }

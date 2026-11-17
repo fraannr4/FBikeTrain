@@ -7,6 +7,8 @@ import { localDay } from '../../metrics/calendar';
 import { createPost, deletePost, listJournal, type JournalPost, type JournalRide } from '../../social/journal';
 import { Banner } from '../components/Banner';
 import { Bike, Pencil, Plus, Trash2 } from '../icons';
+import { LikeFor } from '../likes/LikeButton';
+import { useLikes } from '../likes/useLikes';
 import { formatDuration, formatKm, formatMeters } from '../format';
 import { ProfileAvatar } from './ProfileAvatar';
 
@@ -88,6 +90,7 @@ function FeedView({ client, userId, targetId, statsVisibility = 'everyone', show
     finally { if (live.current) setDeleting(null); }
   }
 
+  const likes = useLikes(client, userId, 'post', posts?.map(post => post.id) ?? []);
   const mine = targetId === userId;
   return <section className="journal" aria-label={targetId === null ? 'Feed de amigos' : 'Cuaderno de ruta'}>
     {showComposer && <div className="journal-composer">
@@ -117,6 +120,7 @@ function FeedView({ client, userId, targetId, statsVisibility = 'everyone', show
           {post.ride && <RideFigures ride={post.ride} />}
           <footer className="journal-footer">
             <time className="journal-meta" dateTime={post.created_at}>{dateTime.format(new Date(post.created_at))}</time>
+            <LikeFor likes={likes} id={post.id} />
             {post.author_id === userId && <button type="button" className="btn btn--ghost journal-delete" aria-label="Borrar publicación" disabled={deleting !== null} onClick={() => setConfirm(post.id)}><Trash2 className="ic" aria-hidden="true" /><span>Borrar</span></button>}
           </footer>
           {confirm === post.id && <div className="journal-confirm" role="group" aria-label="Confirmar borrado">

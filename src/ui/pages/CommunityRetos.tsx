@@ -11,6 +11,8 @@ import { Skeleton } from '../components/Skeleton';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { formatCount } from '../format';
 import { Search } from '../icons';
+import { LikeFor } from '../likes/LikeButton';
+import { useLikes, type Likes } from '../likes/useLikes';
 import { RivalRow } from '../retos/RivalRow';
 import { RetosEmpty } from '../retos/RetosEmpty';
 import { DuelComparison } from '../retos/DuelComparison';
@@ -97,6 +99,7 @@ function CommunityRetosList({ account }: { account: Account }) {
     finally { setBusy(false); }
   }
   const userId = account.user.id;
+  const likes = useLikes(account.client, userId, 'challenge', rows?.map(c => c.id) ?? []);
   const myStatus = (c: CommunityChallenge) => c.members.find(m => m.id === userId)?.status;
   const invitations = rows?.filter(c => c.status === 'active' && myStatus(c) === 'pending') ?? [];
   const active = rows?.filter(c => c.status === 'active' && myStatus(c) === 'accepted') ?? [];
@@ -121,12 +124,12 @@ function CommunityRetosList({ account }: { account: Account }) {
         {!n.read_at && <button className="btn btn--ghost" onClick={() => void read(n)}>Marcar leído</button>}
       </article>)}
     </section> : view === 'active' ? <section className="community-stack" aria-label="Retos en juego">
-      {invitations.map(c => <InvitationCard key={c.id} challenge={c} userId={userId} busy={busy} onRespond={accept => void respond(c, accept)} />)}
-      {active.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
+      {invitations.map(c => <InvitationCard key={c.id} challenge={c} userId={userId} busy={busy} likes={likes} onRespond={accept => void respond(c, accept)} />)}
+      {active.map(row => <ChallengeCard key={row.id} challenge={row} account={account} likes={likes} />)}
       {rows && !invitations.length && !active.length && <RetosEmpty account={account} />}
     </section> : <section className="community-stack" aria-label="Historial de retos">
       {rows && !finished.length && <div className="card community-empty"><h2>Cada reto deja huella</h2><p>Los retos terminados y sus ganadores aparecerán aquí.</p></div>}
-      {finished.map(row => <ChallengeCard key={row.id} challenge={row} account={account} />)}
+      {finished.map(row => <ChallengeCard key={row.id} challenge={row} account={account} likes={likes} />)}
     </section>}
     {(view === 'notifications' ? notificationMore : more) && <button className="btn btn--secondary btn--block" disabled={busy} onClick={() => void next()}>Cargar más</button>}
     <div className="community-refresh"><span>Se actualiza cada 30 s mientras estás aquí.</span><button className="btn btn--ghost" disabled={busy} onClick={() => void load(true)}>Actualizar</button></div>
@@ -135,7 +138,7 @@ function CommunityRetosList({ account }: { account: Account }) {
   </>;
 }
 /** «Te han retado»: se responde en la propia tarjeta, sin abrir el detalle. */
-function InvitationCard({ challenge: c, userId, busy, onRespond }: { challenge: CommunityChallenge; userId: string; busy: boolean; onRespond: (accept: boolean) => void }) {
+function InvitationCard({ challenge: c, userId, busy, likes, onRespond }: { challenge: CommunityChallenge; userId: string; busy: boolean; likes: Likes; onRespond: (accept: boolean) => void }) {
   const from = c.members.find(m => m.id === c.creator_id && m.id !== userId)?.display_name ?? 'Un ciclista';
   return <article className="card community-challenge community-invite" aria-label={`${from} te reta: ${c.title}`}>
     <div className="community-card-top"><span className="chip community-invite-chip">Te reta {from}</span><span className="community-eyebrow">{CHALLENGE_LABELS[c.kind]}</span></div>
@@ -146,16 +149,18 @@ function InvitationCard({ challenge: c, userId, busy, onRespond }: { challenge: 
       <button className="btn btn--secondary" disabled={busy} onClick={() => onRespond(false)} aria-label={`Ahora no: «${c.title}»`}>Ahora no</button>
     </div>
     <Link className="community-card-link" to={`/retos/comunidad/${c.id}`}>Ver invitación <span aria-hidden="true">→</span></Link>
+    <LikeFor likes={likes} id={c.id} />
   </article>;
 }
-function ChallengeCard({ challenge: c, account }: { challenge: CommunityChallenge; account: Account }) {
+function ChallengeCard({ challenge: c, account, likes }: { challenge: CommunityChallenge; account: Account; likes: Likes }) {
   const userId = account.user.id;
   const mine = c.members.find(m => m.id === userId);
   const rival = c.members.find(m => m.id !== userId);
   const leader = rankedCommunityMembers(c).find(m => (m.score ?? 0) > 0);
   const winner = c.members.filter(m => c.winner_ids.includes(m.id));
   const progress = c.target_value && mine?.score ? Math.min(100, mine.score / c.target_value * 100) : 0;
-  return <Link className="card community-challenge" to={`/retos/comunidad/${c.id}`}>
+  return <div className="community-challenge-item">
+  <Link className="card community-challenge" to={`/retos/comunidad/${c.id}`}>
     <div className="community-card-top"><span className="community-eyebrow">{CHALLENGE_LABELS[c.kind]}</span><span className="chip">{c.status === 'finished' ? 'Terminado' : mine?.status === 'pending' ? 'Te han retado' : mine?.status === 'declined' ? 'Rechazado' : 'En marcha'}</span></div>
     {c.status === 'active' && mine?.status === 'accepted' && <p className="community-time">{timeLeftLabel(c.deadline, Date.now())}</p>}
     <p className="community-opponent-line">{c.members.length > 2 ? `Tu grupeta · ${c.members.length} ciclistas` : mine?.status === 'pending' ? `${rival?.display_name ?? 'Un ciclista'} te reta` : rival?.status === 'pending' && c.creator_id === userId ? `Has retado a ${rival.display_name}` : `Tú contra ${rival?.display_name ?? 'otro ciclista'}`}</p>
@@ -165,7 +170,9 @@ function ChallengeCard({ challenge: c, account }: { challenge: CommunityChalleng
     {c.members.length > 2 && c.target_value && !lowerWins(c.kind) && <progress aria-label={`Progreso de ${c.title}`} max={100} value={progress} />}
     {leader && c.status !== 'finished' && c.members.length > 2 && <p className="community-leader">En cabeza: {leader.id === userId ? 'tú' : leader.display_name} · {formatCommunityScore(c.kind, leader.score)}</p>}
     <span className="community-card-link">{mine?.status === 'pending' && c.status !== 'finished' ? 'Ver invitación' : 'Ver marcador'} <span aria-hidden="true">→</span></span>
-  </Link>;
+  </Link>
+  <LikeFor likes={likes} id={c.id} />
+  </div>;
 }
 function ChallengesSkeleton() {
   return <div aria-busy="true" className="community-stack">

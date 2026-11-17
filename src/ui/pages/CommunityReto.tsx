@@ -12,6 +12,8 @@ import { timeLeftLabel } from '../../social/challengeStatus';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
 import { Skeleton } from '../components/Skeleton';
+import { LikeFor } from '../likes/LikeButton';
+import { useLikes } from '../likes/useLikes';
 import { DuelComparison } from '../retos/DuelComparison';
 import { communityDate, communityError } from './CommunityRetos';
 import '../styles/community-challenges.css';
@@ -74,6 +76,7 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
     } catch (e) { setError(communityError(e)); }
     finally { loading.current = false; setBusy(false); }
   }
+  const likes = useLikes(account.client, account.user.id, 'challenge', row ? [row.id] : []);
   const mine = row?.members.find(m => m.id === account.user.id);
   const rival = row?.members.find(m => m.id !== account.user.id);
   const duel = row?.members.length === 2;
@@ -89,6 +92,7 @@ function ChallengeDetail({ account, id }: { account: Account; id: string }) {
         {duel && <p className="community-duel-heading">Tú contra {rival?.display_name}</p>}
         <h2>{row.title}</h2>
         <p>{row.status === 'finished' ? 'Terminó' : 'Hasta'} {communityDate(row.deadline)}{row.status === 'active' && <> · <strong className="community-time-left">{timeLeftLabel(row.deadline, Date.now())}</strong></>}</p>
+        <LikeFor likes={likes} id={row.id} />
         {duel && <DuelComparison client={account.client} userId={account.user.id} challenge={row} />}
         {row.target_value && (duel ? <p className="community-duel-reference">Referencia del duelo: {formatCommunityScore(row.kind, row.target_value)}</p> : <div className="community-goal"><small>LA META</small><strong>{formatCommunityScore(row.kind, row.target_value)}</strong></div>)}
         {isRoute && <div className="community-route">
