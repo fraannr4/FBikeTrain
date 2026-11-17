@@ -1,6 +1,9 @@
 .cycling-loader { width: min(100%, 380px); margin: 8px auto 20px; color: var(--ink); }
-.cycling-loader > svg { display: block; width: 100%; height: auto; overflow: hidden; }
-.cycling-loader--compact { width: min(100%, 280px); margin-block: 4px 12px; }
+.cycling-loader > svg { display: block; width: 100%; height: auto; overflow: hidden;
+  /* Bordes fundidos: la carretera y el terreno se pierden en la tarjeta en vez de cortarse en seco. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent); }
+.cycling-loader--compact { width: min(100%, 340px); margin-block: 4px 8px; }
 .cycling-label { margin: 4px 0 0; text-align: center; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
 .cycling-terrain { stroke: var(--ink-3); opacity: .16; stroke-width: 1; }
 .cycling-road-shadow { stroke: var(--surface-2); stroke-width: 16; }
