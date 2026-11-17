@@ -131,6 +131,13 @@ describe('entrenos de la semana: proveedor', () => {
     expect(out.ok).toBe(true);
   });
 
+  it('el proveedor de IA falla (502) sin clave propia: lo dice claro, no culpa a la conexión', async () => {
+    const server = respond([502, { error: { code: 'provider_error', message: 'x' } }]);
+    const out = await proposeWeek(request(), { personal: null, shared: createSharedWorkoutPlanner(async () => 'jwt', server), chat: chatWith(respond()) });
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.message).toMatch(/proveedor de IA no responde/);
+  });
+
   it('servicio común con la cuota agotada (429): no reintenta ni gasta la clave propia', async () => {
     const server = respond([429, { error: { code: 'quota_exceeded', message: 'Límite.' }, retryAfterS: 60 }]);
     const f = respond([200, fixture('workouts-ok.json')]);

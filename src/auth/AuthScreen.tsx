@@ -40,8 +40,11 @@ export function authMessage(error: unknown): string {
   if (e?.code === 'invalid_credentials') return 'El correo o la contraseña no son correctos.';
   if (e?.code === 'email_not_confirmed') return 'Confirma tu correo antes de entrar. Revisa también la carpeta de spam.';
   if (e?.code === 'user_already_exists') return 'No se pudo crear la cuenta. Prueba a entrar o recuperar la contraseña.';
+  if (e?.code === 'over_email_send_rate_limit') return 'Se han enviado demasiados correos. Espera unos minutos y vuelve a probar.';
   if (e?.status === 429) return 'Demasiados intentos. Espera unos minutos y vuelve a probar.';
   if (e?.code === 'weak_password') return 'Elige una contraseña más larga y difícil de adivinar.';
+  // Un 5xx es del servidor (casi siempre, el envío del correo): la conexión de quien se registra está bien.
+  if (typeof e?.status === 'number' && e.status >= 500) return 'El servidor no ha podido completar la operación ni enviar el correo. Vuelve a probar en unos minutos.';
   return 'No se pudo completar la operación. Comprueba la conexión e inténtalo de nuevo.';
 }
 

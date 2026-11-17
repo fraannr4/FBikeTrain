@@ -41,6 +41,8 @@ function sharedRequest(getToken: () => Promise<string | null>, fetchImpl: typeof
       if (response.status === 503) throw new LlmError('unavailable', 'El servicio común todavía no está disponible. Prueba más tarde o usa tu clave en Ajustes.');
       // El servicio ya ha validado la salida con zod: se trata como JSON no válido para que quien llama pueda reintentar una vez.
       if (response.status === 502 && payload?.error?.code === 'invalid_response') throw new LlmError('invalid_json', 'La IA no ha devuelto un resultado válido.');
+      if (response.status === 502) throw new LlmError('other', 'El proveedor de IA no responde ahora. No depende de ti: prueba más tarde o usa tu clave de IA en Ajustes.');
+      if (response.status === 504) throw new LlmError('other', 'La IA está tardando demasiado. Vuelve a probar.');
       throw new LlmError('other', response.status === 401 ? 'Tu sesión ha caducado. Vuelve a iniciar sesión.' : 'El servicio común no ha podido completar la petición. Vuelve a probar.');
     }
     return payload?.data;
