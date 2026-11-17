@@ -20,12 +20,14 @@ import { SPARSE_ZONE_ROUTES, type LibraryFill, type LibraryRoute, type LibrarySe
  * Generador de rutas sobre la biblioteca común: hasta 2 rutas reales de la zona adaptadas al inicio
  * (B) y vueltas nuevas por las celdas más transitadas del mapa de calor (A). Las carreteras las pone
  * ORS y las cifras las calcula el código; aquí no interviene la IA. Funciones puras con dependencias
- * inyectadas: las consultas van de una en una y nunca pasan del presupuesto.
+ * inyectadas: los anillos se consultan de dos en dos y nunca se pasa del presupuesto.
  */
 
 export const GENERATOR_ORS_BUDGET = 20;
 /** Consultas que pueden gastar las rutas de la biblioteca (adaptaciones y re-trazados). */
 export const LIBRARY_ORS_BUDGET = 8;
+/** Anillos que se consultan a la vez. */
+export const RING_LANES = 2;
 export const MAX_LIBRARY_PROPOSALS = 2;
 export const MIN_PROPOSALS = 3;
 export const MAX_PROPOSALS = 5;
@@ -329,11 +331,16 @@ export async function generateProposals(target: GeneratorTarget, deps: Generator
       if (broad && total() >= MIN_PROPOSALS) return;
       while (total() < MAX_PROPOSALS && used < GENERATOR_ORS_BUDGET) {
         const opts: RingOptions = { distanceKm, factor: factors.length ? median(factors) : zone.zoneFactor, elevGainM, sparse, broad, usualClimbMPerKm };
-        const ring = candidateRings(start, zone.cells, opts).find(r => !tried.has(`${broad}:${r.axisDeg}:${r.k}`));
-        if (!ring) break;
-        tried.add(`${broad}:${ring.axisDeg}:${ring.k}`);
-        await tryRing(ring, opts, seed);
-        seed += 2;
+        // Varios anillos a la vez: la búsqueda tarda la mitad y gasta las mismas consultas.
+        const lanes = Math.min(RING_LANES, MAX_PROPOSALS - total());
+        const rings = candidateRings(start, zone.cells, opts).filter(r => !tried.has(`${broad}:${r.axisDeg}:${r.k}`)).slice(0, lanes);
+        if (!rings.length) break;
+        await Promise.all(rings.map(ring => {
+          tried.add(`${broad}:${ring.axisDeg}:${ring.k}`);
+          const s = seed;
+          seed += 2;
+          return tryRing(ring, opts, s);
+        }));
       }
     }
   }

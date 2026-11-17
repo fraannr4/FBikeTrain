@@ -82,7 +82,8 @@ describe('generador: vueltas nuevas (A)', () => {
   it('corrige la longitud con una segunda consulta cuando el anillo sale corto', async () => {
     const { fake, result } = run(zoneOf({ cells: gridCells({ stepM: 500 }), factor: 1.75 }), { factor: 1 });
     const res = await result;
-    const [first, second] = fake.calls;
+    // Dos anillos a la vez: la corrección del primero llega tras la primera consulta del segundo.
+    const [first, , second] = fake.calls;
     const firstPerim = loopPerimeterM(first.slice(0, -1));
     const measured = pathLengthM(first);
     expect(Math.abs(measured - 60_000)).toBeGreaterThan(6_000);
@@ -98,7 +99,7 @@ describe('generador: vueltas nuevas (A)', () => {
     expect(Math.abs(axis(second) - axis(first))).toBeLessThan(10);
     const card = res.cards[0];
     expect(card.kind).toBe('nueva');
-    if (card.kind === 'nueva') expect(card.route.coords).toEqual(fake.responses[1].geometry.coordinates);
+    if (card.kind === 'nueva') expect(card.route.coords).toEqual(fake.responses[2].geometry.coordinates);
     expect(res.cards.length).toBeGreaterThanOrEqual(3);
   });
 
