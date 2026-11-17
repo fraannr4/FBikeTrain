@@ -15,6 +15,7 @@ import { loadSettings } from '../../settings/settings';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
 import { RideMap } from '../components/RideMap';
+import { useRideWeather, WeatherRow, WindLine } from '../routes/WeatherRow';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { Sheet } from '../components/Sheet';
 import { CommonLibrary } from '../library/CommonLibrary';
@@ -52,6 +53,7 @@ export function BibliotecaRutas() {
   const [editKind, setEditKind] = useState<RoadEdit['kind']>('extend');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [view, setView] = useState<'mis' | 'comun' | null>(null);
+  const weather = useRideWeather(draft?.points[0] ?? null);
   const abort = useRef<AbortController | null>(null);
   const alive = useRef(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -197,6 +199,9 @@ export function BibliotecaRutas() {
         {draft.sourceUrl ? <a className="btn btn--ghost btn--wrap" href={draft.sourceUrl} target="_blank" rel="noopener noreferrer">Origen: {referenceSite(draft.sourceUrl) === 'wikiloc' ? 'Wikiloc' : 'enlace'}{draft.author ? ` · ${draft.author}` : ''}</a> : draft.author && <p className="help">Autor: {draft.author}</p>}
         <RideMap points={draft.points} label="Mapa de tu ruta de referencia" interactive />
         <ProfileSvg profile={profile} label="Perfil de la ruta importada" axis height={100} />
+        {/* Tiempo en el inicio de la ruta (punto redondeado, como en Rutas) y cómo pega el viento en ella. */}
+        <WeatherRow weather={weather} />
+        <WindLine points={draft.points} weather={weather.hour} />
         <button type="button" className="btn btn--primary btn--block" onClick={download} disabled={busy}><Download className="ic" aria-hidden="true" />Exportar GPX actual</button>
         <SendToGarmin route={draft} />
         {account && <Link className="btn btn--secondary btn--block" to={`/retos/nuevo?ruta=${encodeURIComponent(draft.id)}`}><Swords className="ic" aria-hidden="true" />Retar con esta ruta</Link>}

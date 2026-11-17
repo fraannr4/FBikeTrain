@@ -12,6 +12,8 @@ export const TEST_SESSION = { access_token: `${jwtPart({ alg: 'HS256', typ: 'JWT
 export const test = base.extend({
   page: async ({ page }, use) => {
     await page.route('https://*.supabase.co/**', route => route.abort());
+    // La previsión del tiempo tampoco sale a la red: cada spec que la necesita registra después su propia respuesta.
+    await page.route('https://api.open-meteo.com/**', route => route.abort());
     await page.addInitScript(({ key, session }) => localStorage.setItem(key, JSON.stringify(session)), { key: AUTH_KEY, session: TEST_SESSION });
     await use(page);
   },

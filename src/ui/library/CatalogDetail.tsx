@@ -17,6 +17,7 @@ import { downloadText } from '../routes/sendGpx';
 import { formatKm, formatMeters } from '../format';
 import { Download, Folder } from '../icons';
 import { OriginLink } from './CatalogCard';
+import { useRideWeather, WeatherRow, WindLine } from '../routes/WeatherRow';
 
 /** Rutas ya descargadas en esta sesión, por id. */
 const cache = new Map<string, LibraryDetail>();
@@ -76,6 +77,7 @@ function DetailBody({ route, account, saved, onSaved }: { route: CatalogRoute; a
   const detail = load.state === 'ready' ? load.detail : null;
 
   const points = useMemo<LatLng[]>(() => detail ? detail.line.map(([lng, lat]) => ({ lat, lng })) : [], [detail]);
+  const weather = useRideWeather(points[0] ?? null);
   const track = useMemo<TrackPoint[]>(() => detail && detail.line.every(p => p.length === 3) ? detail.line.map(([lng, lat, ele], t) => ({ t, lat, lng, ele })) : [], [detail]);
   const parsed = useMemo(() => detail ? toParsedReference({ ...detail, passM: 0 }) : null, [detail]);
   const terrain = terrainFeel(route);
@@ -113,6 +115,14 @@ function DetailBody({ route, account, saved, onSaved }: { route: CatalogRoute; a
           {terrain ? <Chip>{terrain}</Chip> : null}
           {route.unpavedPct !== null ? <Chip>{route.unpavedPct < 1 ? 'Asfalto' : `${Math.round(route.unpavedPct)} % sin asfaltar`}</Chip> : null}
         </div>
+      ) : null}
+      {/* El tiempo en el inicio de la ruta y cómo pega el viento en este recorrido. */}
+      {points.length >= 2 ? (
+        <section className="lib-weather" aria-label="Tiempo y viento">
+          <h3 className="section-title">Tiempo y viento</h3>
+          <WeatherRow weather={weather} />
+          <WindLine points={points} weather={weather.hour} />
+        </section>
       ) : null}
       {detail && track.length >= 2 ? <ElevationProfile points={track} onCursor={onCursor} heading={<h3 className="section-title">Perfil</h3>} /> : null}
       {load.state === 'loading' ? <Skeleton variant="box" height={96} /> : null}

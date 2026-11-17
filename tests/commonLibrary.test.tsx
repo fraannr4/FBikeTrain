@@ -11,6 +11,8 @@ import { squareRow } from './fixtures/libraryZone';
 import { clearCatalogCache } from '../src/ui/library/CommonLibrary';
 import { clearDetailCache } from '../src/ui/library/CatalogDetail';
 
+// Sin red en las pruebas: la previsión falla en silencio y la fila dice «Sin previsión ahora».
+vi.mock('../src/weather/forecast', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/weather/forecast')>()), fetchForecast: vi.fn().mockRejectedValue(new Error('sin red')) }));
 vi.mock('../src/ui/components/RideMap', () => ({ RideMap: () => <div>Mapa sintético</div> }));
 vi.mock('../src/ui/components/ElevationProfile', () => ({ ElevationProfile: () => <div>Perfil sintético</div> }));
 vi.mock('../src/ui/components/StartPointCanvas', () => ({ StartPointCanvas: () => <div>Punto sintético</div> }));
@@ -110,6 +112,9 @@ describe('Biblioteca común', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Vuelta al pantano' });
     expect(await within(dialog).findByText('Mapa sintético')).toBeInTheDocument();
     expect(within(dialog).getByText('Perfil sintético')).toBeInTheDocument();
+    // El tiempo y el viento de la ruta: sin previsión lo dice y no rompe el detalle.
+    const weather = within(dialog).getByRole('region', { name: 'Tiempo y viento' });
+    expect(await within(weather).findByText('Sin previsión ahora')).toBeInTheDocument();
     expect(within(dialog).getByRole('link', { name: /Ride with GPS · Ana/ })).toHaveAttribute('href', rows[0].url);
     expect(invoke).toHaveBeenCalledWith('route-sources', expect.objectContaining({ body: { source: 'library', kind: 'library-route', id: rows[0].id } }));
     await user.click(within(dialog).getByRole('button', { name: 'Guardar en Mis rutas' }));

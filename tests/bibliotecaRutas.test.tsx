@@ -7,6 +7,8 @@ import { BibliotecaRutas } from '../src/ui/pages/BibliotecaRutas';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { AccountContext } from '../src/auth/AccountBoundary';
 
+// Sin red en las pruebas: la previsión falla en silencio y la fila dice «Sin previsión ahora».
+vi.mock('../src/weather/forecast', async (importOriginal) => ({ ...(await importOriginal<typeof import('../src/weather/forecast')>()), fetchForecast: vi.fn().mockRejectedValue(new Error('sin red')) }));
 vi.mock('../src/ui/components/RideMap', () => ({ RideMap: () => <div>Mapa sintético</div> }));
 vi.mock('../src/ui/components/StartPointCanvas', () => ({ StartPointCanvas: () => <div>Punto sintético</div> }));
 
