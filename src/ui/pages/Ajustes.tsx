@@ -37,6 +37,7 @@ import {
   Upload,
   User,
 } from '../icons';
+import { AvisosSection } from '../ajustes/AvisosSection';
 import { ThresholdsSection } from '../ajustes/ThresholdsSection';
 import { Banner } from '../components/Banner';
 import { Disclosure } from '../components/Disclosure';
@@ -59,7 +60,7 @@ const GROQ_URL = DEFAULT_SETTINGS.llm.baseUrl;
 const ORS_SIGNUP = 'https://openrouteservice.org/dev/#/signup';
 const GROQ_KEYS = 'https://console.groq.com/keys';
 const STORAGE_DOWN = 'el almacenamiento de este navegador no está disponible.';
-const SECTIONS = ['perfil', 'casa', 'umbrales', 'zona', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
+const SECTIONS = ['perfil', 'casa', 'umbrales', 'zona', 'avisos', 'conexiones', 'claves', 'apariencia', 'copia', 'borrar'] as const;
 
 function probeMessage(r: ProbeResult): string {
   if (r.ok) return 'Conexión correcta.';
@@ -418,6 +419,7 @@ function SettingsForm({ initial, extra, open, openRestore, onExtra, onReplaced }
           />
 
           {account ? <ZonaSection account={account} defaultOpen={isOpen('zona')} /> : null}
+          {account && !account.user.is_anonymous ? <AvisosSection client={account.client} defaultOpen={isOpen('avisos')} /> : null}
 
           <Disclosure
             id="claves"

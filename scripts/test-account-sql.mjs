@@ -84,6 +84,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611170002_likes_private.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/likes.sql', import.meta.url), 'utf8'));
   console.log('PASS: me gusta de retos y salidas compartidas: solo el propio, solo sobre lo visible, recuento en una consulta.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611170003_push.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/push.sql', import.meta.url), 'utf8'));
+  console.log('PASS: suscripciones push: solo las propias, alta por función con validación, límite de 10 dispositivos y sin acceso anónimo.');
 } finally {
   await db.close();
 }

@@ -25,6 +25,7 @@ import { JournalFeed } from '../profile/JournalFeed';
 import { ShareProfileButton } from '../profile/ShareProfileButton';
 import { ProfileSkeleton } from '../profile/ProfileSkeleton';
 import { RIDING_STYLES, ridingStyle } from '../profile/profileStyle';
+import { disablePush } from '../../pwa/push';
 import '../styles/profile.css';
 
 type Profile = { username: string; display_name: string; stats_visibility: 'everyone' | 'friends'; bio: string; riding_style: RidingStyle; avatar_version: number };
@@ -100,7 +101,11 @@ export function Perfil() {
   async function logout() {
     if (!account || busy) return;
     setBusy(true); setEditError('');
-    try { const { error: err } = await account.client.auth.signOut({ scope: 'local' }); if (err) throw err; }
+    try {
+      // Antes de salir: este dispositivo deja de recibir los avisos de la cuenta. Si falla, no impide cerrar sesión.
+      await disablePush(account.client).catch(() => undefined);
+      const { error: err } = await account.client.auth.signOut({ scope: 'local' }); if (err) throw err;
+    }
     catch (e) { setEditError(authMessage(e)); }
     finally { setBusy(false); }
   }
