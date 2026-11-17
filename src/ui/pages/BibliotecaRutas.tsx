@@ -15,7 +15,9 @@ import { loadSettings } from '../../settings/settings';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
 import { RideMap } from '../components/RideMap';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { Sheet } from '../components/Sheet';
+import { CommonLibrary } from '../library/CommonLibrary';
 import { StartPointCanvas } from '../components/StartPointCanvas';
 import { ProfileSvg } from '../charts/ProfileSvg';
 import { reduceProfile } from '../profile';
@@ -49,6 +51,7 @@ export function BibliotecaRutas() {
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
   const [editKind, setEditKind] = useState<RoadEdit['kind']>('extend');
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [view, setView] = useState<'mis' | 'comun' | null>(null);
   const abort = useRef<AbortController | null>(null);
   const alive = useRef(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -166,7 +169,16 @@ export function BibliotecaRutas() {
     finally { if (alive.current) setBusy(false); }
   }
 
-  return <Page title="Biblioteca de rutas" back="/rutas" variant="narrow" className="page--library" lead="Abre un GPX o TCX de Wikiloc u otra fuente, analiza el recorrido y prepara tu propia versión.">
+  // Sin rutas propias, lo primero que se ve es la biblioteca común; mientras se leen las propias, no se decide.
+  // La vista inicial se fija una vez leídas las rutas propias: guardar una desde la común no cambia de pestaña.
+  useEffect(() => { if (view === null && !loading) setView(routes.length === 0 ? 'comun' : 'mis'); }, [view, loading, routes.length]);
+  const common = view === 'comun';
+  const savedUrls = useMemo(() => new Set(routes.flatMap(r => r.sourceUrl ? [r.sourceUrl] : [])), [routes]);
+  const chooseView = (next: 'mis' | 'comun') => { if (!dirty) setView(next); };
+  const nav = <SegmentedControl label="Qué rutas ver" value={common ? 'comun' : 'mis'} onChange={chooseView} options={[{ value: 'mis', label: 'Mis rutas' }, { value: 'comun', label: 'Biblioteca común' }]} />;
+
+  return <Page title="Biblioteca de rutas" back="/rutas" variant={common ? undefined : 'narrow'} className="page--library" nav={nav} lead={common ? 'Rutas que han compartido otros ciclistas cerca de tu inicio. Filtra, mira el recorrido y guarda las que te gusten.' : 'Abre un GPX o TCX de Wikiloc u otra fuente, analiza el recorrido y prepara tu propia versión.'}>
+    {common ? <CommonLibrary savedUrls={savedUrls} onSaved={saved => setRoutes(rows => [saved, ...rows])} /> : <>
     <section className="section card library-panel" aria-label="Añadir un recorrido">
       <h2 className="card-title">Tu fichero, como punto de partida</h2>
       <p className="help">En Wikiloc, descarga la ruta como archivo GPX y elígelo aquí desde Archivos o Descargas. También funciona en iPhone. Añadir una ruta no cambia tus estadísticas.</p>
@@ -204,6 +216,7 @@ export function BibliotecaRutas() {
         {busy && abort.current && <button className="btn btn--secondary" type="button" onClick={() => abort.current?.abort()}>Cancelar cálculo</button>}
       </section>
       <section className="section card library-panel"><button className="btn btn--primary btn--block" type="button" disabled={!dirty || busy} onClick={save}>Guardar cambios</button>{dirty && <button className="btn btn--ghost" disabled={busy} onClick={() => { const saved = routes.find(r => r.id === draft.id); if (saved) choose(saved); }}>Descartar cambios sin guardar</button>}<button className="btn btn--secondary" type="button" disabled={busy} onClick={() => local(restoreReferenceRoute)}>Volver al trazado original</button><button className="btn btn--secondary" type="button" disabled={busy} onClick={downloadOriginal}>Descargar fichero original</button><button className="btn btn--ghost" type="button" disabled={busy} onClick={() => setDeleteOpen(true)}>Quitar de la biblioteca</button></section>
+    </>}
     </>}
     <Sheet open={deleteOpen} title="Quitar este recorrido" onClose={() => setDeleteOpen(false)} footer={<button className="btn btn--primary btn--block" type="button" disabled={busy} onClick={remove}>Quitar recorrido</button>}><p>Se quitará de este dispositivo, incluido su original. Las salidas realizadas no cambian.</p></Sheet>
     <Sheet open={leaveTo !== null} title="Tienes cambios sin guardar" onClose={() => setLeaveTo(null)} footer={<button className="btn btn--secondary btn--block" type="button" onClick={() => { const target = leaveTo; pendingDraft = null; setDirty(false); setLeaveTo(null); if (target) navigate(target); }}>Descartar y continuar</button>}><p>Puedes cerrar esta hoja para guardar primero. Si usas Atrás del navegador, conservaremos el borrador durante esta sesión.</p></Sheet>

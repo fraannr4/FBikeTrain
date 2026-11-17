@@ -35,5 +35,5 @@ export const routeReferenceSchema = z.strictObject({
 export type RouteReference = z.infer<typeof routeReferenceSchema>;
 export const routeReferencesSchema = z.array(routeReferenceSchema).max(10);
 export class RouteSourceError extends Error {
-  constructor(public readonly code: 'unavailable' | 'blocked' | 'html_changed' | 'invalid_response' | 'busy' | 'cancelled') { super(code); }
+  constructor(public readonly code: 'unavailable' | 'blocked' | 'html_changed' | 'invalid_response' | 'busy' | 'cancelled' | 'not_found') { super(code); }
 }

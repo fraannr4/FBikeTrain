@@ -6,6 +6,7 @@ for (const width of [360, 430]) {
     await page.setViewportSize({ width, height: 900 });
     await seed(page, { settings: settings() });
     await page.goto('#/rutas/biblioteca');
+    await page.getByRole('button', { name: 'Mis rutas', exact: true }).click();
     const name = `Vuelta sintética ${'por carreteras conocidas '.repeat(5)}`.slice(0, 120).trim();
     const author = `Autora${'sintética'.repeat(15)}`.slice(0, 120);
     const xml = `<gpx><metadata><link href="https://es.wikiloc.com/rutas-ciclismo/sintetica-1234"/><author><name>${author}</name></author></metadata><trk><name>${name}</name><trkseg><trkpt lat="41" lon="2.5"><ele>10</ele></trkpt><trkpt lat="41.001" lon="2.5"><ele>30</ele></trkpt><trkpt lat="41.001" lon="2.501"><ele>20</ele></trkpt><trkpt lat="41" lon="2.5"><ele>10</ele></trkpt></trkseg></trk></gpx>`;

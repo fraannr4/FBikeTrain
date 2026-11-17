@@ -89,6 +89,11 @@ Deno.serve(request => {
         if (error) throw new Error('heat');
       }
     },
+    routeById: async id => {
+      const { data, error } = await admin!.from('reference_routes').select('*').eq('id', id).maybeSingle();
+      if (error) throw new Error('library');
+      return (data ?? null) as (ReferenceRouteRow & { id: string }) | null;
+    },
     upsertRoutes: async rows => {
       const { data, error } = await admin!.rpc('upsert_reference_routes', { p_rows: rows });
       if (error || typeof data !== 'number') throw new Error('library');

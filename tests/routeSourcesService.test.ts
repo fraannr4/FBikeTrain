@@ -25,7 +25,7 @@ const mock = (): RouteSourceDependencies => ({
   routesInBox: vi.fn().mockResolvedValue([]), heatCellsInBox: vi.fn().mockResolvedValue([]), replaceHeatCells: vi.fn().mockResolvedValue(undefined),
   upsertRoutes: vi.fn().mockImplementation(async (rows: unknown[]) => rows.length),
   rwgpsRouteDetail: vi.fn().mockImplementation(async (id: number) => ({ status: 200, json: routeDetailJson(id) })),
-  lastRwgpsSyncAt: vi.fn().mockResolvedValue(new Date(now)), requestRwgpsSync: vi.fn(),
+  lastRwgpsSyncAt: vi.fn().mockResolvedValue(new Date(now)), requestRwgpsSync: vi.fn(), routeById: vi.fn().mockResolvedValue(null),
 });
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });

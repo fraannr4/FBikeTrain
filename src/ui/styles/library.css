@@ -13,3 +13,40 @@
 .library-error,.library-notice{padding:14px 16px;border-radius:var(--r-md);overflow-wrap:anywhere;line-height:1.5}
 .library-error{background:var(--critical-bg);color:var(--critical)}.library-notice{background:var(--good-bg);color:var(--good)}
 @media(max-width:380px){.library-panel{padding:16px}.library-row{flex-wrap:wrap}.library-metrics dd{font-size:21px}}
+
+/* ---------- Biblioteca común: rejilla de tarjetas, filtros y detalle ---------- */
+.lib-common{display:grid;gap:16px;min-width:0}
+.lib-bar{display:grid;gap:10px}
+.lib-filter-btn{width:100%}
+.lib-filters{padding:16px}
+.lib-controls{display:grid;gap:20px;min-width:0}
+.lib-filters .lib-controls{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:start}
+.lib-range{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0;padding:0;border:0;min-width:0}
+.lib-range legend{grid-column:1/-1;padding:0}
+.lib-range-note{grid-column:1/-1;margin:0}
+.lib-count{font:600 var(--t-sm)/1.3 var(--font-ui);color:var(--ink-2)}
+.lib-grid{list-style:none;margin:0;padding:0;display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.lib-grid>li{min-width:0;content-visibility:auto;contain-intrinsic-size:auto 400px}
+.lib-card{height:100%}
+.lib-card .rcard-name{display:block;-webkit-line-clamp:unset;line-clamp:unset}
+.lib-open{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;max-width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+/* Toda la tarjeta es el botón del título; el enlace de origen queda por encima */
+.lib-open::after{content:"";position:absolute;inset:0;z-index:1}
+.lib-open:focus-visible{outline:none}
+.lib-card:has(.lib-open:focus-visible){outline:2px solid var(--focus);outline-offset:2px}
+.lib-origin{position:relative;z-index:2;display:inline-flex;align-items:center;gap:6px;min-height:44px;min-width:0;margin-top:auto;color:var(--link);font-size:var(--t-sm)}
+.lib-origin .ic{flex:none;width:16px;height:16px}
+.lib-origin-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet-sub .lib-origin{min-height:0}
+.lib-sk{pointer-events:none}
+dialog.sheet.lib-detail{max-width:min(720px,calc(100% - 24px))}
+.lib-detail-body{display:grid;gap:16px;min-width:0}
+.lib-map{height:clamp(220px,56vw,340px);border-radius:var(--r-md);overflow:hidden;background:var(--surface-2)}
+.lib-actions{display:grid;gap:8px}
+@media(min-width:640px){.lib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lib-actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1024px){.lib-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.lib-range>.field{margin:0}
+.lib-range .field-label{font-weight:600}
+/* escritorio.css da 480 px a todo .rmap: aquí el mapa comparte hoja con el perfil */
+.lib-detail-body .lib-map{min-height:0;height:clamp(220px,56vw,300px)}
+.lib-detail-body .climb{height:140px;min-height:0}

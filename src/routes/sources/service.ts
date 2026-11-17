@@ -5,6 +5,7 @@ import { normalizeRouteSearch, simplifyRouteReference, MAX_REFERENCE_POINTS } fr
 import { SYNC_EVERY_MS } from './rwgpsService.ts';
 import { encodeLibraryZone, librarySearchSchema, normalizeLibrarySearch, SPARSE_ZONE_ROUTES, type LibrarySearch, type LibraryZone } from '../library/schema.ts';
 import { buildLibraryZone, circleBox } from '../library/zoneResponse.ts';
+import { buildLibraryCatalog, catalogRequestSchema, detailRequestSchema, normalizeCatalogRequest, toLibraryDetail } from '../library/catalog.ts';
 import { fillCentre, fillZone } from '../library/fill.ts';
 import { buildHeatCells, type HeatCell } from '../library/heat.ts';
 import type { ReferenceRouteRow } from '../library/rows.ts';
@@ -12,6 +13,8 @@ import type { ReferenceRouteRow } from '../library/rows.ts';
 const requestSchema = z.union([
   routeSearchSchema.extend({ source: z.enum(['wikiloc', 'osm']).default('wikiloc') }),
   librarySearchSchema.extend({ source: z.literal('library'), kind: z.literal('library') }),
+  catalogRequestSchema.extend({ source: z.literal('library'), kind: z.literal('library-list') }),
+  detailRequestSchema.extend({ source: z.literal('library'), kind: z.literal('library-route') }),
 ]);
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const TIMEOUT_MS = 30_000;
@@ -32,6 +35,8 @@ export type RouteSourceDependencies = {
   heatCellsInBox: (box: Box) => Promise<HeatCell[]>;
   replaceHeatCells: (cells: HeatCell[], box: Box) => Promise<void>;
   upsertRoutes: (rows: ReferenceRouteRow[]) => Promise<number>;
+  /** Una ruta de la biblioteca con su línea completa, o null si el id no existe. */
+  routeById: (id: string) => Promise<(ReferenceRouteRow & { id: string }) | null>;
   rwgpsRouteDetail: (id: number, signal: AbortSignal) => Promise<{ status: number; json: unknown }>;
   /** Última pasada de la sincronización de Ride with GPS (`rwgps_sync_state`), o null si nunca. */
   lastRwgpsSyncAt: () => Promise<Date | null>;
@@ -71,7 +76,11 @@ export async function handleRouteSources(request: Request, deps: RouteSourceDepe
     input = requestSchema.parse(JSON.parse(await readLimited(new Response(request.body), 2048)));
   } catch { return fail(400, 'invalid_request'); }
   if (request.signal.aborted) return fail(499, 'cancelled');
-  if (input.source === 'library') return serveLibrary(request, input, userId, deps, headers, fail);
+  if (input.source === 'library') {
+    if (input.kind === 'library-list') return serveCatalog(request, input, userId, deps, headers, fail);
+    if (input.kind === 'library-route') return serveLibraryRoute(request, input.id, userId, deps, headers, fail);
+    return serveLibrary(request, input, userId, deps, headers, fail);
+  }
   if (input.source === 'wikiloc' && (!deps.wikilocAuthorized || !deps.wikilocSearchTemplate)) return fail(503, 'wikiloc_authorization_required');
   const { source, lat, lon, radiusM } = input;
   const search = normalizeRouteSearch({ lat, lon, radiusM });
@@ -197,4 +206,44 @@ async function serveLibrary(request: Request, input: LibrarySearch, userId: stri
     clearTimeout(timeout);
     request.signal.removeEventListener('abort', cancel);
   }
+}
+
+/**
+ * Lecturas del catálogo de la biblioteca (`library-list`, `library-route`): una consulta de cuota, solo
+ * lectura (no llenan zonas ni sincronizan). `read` devuelve los datos, o null si no existen (404).
+ */
+async function serveCatalogRead(request: Request, userId: string, deps: RouteSourceDependencies, headers: Record<string, string>,
+  fail: (status: number, code: string, retryAfterS?: number) => Response, read: () => Promise<unknown>): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  request.signal.addEventListener('abort', cancel, { once: true });
+  if (request.signal.aborted) controller.abort();
+  try {
+    controller.signal.throwIfAborted();
+    const quota = await deps.consumeQuota(userId);
+    controller.signal.throwIfAborted();
+    if (!quota.allowed) return fail(429, 'quota_exceeded', Math.max(1, Math.min(86400, Math.ceil(quota.retryAfterS) || 30)));
+    const data = await read();
+    controller.signal.throwIfAborted();
+    return data === null ? fail(404, 'not_found') : Response.json({ data }, { headers });
+  } catch {
+    if (request.signal.aborted) return fail(499, 'cancelled');
+    if (controller.signal.aborted) return fail(504, 'timeout');
+    return fail(503, 'unavailable');
+  } finally {
+    clearTimeout(timeout);
+    request.signal.removeEventListener('abort', cancel);
+  }
+}
+
+function serveCatalog(request: Request, input: { lat: number; lon: number; radiusM: number }, userId: string, deps: RouteSourceDependencies,
+  headers: Record<string, string>, fail: (status: number, code: string, retryAfterS?: number) => Response): Promise<Response> {
+  const search = normalizeCatalogRequest({ lat: input.lat, lon: input.lon, radiusM: input.radiusM });
+  return serveCatalogRead(request, userId, deps, headers, fail, async () => buildLibraryCatalog(search, await deps.routesInBox(circleBox(search.lat, search.lon, search.radiusM))));
+}
+
+function serveLibraryRoute(request: Request, id: string, userId: string, deps: RouteSourceDependencies,
+  headers: Record<string, string>, fail: (status: number, code: string, retryAfterS?: number) => Response): Promise<Response> {
+  return serveCatalogRead(request, userId, deps, headers, fail, async () => { const row = await deps.routeById(id); return row ? toLibraryDetail(row) : null; });
 }
