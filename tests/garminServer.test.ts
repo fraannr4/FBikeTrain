@@ -64,7 +64,9 @@ it('starts PKCE with encrypted verifier, binds state to account and consumes cal
   expect(await digest(verifier)).toBe(url.searchParams.get('code_challenge'));
   const state = url.searchParams.get('state');
   expect((await handle(request(`/callback?code=synthetic-code&state=${state}`, 'GET', false))).status).toBe(303);
-  expect((await handle(request(`/callback?code=synthetic-code&state=${state}`, 'GET', false))).status).toBe(400);
+  const again = await handle(request(`/callback?code=synthetic-code&state=${state}`, 'GET', false));
+  expect(again.status).toBe(303);
+  expect(again.headers.get('Location')).toBe('https://app.example/FBikeTrain/#/ajustes?abrir=conexiones&garmin_error=400');
 });
 
 /** Recorre /connect y /callback y devuelve el código de un solo uso que el navegador lleva a la app. */
@@ -155,10 +157,10 @@ it('rejects expired state and denied activity permission without saving a connec
   const handle = createGarminService(options);
   await handle(request('/connect', 'POST'));
   vi.mocked(store.consumeState).mockResolvedValueOnce({ userId: user, verifier: 'cipher', expiresAt: 0 });
-  expect((await handle(request('/callback?code=x&state=synthetic-state', 'GET', false))).status).toBe(400);
+  expect((await handle(request('/callback?code=x&state=synthetic-state', 'GET', false))).headers.get('Location')).toContain('garmin_error=400');
   const start = await (await handle(request('/connect', 'POST'))).json();
   fetcher.mockImplementation(async url => String(url).endsWith('/user/permissions') ? Response.json([]) : String(url).endsWith('/user/id') ? Response.json({ userId: 'synthetic-garmin-user' }) : Response.json({ access_token: 'synthetic-access', refresh_token: 'synthetic-refresh', expires_in: 86400, refresh_token_expires_in: 864000, token_type: 'bearer' }));
-  expect((await handle(request(`/callback?code=x&state=${new URL(start.authorizationUrl).searchParams.get('state')}`, 'GET', false))).status).toBe(403);
+  expect((await handle(request(`/callback?code=x&state=${new URL(start.authorizationUrl).searchParams.get('state')}`, 'GET', false))).headers.get('Location')).toContain('garmin_error=403');
   expect(store.saveConnection).not.toHaveBeenCalled();
 });
 

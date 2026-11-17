@@ -18,17 +18,21 @@ const Context = createContext<GarminConnections | null>(null);
 export const useGarminConnections = () => useContext(Context);
 const inactive: GarminStatus = { available: false, connected: false, backfillAvailable: false };
 
-/** Código de un solo uso con el que el servidor devuelve de Garmin (`#/ajustes?…&garmin_code=`). Se retira de la dirección al leerlo. */
-function takeGarminCode(): string | null {
+/** Lee y retira un parámetro de vuelta de Garmin (`#/ajustes?…&garmin_code=` o `&garmin_error=`). */
+function takeReturnParam(name: 'garmin_code' | 'garmin_error'): string | null {
   const [route, query = ''] = window.location.hash.split('?');
   const params = new URLSearchParams(query);
-  const code = params.get('garmin_code');
-  if (!code) return null;
-  params.delete('garmin_code');
+  const value = params.get(name);
+  if (!value) return null;
+  params.delete(name);
   const rest = params.toString();
   window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}${route}${rest ? `?${rest}` : ''}`);
-  return code;
+  return value;
 }
+/** El servidor solo devuelve el código de estado: el texto lo pone la app. */
+const returnError = (status: string) => status === '400' ? 'La autorización ha caducado o se ha cancelado. Vuelve a conectar.'
+  : status === '403' ? 'Autoriza el acceso a las actividades en Garmin Connect.'
+  : 'Garmin no ha podido completar la conexión. Vuelve a probar.';
 
 /** Garmin llama al servidor con la app cerrada; el navegador recoge las entregas al abrir/reanudar. */
 export function GarminProvider({ children, api: supplied }: { children: ReactNode; api?: GarminClient }) {
@@ -79,7 +83,8 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
         if (mounted.current) { setStatus(previous => ({ ...previous, connected: false, lastSyncAt: undefined })); setResult(undefined); }
         return;
       }
-      const code = takeGarminCode();
+      const failed = takeReturnParam('garmin_error');
+      const code = takeReturnParam('garmin_code');
       if (code) {
         completing = true;
         await api.complete(code, ctrl.signal);
@@ -91,6 +96,7 @@ export function GarminProvider({ children, api: supplied }: { children: ReactNod
       knownConnected.current = remote.connected;
       let local = await loadGarminSyncState(db);
       if (mounted.current) { setStatus({ ...remote, lastSyncAt: local.lastSyncAt ?? remote.lastSyncAt }); setResult(local.result); }
+      if (failed && mounted.current) setError(returnError(failed));
       if (operation === 'refresh' || !remote.available || !remote.connected || remote.permissionRequired || remote.reconnectRequired) return;
       importing = true;
       const imported = await syncGarmin(db, importer, api, ctrl.signal);

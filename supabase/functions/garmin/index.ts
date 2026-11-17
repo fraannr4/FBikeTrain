@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { createGarminService, guardedFetch, signedInAccount, type GarminStore, type GarminTokens } from '../../../src/connections/garminServer/service.ts';
+import { createGarminService, GarminUserLinkedError, guardedFetch, signedInAccount, type GarminStore, type GarminTokens } from '../../../src/connections/garminServer/service.ts';
 
 const projectUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const publicKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -12,6 +12,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 const checked = <T>(value: { data: T; error: unknown }): T => { if (value.error) throw new Error('storage'); return value.data; };
 
 async function purge(userId: string, all = false) {
+  // Las entregas ya procesadas solo sirven para no repetir un reintento de Garmin: pasado un mes sobran.
+  if (!all) checked(await server.from('garmin_notification_queue').delete().eq('user_id', userId).eq('status', 'done').lte('updated_at', iso(Date.now() - 30 * 86_400_000)));
   let query = server.from('garmin_activity_files').select('id,object_path').eq('user_id', userId);
   if (!all) query = query.lte('expires_at', iso(Date.now()));
   const rows = checked(await query) ?? [];
@@ -43,7 +45,10 @@ const store: GarminStore = {
     return row ? tokens(row) : undefined;
   },
   saveConnection: async (userId, value) => {
-    checked(await server.from('garmin_connections').upsert({ user_id: userId, garmin_user_id: value.garminUserId, ciphertext: value.ciphertext, expires_at: iso(value.expiresAt), refresh_expires_at: iso(value.refreshExpiresAt), permissions: value.permissions, ...(value.lastSyncAt ? { last_sync_at: iso(value.lastSyncAt) } : {}) }));
+    const saved = await server.from('garmin_connections').upsert({ user_id: userId, garmin_user_id: value.garminUserId, ciphertext: value.ciphertext, expires_at: iso(value.expiresAt), refresh_expires_at: iso(value.refreshExpiresAt), permissions: value.permissions, ...(value.lastSyncAt ? { last_sync_at: iso(value.lastSyncAt) } : {}) });
+    // 23505: esa cuenta Garmin ya está vinculada a otra cuenta de la app.
+    if ((saved.error as { code?: string } | null)?.code === '23505') throw new GarminUserLinkedError();
+    checked(saved);
   },
   withAccountLock: async (userId, run) => {
     const owner = crypto.randomUUID();

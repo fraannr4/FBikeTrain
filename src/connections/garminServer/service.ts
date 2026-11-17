@@ -63,6 +63,8 @@ export function signedInAccount(user: { id: string; is_anonymous?: boolean } | n
   return user && user.is_anonymous !== true ? user.id : null;
 }
 class SafeError extends Error { constructor(readonly status: number, message: string) { super(message); } }
+/** El almacén la lanza al guardar una cuenta Garmin que ya tiene otra cuenta de la app. */
+export class GarminUserLinkedError extends SafeError { constructor() { super(409, 'Esta cuenta Garmin ya está conectada a otra cuenta de FBikeTrain. Desconéctala allí primero.'); } }
 async function bounded(response: Response, max: number): Promise<Uint8Array> {
   if (!response.ok) throw new SafeError(502, 'Garmin no ha entregado el archivo.');
   if (Number(response.headers.get('content-length')) > max) throw new SafeError(413, 'El archivo supera el límite permitido.');
@@ -252,11 +254,14 @@ export function createGarminService(options: GarminServiceOptions) {
     if (origin && options.allowedOrigins.includes(origin)) { headers.set('Access-Control-Allow-Origin', origin); headers.set('Access-Control-Allow-Headers', 'authorization, content-type, apikey, x-client-info'); headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); }
     const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers });
     try {
+      const back = (to: URL) => new Response(null, { status: 303, headers: { Location: to.href, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
       const url = new URL(request.url); const path = url.pathname.slice(url.pathname.indexOf('/garmin') + 7) || '/';
       if (request.method === 'OPTIONS') return new Response(null, { status: origin && options.allowedOrigins.includes(origin) ? 204 : 403, headers });
       const hook = path.match(/^\/notifications(?:\/([^/]*))?$/);
       if (request.method === 'POST' && hook) { await notification(request, hook[1] ?? ''); return json({ accepted: true }); }
       if (request.method === 'GET' && path === '/callback') {
+        // Navegación del navegador, no una llamada de la app: un fallo vuelve a la app con su código, nunca JSON en pantalla.
+        try {
         if (!available) throw new SafeError(503, 'Garmin Connect todavía no está disponible.');
         const state = url.searchParams.get('state');
         if (!state || state.length > 256) throw new SafeError(400, 'La autorización ha caducado. Vuelve a conectar.');
@@ -281,7 +286,11 @@ export function createGarminService(options: GarminServiceOptions) {
           garminUserId: identity.userId, ciphertext: await encryptSecret(JSON.stringify(tokens), options.encryptionKey, pending.userId),
           expiresAt: tokens.expiresAt, refreshExpiresAt: tokens.refreshExpiresAt, permissions } });
         const redirect = new URL(options.appUrl); redirect.hash = `/ajustes?abrir=conexiones&garmin_code=${completion}`;
-        return new Response(null, { status: 303, headers: { Location: redirect.href, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+        return back(redirect);
+        } catch (error) {
+          const redirect = new URL(options.appUrl); redirect.hash = `/ajustes?abrir=conexiones&garmin_error=${error instanceof SafeError ? error.status : 503}`;
+          return back(redirect);
+        }
       }
       const bearer = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
       const userId = bearer ? await options.authenticate(bearer) : null;
