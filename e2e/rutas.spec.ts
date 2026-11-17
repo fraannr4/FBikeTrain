@@ -116,12 +116,27 @@ function zone(empty: boolean) {
   };
 }
 
-type Mocks = { libraryBodies: string[]; orsCalls: () => number };
+type Mocks = { libraryBodies: string[]; orsCalls: () => number; weatherUrls: string[] };
 
-/** `slowAfter`: a partir de esa consulta, ORS no contesta en 20 s. */
-async function setup(page: Page, opts: { emptyLibrary?: boolean; slowAfter?: number } = {}): Promise<Mocks> {
+/** Previsión sintética de Open-Meteo (7 días, hora de Madrid): 14 grados, 20 % de lluvia y 18 km/h del noroeste. */
+function weatherBody() {
+  const time: string[] = [];
+  for (let d = 0; d < 7; d++) {
+    const day = new Date(NOW.getTime() + d * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    for (let h = 0; h < 24; h++) time.push(`${day}T${String(h).padStart(2, '0')}:00`);
+  }
+  const fill = (v: number) => time.map(() => v);
+  return {
+    latitude: HOME.lat, longitude: HOME.lng, timezone: 'Europe/Madrid',
+    hourly: { time, temperature_2m: fill(14.2), precipitation_probability: fill(20), wind_speed_10m: fill(18), wind_direction_10m: fill(315), wind_gusts_10m: fill(33) },
+  };
+}
+
+/** `slowAfter`: a partir de esa consulta, ORS no contesta en 20 s. `weather: 'fail'`: Open-Meteo no responde. */
+async function setup(page: Page, opts: { emptyLibrary?: boolean; slowAfter?: number; weather?: 'ok' | 'fail' } = {}): Promise<Mocks> {
   const context = page.context();
   const libraryBodies: string[] = [];
+  const weatherUrls: string[] = [];
   let ors = 0;
   await context.clock.setFixedTime(NOW);
   await context.route('https://*.supabase.co/**', (r) => r.abort());
@@ -164,8 +179,15 @@ async function setup(page: Page, opts: { emptyLibrary?: boolean; slowAfter?: num
     return r.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify({ data }) });
   });
 
+  // Previsión: el navegador nunca sale a internet.
+  await page.route('https://api.open-meteo.com/**', (r) => {
+    weatherUrls.push(r.request().url());
+    if (opts.weather === 'fail') return r.abort('internetdisconnected');
+    return r.fulfill({ status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify(weatherBody()) });
+  });
+
   await seed(page, { activities: RIDES, settings: settings({ orsKey: 'test-key' }) });
-  return { libraryBodies, orsCalls: () => ors };
+  return { libraryBodies, orsCalls: () => ors, weatherUrls };
 }
 
 const noOverflow = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
@@ -186,6 +208,27 @@ async function visibleWithoutScroll(page: Page, name: string) {
 async function propose(page: Page) {
   await page.getByLabel('Distancia').fill('60');
   await page.getByRole('button', { name: 'Proponer rutas' }).click();
+}
+
+// Capturas de revisión del tiempo y el viento a 390 px, en claro y en oscuro.
+for (const theme of ['light', 'dark'] as const) {
+  test(`tiempo y viento a 390 px (${theme})`, async ({ page }) => {
+    const shots = 'docs/design/2026-11-17-viento-rutas';
+    mkdirSync(shots, { recursive: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: theme });
+    await setup(page);
+    await page.goto('#/rutas');
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    await propose(page);
+    await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0, { timeout: 90_000 });
+    await expect(page.getByRole('group', { name: 'Tiempo para la salida' })).toBeVisible();
+    expect(await noOverflow(page)).toBe(true);
+    await page.getByRole('heading', { name: 'Propuestas' }).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await page.screenshot({ path: `${shots}/rutas-viento-390-${theme}.png`, fullPage: false });
+    await page.getByRole('article').nth(2).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${shots}/tarjeta-viento-390-${theme}.png`, fullPage: false });
+  });
 }
 
 for (const size of SIZES) {
@@ -241,6 +284,65 @@ for (const size of SIZES) {
       expect(await name.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
       await expect(cards.nth(2).getByLabel(`Mapa de ${await name.getAttribute('title')}`)).toBeVisible();
       await page.screenshot({ path: `${DIR}/propuestas-${size.width}.png`, fullPage: true });
+    });
+
+    test('enseña el tiempo de la hora elegida y cómo pega el viento en cada vuelta', async ({ page }) => {
+      const mocks = await setup(page);
+      await page.goto('#/rutas');
+      // Antes de proponer no se pide nada al servicio del tiempo.
+      expect(mocks.weatherUrls).toEqual([]);
+      await propose(page);
+      await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0, { timeout: 90_000 });
+
+      const row = page.getByRole('group', { name: 'Tiempo para la salida' });
+      await expect(row).toBeVisible();
+      await expect(row).toContainText('14 °C');
+      await expect(row).toContainText('Lluvia 20 %');
+      await expect(row).toContainText('Viento 18 km/h del NO, rachas de 33');
+      // Hoy a la hora siguiente (NOW es las 12:00 de Madrid).
+      await expect(row.getByLabel('Hora')).toHaveValue('13');
+      await expect(row.getByLabel('Día').locator('option')).toHaveCount(7);
+
+      const cards = page.getByRole('article');
+      const count = await cards.count();
+      expect(count).toBeGreaterThanOrEqual(3);
+      for (let i = 0; i < count; i++) {
+        const summary = cards.nth(i).locator('.wx-summary');
+        await expect(summary).toBeVisible();
+        await expect(summary).toContainText('18 km/h del NO');
+        await expect(cards.nth(i).locator('.wx-share')).toContainText(/% de cara · .* % a favor · .* % de lado/);
+      }
+      // Sin scroll lateral y el texto del viento cabe en su tarjeta.
+      expect(await noOverflow(page)).toBe(true);
+      const fits = await page.locator('.wx-row, .wx-wind').evaluateAll((els) => els.every((el) => el.scrollWidth <= el.clientWidth + 1));
+      expect(fits).toBe(true);
+
+      // A Open-Meteo solo viaja el inicio redondeado a 2 decimales, y una sola vez.
+      expect(mocks.weatherUrls).toHaveLength(1);
+      const q = new URL(mocks.weatherUrls[0]).searchParams;
+      for (const k of ['latitude', 'longitude']) expect(q.get(k)!.split('.')[1]?.length ?? 0).toBeLessThanOrEqual(2);
+      expect(q.get('latitude')).toBe((Math.round(HOME.lat * 100) / 100).toString());
+
+      // Cambiar la hora no vuelve a pedir y mantiene la línea de viento.
+      await row.getByLabel('Hora').selectOption('18');
+      await expect(cards.first().locator('.wx-summary')).toContainText('18 km/h del NO');
+      expect(mocks.weatherUrls).toHaveLength(1);
+      await page.screenshot({ path: `${DIR}/viento-${size.width}.png`, fullPage: true });
+    });
+
+    test('si el tiempo no responde, las tarjetas salen igual con una línea discreta', async ({ page }) => {
+      const mocks = await setup(page, { weather: 'fail' });
+      await page.goto('#/rutas');
+      await propose(page);
+      await expect(page.getByRole('button', { name: 'Cancelar' })).toHaveCount(0, { timeout: 90_000 });
+      const cards = page.getByRole('article');
+      expect(await cards.count()).toBeGreaterThanOrEqual(3);
+      await expect(page.getByText('Sin previsión ahora')).toBeVisible();
+      await expect(page.getByRole('group', { name: 'Tiempo para la salida' })).toHaveCount(0);
+      await expect(page.locator('.wx-wind')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Exportar GPX' }).first()).toBeVisible();
+      expect(await noOverflow(page)).toBe(true);
+      expect(mocks.weatherUrls.length).toBeGreaterThanOrEqual(1);
     });
 
     test('una biblioteca vacía no enseña tarjetas y dice por qué', async ({ page }) => {

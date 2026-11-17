@@ -11,14 +11,16 @@ import { GpxHelpSheet } from './gpxExport';
 import { routeName } from './routeView';
 import { sendGpx } from './sendGpx';
 import { useSaveRoute } from './useSaveRoute';
+import { WindLine } from './WeatherRow';
+import type { HourForecast } from '../../weather/forecast';
 
-type Props = { card: Extract<GeneratorCard, { kind: 'nueva' }>; start: LatLng };
+type Props = { card: Extract<GeneratorCard, { kind: 'nueva' }>; start: LatLng; weather?: HourForecast | null };
 
 /**
  * Vuelta nueva del generador: etiqueta «Nueva», nombre por el lado hacia el que va (una línea con
  * elipsis; completo en el mapa), mapa en línea, cifras y las acciones Exportar GPX y Guardar.
  */
-export const NewRouteCard = memo(function NewRouteCard({ card, start }: Props) {
+export const NewRouteCard = memo(function NewRouteCard({ card, start, weather }: Props) {
   const toast = useToast();
   const saveRoute = useSaveRoute();
   const { route, id } = card;
@@ -87,6 +89,7 @@ export const NewRouteCard = memo(function NewRouteCard({ card, start }: Props) {
           </div>
         ) : null}
       </dl>
+      <WindLine points={shape} weather={weather} />
       <div className="cat-actions nb-actions">
         <button type="button" className="btn btn--primary" onClick={() => void exportGpx()}>
           <Download className="ic" aria-hidden="true" />

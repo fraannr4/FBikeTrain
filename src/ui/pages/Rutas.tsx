@@ -38,6 +38,8 @@ import { NewRouteCard } from '../routes/NewRouteCard';
 import { ProposalCard } from '../routes/ProposalCard';
 import { referenceRange } from '../routes/routeView';
 import { StartChoice, startPoint, type PickedPoints, type StartKind } from '../routes/StartChoice';
+import { useRideWeather, WeatherRow } from '../routes/WeatherRow';
+import type { HourForecast } from '../../weather/forecast';
 import '../styles/library.css';
 import '../styles/wikiloc.css';
 
@@ -101,14 +103,15 @@ type Search =
   | { state: 'error'; n: number; start: LatLng; message: string; cards: GeneratorCard[] };
 type UploadState = { state: 'adapting'; name: string } | { state: 'ready'; original: ParsedReferenceRoute; adapted: AdaptedRoute } | { state: 'error'; message: string };
 
-function SearchCard({ card, start }: { card: GeneratorCard; start: LatLng }) {
-  if (card.kind === 'nueva') return <NewRouteCard card={card} start={start} />;
+function SearchCard({ card, start, weather }: { card: GeneratorCard; start: LatLng; weather: HourForecast | null }) {
+  if (card.kind === 'nueva') return <NewRouteCard card={card} start={start} weather={weather} />;
   const source = toParsedReference(card.route);
   return (
     <ProposalCard
       origin={libraryOrigin(card)}
       source={{ name: source.name, original: source, sourceUrl: source.sourceUrl, author: source.author }}
       adapted={card.adapted}
+      weather={weather}
     />
   );
 }
@@ -139,6 +142,8 @@ export function Rutas() {
   const abort = useRef<AbortController | null>(null);
   const searches = useRef(0);
   const running = search?.state === 'running';
+  // El tiempo se pide con el inicio de la búsqueda (redondeado a ~1 km), no con Casa tal cual.
+  const weather = useRideWeather(search?.start ?? null);
 
   useEffect(() => {
     if (!running) return;
@@ -404,9 +409,10 @@ export function Rutas() {
           <h2 className="section-title" id="rutas-propuestas">
             Propuestas
           </h2>
+          <WeatherRow weather={weather} />
           <div className="cat-list">
             {search.cards.map((c) => (
-              <SearchCard key={`${search.n}-${c.id}`} card={c} start={search.start} />
+              <SearchCard key={`${search.n}-${c.id}`} card={c} start={search.start} weather={weather.hour} />
             ))}
           </div>
           {search.state === 'running' ? (

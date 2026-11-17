@@ -8,6 +8,8 @@ import { formatKm, formatMeters } from '../format';
 import { Download, ExternalLink, Folder } from '../icons';
 import { GpxHelpSheet } from './gpxExport';
 import { sendGpx } from './sendGpx';
+import { WindLine } from './WeatherRow';
+import type { HourForecast } from '../../weather/forecast';
 
 export type ProposalSource = {
   name: string;
@@ -35,7 +37,7 @@ function originLabel(url: string): string {
  * Una ruta adaptada lista para llevarse: mapa, cifras, avisos, «Enviar al iGPSPORT» y «Guardar en la biblioteca».
  * `origin` es la etiqueta de origen sobre el nombre («Ride with GPS · autora»).
  */
-export function ProposalCard({ source, adapted, why, origin, headingLevel = 3 }: { source: ProposalSource; adapted: AdaptedRoute; why?: string; origin?: string; headingLevel?: 2 | 3 }) {
+export function ProposalCard({ source, adapted, why, origin, headingLevel = 3, weather }: { source: ProposalSource; adapted: AdaptedRoute; why?: string; origin?: string; headingLevel?: 2 | 3; weather?: HourForecast | null }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -110,6 +112,7 @@ export function ProposalCard({ source, adapted, why, origin, headingLevel = 3 }:
           <dd>{nearText(adapted.passesNearM)}</dd>
         </div>
       </dl>
+      {usable ? <WindLine points={adapted.coords} weather={weather} /> : null}
       {why ? <p className="wk-why">{why}</p> : null}
       {adapted.warnings.length > 0 ? (
         <ul className="wk-warnings" aria-label="Avisos">
