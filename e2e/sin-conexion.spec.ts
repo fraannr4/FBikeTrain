@@ -23,6 +23,9 @@ test('tras una sola visita, la app arranca sin red y abre una pantalla ya vista'
   await page.reload();
   await expect(menu).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // Las pestañas principales se descargan en segundo plano: abren sin red aunque no se hayan visitado.
+  await menu.getByRole('link', { name: 'Historial' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Historial' })).toBeVisible();
   // Nada de otros orígenes ni el propio worker queda guardado.
   const kept = await page.evaluate(async () => (await (await caches.open('fbiketrain-app-v1')).keys()).map(request => request.url));
   const origin = new URL(page.url()).origin;

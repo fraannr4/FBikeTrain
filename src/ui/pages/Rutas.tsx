@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { isAbort } from '../../ai/abort';
 import { resolveReference } from '../../ai/levelSummary';
 import { useAccount } from '../../auth/AccountBoundary';
-import { listActivities } from '../../db/repo';
+import { countActivities, listActivities } from '../../db/repo';
 import type { LatLng, Settings } from '../../domain/types';
 import { adaptRoute, type AdaptedRoute } from '../../routes/adapt';
 import { loadVisitedCells } from '../../routes/history';
@@ -195,6 +195,9 @@ export function Rutas() {
   const gainOk = gainText.trim() === '' || (gain !== null && gain >= 0 && gain <= MAX_GAIN_M);
   const distanceError = (checked || distanceText.trim() !== '') && !distanceOk ? DISTANCE_ERROR : undefined;
   const gainError = gainOk ? undefined : GAIN_ERROR;
+  // Sin salidas, las rutas no se pueden puntuar contra el nivel del ciclista: se le dice cómo arreglarlo.
+  const [rideCount, setRideCount] = useState<number | null>(null);
+  useEffect(() => { let alive = true; void countActivities().then((n) => { if (alive) setRideCount(n); }).catch(() => {}); return () => { alive = false; }; }, []);
   const hasKey = !!settings && ((sharedOrsEnabled() && account !== null) || settings.ors.apiKey.trim() !== '');
   const ors = useMemo(() => (settings ? chooseOrsAccess(settings.ors.apiKey, account) : null), [settings, account]);
   const busy = running || upload?.state === 'adapting';
@@ -401,6 +404,9 @@ export function Rutas() {
               Proponer rutas
             </button>
           )}
+          {rideCount === 0 ? (
+            <p className="help"><Link to="/importar">Importa tus salidas</Link> para que las rutas se ajusten a tu nivel.</p>
+          ) : null}
         </section>
       ) : null}
 

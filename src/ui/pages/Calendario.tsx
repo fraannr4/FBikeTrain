@@ -429,7 +429,7 @@ export function Calendario() {
                   icon={Calendar}
                   level={2}
                   title="Aún no has planificado nada"
-                  text="Apunta tus próximas salidas. Cuando importes la salida de Strava, el entreno se marca solo como hecho."
+                  text={<>Apunta tus próximas salidas. Cuando <Link to="/importar">importes la salida</Link> de Strava, el entreno se marca solo como hecho.</>}
                   action={
                     <button className="btn btn--primary" type="button" onClick={() => openForm(null, planDate)}>
                       <Plus className="ic" aria-hidden="true" />

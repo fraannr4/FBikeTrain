@@ -6,6 +6,9 @@
 - **Límites.** Una pantalla que nunca se abrió no funciona sin red. Los datos de la comunidad necesitan servidor. Sin probar en un móvil real.
 - **Medición del arranque.** `index` pesa 538 kB (162 kB gzip): Supabase, Dexie, React y el router, todos necesarios para iniciar sesión. `App` pesa 223 kB, sobre todo zod y date-fns. Las pantallas ya bajan cada una en su chunk. No se ha recortado nada más.
 - `echarts` quitado de `package.json`: no lo importaba ningún fichero.
+- **Accesibilidad y primer uso (`5177dd1` y siguiente).** Auditoría con cuenta vacía a 390 px en 13 pantallas: contraste, nombres accesibles, objetivos táctiles, movimiento reducido y desbordamiento, sin fallos. Arreglado: título de la pestaña por pantalla (`usePageTitle`, lo pone `Page`), pantalla «no encontrada» para direcciones desconocidas, `#/objetivos` redirige a `#/plan/objetivos`, el foco pasa al contenido al cambiar de pestaña, enlace a Importar en `#/rutas` y `#/plan` con cuenta vacía. La página de privacidad nombra Groq como proveedor de la IA, igual que la solicitud de Garmin.
+- **Garmin.** Solicitud Starter enviada el 2026-11-18 (Activity API y Courses API). Falta la respuesta de Garmin; pasos siguientes en `docs/garmin-solicitud-starter.md`.
+- Las cuatro pestañas principales se descargan en segundo plano y abren sin red aunque no se hayan visitado (comprobado en `e2e/sin-conexion.spec.ts`).
 - Pruebas: `tests/serviceWorkerCache.test.ts` y `e2e/sin-conexion.spec.ts`. `e2e/biblioteca-comun.spec.ts` sube su límite a 60 s y los objetivos táctiles de `e2e/perfil-retos-amigos.spec.ts` esperan a que la pantalla pinte en lugar de 700 ms fijos.
 
 ## Retomar aquí (2026-11-18): auditoría móvil aplicada y pulido técnico
