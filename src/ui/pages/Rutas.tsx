@@ -385,7 +385,7 @@ export function Rutas() {
           ) : !hasKey ? (
             <StateView
               icon={KeyRound}
-              level={3}
+              level={2}
               title="Falta tu clave de rutas"
               text="Para calcular las vueltas hace falta OpenRouteService. Pega tu clave en Ajustes."
               action={

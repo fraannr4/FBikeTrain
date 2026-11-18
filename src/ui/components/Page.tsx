@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AppBar } from './AppBar';
 import { PageHead } from './PageHead';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 type Props = {
   /** `h1` de la pantalla (en Subidas, «Historial»: la pestaña). */
@@ -36,6 +37,7 @@ export function Page(props: Props) {
   // Con la prop presente (aunque aún sin mapa) el envoltorio no cambia: los hijos no se remontan al llegar el mapa.
   const withMap = 'desktopMap' in props;
   const desktop = useDesktopLayout();
+  usePageTitle(barTitle ?? title);
   const cls = ['page', variant ? `page--${variant}` : '', className ?? ''].filter(Boolean).join(' ');
   return (
     <>

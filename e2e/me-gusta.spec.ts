@@ -68,12 +68,13 @@ for (const width of [360, 390]) {
       await like.click();
       const liked = page.getByRole('button', { name: 'Quitar me gusta, 5' });
       await expect(liked).toHaveAttribute('aria-pressed', 'true');
-      expect(writes.at(-1)).toMatchObject({ method: 'POST', body: { user_id: ME, object_type: 'challenge', object_id: 'c3' } });
+      // El botón cambia antes de que salga la petición: se espera a que llegue.
+      await expect.poll(() => writes.at(-1)).toMatchObject({ method: 'POST', body: { user_id: ME, object_type: 'challenge', object_id: 'c3' } });
       expect(await overflow(page)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/retos-${width}-${theme}.png` });
       await liked.click();
       await expect(page.getByRole('button', { name: 'Me gusta, 4' })).toHaveAttribute('aria-pressed', 'false');
-      expect(writes.at(-1)).toMatchObject({ method: 'DELETE' });
+      await expect.poll(() => writes.at(-1)).toMatchObject({ method: 'DELETE' });
       expect(writes.at(-1)!.url).toContain('object_id=eq.c3');
 
       // Detalle del reto.

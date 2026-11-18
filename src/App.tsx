@@ -29,6 +29,7 @@ const Reto = lazyPage(() => import('./ui/pages/Reto').then((m) => ({ default: m.
 const Ciclistas = lazyPage(() => import('./ui/pages/Ciclistas').then((m) => ({ default: m.Ciclistas })));
 const CommunityRetos = lazyPage(() => import('./ui/pages/CommunityRetos').then((m) => ({ default: m.CommunityRetos })));
 const CommunityNuevoReto = lazyPage(() => import('./ui/pages/CommunityNuevoReto').then((m) => ({ default: m.CommunityNuevoReto })));
+const NoEncontrada = lazyPage(() => import('./ui/pages/NoEncontrada').then((m) => ({ default: m.NoEncontrada })));
 const CommunityReto = lazyPage(() => import('./ui/pages/CommunityReto').then((m) => ({ default: m.CommunityReto })));
 
 // Destinos de la barra de pestañas: se descargan en un rato libre, después de pintar la primera pantalla.
@@ -96,6 +97,9 @@ export function App() {
           <Route path="/retos/anteriores" element={<Retos />} />
           <Route path="/retos/anterior/nuevo" element={<NuevoReto />} />
           <Route path="/retos/:id" element={<Reto />} />
+          {/* El plan tuvo los objetivos en la raíz en enlaces antiguos. */}
+          <Route path="/objetivos" element={<Navigate to="/plan/objetivos" replace />} />
+          <Route path="*" element={<NoEncontrada />} />
         </Routes>
         </Suspense>
       </AppShell>

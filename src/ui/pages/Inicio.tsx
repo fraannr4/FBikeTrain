@@ -18,6 +18,7 @@ import { Skeleton } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { StravaHowTo } from '../components/StravaHowTo';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { EventGoalRow, GoalGlance } from '../inicio/GoalGlance';
 import { Hero } from '../inicio/Hero';
 import { OwnProfileButton } from '../shell/OwnProfileButton';
@@ -66,6 +67,7 @@ type Data = {
 };
 
 export function Inicio() {
+  usePageTitle('Inicio');
   const connectionRevision = useConnectionRevision();
   const { key: entry, pathname, search } = useLocation();
   const navType = useNavigationType();

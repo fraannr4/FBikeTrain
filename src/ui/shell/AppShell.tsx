@@ -40,6 +40,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       main.removeAttribute('data-screen-enter');
       void main.offsetWidth;
       main.setAttribute('data-screen-enter', '');
+      // La barra de pestañas va después del contenido: si el foco se quedara en ella, el siguiente
+      // Tab saltaría a la pestaña vecina. Si la pantalla ya ha puesto su propio foco, no se toca.
+      const active = document.activeElement;
+      if (active && active !== document.body && !main.contains(active)) main.focus({ preventScroll: true });
     }
   }, [pathname, navType, overSheet]);
 
