@@ -1,5 +1,13 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-18, tarde): arranque sin red
+
+- **Arranque sin red.** `public/sw.js` guarda los recursos propios de la app en la caché `fbiketrain-app-v1`. Los ficheros de `assets/` salen de la copia; la página y los iconos, de la red, con la copia como respaldo, así un despliegue nuevo se ve al momento. Nada de otros orígenes se guarda (cuenta, mapas, datos). Tope de 200 copias. En la primera visita la página pasa al worker, 8 s después de cargar, la lista de lo ya descargado (`src/pwa/register.ts`): sin esa espera las pruebas tardaban 1,7 veces más.
+- **Límites.** Una pantalla que nunca se abrió no funciona sin red. Los datos de la comunidad necesitan servidor. Sin probar en un móvil real.
+- **Medición del arranque.** `index` pesa 538 kB (162 kB gzip): Supabase, Dexie, React y el router, todos necesarios para iniciar sesión. `App` pesa 223 kB, sobre todo zod y date-fns. Las pantallas ya bajan cada una en su chunk. No se ha recortado nada más.
+- `echarts` quitado de `package.json`: no lo importaba ningún fichero.
+- Pruebas: `tests/serviceWorkerCache.test.ts` y `e2e/sin-conexion.spec.ts`. `e2e/biblioteca-comun.spec.ts` sube su límite a 60 s y los objetivos táctiles de `e2e/perfil-retos-amigos.spec.ts` esperan a que la pantalla pinte en lugar de 700 ms fijos.
+
 ## Retomar aquí (2026-11-18): auditoría móvil aplicada y pulido técnico
 
 Publicado en `main`:
@@ -499,7 +507,7 @@ Investigación y decisiones en `docs/conectores-actividades.md`. Fusionado en `m
 
 ### PWA y recepción de archivos (rama `codex/pwa-compartir`, 2026-11-10; revisión 2026-11-11)
 
-Fusionado en main por `b489fc2`: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. No hay precaché ni modo offline. La revisión sin publicar de `codex/fuentes-externas` conserva envíos al recargar, permite elegir biblioteca/historial para GPX/TCX y no consume los archivos que el importador no pudo leer. La biblioteca ya tiene selector manual como respaldo para iOS, que no admite `share_target`. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar instalación y envíos desde Wikiloc/iGPSPORT en un Android real. Verificación en `docs/verificaciones.md`.
+Fusionado en main por `b489fc2`: manifest instalable, iconos de marca 192/512, SW propio que solo recibe POST multipart, pantalla `/compartido`, reanudación tras login y acción de instalación en Ajustes. Rutas de referencia mediante `importReferenceRoute`; actividades mediante el importador existente con su informe de duplicados. Entonces no había precaché ni modo offline (el arranque sin red llegó el 2026-11-18). La revisión sin publicar de `codex/fuentes-externas` conserva envíos al recargar, permite elegir biblioteca/historial para GPX/TCX y no consume los archivos que el importador no pudo leer. La biblioteca ya tiene selector manual como respaldo para iOS, que no admite `share_target`. Guía y límites: `docs/pwa-compartir.md`. Pendiente comprobar instalación y envíos desde Wikiloc/iGPSPORT en un Android real. Verificación en `docs/verificaciones.md`.
 
 ### Lote de IA con referencias y entrenos: HECHO (plan `docs/superpowers/plans/2026-11-10-ia-referencias-entrenos.md`)
 

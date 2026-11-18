@@ -76,6 +76,6 @@ describe('service worker: avisos push', () => {
   });
   it('conserva la recepción de ficheros compartidos', () => {
     const { handlers } = loadWorker();
-    expect(Object.keys(handlers).sort()).toEqual(['activate', 'fetch', 'install', 'notificationclick', 'push']);
+    expect(Object.keys(handlers).sort()).toEqual(['activate', 'fetch', 'install', 'message', 'notificationclick', 'push']);
   });
 });

@@ -21,9 +21,18 @@ export async function installApp(): Promise<void> {
   await current.prompt();
   await current.userChoice;
 }
+const KEEP_DELAY_MS = 8000;
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // Primera visita: esta carga ha ido sin worker, así que se le pasa lo ya descargado para poder arrancar sin red.
+    const firstVisit = !navigator.serviceWorker.controller;
     void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, { scope: import.meta.env.BASE_URL })
+      .then(() => firstVisit ? navigator.serviceWorker.ready : null)
+      // Con espera: guardar las copias no debe competir con el primer pintado de la app.
+      .then(registration => registration && window.setTimeout(() => registration.active?.postMessage({
+        type: 'keep',
+        urls: [location.origin + location.pathname, ...performance.getEntriesByType('resource').map(entry => entry.name)],
+      }), KEEP_DELAY_MS))
       .catch(() => { /* La web sigue funcionando si el navegador bloquea el SW. */ });
   });
 }

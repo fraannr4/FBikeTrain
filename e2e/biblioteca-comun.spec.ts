@@ -2,6 +2,9 @@ import { mkdirSync } from 'node:fs';
 import { expect, test, type Page } from './accountFixture';
 import { HOME, seed, settings } from './seed';
 
+// Semilla en IndexedDB, 24 tarjetas y capturas con esperas fijas: 30 s no bastan con el equipo cargado.
+test.setTimeout(60_000);
+
 // Todo es sintético: la función `route-sources` se intercepta y las rutas son curvas inventadas
 // alrededor de la Puerta del Sol; ninguna ruta, autor ni enlace es real.
 const SHOTS = 'docs/design/2026-11-17-biblioteca-comun';

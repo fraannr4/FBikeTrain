@@ -1,11 +1,66 @@
-/* Solo recepción de ficheros y enlaces compartidos. Ninguna petición GET ni recurso de la app se cachea. */
+/* Recepción de ficheros y enlaces compartidos, avisos push y arranque sin red con los recursos propios de la app. */
 const SHARE_CACHE = 'fbiketrain-shares-v1';
 const base = new URL('./', self.location.href);
 // Sin la puntuación final de una frase («… esta ruta: https://ridewithgps.com/routes/123.»).
 const RWGPS_LINK = /https:\/\/(?:www\.)?ridewithgps\.com\/(?:routes|collections)\/\d+(?:-[\w-]*)?(?:\?[\w=&%-]+)?/g;
 self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+/* Arranque sin red. Solo recursos propios de la app, guardados al usarlos: nada de otros orígenes (cuenta, mapas, datos). */
+const APP_CACHE = 'fbiketrain-app-v1';
+const APP_CACHE_MAX = 200;
+async function keepCopy(request, response) {
+  if (!response.ok || response.type !== 'basic') return;
+  const cache = await caches.open(APP_CACHE);
+  await cache.put(request, response);
+  // Cada despliegue trae ficheros con nombre nuevo: se borran los más antiguos para no crecer sin límite.
+  const keys = await cache.keys();
+  for (const key of keys.slice(0, Math.max(0, keys.length - APP_CACHE_MAX))) await cache.delete(key);
+}
+async function fromNetwork(event, key) {
+  const response = await fetch(event.request);
+  event.waitUntil(keepCopy(key, response.clone()).catch(() => { /* Sin espacio: la app sigue con la red. */ }));
+  return response;
+}
+/** Ruta dentro de la app de un recurso propio que se puede guardar; `null` para todo lo demás. */
+function appPath(value) {
+  let url;
+  try { url = new URL(value); } catch { return null; }
+  if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) return null;
+  const path = url.pathname.slice(base.pathname.length);
+  return path === 'sw.js' || path.startsWith('shared-inbox/') ? null : path;
+}
+function appResource(event) {
+  const path = appPath(event.request.url);
+  if (path === null || event.request.headers.has('range')) return;
+  const key = base.href + path;
+  event.respondWith((async () => {
+    const cache = await caches.open(APP_CACHE);
+    // Los ficheros de assets/ llevan su contenido en el nombre: la copia guardada nunca queda vieja.
+    if (path.startsWith('assets/')) return (await cache.match(key)) ?? fromNetwork(event, key);
+    // La página y los iconos, siempre de la red si la hay: un despliegue nuevo se ve al momento.
+    try { return await fromNetwork(event, key); } catch (error) {
+      const saved = await cache.match(key);
+      if (saved) return saved;
+      throw error;
+    }
+  })());
+}
+/* En la primera visita la página carga antes de que este worker mande: ella misma avisa de qué ha usado para guardarlo. */
+self.addEventListener('message', event => {
+  const data = event.data;
+  if (!data || data.type !== 'keep' || !Array.isArray(data.urls)) return;
+  event.waitUntil((async () => {
+    const cache = await caches.open(APP_CACHE);
+    for (const value of data.urls.slice(0, 150)) {
+      const path = typeof value === 'string' ? appPath(value) : null;
+      if (path === null) continue;
+      const key = base.href + path;
+      try { if (!(await cache.match(key))) await keepCopy(key, await fetch(key)); } catch { /* Sin red o sin espacio: se guardará al usarlo. */ }
+    }
+  })());
+});
 self.addEventListener('fetch', event => {
+  if (event.request.method === 'GET') { appResource(event); return; }
   if (event.request.method !== 'POST' || event.request.url !== new URL('share-target', base).href) return;
   event.respondWith((async () => {
     try {

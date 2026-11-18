@@ -156,9 +156,9 @@ for (const [name, hash] of [['Retos', '#/retos'], ['Perfil', '#/perfil'], ['Amig
     await prepare(page);
     await fake(page);
     await page.goto(`./${hash}`);
+    // La pantalla baja en su propio chunk: se espera a que pinte, no un tiempo fijo.
+    await expect.poll(async () => (await smallTargets(page)).total).toBeGreaterThan(3);
     await page.waitForTimeout(700);
-    const { total, small } = await smallTargets(page);
-    expect(total).toBeGreaterThan(3);
-    expect(small).toEqual([]);
+    expect((await smallTargets(page)).small).toEqual([]);
   });
 }
