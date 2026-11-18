@@ -57,7 +57,7 @@ export function usesMotorway(waycategory: OrsExtra): boolean {
 }
 
 /** Distancia acumulada en cada punto (m). */
-function cumulativeM(coords: Coord3[]): number[] {
+export function cumulativeM(coords: Coord3[]): number[] {
   const cum = [0];
   for (let i = 1; i < coords.length; i++) {
     const [aLng, aLat] = coords[i - 1];
@@ -86,7 +86,7 @@ function elevationGainM(coords: Coord3[]): number {
  * Metros de pista sin firme confirmado. En el monte catalán muchas pistas están asfaltadas: esas no
  * cuentan. Sin tramos por índice (respuestas antiguas), cuenta toda la pista del resumen.
  */
-function roughTrackM(waytypes: OrsExtra, surface: OrsExtra, cum: number[]): number {
+export function roughTrackM(waytypes: OrsExtra, surface: OrsExtra, cum: number[]): number {
   const tracks = waytypes.values.filter(([, , v]) => v === WAYTYPE_TRACK);
   if (tracks.length === 0) return sumSummary(waytypes, 'distance', (v) => v === WAYTYPE_TRACK);
   const at = (i: number) => cum[Math.min(i, cum.length - 1)] ?? 0;

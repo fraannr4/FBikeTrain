@@ -1,5 +1,32 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-18): auditoría móvil aplicada y pulido técnico
+
+Publicado en `main`:
+
+- `92676cb`: los lotes 1 a 4 de la auditoría móvil (`docs/design/2026-11-17-auditoria-movil/README.md`). El hallazgo 11 ya se cumplía.
+
+Pulido técnico, plan `docs/superpowers/plans/2026-11-18-pulido-tecnico.md`:
+
+- Una conexión por carretera ya no se rechaza por una pista asfaltada: `fetchRoadPath` usa `roughTrackM`, como el filtro principal.
+- Todos los enlaces que abren otra pestaña lo dicen al lector de pantalla. `tests/enlacesExternos.test.ts` vigila los nuevos.
+- `useDesktopLayout` ya no se resuscribe en cada render. Los umbrales viven en `DESKTOP_QUERY` y `WIDE_QUERY`.
+- La PWA tiene icono maskable (`public/brand-mark-maskable-512.png`).
+- El trigger de push (`202611170004` y `202611170005`) entra en `node scripts/test-account-sql.mjs`, con un doble de `net.http_post`.
+
+Pendientes antiguos que ya no aplican. «Rutas con IA» y «Empalmar» se retiraron en `bb0d35b`:
+
+- Propuestas de la IA hacia lados distintos.
+- Que el motivo de la ruta con IA y Empalmar citen el objetivo.
+- `splice.ts` y las pistas asfaltadas: ese fichero solo guarda constantes.
+
+Sigue pendiente, y depende del usuario o de terceros:
+
+- Probar la sincronización con dos dispositivos reales y un aviso push real.
+- Estadísticas sociales por semana, mes y año: falta diseño.
+- Color de la miniatura de ruta frente al del mapa: decisión visual.
+- Garmin (`docs/garmin-solicitud-starter.md`), OAuth de Intervals.icu y mover los tracks a Supabase Storage si el uso crece.
+
 ## Retomar aquí (2026-11-17, última hora): sincronización entre dispositivos publicada
 
 Publicado en `main` (GitHub Pages):
@@ -18,7 +45,6 @@ Sin comprobar con datos reales:
 Pendiente:
 
 - Auditoría de diseño móvil: `docs/design/2026-11-17-auditoria-movil/README.md`. El usuario elige qué lotes se aplican.
-- `202611170004` y `202611170005` no entran en `scripts/test-account-sql.mjs`: necesitan `pg_net`.
 - Garmin: falta enviar la solicitud (`docs/garmin-solicitud-starter.md`).
 
 ## Retomar aquí (2026-11-17, noche): carga y forma, «me gusta» y avisos push publicados

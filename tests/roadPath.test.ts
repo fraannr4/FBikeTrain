@@ -39,4 +39,22 @@ describe('conexiones por carretera', () => {
     const path = await fetchRoadPath('key', [start, end], undefined, response([[2.5, 41], [2.501, 41.001]]));
     expect(path[0]).toEqual(start);
   });
+  describe('pistas', () => {
+    const line = [[2.5, 41, 0], [2.50025, 41.00025, 0], [2.5005, 41.0005, 0], [2.50075, 41.00075, 0], [2.501, 41.001, 0]];
+    const track = (trackValues: number[][], surfaceValue: number, surfaceAmount: number) =>
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ features: [{ geometry: { type: 'LineString', coordinates: line }, properties: { extras: {
+        surface: { summary: [{ value: surfaceValue, distance: 400, amount: surfaceAmount }], values: [[0, 4, surfaceValue]] },
+        waytypes: { summary: [{ value: 5, distance: 400, amount: 100 }], values: trackValues },
+        steepness: { summary: [], values: [] },
+      } } }] }), { status: 200 }));
+    it('acepta una pista asfaltada', async () => {
+      await expect(fetchRoadPath('key', [start, end], undefined, track([[0, 4, 5]], 3, 100))).resolves.toHaveLength(5);
+    });
+    it('rechaza una pista con firme desconocido', async () => {
+      await expect(fetchRoadPath('key', [start, end], undefined, track([[0, 4, 5]], 0, 15))).rejects.toThrow(/filtros de carretera/);
+    });
+    it('sin tramos por índice cuenta la pista del resumen', async () => {
+      await expect(fetchRoadPath('key', [start, end], undefined, track([], 3, 100))).rejects.toThrow(/filtros de carretera/);
+    });
+  });
 });

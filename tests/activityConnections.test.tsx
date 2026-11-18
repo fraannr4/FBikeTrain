@@ -20,7 +20,7 @@ function setup(connected = false, state = {}, storageError = false) {
 it('guides a new connection with own-account default and direct-device warning', () => {
   setup();
   expect(screen.getByLabelText('Athlete id de Intervals.icu')).toHaveValue('0');
-  expect(screen.getByRole('link', { name: 'Abrir ajustes de Intervals.icu' })).toHaveAttribute('href', 'https://intervals.icu/settings');
+  expect(screen.getByRole('link', { name: 'Abrir ajustes de Intervals.icu (se abre en otra pestaña)' })).toHaveAttribute('href', 'https://intervals.icu/settings');
   expect(screen.getByText(/opciones de desarrollador/i)).toBeVisible();
   expect(screen.getByText(/Conecta tu dispositivo directamente a Intervals.icu, no a través de Strava/)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Sincronizar ahora' })).toBeDisabled();

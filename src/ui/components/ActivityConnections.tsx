@@ -70,7 +70,7 @@ export function ActivityConnections({ defaultOpen }: { defaultOpen: boolean }) {
           <li>Al final, en las opciones de desarrollador, genera o copia tu clave de API.</li>
           <li>Vuelve aquí, pega la clave y guarda la conexión.</li>
         </ol>
-        <a className="btn btn--secondary btn--block" href="https://intervals.icu/settings" target="_blank" rel="noreferrer">Abrir ajustes de Intervals.icu</a>
+        <a className="btn btn--secondary btn--block" href="https://intervals.icu/settings" target="_blank" rel="noreferrer">Abrir ajustes de Intervals.icu<span className="sr-only"> (se abre en otra pestaña)</span></a>
         <Field id="intervals-athlete" label="Athlete id de Intervals.icu" help="Incluye la i si tu id la lleva (i12345). Puedes usar 0 para tu propia cuenta." autoCapitalize="none" spellCheck={false} autoComplete="off" maxLength={21} value={athleteId} disabled={!ready || busy} onChange={e => { setAthleteId(e.target.value); setSaved(false); }} />
         <Field id="intervals-key" label="Clave de API de Intervals.icu" help={config ? 'Ya hay una clave guardada. Déjalo vacío para conservarla o pega otra para cambiarla.' : 'Solo para tu cuenta personal de Intervals.icu.'} type="password" autoComplete="new-password" autoCapitalize="none" spellCheck={false} maxLength={256} value={apiKey} disabled={!ready || busy} onChange={e => { setApiKey(e.target.value); setSaved(false); }} />
         <label className="connection-check"><input type="checkbox" checked={autoSync} disabled={!ready || busy} onChange={e => { setAutoSync(e.target.checked); setSaved(false); }} /><span>Traer salidas al abrir o volver a la app, como máximo cada 6 horas</span></label>

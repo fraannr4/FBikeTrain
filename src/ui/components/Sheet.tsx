@@ -10,6 +10,7 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from 'react';
+import { DESKTOP_QUERY } from '../hooks/useDesktopLayout';
 import { X } from '../icons';
 import { useReducedMotion } from '../theme/motion';
 
@@ -150,7 +151,7 @@ export function Sheet({ open, onClose, title, sub, footer, closeLabel = 'Cerrar'
   // Arrastre del asa y la cabecera: abajo sigue al dedo; arriba, con fricción.
   const drag = useRef<{ id: number; y0: number; t0: number; dy: number } | null>(null);
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 1024px)').matches) return;
+    if (typeof window.matchMedia === 'function' && window.matchMedia(DESKTOP_QUERY).matches) return;
     const d = ref.current;
     if (!d || drag.current || e.button > 0) return;
     if ((e.target as Element).closest('button, a, input')) return;

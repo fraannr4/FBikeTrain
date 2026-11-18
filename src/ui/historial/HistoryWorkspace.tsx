@@ -1,11 +1,11 @@
 import { useParams } from 'react-router-dom';
-import { useDesktopLayout } from '../hooks/useDesktopLayout';
+import { useDesktopLayout, WIDE_QUERY } from '../hooks/useDesktopLayout';
 import { Historial } from '../pages/Historial';
 import { Salida } from '../pages/Salida';
 
 /** La URL conserva la selección y el historial de navegación en ambos tamaños. */
 export function HistoryWorkspace() {
-  const desktop = useDesktopLayout('(min-width: 1280px)');
+  const desktop = useDesktopLayout(WIDE_QUERY);
   const { id } = useParams();
   if (!desktop) return id ? <Salida /> : <Historial />;
   return (

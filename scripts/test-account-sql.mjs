@@ -87,6 +87,24 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611170003_push.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/push.sql', import.meta.url), 'utf8'));
   console.log('PASS: suscripciones push: solo las propias, alta por función con validación, límite de 10 dispositivos y sin acceso anónimo.');
+  // PGlite no trae pg_net: un doble de net.http_post apunta cada llamada y falla con una URL concreta.
+  await db.exec(`
+    create schema net;
+    create table net.calls (url text, body jsonb, headers jsonb);
+    create function net.http_post(url text, body jsonb, headers jsonb, timeout_milliseconds integer) returns bigint
+    language plpgsql as $$ begin
+      if url = 'https://falla.invalid/' then raise exception 'red caída'; end if;
+      insert into net.calls values (url, body, headers);
+      return 1;
+    end $$;
+  `);
+  const pushTrigger = await readFile(new URL('../supabase/migrations/202611170004_push_trigger.sql', import.meta.url), 'utf8');
+  const pgNet = 'create extension if not exists pg_net;';
+  if (!pushTrigger.includes(pgNet)) throw new Error('202611170004 ya no crea pg_net como esperaba el runner: revisa el doble de net.');
+  await db.exec(pushTrigger.replace(pgNet, ''));
+  await db.exec(await readFile(new URL('../supabase/migrations/202611170005_push_actor_name.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/push_trigger.sql', import.meta.url), 'utf8'));
+  console.log('PASS: trigger de push: nada sin configuración, nombre público y secreto en la petición, un fallo no impide el aviso.');
   await db.exec(await readFile(new URL('../supabase/migrations/202611170006_device_sync.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/device_sync.sql', import.meta.url), 'utf8'));
   console.log('PASS: sincronización entre dispositivos: solo lo propio, gana el cambio más reciente, borrados, cuota y sin acceso anónimo.');

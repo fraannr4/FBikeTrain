@@ -18,7 +18,7 @@ it('muestra el origen y el autor del GPX con un enlace seguro', async () => {
   await db.referenceRoutes.put({ ...parsed, id: 'synthetic-reference', createdAt: 0, updatedAt: 0 });
   render(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><BibliotecaRutas /></MemoryRouter>);
   await userEvent.setup().click(await screen.findByRole('button', { name: /Vuelta sintética/ }));
-  const link = screen.getByRole('link', { name: 'Origen: Wikiloc · Autora sintética' });
+  const link = screen.getByRole('link', { name: 'Origen: Wikiloc · Autora sintética (se abre en otra pestaña)' });
   expect(link).toHaveAttribute('href', parsed.sourceUrl);
   expect(link).toHaveAttribute('target', '_blank');
   expect(link).toHaveAttribute('rel', 'noopener noreferrer');
