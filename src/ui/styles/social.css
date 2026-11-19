@@ -38,7 +38,7 @@
 }
 .person-main { display: grid; gap: 2px; min-width: 0; }
 .person-profile { min-height: 44px; align-content: center; color: inherit; text-decoration: none; }
-.person-profile:hover .person-name { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) { .person-profile:hover .person-name { text-decoration: underline; } }
 .person-profile:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; border-radius: var(--r-md); }
 .person-name { font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); overflow-wrap: anywhere; }
 .person-meta { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); overflow-wrap: anywhere; }
@@ -82,3 +82,23 @@
 .reto-table th[scope="row"] { text-align: left; font-weight: 500; color: var(--ink-2); width: 38%; }
 .reto-table td b { font-family: var(--font-fig); font-weight: 700; }
 .reto-table tr:last-child > * { border-bottom: 0; }
+
+/* ===== Libro de ruta (tanda 2): Amigos y retos de ruta =====
+   Cajas sin filo, títulos de grupo y cifras rotulados. */
+.person { border-color: transparent; }
+.amigos-group h2 { font: 700 var(--fs-section)/1.1 var(--font-display); }
+.reto-card h2 { font: 700 var(--fs-name)/1.12 var(--font-display); }
+.reto-figures dd { font: 700 var(--fs-fig2)/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.reto-map { border-color: var(--rule); }
+/* Amigos en el móvil: las personas son renglones con regla fina, no una caja por persona.
+   Sin el relleno de la caja, los botones caben a la derecha desde 380 px. */
+@media (max-width: 899px) {
+  .amigos-list { gap: 0; border-top: 1px solid var(--rule); }
+  .amigos-list > .person { padding: 10px 0 12px; border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; background: none; }
+}
+@media (min-width: 380px) and (max-width: 400px) {
+  .amigos-list > .person { grid-template-columns: minmax(0, 1fr) auto; }
+  .amigos-list > .person .person-actions { justify-content: flex-end; }
+}
+/* Escritorio: el enlace de pie arranca en el borde de la columna, no centrado a lo ancho */
+@media (min-width: 1024px) { .amigos-group > a.btn--ghost { justify-self: start; margin-left: -12px; } }

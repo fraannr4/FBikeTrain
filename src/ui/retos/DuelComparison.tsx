@@ -21,7 +21,7 @@ export function DuelComparison({ challenge, userId, client, compact = false }: {
       <span className="community-duel-name">{member.id === userId ? 'Tú' : member.display_name}</span>
       <strong>{member.status === 'pending' ? 'Pendiente' : member.status === 'declined' ? 'Rechazado' : challenge.kind === 'route' && !member.score ? 'Pendiente de salida' : formatCommunityScore(challenge.kind, member.score)}</strong>
     </div>)}</div>
-    <span className="community-duel-vs" aria-hidden="true">VS</span>
+    <span className="community-duel-vs" aria-hidden="true">vs</span>
     {comparable && <div className="community-duel-track" aria-hidden="true"><span style={{ transform: `scaleX(${fraction})` }} /></div>}
     {lead && <p className="community-duel-lead" data-tone={lead.tone}>{lead.text}</p>}
   </div>;

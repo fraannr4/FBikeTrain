@@ -21,6 +21,10 @@
   --surface: #1D3029;          /* [chart] */
   --surface-2: #233B30;
   --surface-3: #2A4035;
+  /* Control segmentado y filtros: lo elegido es la superficie más clara de las dos */
+  --seg-track: var(--surface);
+  --seg-thumb: var(--surface-3);
+  --seg-thumb-shadow: 0 0 0 0 transparent;
   --glass: rgba(29, 48, 41, 0.94);
   --glass-strong: rgba(20, 34, 31, 0.97);
   --scrim: rgba(7, 17, 13, 0.65);
@@ -161,6 +165,9 @@
   --surface: #FFFDF5;
   --surface-2: #EDEFE3;
   --surface-3: #D8DFC5;
+  --seg-track: var(--surface-2);
+  --seg-thumb: var(--surface);
+  --seg-thumb-shadow: 0 1px 2px rgba(22, 59, 48, 0.14);
   --glass: rgba(255, 253, 245, 0.96);
   --glass-strong: rgba(247, 244, 234, 0.98);
   --scrim: rgba(22, 59, 48, 0.35);
@@ -281,6 +288,8 @@
      @fontsource/barlow-semi-condensed (600, 700, 700 italic) */
   --font-ui: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-fig: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  /* Libro de ruta: rotulación condensada solo para títulos y cifras titulares (700 y 800). */
+  --font-display: 'Big Shoulders Display', 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
 
   --fs-min: 12px;      /* nunca menos */
   --fs-sm: 13.5px;     /* metadatos, ayudas */
@@ -292,7 +301,21 @@
   --fs-kpi: 32px;      /* cifra KPI (26 px en móvil) */
   --fs-kpi-unit: 17px;
   --fs-page: clamp(30px, 4vw, 40px);  /* título de página secundaria */
-  --fs-hello: clamp(34px, 5vw, 56px); /* saludo */
+  --fs-hello: clamp(40px, 11vw, 52px); /* saludo y título de página (display 800) */
+
+  /* Escala del libro de ruta (móvil) */
+  --fs-figure: clamp(64px, 22vw, 88px);  /* cifra titular de pantalla, display 800, interlínea 0,86 */
+  --fs-phrase: 26px;                     /* frase del inicio, display 700 */
+  --fs-section: 24px;                    /* título de sección, display 700 */
+  --fs-name: 22px;                       /* nombre de salida, ruta o entreno, display 700 */
+  --fs-fig2: 30px;                       /* cifra secundaria de ficha, display 700 */
+  --fs-fig2-unit: 13px;                  /* su unidad, Barlow 500 */
+  /* La misma escala en pantalla ancha (desde 900 px): saludo, frase y cifra titular crecen con el paisaje */
+  --fs-hello-wide: clamp(52px, 4.4vw, 64px);
+  --fs-figure-wide: clamp(96px, 9.2vw, 136px);
+  --fs-phrase-wide: 30px;
+  --measure: 720px;                      /* columna única en pantalla ancha (controles, listas, fichas) */
+  --measure-text: 66ch;                  /* párrafo: menos de 80 caracteres por línea */
 
   /* Espaciado (base 4) */
   --s-1: 4px;
@@ -307,11 +330,19 @@
   --pad: 20px;   /* relleno de tarjeta (16 px en móvil) */
 
   /* Radios por jerarquía */
-  --r-xl: 22px;    /* hero y tarjetas */
-  --r-lg: 16px;    /* KPI, miniaturas, mapa */
-  --r-md: 12px;    /* controles y botones */
+  --r-xl: 16px;    /* hojas, hero y cajas grandes */
+  --r-lg: 12px;    /* cajas de objeto, miniaturas, mapa */
+  --r-md: 10px;    /* controles y botones */
   --r-sm: 8px;     /* chips */
   --r-pill: 999px; /* pastillas, conmutadores */
+
+  /* Acción principal y regla fina (libro de ruta) */
+  --primary: var(--ink);
+  --primary-hover: color-mix(in srgb, var(--ink) 86%, var(--bg));
+  --on-primary: var(--bg);
+  --rule: color-mix(in srgb, var(--ink) 14%, transparent);
+  --section-gap: 40px;   /* aire entre secciones, por encima de la regla */
+  --section-lead: 20px;  /* de la regla al título de la sección */
 
   /* Medidas de la app */
   --side-w: 232px;

@@ -1,5 +1,16 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-19): rediseño «Libro de ruta», sin commit
+
+- **Sin commit.** Todo lo de este apartado está en el árbol de trabajo; `main` sigue en `6fd69ad`. Falta el sí del usuario.
+- **Dirección.** `docs/design/2026-11-18-libro-de-ruta/README.md` recoge la investigación con sus fuentes, la auditoría, las tres direcciones comparadas y la especificación. Evoluciona «Relieve grabado»: la marca, los tonos y el logo no cambian.
+- **Qué cambia.** Tipografía de rótulo Big Shoulders Display (`@fontsource/big-shoulders-display`, OFL-1.1) en títulos y cifras. Cajas solo para objetos (una salida, una ruta, un entreno, un formulario); las secciones se separan con aire y la regla fina `--rule`. Crema para la acción principal (`--primary`); azul solo para «tu trazado, ahora y enlaces». Muelle inferior flotante con una raya azul que se desliza a la pestaña activa. Vacíos y errores sin caja, a la izquierda. Escritorio compuesto en `src/ui/styles/escritorio.css`: desde 1024 px, carril de 96 px y dos columnas; desde 1280 px, carril de 184 px con rótulos y lista más detalle en Historial; desde 1440 px, página de hasta 1520 px.
+- **Código tocado fuera del CSS.** `Inicio.tsx` (orden de las secciones, sin lógica), `ListRow.tsx` (usa `NavLink`: la fila de la pantalla abierta lleva `aria-current="page"`), `DuelComparison.tsx` («vs») y los antetítulos de `CommunityReto`, `Perfil`, `Persona` y `ProfileHero`, que pasan a mayúscula inicial.
+- **iPhone.** `index.html` lleva `apple-touch-icon`, el nombre de la app y el estilo de la barra de estado según el tema. El icono `public/apple-touch-icon.png` (180 px, opaco) lo genera `scripts/generate-pwa-icons.mjs`.
+- **Pruebas ajustadas por un cambio visual intencionado.** `e2e/inicio.spec.ts`, `e2e/escritorio.spec.ts`, `tests/tokens.test.ts` (lista explícita de los valores nuevos) y `tests/themeBoot.test.ts` (iPhone).
+- **Verificado el 2026-11-19.** `npx tsc --noEmit` sin errores; `npx vitest run`, 184 ficheros y 2050 pruebas; `npm run build`; `npx playwright test`, 365 pasan y 2 omitidas. Capturas revisadas a 390, 768, 1024 y 1440 px en los dos temas; no se guardan en el repositorio.
+- **Límites.** Sin probar en un teléfono real (desenfoque del muelle, zonas seguras, icono del iPhone) ni en Safari o Firefox (`:has()`, columnas pegajosas). Sin ver: tarjetas de ruta generada (la demo no tiene clave de rutas), reto cerrado y de grupo, editar perfil. Más, Ajustes, Importar, Amigos y Retos dejan libre la mitad derecha a 1440 px. La hoja de Repetida dice «Desliza el dedo» también con ratón. «Frente a tu media» sigue en caja en el móvil.
+
 ## Retomar aquí (2026-11-18, tarde): arranque sin red
 
 - **Arranque sin red.** `public/sw.js` guarda los recursos propios de la app en la caché `fbiketrain-app-v1`. Los ficheros de `assets/` salen de la copia; la página y los iconos, de la red, con la copia como respaldo, así un despliegue nuevo se ve al momento. Nada de otros orígenes se guarda (cuenta, mapas, datos). Tope de 200 copias. En la primera visita la página pasa al worker, 8 s después de cargar, la lista de lo ya descargado (`src/pwa/register.ts`): sin esa espera las pruebas tardaban 1,7 veces más.

@@ -131,7 +131,7 @@ export function Perfil() {
           <SegmentedControl label="Vista del cuaderno" value={tab} onChange={setTab} options={[{ value: 'cuaderno', label: 'Mi cuaderno', icon: BookOpen }, { value: 'amigos', label: 'Mi grupeta', icon: Users }]} />
           <JournalFeed client={account.client} userId={account.user.id} targetId={tab === 'cuaderno' ? account.user.id : null} statsVisibility={profile.stats_visibility} refreshKey={`${profile.username}|${profile.display_name}|${profile.riding_style}|${profile.avatar_version}|${profile.stats_visibility}`} showComposer />
         </div><aside className="profile-sidebar" aria-label="Tu comunidad">
-          <section className="profile-side-card"><span className="profile-eyebrow">LA BUENA COMPAÑÍA</span><h2>Tu próxima historia<br />puede empezar en grupo.</h2><p>Encuentra ciclistas, comparte lo que te mueve y pon una ruta por delante.</p>
+          <section className="profile-side-card"><span className="profile-eyebrow">La buena compañía</span><h2>Tu próxima historia<br />puede empezar en grupo.</h2><p>Encuentra ciclistas, comparte lo que te mueve y pon una ruta por delante.</p>
             <Link className="btn btn--secondary btn--block" to="/ciclistas"><Search className="ic" aria-hidden="true" />Ciclistas</Link>
             <Link className="profile-side-link" to="/retos"><Swords className="ic" aria-hidden="true" />Mis retos<span aria-hidden="true">↗</span></Link>
             <Link className="profile-side-link" to="/zona"><MapPin className="ic" aria-hidden="true" />Tu zona<span aria-hidden="true">↗</span></Link>

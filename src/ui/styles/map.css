@@ -11,7 +11,7 @@
 /* Zoom con los tokens del tema: sin los cuadros blancos de Leaflet en el modo oscuro */
 .leaflet-container .leaflet-control-container .leaflet-bar { border: 1px solid var(--line-strong); box-shadow: none; }
 .leaflet-container .leaflet-bar.leaflet-control a { background: var(--surface); color: var(--ink); border-bottom-color: var(--line); }
-.leaflet-container .leaflet-bar.leaflet-control a:hover { background: var(--surface-2); color: var(--ink); }
+@media (hover: hover) and (pointer: fine) { .leaflet-container .leaflet-bar.leaflet-control a:hover { background: var(--surface-2); color: var(--ink); } }
 .leaflet-container .leaflet-bar.leaflet-control a.leaflet-disabled { background: var(--surface); color: var(--ink-3); }
 
 /* Atribución de CyclOSM/OSM con los tokens del tema. La de Leaflet (blanco al 80 % y
@@ -32,7 +32,20 @@
 
 /* ---- RideMap: trazado, subidas, salida y cursor con tokens (siguen al tema) ---- */
 .rmap { background: var(--map-under); isolation: isolate; overflow: hidden; }
+/* leaflet.css llega después (va con el mapa, en diferido) y pinta su contenedor de #ddd. Con más
+   peso que su regla, el contenedor tiene el color de debajo del mapa en los dos temas. */
+:root .leaflet-container { background: var(--map-under); }
+/* El tinte se mezcla (multiply) solo con lo que hay dentro del panel de Leaflet, que es un grupo
+   aislado: donde falta una tesela (cargando, sin red, sin cobertura) no tenía nada que oscurecer y
+   se veía tal cual, un cuadro salvia claro en mitad del mapa oscuro. Esta base, del color de debajo
+   del mapa, va dentro del mismo grupo y por debajo de las teselas: el hueco queda del color del fondo. */
+.rmap .leaflet-map-pane::before {
+  content: ""; position: absolute; left: -5000px; top: -5000px; width: 10000px; height: 10000px;
+  z-index: 0; background: var(--map-under); pointer-events: none;
+}
 .rmap .leaflet-tile-pane { filter: var(--map-filter); }
+/* El mapa para elegir el inicio (Rutas) sigue al tema como los demás: en oscuro era un cuadro claro */
+.start-map .leaflet-tile-pane { filter: var(--map-filter); }
 .rmap .rmap-halo { stroke: var(--map-route-halo); stroke-width: 10; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-core { stroke: var(--map-route-edge); stroke-width: 7; stroke-opacity: 1; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .rmap .rmap-connector { stroke: var(--acc-speed); stroke-width: 5; stroke-opacity: 1; fill: none; stroke-dasharray: 2 8; stroke-linecap: round; stroke-linejoin: round; }
@@ -60,7 +73,7 @@
   display: block; width: 44px; height: 44px; background: var(--surface); color: var(--ink);
   font-size: 26px; line-height: 44px; cursor: pointer;
 }
-.rmap .leaflet-control-fit button:hover { background: var(--surface-2); }
+@media (hover: hover) and (pointer: fine) { .rmap .leaflet-control-fit button:hover { background: var(--surface-2); } }
 
 /* Tinte salvia en oscuro; velo marfil ligero en claro. Atenúa el fondo sin perder los rótulos. */
 .rmap .leaflet-tint-pane { mix-blend-mode: var(--map-tint-blend); pointer-events: none; }

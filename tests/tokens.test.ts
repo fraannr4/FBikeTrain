@@ -45,12 +45,42 @@ function contrast(a: string, b: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
+// «Libro de ruta» (docs/design/2026-11-18-libro-de-ruta/README.md, apartado 4) cambia a propósito
+// la rotulación, la escala de títulos y cifras y los radios, y añade los tokens de sección y de
+// acción primaria. Cualquier otro token compartido sigue siendo el del prototipo.
+const LIBRO_DE_RUTA: Record<string, string> = {
+  '--font-display': "'Big Shoulders Display', 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif",
+  '--fs-hello': 'clamp(40px, 11vw, 52px)',
+  '--fs-figure': 'clamp(64px, 22vw, 88px)',
+  '--fs-phrase': '26px',
+  '--fs-section': '24px',
+  '--fs-name': '22px',
+  '--fs-fig2': '30px',
+  '--fs-fig2-unit': '13px',
+  // Tanda 3 (escritorio y tablet): la misma escala en pantalla ancha y las dos medidas de lectura.
+  '--fs-hello-wide': 'clamp(52px, 4.4vw, 64px)',
+  '--fs-figure-wide': 'clamp(96px, 9.2vw, 136px)',
+  '--fs-phrase-wide': '30px',
+  '--measure': '720px',
+  '--measure-text': '66ch',
+  '--r-xl': '16px',
+  '--r-lg': '12px',
+  '--r-md': '10px',
+  '--primary': 'var(--ink)',
+  '--primary-hover': 'color-mix(in srgb, var(--ink) 86%, var(--bg))',
+  '--on-primary': 'var(--bg)',
+  '--rule': 'color-mix(in srgb, var(--ink) 14%, transparent)',
+  '--section-gap': '40px',
+  '--section-lead': '20px',
+};
+
 describe('design tokens', () => {
-  it('keeps the original typography, spacing, geometry and motion tokens', () => {
+  it('keeps the original typography, spacing, geometry and motion tokens, except the «Libro de ruta» ones', () => {
     expect(existsSync(appPath)).toBe(true);
     // La paleta A sustituye los colores del prototipo, sin rediseñar su interfaz.
     const shared = /:root\s*\{([^}]*)\}\s*$/;
-    expect(block(app, shared)).toEqual(block(design, shared));
+    const expected = new Map([...block(design, shared), ...Object.entries(LIBRO_DE_RUTA)]);
+    expect(block(app, shared)).toEqual(expected);
   });
 
   it('chart tokens are hex or comma rgba', () => {

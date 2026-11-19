@@ -1,62 +1,84 @@
 /* Sin mapa (móvil, o en PC antes de que llegue): los envoltorios no cuentan en la rejilla de .page. */
 .route-workspace--off, .route-workspace--off > .route-controls { display: contents; }
 
-/* Mejoras de PC. Se carga al final; el teléfono conserva íntegra su cascada. */
+/* Escritorio, desde 1024 px. Se carga al final; el teléfono conserva íntegra su cascada.
+   Es el libro de ruta compuesto para una pantalla ancha: una voz por pantalla, cajas solo para los
+   objetos, secciones separadas por aire y la regla fina, columnas con oficio y líneas de menos de
+   80 caracteres. Entre 900 y 1023 px queda el carril con la composición de una columna (kit.css). */
 @media (min-width: 1024px) {
-  .main { width: 100%; max-width: 1180px; margin-inline: auto; }
-  .account-page { max-width: 1180px; }
-  .appbar, .page, .legacy { max-width: 1180px; }
-  .page, .legacy { padding-inline: 28px; }
-  .tabbar { padding: 24px 12px; gap: 8px; overflow-y: auto; }
-  /* Inicio A: paisaje completo, franja de planificación y dos tarjetas equilibradas. */
-  .home { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 20px; }
-  .home > .hero { grid-column: 1 / -1; grid-row: 1; min-height: 294px; padding-top: 24px; }
-  .home > .hero:not(.hero-empty) .week { padding-top: 24px; padding-bottom: 16px; }
-  .home .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .home .kpi--compact { min-height: 96px; }
-  .home > .duo { grid-column: 1 / -1; grid-row: 2; grid-template-columns: minmax(0, .9fr) minmax(0, 1.5fr); align-items: stretch; gap: 20px; }
-  .home .duo > * { min-width: 0; grid-column: 1 / -1; grid-row: auto; }
-  .home .duo > .week-cap { grid-column: 1; grid-row: 1; display: flex; align-items: center; margin: 0; padding: 12px 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-xl); }
-  .home .duo > .next { grid-column: 2; grid-row: 1; }
-  .home .next-empty { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .home .next-empty .btn { flex-shrink: 0; }
-  /* Con un entreno, la franja completa evita estirar una sola frase a la altura de toda la ficha. */
-  .home .duo:has(.next-main) > .week-cap { grid-column: 1 / -1; }
-  .home .duo:has(.next-main) > .next { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; }
-  .home .next:has(.next-main) > .card-h, .home .next:has(.next-main) > .card-foot { grid-column: 1 / -1; }
-  .home .next:has(.next-main) > .next-actions { align-self: center; margin-top: 0; }
-  .home:has(.next-main) > .hero { min-height: 360px; }
-  .home > .trend { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-height: 426px; }
-  .home > .lastride { grid-column: 1; grid-row: 3; display: flex; flex-direction: column; min-height: 426px; }
-  .home .lastride-map { height: clamp(182px, calc(14.17vw - 22px), 250px); min-height: 0; flex-shrink: 0; }
-  .home .lastride-map .rmap { min-height: 0; }
-  .home .lastride-body { flex: 1; padding: 12px 16px; column-gap: 20px; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
-  .home .lastride .profile { min-height: 0; }
-  .home .lastride-stats { gap: 12px 8px; }
-  .home .lastride-stat dd { font-size: 18px; }
-  .home .trend-box { position: relative; flex: 1; min-height: 188px; }
-  .home .trend-chart { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; }
-  .home .trend-read { min-height: 0; font-size: var(--fs-sm); }
-  /* Sin última salida no queda una columna desocupada. La tabla crece en el flujo. */
-  .home:not(:has(> .lastride)) > .trend { grid-column: 1 / -1; }
-  .home > .section:not(.trend), .home > .hero-empty, .home > .home-loading { grid-column: 1 / -1; }
-  .home > .hero-empty { min-height: 432px; }
-  @media (max-width: 1279px) {
-    .home > .hero:not(.hero-empty) { min-height: 360px; }
-    .home .lastride-body { display: block; }
-    .home .lastride .prof-h { margin-top: 12px; }
+  :root {
+    --gutter: 32px;
+    --page-max: 1180px;
+    /* Relleno lateral de Inicio, cuyo paisaje va a sangre: deja el mismo margen que una página centrada */
+    --page-pad: max(var(--gutter), calc((100vw - var(--rail-w) - var(--safe-l) - var(--page-max)) / 2 + var(--gutter)));
   }
+  .main { width: 100%; max-width: var(--page-max); margin-inline: auto; }
+  .account-page { max-width: var(--page-max); }
+  .appbar, .page, .legacy { max-width: var(--page-max); }
+  .main:has(> .legacy > .home) { max-width: none; }
+  .legacy:has(> .home) { padding-inline: var(--page-pad); }
+  .tabbar { --rail-pad: 12px; padding: 24px 12px; padding-left: calc(12px + var(--safe-l)); gap: 4px; overflow-y: auto; }
+
+  /* Inicio: el mapa de tu última salida y la gráfica de las 12 semanas usan el ancho de su columna */
+  .home .lastride-map { height: clamp(260px, 23vw, 360px); min-height: 0; }
+  .home .lastride-map .rmap { min-height: 0; }
   .home .hero { min-width: 0; }
   .home .hero-scene { max-width: 100%; }
   .duo .next { min-width: 0; }
-  .climb, .passes > svg { min-height: 480px; }
+
+  /* Perfil de la subida y «tus tiempos» viven en una hoja de 560 px: apaisados, no un cuadrado */
+  .climb, .passes > svg { min-height: 260px; }
   .trend-chart { min-height: 360px; }
   .rmap, .start-map, .lastride-map { min-height: 480px; }
   .ride-hero-map { height: 100%; min-height: 0; }
   .rcard .profile, .rmap-sheet .profile { min-height: 320px; }
-  .page--ajustes { width: 100%; max-width: 720px; grid-template-columns: minmax(0, 1fr); }
+
+  /* Salida: «Frente a tu media» es una gráfica, no un objeto: va sobre la página, con sus reglas */
+  .card.cmp { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .cmp .cmp-legend { padding-top: 0; }
+  .cmp-legend + .cmp-row, .cmp-row + .cmp-row { border-top-color: var(--rule); }
+  .cmp-strip > em { box-shadow: 0 0 0 2.5px var(--bg); }
+
+  /* Pantallas de una columna (Más, Ajustes, Importar, retos, amigos): el título arranca donde en
+     las demás y el contenido se queda en una columna de lectura, pegada al carril */
+  .page--ajustes { grid-template-columns: minmax(0, 1fr); }
   .page--ajustes .settings { grid-template-columns: minmax(0, 1fr); }
-  .page--narrow:not(.page--ajustes) { max-width: 780px; }
+  .page--narrow > :not(.page-head), .page--ajustes > :not(.page-head) { max-width: var(--measure); }
+  /* La entradilla tiene sitio: dos líneas en vez de cuatro, sin pasar de una línea de lectura */
+  .page-lead { max-width: 56ch; }
+
+  /* Rutas: a la izquierda lo que pides (cifras, salida y mapa); a la derecha lo que hay (propuestas
+     y otras formas de conseguir una ruta). La última fila de las siete absorbe lo que sobre del
+     formulario, así las secciones de la derecha no se separan entre sí. */
+  .page--cerca:has(> .library-panel) {
+    grid-template-columns: minmax(0, 520px) minmax(0, 1fr); grid-template-rows: repeat(6, auto) minmax(0, 1fr);
+    column-gap: clamp(40px, 4.4vw, 72px);
+  }
+  .page--cerca:has(> .library-panel) > * { grid-column: 2; }
+  .page--cerca:has(> .library-panel) > .page-head { grid-column: 1 / -1; grid-row: 1; }
+  .page--cerca:has(> .library-panel) > .library-panel { grid-column: 1; grid-row: 2 / 8; align-self: start; }
+
+  /* El segmentado de vistas no se estira a lo ancho de la página: mide lo que sus tres nombres */
+  .page > .seg { max-width: 480px; }
+
+  /* Subidas y Repetidas: la lista manda en la columna ancha; «tu última» es un objeto y va al lado,
+     a la vista mientras recorres la lista. La colocación densa deja la lista en la misma fila. */
+  .page:is(.subidas, .repetidas):has(> .last) {
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); grid-auto-flow: row dense;
+    column-gap: clamp(40px, 4.4vw, 72px);
+  }
+  .page:is(.subidas, .repetidas):has(> .last) > * { grid-column: 1; }
+  .page:is(.subidas, .repetidas):has(> .last) > :is(.page-head, nav.seg, .page-lead) { grid-column: 1 / -1; }
+  .page:is(.subidas, .repetidas):has(> .last) > .last {
+    grid-column: 2; grid-template-columns: minmax(0, 1fr); align-self: start;
+    position: sticky; top: calc(var(--appbar-h) + 20px);
+  }
+  .page:is(.subidas, .repetidas):has(> .last) > .last .last-fig { margin-top: 6px; }
+  .page.subidas:has(> .last) .subidas-list:not([hidden]) { grid-template-columns: minmax(0, 1fr); }
+  .page.subidas:has(> .last) .subidas-list.list--inset > li:nth-child(2)::before { background: var(--rule); }
+  .page.repetidas:has(> .last) .groups { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .subidas .search, .repetidas .search { max-width: 440px; }
+
   .page--rutas, .page--ia { overflow: visible; }
   .route-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; align-items: start; }
   .route-controls { display: grid; gap: 24px; min-width: 0; }
@@ -68,19 +90,60 @@
   .route-map-panel { position: sticky; top: 76px; min-width: 0; }
   /* Cabecera y margen inferior caben también antes de que el panel alcance su posición sticky. */
   .route-map-panel .rmap, .route-map-panel .start-map { height: max(320px, calc(100dvh - 200px)); min-height: 320px; border-radius: var(--r-card); }
-  .page--cal > .desktop-month { grid-row: 3; }
+  /* Plan: el mes a la izquierda, como una hoja de calendario sobre la página; a la derecha, el día
+     elegido y lo próximo. La propuesta con IA, si la hay, queda bajo el mes. */
+  .page--cal:has(> .desktop-month) {
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); column-gap: clamp(40px, 4.4vw, 72px);
+  }
+  .page--cal:has(> .desktop-month) > * { grid-column: 1 / -1; }
+  .page--cal > .desktop-month { grid-column: 1; grid-row: 3; }
+  .page--cal:has(> .desktop-month) > .cal-cols {
+    grid-column: 2; grid-row: 3 / span 2; grid-template-columns: minmax(0, 1fr); gap: var(--section-gap); align-self: start; margin-top: 6px;
+  }
+  .page--cal:has(> .desktop-month) > .wk-sec { grid-column: 1; grid-row: 4; }
   /* En escritorio el mes ya está a la vista: la tira semanal sobra. Queda la propuesta con IA. */
   .page--cal > .wk-sec > .cal { display: none; }
   .page--cal > .wk-sec > .aiw-open { margin-top: 0; width: auto; }
   .page--cal > .wk-sec:not(:has(.aiw-open)) { display: none; }
-  .desktop-month { display: grid; gap: 16px; }
-  .desktop-month .mo-grid { width: 100%; margin: 0; }
-  .desktop-month .mo-grid .day { min-height: 88px; border-radius: var(--r-md); border: 1px solid var(--line); }
-  .desktop-month .mo-nav { margin: 0; }
-  .desktop-month .mo-sum { text-align: left; }
-  .desktop-month .mo-legend { justify-content: start; }
+  /* El mes no es una caja con 30 cajas dentro: nombre rotulado, una regla fina por semana y el día
+     arriba a la izquierda de su hueco. El día elegido sigue siendo el bloque crema. */
+  .desktop-month.card { display: grid; gap: 12px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+  .desktop-month .mo-nav { justify-content: flex-start; gap: 4px; margin: 0 -10px 0 0; }
+  .desktop-month .mo-label { order: -1; margin-right: auto; font: 800 30px/1 var(--font-display); text-align: left; }
+  .desktop-month .mo-sum { margin: -4px 0 8px; text-align: left; }
+  .desktop-month .mo-grid { width: 100%; margin: 0; column-gap: 4px; row-gap: 9px; }
+  .desktop-month .mo-grid .dow { padding: 0 0 4px 21px; text-align: left; }
+  .desktop-month .mo-grid > :not(.dow) { position: relative; }
+  .desktop-month .mo-grid > :not(.dow)::before {
+    content: ""; position: absolute; top: -5px; left: -2px; right: -2px; height: 1px; background: var(--rule); pointer-events: none;
+  }
+  .desktop-month .mo-grid .day { min-height: 84px; justify-items: start; align-content: start; gap: 6px; padding: 8px 10px 10px; border-radius: var(--r-md); }
+  .desktop-month .mo-grid .day-n { font-size: 22px; }
+  .desktop-month .mo-grid .day > :not(.day-n) { margin-left: 12px; }
+  /* Día elegido: la celda entera en crema pesaba demasiado; se señala la cifra y la celda solo sube un tono */
+  .desktop-month .mo-grid .day[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); }
+  .desktop-month .mo-grid .day[aria-pressed="true"] .day-n { background: var(--primary); color: var(--on-primary); }
+  .desktop-month .mo-grid .day[aria-pressed="true"] .mk--done { background: var(--good); }
+  .desktop-month .mo-grid .day[aria-pressed="true"] .mk--pending { box-shadow: inset 0 0 0 2px var(--ink-2); }
+  .desktop-month .mo-grid .day[aria-pressed="true"] .mk--missed { background: var(--ink-3); }
+  .desktop-month .mo-grid .day[aria-pressed="true"] .mk-more { color: var(--ink-2); }
+  .desktop-month .mo-legend { justify-content: flex-start; margin-top: 4px; border-top-color: var(--rule); }
   .history-workspace > * { min-width: 0; }
-  .history-prompt { align-self: start; margin: 80px 28px 0 0; }
+  /* Sin salida elegida, el panel calla: una frase rotulada sobre el relieve del kit, sin caja */
+  .history-prompt {
+    position: sticky; top: 0; align-self: start; display: grid; place-items: center; isolation: isolate; overflow: hidden;
+    min-height: 100dvh; margin: 0; padding: var(--gutter);
+    border: 0; border-left: 1px solid var(--rule); border-radius: 0; background: none; box-shadow: none; text-align: center;
+  }
+  .history-prompt > p { max-width: 22ch; color: var(--ink-2); font: 700 var(--fs-section)/1.15 var(--font-display); text-wrap: balance; }
+  .history-prompt::before {
+    content: ""; position: absolute; z-index: -1; inset: 0; pointer-events: none; background: var(--ridge-line); opacity: 0.16;
+    -webkit-mask: var(--relieve) center / min(92%, 760px) auto no-repeat, radial-gradient(closest-side, #000 35%, transparent);
+    -webkit-mask-composite: source-in;
+    mask: var(--relieve) center / min(92%, 760px) auto no-repeat, radial-gradient(closest-side, #000 35%, transparent);
+    mask-composite: intersect;
+  }
+  :root[data-theme="light"] .history-prompt::before { background: var(--ridge-near); opacity: 0.12; }
   dialog.sheet, dialog.sheet:has(.sheet-cols), dialog.sheet--month {
     inset: 0; margin: auto; width: calc(100% - 48px); max-width: 560px;
     height: fit-content; max-height: calc(100dvh - 48px); border-radius: var(--r-sheet);
@@ -99,35 +162,28 @@
 
   /* Pantallas grandes: más ancho útil en lugar de márgenes vacíos. */
   @media (min-width: 1440px) {
-    .main, .account-page, .appbar, .page, .legacy { max-width: 1520px; }
-    .home .next:has(> .next-empty) { display: flex; align-items: center; gap: 20px; padding: 12px 16px; }
-    .home .next:has(> .next-empty) .card-h { flex-shrink: 0; gap: 10px; margin: 0; }
-    .home .next-empty { flex: 1; }
-    .home .next:has(> .next-empty) .card-link { margin-left: 8px; }
-  }
-  @media (min-width: 1800px) {
-    .home > .hero:not(.hero-empty) { min-height: 320px; }
-    .home > .lastride, .home > .trend { min-height: 510px; }
+    :root { --gutter: 40px; --page-max: 1520px; }
   }
   @media (min-width: 1280px) {
-    /* Rail con etiquetas al lado solo cuando sobra ancho; entre 1024 y 1279 px se queda el rail compacto. */
+    /* Carril con etiquetas al lado solo cuando sobra ancho; entre 1024 y 1279 px se queda el carril compacto. */
     :root { --rail-w: 184px; }
-    .rail-brand { justify-content: start; padding-inline: 16px; height: 64px; margin-bottom: 24px; }
+    .rail-brand { justify-content: start; padding-inline: 14px; height: 64px; margin-bottom: 24px; }
     .rail-brand .brand-mark { width: 40px; height: 40px; }
-    .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 14px; min-height: 52px; padding: 12px 16px; font-size: 16px; }
+    .tabbar .tab { display: flex; flex-direction: row; justify-content: start; gap: 12px; min-height: 48px; padding: 10px 14px; font: 500 15px/1.2 var(--font-ui); letter-spacing: 0; }
+    .tabbar .tab[aria-current="page"] { font-weight: 600; }
     .tabbar .tab:last-child { margin-top: 0; }
-    .tabbar .tab-ic { flex: none; width: 44px; }
-    .rail-section { padding-inline: 16px; text-align: left; font-size: 12px; }
+    .tabbar .tab-ic { flex: none; width: 28px; }
+    .rail-section { padding-inline: 14px; text-align: left; }
     .history-workspace { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); align-items: start; }
     .history-workspace > .history-list { position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; scrollbar-gutter: stable; }
-    .history-workspace .hist { padding-inline: 20px; }
     .history-workspace .hist-tools { grid-template-columns: minmax(0, 1fr); }
-    .history-workspace .ride { padding-inline: 20px; }
-    .history-workspace .ride-screen { border-left: 1px solid var(--line); }
+    .history-workspace .ride-screen { border-left: 1px solid var(--rule); min-height: 100dvh; }
+    /* La salida abierta a la derecha queda señalada en la lista */
+    .history-workspace .row[aria-current="page"] { background-color: var(--surface-2); }
+    .history-workspace .row[aria-current="page"] .chev { color: var(--link); }
   }
   @media (hover: hover) and (pointer: fine) {
     .tab:hover, .row:hover, .icon-btn:hover, .choice:hover { background-color: var(--surface-2); }
-    .btn:not(:disabled):hover { box-shadow: 0 0 0 2px var(--line-strong); }
     .card-link:hover, .rail-brand:hover { text-decoration: underline; text-underline-offset: 4px; }
   }
 }

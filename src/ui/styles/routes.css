@@ -6,14 +6,14 @@
 
 .rcard {
   position: relative; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  background: var(--surface); border: 1px solid transparent; border-radius: var(--r-card);
 }
 .rcard[data-best] { border-color: color-mix(in srgb, var(--action) 55%, var(--line)); }
 
 /* ---------- Franja de la forma ---------- */
 .rcard-map {
   position: relative; flex: none; height: 132px; overflow: hidden; isolation: isolate;
-  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  background: var(--surface-2); border-bottom: 1px solid var(--rule);
 }
 /* Curvas de nivel grabadas a todo lo ancho (la forma trae las suyas en el centro) */
 .rcard-map::before, .rcard-band::before {
@@ -50,7 +50,7 @@
 /* Nombre: dos líneas como mucho, para que las tarjetas del carrusel midan lo mismo.
    El nombre completo sigue en el h3 (lector de pantalla) y en title. */
 .rcard-name {
-  font: 600 var(--t-xl)/1.15 var(--font-fig); letter-spacing: -0.005em; color: var(--ink);
+  font: 700 var(--fs-name)/1.12 var(--font-display); letter-spacing: 0; color: var(--ink);
   text-wrap: balance; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; text-overflow: ellipsis; line-clamp: 2;
 }
@@ -62,13 +62,13 @@
 .rcard-figs dt { font: 500 13px/1.2 var(--font-ui); color: var(--ink-3); }
 .rcard-figs dd {
   display: flex; flex-wrap: nowrap; align-items: baseline; white-space: nowrap; margin: 4px 0 0;
-  font: 700 25px/1 var(--font-fig); letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums;
+  font: 700 var(--fs-fig2)/1 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums;
 }
 /* La unidad trae su espacio en el texto (ValueText): fuera el margen de base.css, salvo en el
    `dd` flexible, donde el espacio inicial de un elemento flexible desaparece */
 .rcard .unit, .rcard-row-meta .unit, .rmap-sheet .unit { margin-left: 0; }
 .rcard-figs dd .unit:not(:last-child) { margin-right: 3px; }
-.rcard-figs dd .unit { margin-left: 3px; font: 600 14px/1 var(--font-fig); color: var(--ink-2); letter-spacing: 0; }
+.rcard-figs dd .unit { margin-left: 3px; font: 500 var(--fs-fig2-unit)/1 var(--font-ui); color: var(--ink-2); letter-spacing: 0; }
 
 /* Perfil, eje y leyenda, en ese orden (la leyenda viene dentro de la figura de ProfileSvg) */
 .rcard-prof { display: flex; flex-direction: column; min-width: 0; }
@@ -84,11 +84,10 @@
 .rcard-why {
   display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start;
   padding: 12px 14px; border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--acc-elev) 11%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--acc-elev) 32%, transparent);
+  background: var(--surface-2);
   font-size: 15px; line-height: 1.45; color: var(--ink-2); text-wrap: pretty;
 }
-.rcard-why > .ic { width: 18px; height: 18px; margin-top: 2px; color: var(--acc-elev); }
+.rcard-why > .ic { width: 18px; height: 18px; margin-top: 2px; color: var(--ink-3); }
 .rcard-why b { color: var(--ink); font-weight: 600; }
 .rcard-why-main { min-width: 0; }
 .rcard-why-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; text-overflow: ellipsis; line-clamp: 3; overflow-wrap: anywhere; }

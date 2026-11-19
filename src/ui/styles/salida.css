@@ -54,11 +54,12 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
   .ride-screen--map .ride-fold { display: flex; flex-direction: column; gap: 14px; height: calc(100dvh - var(--appbar-h) - var(--safe-t) - 16px); min-height: 560px; }
   .ride-fold > .ride-top { order: 1; }
   .ride-fold > .ride-stage { order: 2; flex: 1 1 0; min-height: 0; }
-  .ride-stage { margin: 0; grid-template-rows: minmax(0, 1fr) auto; border: 1px solid var(--line); border-radius: var(--r-xl); }
+  /* El escenario es el objeto de la pantalla: una caja de superficie con sus esquinas, sin borde */
+  .ride-stage { margin: 0; grid-template-rows: minmax(0, 1fr) auto; border: 0; border-radius: var(--r-lg); }
   .ride-stage--solo { grid-template-rows: minmax(0, 1fr); }
   .ride-hero { height: auto; min-height: 0; }
   .ride-stage + .ride-top { margin-top: 0; }
-  .ride-prof { padding-inline: 16px; padding-bottom: 10px; border-top: 1px solid var(--line); }
+  .ride-prof { padding-inline: 16px; padding-bottom: 10px; }
   .ride-prof .scrub { height: clamp(96px, 15dvh, 150px); }
   .ride-prof .legend { display: flex; margin-top: 4px; }
   .map-attr { left: 14px; }
@@ -71,9 +72,11 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
   .ride-fold .ride-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
   .ride-fold .ride-head > .page-title { flex: 1 0 100%; }
   .ride-fold .ride-chips { margin-top: 0; }
-  .ride-fold .page-title, .ride-fold .page-title.is-long { font-size: 28px; }
-  .ride-fold .salida-figs { padding: 8px 0; }
-  .ride-fold .salida-figs dd { margin-top: 4px; font-size: 24px; }
+  /* El nombre de la salida es la voz de la pantalla también aquí: rotulado, no un título de panel */
+  .ride-fold .page-title { font-size: 40px; }
+  .ride-fold .page-title.is-long { font-size: 30px; }
+  .ride-fold .salida-figs { padding: 10px 0; border-block-color: var(--rule); }
+  .ride-fold .salida-figs dd { margin-top: 4px; font-size: var(--fs-fig2); }
 }
 /* Apaisado en teléfono: mapa a la izquierda, de arriba abajo; perfil, título y cifras a la derecha */
 @media (orientation: landscape) and (max-height: 500px) {
@@ -103,18 +106,18 @@ html:has(.ride) { scroll-padding-bottom: calc(var(--nav-space) + 16px); }
 .salida-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; margin: 0; padding: 12px 0; border-block: 1px solid var(--line); }
 .salida-figs > div { min-width: 0; }
 .salida-figs dt { display: flex; align-items: center; gap: 4px; font: 500 13px/1.2 var(--font-ui); color: var(--ink-2); white-space: nowrap; }
-.salida-figs dt .ic { width: 15px; height: 15px; color: var(--acc); }
+.salida-figs dt .ic { width: 15px; height: 15px; color: var(--ink-3); }
 .salida-figs dd {
   margin: 6px 0 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 2px;
-  font: 700 clamp(21px, 6.2vw, 26px)/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+  font: 700 clamp(25px, 7.4vw, 30px)/1 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.salida-figs dd.fig-i { font-style: italic; }
-.salida-figs dd .u { font-size: 13px; font-style: normal; white-space: pre; }
+.salida-figs dd.fig-i { font-style: normal; }
+.salida-figs dd .u { font: 500 var(--fs-fig2-unit)/1 var(--font-ui); white-space: pre; }
 /* En los teléfonos más estrechos, «14 h 25» y «27,7 km/h» se leían como una sola cifra */
 /* y la unidad no baja bajo la cifra («27,7» y debajo «km/h»): una línea, un punto más pequeña */
 @media (max-width: 379px) {
   .salida-figs { column-gap: 14px; }
-  .salida-figs dd { flex-wrap: nowrap; white-space: nowrap; font-size: clamp(19px, 5.8vw, 22px); }
+  .salida-figs dd { flex-wrap: nowrap; white-space: nowrap; font-size: clamp(22px, 6.6vw, 25px); }
 }
 @media (min-width: 600px) { .salida-figs dd { font-size: 28px; } }
 

@@ -97,10 +97,11 @@
 .done-actions { display: grid; gap: 10px; margin-top: 4px; }
 .report-list .row-title { overflow-wrap: anywhere; }
 .row-fig { font: 700 18px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
-.row-lead--good { color: var(--good); background: var(--good-bg); }
-.row-lead--bad { color: var(--critical); background: var(--critical-bg); }
-.row-lead--quiet { color: var(--ink-2); background: var(--surface-2); }
-.row-lead--warn { color: var(--warning); background: var(--warning-bg); }
+/* El estado de una fila lo lleva el color del icono, sin recuadro (libro de ruta) */
+.row-lead--good { color: var(--good); }
+.row-lead--bad { color: var(--critical); }
+.row-lead--quiet { color: var(--ink-2); }
+.row-lead--warn { color: var(--warning); }
 div.row { cursor: default; }
 div.row:active { transform: none; }
 .section > .banner { margin-top: 12px; }
@@ -118,12 +119,22 @@ div.row:active { transform: none; }
 .skip-more .skip-list { margin: 0 0 4px; }
 
 /* ---- Error ---- */
-.err-card .state { padding: 20px 4px 6px; }
+.err-card .state { padding: 12px 0; }
 .err-card .state-text { overflow-wrap: anywhere; }
 .import-status:empty { display: none; }
 
 /* ===================== Ajustes ===================== */
 .settings { display: grid; gap: 10px; }
+/* Libro de ruta (móvil): los plegables de Ajustes son renglones de una misma lista, con regla fina,
+   no una pila de cajas. «Borrar datos» conserva su caja con filo rojo y se separa del resto. */
+@media (max-width: 899px) {
+  .settings { gap: 0; }
+  .settings > .disclosure:not(.disclosure--danger) { background: none; border: 0; border-top: 1px solid var(--rule); border-radius: 0; }
+  .settings > .disclosure:not(.disclosure--danger) > summary { margin-inline: -8px; padding-inline: 8px; border-radius: var(--r-md); }
+  .settings > .disclosure:not(.disclosure--danger) > .disclosure-body { padding: 0 0 24px; }
+  .settings > .disclosure:not(.disclosure--danger) > .disclosure-body::before { display: none; }
+  .settings > .disclosure--danger { margin-top: 20px; }
+}
 .sum-warn { display: inline-flex; align-items: center; gap: 4px; }
 .sum-warn .ic { width: 15px; height: 15px; flex: none; color: var(--warning); }
 .sum-bad .ic { color: var(--critical); }
@@ -168,4 +179,6 @@ div.row:active { transform: none; }
 .sheet-body .field + .field { margin-top: 16px; }
 .sheet-body > .btn--ghost { margin: 10px 0 0 -12px; }
 .choice[aria-busy] { cursor: progress; }
-.page--ajustes > .banner + .section, .page--ajustes > .banner + .banner { margin-top: 0; }
+.page--ajustes > .banner + .section { margin-top: 0; }
+/* Dos avisos seguidos son una misma nota: 16 px entre ellos, no los 40 de sección */
+.page--ajustes > .banner + .banner { margin-top: calc(16px - var(--section-gap)); }

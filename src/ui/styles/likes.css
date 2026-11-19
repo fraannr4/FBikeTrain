@@ -1,7 +1,7 @@
 /* «Me gusta»: corazón con recuento. Solo tokens existentes; objetivo táctil de 44 px. */
 .like { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .like-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-2); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer; }
-.like-btn:hover { background: var(--surface-2); }
+@media (hover: hover) and (pointer: fine) { .like-btn:hover { background: var(--surface-2); } }
 .like-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .like-btn[aria-pressed="true"] { color: var(--critical); }
 .like-heart { width: 20px; height: 20px; fill: none; }

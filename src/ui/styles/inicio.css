@@ -13,8 +13,8 @@
   isolation: isolate;
   min-width: 0;
   /* A sangre en el móvil: se come el relleno lateral y el superior del contenido. */
-  margin: calc(-16px - env(safe-area-inset-top)) -16px 0;
-  padding: calc(12px + env(safe-area-inset-top)) 16px 16px;
+  margin: calc(-16px - env(safe-area-inset-top)) calc(-1 * var(--gutter)) 0;
+  padding: calc(12px + env(safe-area-inset-top)) var(--gutter) 16px;
   /* Al girar el teléfono, el rótulo de la cima pasa un fotograma en la posición del ancho anterior:
      clip lo recorta sin crear un contenedor de desplazamiento. */
   overflow-x: clip;
@@ -142,8 +142,8 @@
 /* Saludo y frase */
 .hero-copy { position: relative; z-index: 2; margin-top: 8px; }
 .hero-date { margin-bottom: 6px; color: var(--ink); font-size: 14px; font-weight: 500; opacity: 0.85; }
-.hello { color: var(--ink); font: 700 var(--fs-hello) / 1 var(--font-fig); letter-spacing: -0.02em; }
-.hello-long { font-size: clamp(28px, 3.4vw, 40px); line-height: 1.08; }
+.hello { color: var(--ink); font: 800 var(--fs-hello) / 0.95 var(--font-display); letter-spacing: 0; }
+.hello-long { font-size: clamp(30px, 8.6vw, 40px); line-height: 1; }
 .hero-copy .sub { max-width: 44ch; margin-top: 8px; color: var(--ink); font-size: 16px; line-height: 1.45; opacity: 0.9; }
 .hero-copy .sub b { font-weight: 600; }
 .hero .notice {
@@ -195,7 +195,8 @@
 .summit-lbl b {
   display: block;
   color: var(--ink);
-  font: 700 italic 18px / 1.05 var(--font-fig);
+  /* El rótulo de cima, como en un cartel de puerto: la cota rotulada */
+  font: 800 22px / 1 var(--font-display);
   font-variant-numeric: tabular-nums;
 }
 .summit-lbl span { color: var(--ink-2); font-size: 12px; font-weight: 500; }
@@ -339,44 +340,7 @@
 .howto b { color: var(--ink); font-weight: 600; }
 
 /* ---------- Escritorio y tableta ---------- */
-@media (min-width: 900px) {
-  .hero {
-    display: flex;
-    flex-direction: column;
-    min-height: 432px;
-    margin: 0;
-    padding: 30px 16px 16px;
-  }
-  .hero:not(.hero-empty) { padding-bottom: 0; }
-  .hero::before {
-    border: 1px solid var(--line);
-    border-radius: var(--r-xl);
-    box-shadow: var(--shadow-card);
-  }
-  .land {
-    inset: 1px 1px auto;
-    width: calc(100% - 2px);
-    height: calc(var(--land-h, 100%) - 2px);
-    border-radius: calc(var(--r-xl) - 1px);
-  }
-  .hero-empty { min-height: 432px; }
-  .hero-top { position: absolute; top: 18px; right: 18px; }
-  .m-brand { display: none; }
-  .hero-copy { max-width: 486px; margin: 0 16px; }
-  .hero-date { margin-bottom: 8px; }
-  .hero-copy .sub { margin-top: 10px; font-size: var(--fs-lead); }
-  .summit-lbl b { font-size: 22px; }
-  .summit-lbl span { font-size: 13px; }
-  .week { margin-top: auto; padding-top: 32px; }
-  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
-  .kpi { min-height: 124px; padding: 14px 16px 0; }
-  .kpi-h { gap: 10px; font-size: 14px; }
-  .kpi-ic { width: 30px; height: 30px; }
-  .kpi-value { font-size: var(--fs-kpi); }
-  .kpi-value .unit { font-size: var(--fs-kpi-unit); }
-  .kpi-row { gap: 4px 10px; }
-  .spark { height: 34px; margin-bottom: 8px; }
-}
+/* La composición ancha va al final, tras la del libro de ruta, que es la misma a cualquier ancho. */
 @media (min-width: 1280px) {
   .delta-short { display: none; }
   .delta-full { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
@@ -419,8 +383,9 @@
 
 .goal { padding-block: 14px; }
 .goal-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
-.goal-v { display: flex; align-items: baseline; gap: 5px; color: var(--ink); font: italic 700 24px / 1 var(--font-fig); font-variant-numeric: tabular-nums; }
-.goal-v .u { font: 600 15px / 1 var(--font-fig); font-style: normal; color: var(--ink-2); }
+.goal-v { display: flex; align-items: baseline; gap: 5px; color: var(--ink); font: 700 var(--fs-fig2) / 1 var(--font-display); font-variant-numeric: tabular-nums; }
+.goal-v .fig-i { font-style: normal; }
+.goal-v .u { font: 500 var(--t-sm) / 1 var(--font-ui); color: var(--ink-2); }
 .goal .meter { margin-top: 10px; }
 .goal .meter-legend { margin-top: 8px; }
 .goal .meter-legend .delta { margin-right: 4px; font-size: var(--t-md); }
@@ -448,7 +413,7 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
 .next-title {
   margin-top: 2px;
   color: var(--ink);
-  font: 600 20px / 1.2 var(--font-fig);
+  font: 700 var(--fs-name) / 1.1 var(--font-display);
   overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -489,11 +454,6 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
   .duo > .next { grid-column: 2; grid-row: 1 / span 3; }
   .duo > .next:first-child { grid-column: auto; grid-row: auto; }
 }
-@media (min-width: 900px) {
-  .kpi--compact { min-height: 0; padding: 14px 16px; }
-  .kpi--compact .kpi-value { font-size: calc(var(--fs-kpi) * var(--fit, 1)); }
-  .kpi--compact .kpi-value .unit { font-size: 0.53em; }
-}
 /* Apaisado en el teléfono: el saludo se encoge, el paisaje queda en una franja y las cifras suben.
    Sin salidas, la frase y la nota del ejemplo se quedan: son las que explican qué hacer. */
 @media (max-height: 500px) and (max-width: 899px) {
@@ -531,7 +491,7 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
 .lastride-map .leaflet-control-attribution a { display: inline-block; padding-block: 5px; line-height: 14px; }
 
 .lastride-body { padding: 14px 16px 16px; }
-.lastride-name { font: 600 20px/1.2 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
+.lastride-name { font: 700 var(--fs-section)/1.1 var(--font-display); color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
 .lastride-date { margin-top: 2px; font-size: var(--t-sm); color: var(--ink-2); }
 .lastride-nomap { margin-top: 10px; font-size: var(--t-sm); color: var(--ink-2); }
 /* Cuatro en fila; con cifras extremas (400 km y 14 h) la última baja de línea en vez de salirse */
@@ -553,7 +513,7 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
   margin-bottom: 8px; font-size: var(--t-sm); color: var(--ink-2);
 }
-.lastride .prof-h .fig { font-size: 18px; color: var(--ink); }
+.lastride .prof-h .fig { font: 700 20px/1 var(--font-display); letter-spacing: 0; color: var(--ink); }
 .lastride .profile { height: 72px; }
 /* Eje de km proporcional a la distancia (ProfileSvg con axis="ticks") */
 .profile-axis--ticks { position: relative; display: block; height: 16px; }
@@ -574,8 +534,238 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
   .lastride-body > :not(.prof-h, .profile-fig) { grid-column: 1; }
   .lastride-body > .prof-h { grid-column: 2; grid-row: 1; }
   .lastride-body > .profile-fig { grid-column: 2; grid-row: 2 / span 3; }
+  /* Sin GPS no hay perfil: el nombre y las cifras ocupan todo el ancho, no media columna */
+  .lastride-body:not(:has(> .profile-fig)) { grid-template-columns: minmax(0, 1fr); }
   .lastride-stats { margin-bottom: 0; }
 }
 @media (forced-colors: active) {
   .lastride-level .chip { border: 1px solid CanvasText; }
+}
+
+/* =====================================================================
+   Libro de ruta (2026-11-18, docs/design/2026-11-18-libro-de-ruta). Una voz
+   por pantalla: la distancia de la semana. Arriba, el saludo rotulado y el
+   perfil de tu última salida a sangre; debajo, secciones sin caja separadas
+   por la regla fina. Es la misma composición a cualquier ancho: el móvil la
+   apila; desde 900 px el paisaje se ensancha junto al carril y, desde
+   1024 px, la página se parte en columna de lectura y columna del plan.
+   ===================================================================== */
+.home { gap: var(--section-gap); }
+
+/* ---- Saludo, frase y perfil ---- */
+.hero::before { border-radius: 0; border-bottom: 0; }
+.land { border-radius: 0; }
+/* El pie del paisaje se funde con la página: la cifra de la semana pisa el mismo suelo */
+.hero::before,
+.hero .land {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent);
+}
+.hero-date { margin-bottom: 4px; color: var(--ink-2); opacity: 1; }
+.hero:not(.hero-empty) .hero-copy .sub {
+  max-width: 17em;
+  margin-top: 10px;
+  color: var(--ink-2);
+  font: 700 var(--fs-phrase) / 1.08 var(--font-display);
+  opacity: 1;
+  text-wrap: balance;
+}
+.hero:not(.hero-empty) .hero-copy .sub b { color: var(--ink); font-weight: 700; }
+/* La barra superior calla: el avatar es un botón redondo más, sin el disco azul */
+.hero-top .avatar { border-color: var(--line-strong); background: var(--glass-strong); color: var(--ink); }
+
+/* ---- Esta semana: la cifra titular y la ficha de tres ---- */
+.week { margin-top: 0; }
+.week-title { color: var(--ink-2); font: 500 var(--t-sm) / 1.2 var(--font-ui); }
+.kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; }
+.kpis > li { align-items: end; }
+.kpis > li:first-child { grid-column: 1 / -1; }
+.kpi,
+.kpi--compact {
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  container-type: normal;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.kpi[aria-pressed='true'],
+.kpi[aria-pressed='true'][data-quiet] { box-shadow: none; }
+.kpi-ic, .kpi-on, .kpi .spark { display: none; }
+.kpi-h { color: var(--ink-3); font: 500 13px / 1.2 var(--font-ui); }
+.kpi--compact .kpi-row {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 6px 0 0;
+  white-space: normal;
+}
+.kpi--compact .kpi-value { font: 700 var(--fs-fig2) / 0.95 var(--font-display); white-space: nowrap; }
+.kpi-value .fig { font-family: inherit; font-weight: inherit; letter-spacing: 0; }
+.kpi--compact .kpi-value .unit { margin-left: 1px; color: var(--ink-2); font: 500 var(--fs-fig2-unit) / 1 var(--font-ui); }
+/* La ficha: regla fina arriba y entre columnas; las cifras comparten línea de base aunque una etiqueta parta */
+.kpis > li:not(:first-child) { padding-top: 14px; border-top: 1px solid var(--rule); }
+.kpis > li:not(:first-child) .kpi { padding-bottom: 10px; }
+.kpis > li:nth-child(n + 3) .kpi { padding-left: 12px; border-left: 1px solid var(--rule); }
+/* La titular: «Esta semana» ya la nombra y la unidad dice que es distancia; su etiqueta queda para el lector de pantalla */
+.kpis > li:first-child .kpi { padding-bottom: 20px; }
+.kpis > li:first-child .kpi-h {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.kpis > li:first-child .kpi-row { flex-flow: row wrap; align-items: baseline; gap: 4px 14px; margin-top: 6px; }
+/* --fit (KpiCard) la encoge si no cabe con su diferencia en la línea */
+.kpis > li:first-child .kpi-value { font: 800 calc(var(--fs-figure) * var(--fit, 1)) / 0.86 var(--font-display); }
+.kpis > li:first-child .kpi-value .unit { margin-left: 2px; font-size: 22px; }
+.kpis > li:first-child .delta { font-size: var(--t-md); }
+/* Elegida para la gráfica de las 12 semanas: una raya de tinta, como la de la barra inferior */
+.kpi::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 20px;
+  height: 3px;
+  background: var(--ink);
+  opacity: 0;
+  transition: opacity var(--dur-fast) ease;
+}
+.kpis > li:nth-child(n + 3) .kpi::after { left: 12px; }
+.kpi[aria-pressed='true']:not([data-quiet])::after { opacity: 1; }
+/* Con puntero, la raya asoma al pasar: la cifra se puede elegir */
+@media (hover: hover) and (pointer: fine) {
+  .kpi[aria-pressed='false']:hover::after,
+  .kpi[data-quiet]:hover::after { opacity: 0.4; }
+}
+.week-cap { margin-top: 14px; }
+
+/* ---- Objetivo, próximo entreno y evento ---- */
+.duo { gap: var(--section-gap); }
+.goal {
+  padding: var(--section-lead) 0 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.goal .glance-label { color: var(--ink); font: 700 var(--fs-section) / 1.1 var(--font-display); }
+.goal .glance-label .ic { display: none; }
+.goal .meter { margin-top: 6px; }
+/* El evento es un objeto del mismo plan: se arrima a lo que tiene encima */
+.duo > .goal-event { margin-top: -20px; }
+
+/* ---- Tu última salida ---- */
+.lastride.card--flush { overflow: visible; }
+.lastride .card-h { margin: 0 0 8px; padding: 0; }
+.lastride-map { border-block: 0; }
+.lastride-body { padding: 16px 0 0; }
+.lastride-stats { border-block-color: var(--rule); }
+.lastride-stat .ic { color: var(--ink-3); }
+.lastride-stat dd { font: 700 26px / 1 var(--font-display); }
+.lastride-stat dd .fig { font-family: inherit; letter-spacing: 0; }
+.lastride-stat dd .unit { color: var(--ink-2); font: 500 13px / 1 var(--font-ui); }
+
+/* ---- Carga y forma (sin datos) y Tus datos: secciones con su regla ---- */
+.home > .section:not(.card),
+.load-compact { padding-top: var(--section-lead); border-top: 1px solid var(--rule); }
+
+/* ---- Solo el móvil: el paisaje deja sitio al perfil bajo la frase y el mapa va a sangre ---- */
+@media (max-width: 899px) {
+  .hero:not(.hero-empty) { padding-bottom: clamp(150px, 44vw, 196px); }
+  .hero + .week { margin-top: -20px; }
+  .lastride-map { margin-inline: calc(-1 * var(--gutter)); }
+}
+
+/* ---- Desde 900 px: el paisaje, a sangre hasta el carril, el techo y el borde derecho ---- */
+@media (min-width: 900px) {
+  /* Inicio no se centra en una columna: su paisaje llega de lado a lado */
+  .legacy:has(> .home) { max-width: none; }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    min-height: clamp(300px, 27vw, 400px);
+    margin-inline: calc(-1 * var(--page-pad, var(--gutter)));
+    padding: calc(28px + env(safe-area-inset-top)) var(--page-pad, var(--gutter)) 0;
+  }
+  .hero-empty { min-height: 432px; padding-bottom: 72px; }
+  .hero::before,
+  .hero .land {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 72px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 72px), transparent);
+  }
+  .hero-top { position: absolute; top: calc(20px + env(safe-area-inset-top)); right: var(--page-pad, var(--gutter)); }
+  .m-brand { display: none; }
+  .hero-copy { max-width: 560px; margin-top: 0; }
+  .hello { font-size: var(--fs-hello-wide); }
+  .hello-long { font-size: clamp(34px, 3.4vw, 46px); }
+  .hero:not(.hero-empty) .hero-copy .sub { max-width: 18em; margin-top: 12px; font-size: var(--fs-phrase-wide); }
+  .hero-empty .hero-copy .sub { font-size: var(--fs-lead); }
+  .summit-lbl span { font-size: 13px; }
+
+  .hero + .week { margin-top: -24px; }
+  /* Con sitio, la diferencia va en la línea de su cifra: la ficha se lee de un golpe */
+  .kpis > li:not(:first-child) .kpi-row { flex-flow: row wrap; align-items: baseline; gap: 2px 8px; }
+  .kpis > li:not(:first-child) .kpi-value { font-size: calc(var(--fs-fig2) * var(--fit, 1)); }
+  .kpis > li:nth-child(n + 3) .kpi { padding-left: 20px; }
+  .kpis > li:nth-child(n + 3) .kpi::after { left: 20px; }
+  .kpis > li:first-child .kpi-row { gap: 4px 18px; }
+  .kpis > li:first-child .kpi-value { font-size: calc(var(--fs-figure-wide) * var(--fit, 1)); }
+  .kpis > li:first-child .kpi-value .unit { margin-left: 4px; font-size: 28px; }
+  .week-cap { max-width: var(--measure-text); }
+
+  /* Tu última salida: el mapa, con sus esquinas de objeto; cifras y perfil, lado a lado */
+  .lastride-map { border-radius: var(--r-lg); overflow: hidden; }
+  .lastride-body { padding-top: 20px; }
+}
+
+/* ---- Desde 1024 px: columna de lectura (tu última salida, tus 12 semanas) y columna del plan ---- */
+@media (min-width: 1024px) {
+  .home {
+    grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+    column-gap: clamp(40px, 4.4vw, 72px);
+    align-items: start;
+  }
+  .home > * { grid-column: 1 / -1; min-width: 0; }
+  .home > .hero { grid-row: 1; }
+  .home > .week { grid-row: 2; }
+  .home > .lastride { grid-column: 1; grid-row: 3; }
+  /* Las cuatro cifras de la salida, en dos filas: en media columna, la cuarta se caía sola */
+  .home .lastride-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .home .lastride-body:not(:has(> .profile-fig)) .lastride-stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .home > .trend { grid-column: 1; grid-row: 4; }
+  /* Lo que sigue (carga y forma, tus datos) se queda en la columna de lectura: nada a 1200 px de ancho */
+  .home > .trend ~ :is(.card, .section, .load-compact) { grid-column: 1; }
+  .home > .duo { grid-column: 2; grid-row: 3 / span 2; grid-template-columns: minmax(0, 1fr); }
+  .home .duo > * { grid-column: 1; grid-row: auto; }
+  /* La columna estrecha acompaña la lectura: objetivo y próximo entreno siguen a la vista mientras
+     bajas por la salida y las 12 semanas. Solo si cabe entera en la ventana. */
+  @media (min-height: 720px) { .home > .duo { position: sticky; top: 24px; } }
+  /* Sin última salida, la gráfica sube a su sitio */
+  .home:not(:has(> .lastride)) > .trend { grid-row: 3; }
+  .home:not(:has(> .lastride)) > .duo { grid-row: 3; }
+
+  /* La semana en una línea: la cifra titular a la izquierda y la ficha de tres a su lado, sobre la misma base */
+  .home .kpis { grid-template-columns: minmax(0, 1.45fr) repeat(3, minmax(0, 1fr)); align-items: end; }
+  .home .kpis > li:first-child { grid-column: auto; }
+  .home .kpis > li:first-child .kpi { padding-bottom: 0; }
+  .home .kpis > li:not(:first-child) { padding-top: 0; border-top: 0; }
+  .home .kpis > li:not(:first-child) .kpi { padding: 2px 0 12px 20px; border-left: 1px solid var(--rule); }
+  .home .kpis > li:not(:first-child) .kpi::after { left: 20px; }
+}
+
+@media (forced-colors: active) {
+  .kpi { border: 0; }
+  .kpi::after { background: CanvasText; }
 }

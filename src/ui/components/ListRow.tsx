@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import type { Accent } from '../accent';
 import { ChevronRight, type LucideIcon } from '../icons';
 
@@ -87,9 +87,10 @@ export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value
   return (
     <li>
       {to ? (
-        <Link className="row" to={to} data-m={accent} aria-label={ariaLabel}>
+        // NavLink marca con `aria-current="page"` la fila de la pantalla abierta (lista y detalle a la vez en PC).
+        <NavLink end className="row" to={to} data-m={accent} aria-label={ariaLabel}>
           {body}
-        </Link>
+        </NavLink>
       ) : onClick ? (
         <button type="button" className="row" data-m={accent} aria-label={ariaLabel} onClick={onClick}>
           {body}

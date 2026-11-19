@@ -1,5 +1,7 @@
 # FBikeTrain: sistema de diseño «Relieve grabado»
 
+> Desde el 2026-11-19 la dirección vigente es «Libro de ruta», que evoluciona este sistema: `docs/design/2026-11-18-libro-de-ruta/README.md`. Donde los dos documentos no coincidan (tarjetas por sección, KPI de vidrio, usos del azul, tipografía de títulos), manda «Libro de ruta».
+
 Versión final del rediseño. Parte de la dirección ganadora, b-identidad («Relieve grabado»), y le añade dos piezas. De a-fiel toma la densidad y la composición del panel de la inspiración: hero con paisaje, cuatro KPI de vidrio y tres filas de tarjetas. De c-datos toma la semántica de las gráficas: la discontinua es siempre «tu media» o «el periodo anterior», cada gráfica tiene vista de tabla y hay una frase resumen.
 
 - Prototipo navegable: `docs/design/prototipo-final/` (abre `inicio.html` directamente con `file://`).

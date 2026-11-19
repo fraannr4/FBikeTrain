@@ -5,13 +5,13 @@
 .receta {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
   width: 100%; min-height: 72px; padding: 12px 10px 12px 14px; text-align: left; color: inherit; font: inherit;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-card);
+  background: var(--surface); border: 1px solid transparent; border-radius: var(--r-lg);
   transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
 }
 .receta:active { transform: scale(0.985); }
 .receta .row-main { min-width: 0; }
 .receta-figs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font-size: var(--t-sm); color: var(--ink-2); }
-.receta-figs b { margin-right: 3px; font: 700 21px/1.1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.receta-figs b { margin-right: 3px; font: 700 26px/1 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
 .receta-figs > span { white-space: nowrap; }
 .receta-figs .bars { display: inline-block; width: 13px; height: 13px; margin-right: 5px; vertical-align: -1px; }
 .receta-meta { display: block; margin-top: 3px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-3); text-wrap: pretty; }
@@ -53,7 +53,7 @@ dialog.sheet .rutas-usage { margin-top: 18px; }
 
 /* ---------- Inicio en el mapa ---------- */
 .start-pick { display: grid; gap: 10px; }
-.start-map { height: clamp(220px, 42dvh, 360px); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--map-under, var(--surface-2)); overflow: hidden; isolation: isolate; }
+.start-map { height: clamp(220px, 42dvh, 360px); border-radius: var(--r-lg); border: 1px solid var(--rule); background: var(--map-under, var(--surface-2)); overflow: hidden; isolation: isolate; }
 .start-pin { display: grid; place-items: center; }
 .start-pin > span {
   width: 22px; height: 22px; border-radius: 50%;
@@ -65,7 +65,7 @@ dialog.sheet .rutas-usage { margin-top: 18px; }
 .gen-progress .card-title:focus { outline: none; }
 .gen-progress .card-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
 .gen-progress-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.gen-progress-v { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.gen-progress-v { font: 800 48px/0.9 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
 .gen-progress-v .u { font: 600 var(--t-md)/1 var(--font-fig); color: var(--ink-2); }
 .genbar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
 .genbar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--action); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform var(--dur-sheet) var(--ease-out); }
@@ -124,3 +124,5 @@ dialog.sheet .howto { margin-top: 0; }
   .receta { border: 1px solid CanvasText; }
   .genbar > i { background: Highlight; }
 }
+/* Los dos buscadores externos van seguidos: son una pareja, no dos secciones */
+@media (max-width: 899px) { .page > .nb-wikiloc + .nb-wikiloc { margin-top: calc(8px - var(--section-gap)); } }

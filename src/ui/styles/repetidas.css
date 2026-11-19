@@ -9,7 +9,7 @@
 .repetidas .groups { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .rg {
   display: grid; gap: 14px; width: 100%; padding: 14px 14px 12px; text-align: left; font: inherit; color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card);
+  background: var(--surface); border: 1px solid transparent; border-radius: var(--r-card);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-fast) ease;
 }
@@ -18,15 +18,15 @@
 @media (hover: hover) and (pointer: fine) { .rg:hover { border-color: var(--line-strong); } }
 .rg-top { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
 .rg-main { display: grid; min-width: 0; }
-.rg-name { font: 600 19px/1.15 var(--font-fig); color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
+.rg-name { font: 700 var(--fs-name)/1.12 var(--font-display); color: var(--ink); overflow-wrap: anywhere; text-wrap: pretty; }
 .rg-top .chev { width: 18px; height: 18px; color: var(--ink-3); }
 .rg .chip { justify-self: start; margin-top: 6px; }
-.rg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--line); }
+.rg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: 10px; border-top: 1px solid var(--rule); }
 .rg-stats > span { display: grid; align-content: start; gap: 4px; min-width: 0; padding-left: 12px; }
 .rg-stats > span:first-child { padding-left: 0; }
-.rg-stats > span + span { border-left: 1px solid var(--line); }
-.rg-k { font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-3); }
-.rg-v { font: 700 20px/1.05 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.rg-stats > span + span { border-left: 1px solid var(--rule); }
+.rg-k { font: 500 13px/1.2 var(--font-ui); color: var(--ink-3); }
+.rg-v { font: 700 26px/1 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
 .rg-v .u, .sheet--repetida .row-val .u, .sheet--repetida .stat3 dd .u { font-size: 13px; margin: 0 3px 0 2px; }
 .rg-v .u:last-child, .sheet--repetida .row-val .u:last-child, .sheet--repetida .stat3 dd .u:last-child { margin-right: 0; }
 .rg-v.delta { display: flex; align-items: center; gap: 4px; font: 600 var(--t-sm)/1.25 var(--font-ui); white-space: normal; }
@@ -57,9 +57,9 @@
 .sheet--repetida .sheet-sub { margin-top: 4px; }
 .rs-map { position: relative; height: 184px; border-radius: 18px; background: var(--surface-2); overflow: hidden; }
 .rs-map .shape { position: absolute; inset: 6px 0 6px 30%; width: 70%; height: calc(100% - 12px); }
-.rs-beat { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 4px; margin: 0; padding: 10px 14px 12px; border-radius: 14px; background: var(--glass-strong); border: 1px solid var(--line-strong); }
+.rs-beat { position: absolute; left: 14px; bottom: 14px; display: grid; gap: 4px; margin: 0; padding: 10px 14px 12px; border-radius: var(--r-lg); background: var(--glass-strong); border: 1px solid var(--rule); }
 .rs-beat span { font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
-.rs-beat b { font: italic 700 34px/1 var(--font-fig); color: var(--ink); font-variant-numeric: tabular-nums; }
+.rs-beat b { font: 800 44px/0.9 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; }
 .rs-beat b .u { font-size: 17px; margin: 0 4px 0 2px; font-style: normal; }
 .rs-beat b .u:last-child { margin-right: 0; }
 .sheet--repetida .stat3 dd.flat { font: 500 var(--t-md)/1.2 var(--font-ui); color: var(--ink-2); }

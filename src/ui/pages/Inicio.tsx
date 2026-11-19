@@ -17,7 +17,6 @@ import { RideMapCard } from '../components/RideMapCard';
 import { Skeleton } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { StravaHowTo } from '../components/StravaHowTo';
-import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { usePageTitle } from '../hooks/usePageTitle';
 import { EventGoalRow, GoalGlance } from '../inicio/GoalGlance';
 import { Hero } from '../inicio/Hero';
@@ -283,7 +282,6 @@ const REF_SPEED = 'frente a tu media';
 
 function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => void }) {
   const { acts, total, firstStart, lastRide, workouts, goals, lastImportAt, lastBackupAt, displayName, thresholds, now } = data;
-  const desktop = useDesktopLayout();
   const [metric, setMetric] = useState<Accent>('dist');
   // La métrica de partida (Distancia) no se recalca con el borde de color hasta que eliges una.
   const [picked, setPicked] = useState(false);
@@ -327,6 +325,45 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
   const sentence = lead ? { lead: lead.lead, figure: lead.name, tail: lead.tail } : heroSentence(current, null);
   const speedMean = trend.series.speed.mean;
 
+  // Las cifras de la semana van tras el paisaje, sin caja, con la distancia de titular. Es la misma
+  // composición a cualquier ancho; inicio.css la apila en el móvil y la pone en una línea en escritorio.
+  const weekSection = (
+    <section aria-labelledby="week-title" className="week">
+      <h2 id="week-title" className="week-title">
+        Esta semana
+      </h2>
+      <ul className="kpis">
+        {KPIS.map((k) => {
+          let note: string | undefined;
+          if (k.accent === 'speed' && current.rides === 0)
+            note = avg.rides > 0 ? `Tu media: ${formatSpeed(avg.avgSpeedMs)}` : undefined;
+          return (
+            <li key={k.accent}>
+              <KpiCard
+                label={k.label}
+                icon={k.icon}
+                accent={k.accent}
+                value={k.format(current)}
+                delta={deltas[k.accent]}
+                deltaRef={k.accent === 'speed' ? REF_SPEED : REF_SUMS}
+                note={note}
+                selected={metric === k.accent}
+                quiet={!picked}
+                onSelect={() => pick(k.accent)}
+                controls="progreso"
+                describedBy="kpi-hint"
+              />
+            </li>
+          );
+        })}
+      </ul>
+      <p className="week-cap">{weekCaption(current.rides, trend)}</p>
+      <p id="kpi-hint" className="sr-only">
+        Pulsa una cifra para verla en Tus últimas 12 semanas.
+      </p>
+    </section>
+  );
+
   return (
     <>
       <Hero
@@ -352,45 +389,11 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
             <OwnProfileButton className="round avatar press appbar-profile" />
           </>
         }
-      >
-        <section aria-labelledby="week-title" className="week">
-          <h2 id="week-title" className="sr-only">
-            Esta semana
-          </h2>
-          <ul className="kpis">
-            {KPIS.map((k) => {
-              let note: string | undefined;
-              if (k.accent === 'speed' && current.rides === 0)
-                note = avg.rides > 0 ? `Tu media: ${formatSpeed(avg.avgSpeedMs)}` : undefined;
-              return (
-                <li key={k.accent}>
-                  <KpiCard
-                    label={k.label}
-                    icon={k.icon}
-                    accent={k.accent}
-                    value={k.format(current)}
-                    delta={deltas[k.accent]}
-                    deltaRef={k.accent === 'speed' ? REF_SPEED : REF_SUMS}
-                    note={note}
-                    selected={metric === k.accent}
-                    quiet={!picked}
-                    onSelect={() => pick(k.accent)}
-                    controls="progreso"
-                    describedBy="kpi-hint"
-                  />
-                </li>
-              );
-            })}
-          </ul>
-          {!desktop ? <p className="week-cap">{weekCaption(current.rides, trend)}</p> : null}
-          <p id="kpi-hint" className="sr-only">
-            Pulsa una cifra para verla en Tus últimas 12 semanas.
-          </p>
-        </section>
-      </Hero>
+      />
+
+      {weekSection}
 
       <div className="duo">
-        {desktop ? <p className="week-cap">{weekCaption(current.rides, trend)}</p> : null}
         {/* Un solo objetivo de volumen, el del mes si lo hay (como el prototipo): con los dos, «Próximo
             entreno» no asoma en el primer pantallazo del teléfono. El de la semana vive en Plan > Objetivos. */}
         {plan.glances.slice(0, 1).map(({ id, glance }) => (

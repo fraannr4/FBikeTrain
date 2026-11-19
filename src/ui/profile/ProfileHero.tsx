@@ -22,7 +22,7 @@ export function ProfileHero({ client, profile, own = false, onPhoto, photoBusy =
         <path className="profile-signature" d="M565 240C510 217 577 208 589 191S536 179 569 164 628 170 646 143" />
         <circle className="profile-summit" cx="646" cy="143" r="5" /><circle className="profile-sun" cx="817" cy="62" r="22" />
       </svg>
-      <span className="profile-cover-label">CUADERNO DE RUTA <span>FB / 01</span></span>
+      <span className="profile-cover-label">Cuaderno de ruta <span>FB / 01</span></span>
       <p className="profile-cover-copy">Cada ciclista,<br /><em>una manera de rodar.</em></p>
     </div>
     <div className="profile-intro">

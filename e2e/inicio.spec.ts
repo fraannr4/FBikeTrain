@@ -134,20 +134,34 @@ test.describe('Inicio en el móvil', () => {
         activities: [...history(c.elev), ...c.week.map((o, i) => ride(`w${i}`, NOW.getTime() - (i + 1) * DAY, o))],
       });
       await expect(page.locator('.kpi .delta')).toHaveCount(4);
+      // Libro de ruta: la distancia es la cifra titular, con su diferencia al lado, a cualquier ancho.
+      // Por debajo de 900 px las otras tres forman una ficha de tres columnas con la diferencia
+      // debajo; en escritorio, una ficha de una línea con la diferencia al lado.
+      const ficha = c.width < 900;
       // La cifra encoge al medir: se espera a que no quede ninguna diferencia en una segunda línea.
       await expect
         .poll(() =>
-          page.evaluate(() =>
-            [...document.querySelectorAll('.kpi-row')].every((r) => {
-              const [v, d] = [...r.children].map((e) => e.getBoundingClientRect());
-              return d.top < v.bottom - 4;
-            }),
+          page.evaluate(
+            (stacked) =>
+              [...document.querySelectorAll('.kpi-row')].every((r, i) => {
+                const [v, d] = [...r.children].map((e) => e.getBoundingClientRect());
+                if (!stacked || i === 0) return d.top < v.bottom - 4;
+                // En la ficha: la cifra en una sola línea, dentro de su columna, y la diferencia debajo.
+                const row = r.getBoundingClientRect();
+                return v.height < 48 && v.right <= row.right + 0.5 && d.top >= v.bottom - 4;
+              }),
+            ficha,
           ),
         )
         .toBe(true);
-      // La cifra encogida es un poco más baja, pero ninguna fila gana una línea.
-      const rows = await page.evaluate(() => [...document.querySelectorAll('.kpi-row')].map((r) => r.getBoundingClientRect().height));
-      expect(Math.max(...rows) - Math.min(...rows)).toBeLessThan(3);
+      // La cifra encogida es un poco más baja, pero ninguna fila gana una línea. Se comparan las
+      // tres columnas de la ficha entre sí: la titular mide otra cosa a propósito, a cualquier ancho.
+      const rows = await page.evaluate(
+        () => [...document.querySelectorAll('.kpi-row')].slice(1).map((r) => { const b = r.getBoundingClientRect(); return { h: b.height, top: b.top }; }),
+      );
+      expect(rows).toHaveLength(3);
+      expect(Math.max(...rows.map((r) => r.h)) - Math.min(...rows.map((r) => r.h))).toBeLessThan(3);
+      expect(Math.max(...rows.map((r) => r.top)) - Math.min(...rows.map((r) => r.top))).toBeLessThan(3);
       for (const t of ['dark', 'light'] as const) {
         await setTheme(page, t);
         await page.locator('.week').screenshot({ path: `${SHOTS}/r2-kpi-${c.name}-${t === 'dark' ? 'oscuro' : 'claro'}.png` });

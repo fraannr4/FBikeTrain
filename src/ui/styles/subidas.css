@@ -41,11 +41,29 @@
 .subidas .once-only { margin-top: 16px; }
 .subidas .more-left { font-weight: 500; color: var(--ink-3); }
 .subidas .list > .sk-rows, .subidas .list > [aria-busy] { padding: 16px 14px; }
+/* Libro de ruta: las subidas son renglones sobre la página, con regla fina, como las salidas, a
+   cualquier ancho */
+.subidas-list.list { background: none; border: 0; border-top: 1px solid var(--rule); border-radius: 0; box-shadow: none; }
+.subidas-list .row { padding-inline: 0; }
+.subidas-list.list--inset > li + li::before { margin-left: 54px; background: var(--rule); }
+.subidas-list .row-lead--wedge { background: var(--surface); }
+.subidas-list .row-trail .chev { margin-right: -4px; }
 
-/* Apaisado y tableta: el nombre a la izquierda y la cifra a la derecha; la lista a dos columnas */
+/* Apaisado y tableta: el nombre a la izquierda y la cifra a la derecha; la lista a dos columnas.
+   El primer renglón de cada columna ya tiene encima la regla de la lista: el hueco de 1 px de su
+   propia regla se conserva para que las dos columnas empiecen a la misma altura. */
 @media (min-width: 600px) {
   .subidas .last { grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; align-items: end; }
   .subidas .last .card-h { grid-column: 1 / -1; }
   .subidas .last .last-fig { margin-top: 0; }
-  .subidas-list:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .subidas-list:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 32px; }
+  .subidas-list.list--inset > li:first-child::before { content: ""; display: block; height: 1px; }
+  .subidas-list.list--inset > li:nth-child(2)::before { background: none; }
+}
+/* Con puntero, el renglón se marca al pasar con una banda que sobresale 12 px sin mover el texto */
+@media (min-width: 900px) and (hover: hover) and (pointer: fine) {
+  .subidas-list.list { margin-inline: -12px; border-top: 0; background: linear-gradient(var(--rule), var(--rule)) 12px 0 / calc(100% - 24px) 1px no-repeat; }
+  .subidas-list .row { padding-inline: 12px; border-radius: var(--r-md); }
+  .subidas-list.list--inset > li + li::before { margin-left: 66px; margin-right: 12px; }
+  .subidas-list .row:hover { background-color: var(--surface); }
 }

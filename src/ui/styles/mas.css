@@ -13,7 +13,7 @@
 .trail-warn { width: 18px; height: 18px; color: var(--warning); }
 .lead-sk { display: grid; gap: 8px; margin-top: 4px; max-width: 300px; }
 .start-card { margin-bottom: 12px; }
-.start-card .state { padding: 20px 8px 8px; }
+.start-card .state { padding: 4px 0 8px; }
 .start-card .btn--ghost { white-space: normal; text-align: center; min-height: 48px; padding-block: 8px; }
 /* Error de almacenamiento: solo el nombre, atenuado; el aviso ya explica el porqué */
 .list--off .row { opacity: 0.55; }

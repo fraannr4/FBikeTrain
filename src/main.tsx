@@ -13,6 +13,10 @@ import '@fontsource/barlow/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-600.css';
 import '@fontsource/barlow-semi-condensed/latin-700.css';
 import '@fontsource/barlow-semi-condensed/latin-700-italic.css';
+// Rotulación de títulos y cifras titulares (libro de ruta): solo latin-700.css y latin-800.css.
+// Sin «.css» en la ruta: el mapa de exports de este paquete solo declara «./*» (lo resuelve a «./*.css»).
+import '@fontsource/big-shoulders-display/latin-700';
+import '@fontsource/big-shoulders-display/latin-800';
 // Tokens primero; después, de lo general a lo particular.
 import './ui/styles/tokens.css';
 import './ui/styles/base.css';

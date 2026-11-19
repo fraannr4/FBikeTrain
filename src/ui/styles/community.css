@@ -22,7 +22,7 @@
 .cyclist-profile span, .cyclist-profile small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: var(--ink-3); }
 .cyclist-profile small { color: var(--ink-2); }
 .cyclist-profile:focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
-.cyclist-profile:hover strong { text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) { .cyclist-profile:hover strong { text-decoration: underline; } }
 .cyclist-actions { display: flex; align-items: center; gap: 6px; }
 .cyclist-actions .btn { min-height: 44px; padding: 0 13px; font-size: 13px; border-radius: 999px; }
 .cyclist-add, .cyclist-friend { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: 12px; color: var(--ink-2); }
@@ -46,3 +46,25 @@
 @media (min-width: 700px) { .cyclists-list { grid-template-columns: repeat(2,minmax(0,1fr)); } .cyclists-intro { grid-template-columns: auto minmax(0,1fr) auto; align-items: center; } .cyclists-intro .btn { grid-column: auto; } }
 .cyclist-friend--sent { color: var(--ink-3); }
 
+/* ===== Libro de ruta (tanda 2): Ciclistas =====
+   El filtro elegido usa la superficie clara del segmentado (como los chips del kit), no el ámbar;
+   las iniciales van en tinta; mínimos de 12 px y regla fina entre personas. */
+.cyclists-filters > [aria-current] { color: var(--ink); background: var(--seg-thumb); border-color: var(--ink-2); }
+.cyclists-section-heading h2 { font: 700 var(--fs-section)/1.1 var(--font-display); }
+.cyclist-card { border-top-color: var(--rule); }
+.cyclist-photo { color: var(--ink-2); font: 700 20px/1 var(--font-display); }
+.cyclist-profile span, .cyclist-profile small { font-size: 12px; }
+.cyclists-blocks { border-top-color: var(--rule); }
+/* Los botones de una persona usan el radio del kit, no la píldora */
+.cyclist-actions .btn { border-radius: var(--r-md); }
+
+/* ===== Libro de ruta (tanda 3): tableta y escritorio =====
+   A dos columnas, las personas no se tocan; en pantalla ancha la lista se queda en dos columnas
+   legibles y el buscador mide lo que un nombre. */
+@media (min-width: 700px) { .cyclists-list { column-gap: 40px; } }
+@media (min-width: 1024px) {
+  .cyclists-workspace { max-width: 960px; }
+  .cyclists-search { max-width: 440px; }
+  /* El enlace de pie no se estira a lo ancho con el texto en el centro: arranca en el borde */
+  .cyclists-blocks > .btn--ghost { width: auto; margin-left: -12px; }
+}

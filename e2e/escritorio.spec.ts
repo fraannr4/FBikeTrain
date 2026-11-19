@@ -145,27 +145,38 @@ if (!matrix) for (const width of [1024, 1440, 1920]) for (const theme of ['light
     const folder = `${root}/${phase}/inicio-estados`;
     mkdirSync(folder, { recursive: true });
     const noOverflow = async () => expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
+    // Libro de ruta: dos columnas. La de lectura apila la última salida y las 12 semanas, con el
+    // mismo ancho; la estrecha (objetivo y próximo entreno) va a su derecha. La estrecha es
+    // pegajosa, así que su altura en pantalla depende del desplazamiento y no se compara aquí.
     const balanced = async () => {
       await expect.poll(async () => {
         const map = await page.locator('.lastride').boundingBox();
         const chart = await page.locator('.trend').boundingBox();
-        return Math.abs(map!.y - chart!.y) + Math.abs(map!.height - chart!.height);
-      }).toBeLessThan(2);
+        const aside = await page.locator('.duo').boundingBox();
+        const stacked = Math.abs(map!.x - chart!.x) + Math.abs(map!.width - chart!.width) < 2 && chart!.y >= map!.y + map!.height;
+        return stacked && aside!.x >= map!.x + map!.width;
+      }).toBe(true);
     };
     await page.goto('#/');
     await expect(page.locator('.lastride .leaflet-overlay-pane svg')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
+    // El paisaje va a sangre: de borde a borde de la zona de contenido, no del ancho de la página.
     await expect.poll(async () => {
       const hero = await page.locator('.hero').boundingBox();
-      const home = await page.locator('.home').boundingBox();
-      return Math.abs(hero!.x - home!.x) + Math.abs(hero!.width - home!.width);
+      const main = await page.locator('.main').boundingBox();
+      return Math.abs(hero!.x - main!.x) + Math.abs(hero!.width - main!.width);
     }).toBeLessThan(2);
-    const kpis = await page.locator('.kpis > li').evaluateAll(items => items.map(item => item.getBoundingClientRect().top));
-    expect(new Set(kpis).size).toBe(1);
-    await expect(page.locator('.duo > .week-cap')).toBeVisible();
+    // La cifra titular es más alta que la ficha de tres: comparten la línea de abajo, no la de arriba.
+    const kpis = await page.locator('.kpis > li').evaluateAll(items => items.map(item => item.getBoundingClientRect().bottom));
+    expect(kpis).toHaveLength(4);
+    expect(Math.max(...kpis) - Math.min(...kpis)).toBeLessThan(2);
+    await expect(page.locator('.week .week-cap')).toBeVisible();
     await expect(page.locator('.hero .week-cap')).toHaveCount(0);
     await expect(page.locator('.summit-lbl.on')).toBeVisible();
     await balanced();
+    // Sin desplazar, la columna estrecha arranca a la altura de la última salida.
+    const tops = await Promise.all(['.lastride', '.duo'].map(async s => (await page.locator(s).boundingBox())!.y));
+    expect(Math.abs(tops[0] - tops[1])).toBeLessThan(2);
     await noOverflow();
     await page.screenshot({ path: `${folder}/${width}-${theme}-con-datos.png`, fullPage: true, animations: 'disabled' });
 
@@ -209,8 +220,8 @@ if (!matrix) for (const width of [1024, 1440, 1920]) for (const theme of ['light
     await expect(page.locator('.kpis, .duo, .lastride, .trend')).toHaveCount(0);
     await noOverflow();
     const empty = await page.locator('.hero-empty').boundingBox();
-    const home = await page.locator('.home').boundingBox();
-    expect(Math.abs(empty!.width - home!.width)).toBeLessThan(2);
+    const main = await page.locator('.main').boundingBox();
+    expect(Math.abs(empty!.width - main!.width)).toBeLessThan(2);
     const contrast = await auditContrast(page, 4.5);
     expect(contrast.contrast).toEqual([]);
     await page.screenshot({ path: `${folder}/${width}-${theme}-vacio.png`, fullPage: true, animations: 'disabled' });
