@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const html = readFileSync(resolve(__dirname, '../index.html'), 'utf8');
@@ -29,7 +29,7 @@ const throwingStorage = new Proxy({} as Pick<Storage, 'getItem'>, {
 describe('theme boot script', () => {
   beforeEach(() => {
     document.documentElement.removeAttribute('data-theme');
-    document.head.innerHTML = '<meta name="theme-color" content="#14221F">';
+    document.head.innerHTML = '<meta name="theme-color" content="#14221F"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">';
   });
 
   it('boot script defaults to dark', () => {
@@ -41,6 +41,15 @@ describe('theme boot script', () => {
     runBoot(storageWith('light'));
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe('#F7F4EA');
+  });
+
+  // iPhone pinta los símbolos de la barra de estado en blanco con black-translucent: ilegibles sobre el papel claro.
+  it('boot script keeps the iPhone status bar readable on each theme', () => {
+    const style = () => document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.getAttribute('content');
+    runBoot(storageWith(null));
+    expect(style()).toBe('black-translucent');
+    runBoot(storageWith('light'));
+    expect(style()).toBe('default');
   });
 
   it('boot script ignores unknown values', () => {
@@ -58,5 +67,14 @@ describe('theme boot script', () => {
     expect(html).toMatch(/<meta name="color-scheme" content="dark light"\s*\/?>/);
     expect(html).toMatch(/<meta name="viewport" content="[^"]*viewport-fit=cover[^"]*"/);
     expect(html).toMatch(/<html lang="es"/);
+  });
+
+  it('index.html lets an iPhone install the app with its own icon and name', () => {
+    expect(html).toContain('<link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />');
+    expect(existsSync(resolve(__dirname, '../public/apple-touch-icon.png'))).toBe(true);
+    expect(html).toContain('<meta name="apple-mobile-web-app-title" content="FBikeTrain" />');
+    expect(html).toContain('<meta name="apple-mobile-web-app-capable" content="yes" />');
+    expect(html).toContain('<meta name="mobile-web-app-capable" content="yes" />');
+    expect(html).toContain('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />');
   });
 });
