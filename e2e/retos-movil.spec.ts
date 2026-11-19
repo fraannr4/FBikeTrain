@@ -67,13 +67,23 @@ for (const theme of ['light', 'dark'] as const) {
     await fake(page);
     await page.goto('./#/retos');
     const nav = page.getByRole('navigation', { name: 'Menú principal' });
-    await expect(nav.getByRole('link', { name: 'Retos, 1 pendiente' })).toHaveAttribute('aria-current', 'page');
+    // Retos es una parte de «Gente»: el muelle suma (reto + solicitud) y el control de partes reparte.
+    await expect(nav.getByRole('link', { name: /^Gente, \d+ pendientes?$/ })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('navigation', { name: 'Partes de Gente' }).getByRole('link', { name: 'Retos, 1 pendiente' })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('region', { name: '¿A quién retas?' }).getByRole('link', { name: 'Marta: te reta' })).toBeVisible();
     await expect(page.getByRole('article', { name: 'Marta te reta: Vuelta del embalse' })).toBeVisible();
+    // Las vistas son filtros pequeños bajo «¿A quién retas?»: un solo segmentado (el de «Gente») y sin lupa en la cabecera.
+    const views = page.getByRole('group', { name: 'Vistas de retos' });
+    await expect(views.getByRole('button', { name: 'Avisos (1)' })).toBeVisible();
+    expect(await page.locator('main .seg').count()).toBe(1);
+    await expect(page.getByRole('link', { name: 'Buscar ciclistas' })).toHaveCount(0);
+    const rivals = await page.getByRole('region', { name: '¿A quién retas?' }).boundingBox();
+    expect((await views.boundingBox())!.y).toBeGreaterThanOrEqual(rivals!.y + rivals!.height);
+    expect(await views.getByRole('button').evaluateAll(els => els.every(e => e.getBoundingClientRect().height >= 44))).toBe(true);
     expect(await overflow(page)).toBe(0);
     await page.screenshot({ path: `${SHOTS}/retos-390-${theme}.png` });
 
-    await page.getByRole('link', { name: 'Tu perfil', exact: true }).click();
+    await page.getByRole('link', { name: 'Tú: perfil, importar y ajustes' }).click();
     const stats = page.getByRole('list', { name: 'Tus cifras' });
     await expect(stats.getByRole('link', { name: '2 amigos, 1 solicitud pendiente' })).toBeVisible();
     expect(await overflow(page)).toBe(0);
@@ -82,6 +92,8 @@ for (const theme of ['light', 'dark'] as const) {
     await stats.getByRole('link', { name: /amigos/ }).click();
     await expect(page.getByRole('region', { name: 'Solicitudes recibidas' })).toContainText('Pablo');
     await expect(page.getByRole('region', { name: 'Sugerencias' })).toContainText('Jordi');
+    await expect(page.getByRole('region', { name: 'Tus amigos' }).getByRole('button', { name: 'Escribir a Ana Ruta' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Quitar/ })).toHaveCount(0);
     expect(await overflow(page)).toBe(0);
     await page.screenshot({ path: `${SHOTS}/amigos-390-${theme}.png`, fullPage: true });
 
@@ -106,9 +118,9 @@ for (const theme of ['light', 'dark'] as const) {
     await prepare(page, 1280, 800, theme);
     await fake(page);
     await page.goto('./#/retos');
-    const group = page.getByRole('group', { name: 'Comunidad' });
+    const group = page.getByRole('group', { name: 'Gente' });
     await expect(group.getByRole('link', { name: 'Retos, 1 pendiente' })).toHaveAttribute('aria-current', 'page');
-    await expect(group.getByRole('link', { name: 'Tu perfil', exact: true })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Tú: perfil, importar y ajustes' })).toBeVisible();
     // En PC el perfil está en el carril: la foto de la cabecera no se repite.
     await expect(page.locator('.appbar-profile')).toBeHidden();
     expect(await overflow(page)).toBe(0);

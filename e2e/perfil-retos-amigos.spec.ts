@@ -1,7 +1,7 @@
 import { test, expect, type Page, TEST_USER_ID } from './accountFixture';
 
 // Perfil, Retos y Amigos en móvil: plazo y ventaja a la vista, respuesta instantánea, compartir perfil,
-// confirmación al quitar amigos y objetivos táctiles de 44 px. Datos sintéticos; capturas a 390 px.
+// acciones por amigo y objetivos táctiles de 44 px. Datos sintéticos; capturas a 390 px.
 test.setTimeout(90_000);
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
 const SHOTS = 'docs/design/2026-11-16-perfil-retos-amigos';
@@ -127,16 +127,16 @@ test('Perfil: cifras estables, compartir enlace y radios de la hoja de edición'
   await page.screenshot({ path: `${SHOTS}/perfil-editar-390.png` });
 });
 
-test('Amigos: quitar pide confirmación; aceptar es instantáneo', async ({ page }) => {
+test('Amigos: «Escribir» y «Retar» por amigo, sin «Quitar»; aceptar es instantáneo', async ({ page }) => {
   await prepare(page);
-  const calls = await fake(page);
+  await fake(page);
   await page.goto('./#/perfil/amigos');
-  await page.getByRole('button', { name: 'Quitar a Ana Ruta' }).click();
-  await expect(page.getByRole('button', { name: 'Quitar definitivamente a Ana Ruta' })).toBeVisible();
+  // Quitar a un amigo se hace desde su perfil (botón «Amigos» → «Eliminar de amigos»).
+  const row = page.getByRole('region', { name: 'Tus amigos' }).getByRole('listitem').filter({ hasText: 'Ana Ruta' });
+  await expect(row.getByRole('button', { name: 'Escribir a Ana Ruta' })).toBeVisible();
+  await expect(row.getByRole('link', { name: 'Retar a Ana Ruta' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Quitar/ })).toHaveCount(0);
   expect(await overflow(page)).toBe(0);
-  await page.screenshot({ path: `${SHOTS}/amigos-confirmar-390.png`, fullPage: true });
-  await page.getByRole('button', { name: 'Mantener a Ana Ruta' }).click();
-  expect(calls).not.toContain('remove_friendship');
   await page.getByRole('button', { name: 'Aceptar a Pablo' }).click();
   await expect(page.getByRole('region', { name: 'Solicitudes recibidas' })).toHaveCount(0);
   await expect(page.getByText('Ahora eres amigo de Pablo.')).toBeVisible();

@@ -8,6 +8,7 @@ import { Amigos } from '../src/ui/pages/Amigos';
 import { Mas } from '../src/ui/pages/Mas';
 import { clearAllData } from '../src/db/repo';
 import type { FriendRow, ProfileCard } from '../src/social/friends';
+import { COMMUNITY_CHANGED_EVENT } from '../src/social/communityBadge';
 
 const ana: ProfileCard = { id: 'p2', username: 'ana_ruta', display_name: 'Ana Ruta', locality: 'Villa Prueba', distance_km: null };
 const bea: ProfileCard = { id: 'p3', username: 'bea_puerto', display_name: 'Bea Puerto', locality: null, distance_km: null };
@@ -39,11 +40,11 @@ function renderWith(client: SupabaseClient, page = <Amigos />, path = '/perfil/a
 const NEAR_MISSING: Handler = () => ({ error: { message: 'Sin zona configurada' } });
 
 describe('Amigos dentro del perfil', () => {
-  it('lista tus amigos con su perfil y Retar, y vuelve al perfil', async () => {
+  it('lista tus amigos con su perfil y Retar, como parte raíz de «Gente»', async () => {
     const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
     renderWith(client);
-    expect(screen.getByRole('heading', { name: 'Amigos', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Volver a Tu perfil' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Gente', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Volver/ })).not.toBeInTheDocument();
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
     expect(within(mine).getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
     expect(within(mine).getByRole('link', { name: 'Retar a Ana Ruta' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p2');
@@ -84,6 +85,23 @@ describe('Amigos dentro del perfil', () => {
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
     expect(within(mine).getByText('Bea Puerto')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Solicitudes recibidas' })).not.toBeInTheDocument();
+  });
+
+  it('al responder una solicitud avisa para releer el contador de «Gente»', async () => {
+    const { client, state } = fakeClient(
+      { search_profiles_near: () => ({ data: [] }), remove_friendship: () => { state.friends = []; return {}; } },
+      [{ friendship_id: 'f9', status: 'pending', direction: 'received', profile: bea }],
+    );
+    const changed = vi.fn();
+    window.addEventListener(COMMUNITY_CHANGED_EVENT, changed);
+    try {
+      renderWith(client);
+      await userEvent.setup().click(await screen.findByRole('button', { name: 'Rechazar a Bea Puerto' }));
+      await screen.findByText('Todavía no tienes amigos.');
+      expect(changed).toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(COMMUNITY_CHANGED_EVENT, changed);
+    }
   });
 
   it('rechazar retira la solicitud', async () => {
@@ -226,21 +244,14 @@ describe('Amigos: acabado en móvil', () => {
     expect(await screen.findByRole('region', { name: 'Solicitudes recibidas' })).toBeInTheDocument();
   });
 
-  it('quitar a un amigo pide confirmación y se puede mantener', async () => {
-    const { client, rpc, state } = fakeClient(
-      { search_profiles_near: () => ({ data: [] }), remove_friendship: () => { state.friends = []; return {}; } },
-      [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }],
-    );
+  it('cada amigo lleva solo «Escribir» y «Retar»: quitarlo se hace desde su perfil', async () => {
+    const { client } = fakeClient({ search_profiles_near: () => ({ data: [] }) }, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
     renderWith(client);
-    const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Quitar a Ana Ruta' }));
-    expect(rpc).not.toHaveBeenCalledWith('remove_friendship', expect.anything());
-    await user.click(screen.getByRole('button', { name: 'Mantener a Ana Ruta' }));
-    expect(screen.getByRole('button', { name: 'Quitar a Ana Ruta' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Quitar a Ana Ruta' }));
-    await user.click(screen.getByRole('button', { name: 'Quitar definitivamente a Ana Ruta' }));
-    expect(rpc).toHaveBeenCalledWith('remove_friendship', { request_id: 'f1' });
-    expect(await screen.findByText('Has quitado a Ana Ruta de tus amigos.')).toBeInTheDocument();
+    const row = within(await screen.findByRole('region', { name: 'Tus amigos' })).getByRole('listitem');
+    const controls = [...within(row).queryAllByRole('link'), ...within(row).queryAllByRole('button')].map((el) => el.getAttribute('aria-label'));
+    expect(controls.sort()).toEqual(['Ana Ruta', 'Escribir a Ana Ruta', 'Retar a Ana Ruta']);
+    expect(within(row).getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
+    expect(screen.queryByRole('button', { name: /^Quitar/ })).not.toBeInTheDocument();
   });
 });
 
@@ -248,10 +259,17 @@ describe('Amigos en Más', () => {
   beforeEach(async () => {
     await clearAllData();
   });
-  it('con cuenta aparecen las filas Amigos y Retos', async () => {
-    renderWith(fakeClient({}).client, <Mas />, '/mas');
-    expect(await screen.findByRole('link', { name: /Amigos/ })).toHaveAttribute('href', '/amigos');
-    expect(screen.getByRole('link', { name: /Retos/ })).toHaveAttribute('href', '/retos');
+  it('con cuenta anónima no aparecen: Amigos y Retos viven en «Gente»', async () => {
+    render(
+      <AccountContext.Provider value={{ client: fakeClient({}).client, user: { id: 'u1', is_anonymous: true } as User }}>
+        <MemoryRouter initialEntries={['/mas']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <Mas />
+        </MemoryRouter>
+      </AccountContext.Provider>,
+    );
+    await screen.findByRole('link', { name: /Ajustes/ });
+    expect(screen.queryByRole('link', { name: /Amigos/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Retos/ })).not.toBeInTheDocument();
   });
   it('sin cuenta no aparece', async () => {
     render(

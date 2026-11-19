@@ -6,11 +6,11 @@ import { syncCommunityScores } from '../../social/challengeScoring';
 import { timeLeftLabel } from '../../social/challengeStatus';
 import { notifyCommunityChanged } from '../../social/communityBadge';
 import { Banner } from '../components/Banner';
+import { FilterChip } from '../components/Chip';
 import { Page } from '../components/Page';
+import { GenteNav } from '../gente/GenteNav';
 import { Skeleton } from '../components/Skeleton';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { formatCount } from '../format';
-import { Search } from '../icons';
 import { LikeFor } from '../likes/LikeButton';
 import { useLikes, type Likes } from '../likes/useLikes';
 import { RivalRow } from '../retos/RivalRow';
@@ -22,12 +22,13 @@ export const communityError = (e: unknown) => e instanceof Error ? e.message : '
 export const communityDate = (s: string) => new Date(s).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 type View = 'active' | 'notifications' | 'finished';
 const VIEW_PARAM: Record<string, View> = { avisos: 'notifications', historial: 'finished' };
+/** Vistas de la lista: filtros pequeños bajo «¿A quién retas?», no otro segmentado bajo el de «Gente». */
+const VIEWS: [View, string][] = [['active', 'En juego'], ['notifications', 'Avisos'], ['finished', 'Historial']];
 
-/** Pestaña Retos: rivales con su estado, invitaciones con respuesta en la tarjeta y el marcador. */
+/** Retos, parte de «Gente»: rivales con su estado, invitaciones con respuesta en la tarjeta y el marcador. */
 export function CommunityRetos() {
   const account = useAccount();
-  return <Page title="Retos" variant="narrow" className="page--community"
-    actions={<Link className="icon-btn" to="/ciclistas" aria-label="Buscar ciclistas"><Search className="ic" aria-hidden="true" /></Link>}>
+  return <Page title="Gente" docTitle="Retos" nav={<GenteNav />} variant="narrow" className="page--community">
     {account && !account.user.is_anonymous ? <CommunityRetosList account={account} /> : <p>Inicia sesión con una cuenta registrada para participar.</p>}
   </Page>;
 }
@@ -107,11 +108,11 @@ function CommunityRetosList({ account }: { account: Account }) {
   const unread = notifications.filter(n => !n.read_at).length;
   return <>
     {rows && <RivalRow client={account.client} rows={rows} userId={userId} />}
-    <SegmentedControl<View> label="Vistas de retos" value={view} onChange={setView} options={[
-      { value: 'active', label: 'En juego' },
-      { value: 'notifications', label: unread ? `Avisos (${formatCount(unread)})` : 'Avisos' },
-      { value: 'finished', label: 'Historial' },
-    ]} />
+    <div role="group" aria-label="Vistas de retos" className="view-filters">
+      {VIEWS.map(([value, label]) => <FilterChip key={value} pressed={view === value} onClick={() => setView(value)}>
+        {value === 'notifications' && unread ? `${label} (${formatCount(unread)})` : label}
+      </FilterChip>)}
+    </div>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" onClick={() => void load(true)} disabled={busy}>Reintentar</button>}>{error}</Banner>}
     {notice && <p className="community-notice-line" role="status">{notice}</p>}
     {!rows && !error && <ChallengesSkeleton />}

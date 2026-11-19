@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { listCyclists } from '../../social/community';
+import { notifyCommunityChanged } from '../../social/communityBadge';
 import {
   acceptFriendship,
   listFriends,
@@ -17,6 +18,7 @@ import { WriteButton } from '../chat/WriteButton';
 import { Banner } from '../components/Banner';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
+import { GenteNav } from '../gente/GenteNav';
 import { SkeletonRows } from '../components/Skeleton';
 import { StateView } from '../components/StateView';
 import { useToast } from '../components/Toast';
@@ -29,13 +31,14 @@ const message = (e: unknown) => (e instanceof Error ? e.message : 'No se ha podi
 const fold = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLocaleLowerCase('es');
 
 /**
- * Amigos, dentro del perfil: solicitudes recibidas arriba, tu lista con buscador, las enviadas y
+ * Amigos, parte de «Gente»: solicitudes recibidas arriba, tu lista con buscador, las enviadas y
  * sugerencias (cercanos por banda de zona; sin zona, ciclistas activos). Buscar a cualquiera es Ciclistas.
+ * Cada amigo lleva «Escribir» y «Retar»; quitarlo se hace desde su perfil (`FriendshipActions`).
  */
 export function Amigos() {
   const account = useAccount();
   return (
-    <Page title="Amigos" back="/perfil" variant="narrow" className="page--amigos">
+    <Page title="Gente" docTitle="Amigos" nav={<GenteNav />} variant="narrow" className="page--amigos">
       {account ? <AmigosView account={account} /> : <p>Inicia sesión para ver a tus amigos.</p>}
     </Page>
   );
@@ -46,7 +49,6 @@ type Suggestions = { rows: ProfileCard[]; noArea: boolean };
 function AmigosView({ account }: { account: Account }) {
   const { client } = account;
   const toast = useToast();
-  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [friends, setFriends] = useState<FriendRow[] | null>(null);
   const [listError, setListError] = useState('');
   const [error, setError] = useState('');
@@ -83,11 +85,11 @@ function AmigosView({ account }: { account: Account }) {
     if (busyId !== null || friends === null || listError) return;
     setBusyId(id);
     setError('');
-    setConfirmId(null);
     const before = friends;
     if (apply) setFriends(apply(before));
     try {
       await run();
+      notifyCommunityChanged();
       toast(done, { tone: 'good' });
       await refresh();
     } catch (e) {
@@ -139,18 +141,8 @@ function AmigosView({ account }: { account: Account }) {
                 <ul className="amigos-list">
                   {shown.map((f) => (
                     <Person key={f.friendship_id} card={f.profile}>
-                      {confirmId === f.friendship_id ? (
-                        <>
-                          <button type="button" className="btn btn--danger" aria-label={`Quitar definitivamente a ${f.profile.display_name}`} disabled={busy} onClick={() => act(f.friendship_id, () => removeFriendship(client, f.friendship_id), `Has quitado a ${f.profile.display_name} de tus amigos.`, drop(f.friendship_id))}>Sí, quitar</button>
-                          <button type="button" className="btn btn--secondary" aria-label={`Mantener a ${f.profile.display_name}`} onClick={() => setConfirmId(null)}>Mantener</button>
-                        </>
-                      ) : (
-                        <>
-                          <WriteButton client={client} userId={f.profile.id} name={f.profile.display_name} />
-                          <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
-                          <ActionButton label="Quitar" name={f.profile.display_name} busy={busy} onClick={() => setConfirmId(f.friendship_id)} />
-                        </>
-                      )}
+                      <WriteButton client={client} userId={f.profile.id} name={f.profile.display_name} />
+                      <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
                     </Person>
                   ))}
                 </ul>

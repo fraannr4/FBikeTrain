@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
@@ -6,6 +6,7 @@ import { AccountContext } from '../src/auth/AccountBoundary';
 import { Ciclistas } from '../src/ui/pages/Ciclistas';
 import { blockCyclist, listBlockedCyclists, listCyclists, type Cyclist } from '../src/social/community';
 import { listFriends, requestFriendship } from '../src/social/friends';
+import { COMMUNITY_CHANGED_EVENT } from '../src/social/communityBadge';
 
 vi.mock('../src/social/community', () => ({ blockCyclist: vi.fn(), listBlockedCyclists: vi.fn(), listCyclists: vi.fn() }));
 vi.mock('../src/social/friends', () => ({ listFriends: vi.fn(), requestFriendship: vi.fn(), acceptFriendship: vi.fn() }));
@@ -32,6 +33,14 @@ it('shows the whole community immediately and challenges non-friends without sel
   expect(within(list).queryByRole('link', { name: 'Ver perfil de Ciclista u1' })).not.toBeInTheDocument();
   await userEvent.setup().click(within(list).getByRole('button', { name: 'Solicitar amistad a Ciclista p2' }));
   expect(requestFriendship).toHaveBeenCalledWith(client, 'p2');
+});
+
+it('no repite el filtro «Todos / Amigos»: Amigos ya es una parte de «Gente»', async () => {
+  show();
+  await screen.findByRole('list', { name: 'Ciclistas registrados' });
+  expect(screen.queryByRole('navigation', { name: 'Vistas de ciclistas' })).not.toBeInTheDocument();
+  // El único enlace a Amigos es el de las partes de «Gente».
+  expect(screen.getAllByRole('link', { name: 'Amigos' })).toHaveLength(1);
 });
 
 it('pages past the first fifty and resets the offset when searching by a short name', async () => {
@@ -92,4 +101,15 @@ it('brings the request back when the server refuses it', async () => {
   await userEvent.setup().click(await within(list).findByRole('button', { name: 'Solicitar amistad a Ciclista p2' }));
   expect(await screen.findByText('Límite diario de solicitudes')).toBeInTheDocument();
   expect(within(list).getByRole('button', { name: 'Solicitar amistad a Ciclista p2' })).toBeInTheDocument();
+});
+
+it('accepting a received request tells the shell to recount the friend requests', async () => {
+  vi.mocked(listFriends).mockResolvedValue([{ friendship_id: 'f1', status: 'pending', direction: 'received', profile: { id: 'p2', username: 'ciclista_p2', display_name: 'Ciclista p2', locality: null, distance_km: null } }]);
+  const heard = vi.fn();
+  window.addEventListener(COMMUNITY_CHANGED_EVENT, heard);
+  show();
+  const list = await screen.findByRole('list', { name: 'Ciclistas registrados' });
+  await userEvent.setup().click(await within(list).findByRole('button', { name: 'Aceptar amistad de Ciclista p2' }));
+  await waitFor(() => expect(heard).toHaveBeenCalled());
+  window.removeEventListener(COMMUNITY_CHANGED_EVENT, heard);
 });

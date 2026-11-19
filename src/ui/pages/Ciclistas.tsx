@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { blockCyclist, listBlockedCyclists, listCyclists, type BlockedCyclist, type Cyclist } from '../../social/community';
+import { notifyCommunityChanged } from '../../social/communityBadge';
 import { acceptFriendship, listFriends, requestFriendship, type FriendRow } from '../../social/friends';
 import { Banner } from '../components/Banner';
 import { Page } from '../components/Page';
+import { GenteNav } from '../gente/GenteNav';
 import { SkeletonRows } from '../components/Skeleton';
-import { Check, Clock, Lock, Search, User, UserPlus, X } from '../icons';
+import { Check, Clock, Lock, Search, UserPlus, X } from '../icons';
 import { ProfileAvatar } from '../profile/ProfileAvatar';
 import '../styles/community.css';
 
@@ -20,7 +22,7 @@ export function cyclistActivityDay(value: string | null): string {
 
 export function Ciclistas() {
   const account = useAccount();
-  return <Page title="Ciclistas" back="/retos" className="page--cyclists" actions={<Link className="icon-btn" to="/perfil" aria-label="Tu perfil"><User className="ic" aria-hidden="true" /></Link>}>
+  return <Page title="Gente" docTitle="Ciclistas" nav={<GenteNav />} className="page--cyclists">
     {!account || account.user.is_anonymous ? <p>Necesitas una cuenta registrada para acceder a la comunidad.</p> : <CyclistsView account={account} />}
   </Page>;
 }
@@ -91,6 +93,8 @@ function CyclistsView({ account }: { account: Account }) {
     try {
       if (received) await acceptFriendship(client, relation.friendship_id);
       else await requestFriendship(client, person.id);
+      // «Gente» vuelve a contar las solicitudes sin esperar a abrir Amigos.
+      if (received) notifyCommunityChanged();
       await loadRelations();
     } catch (e) { setFriends(before); setNotice(''); setRelationError(message(e)); }
     finally { setBusyId(null); }
@@ -121,7 +125,6 @@ function CyclistsView({ account }: { account: Account }) {
       <input ref={searchInput} aria-label="Nombre o usuario" type="search" autoComplete="off" maxLength={60} value={query} onChange={e => setQuery(e.target.value)} placeholder="Busca un ciclista" />
       {query && <button className="cyclists-search-icon" type="button" aria-label="Limpiar búsqueda" onClick={() => { setQuery(''); setTerm(''); searchInput.current?.focus(); }}><X className="ic" aria-hidden="true" /></button>}
     </form>
-    <nav className="cyclists-filters" aria-label="Vistas de ciclistas"><span aria-current="page">Todos</span><Link to="/perfil/amigos">Amigos</Link></nav>
     </div>
     <div className="cyclists-section-heading"><h2>{term ? `Resultados para «${term}»` : 'Actividad reciente'}</h2><span>{people.length}{more ? '+' : ''} {people.length === 1 ? 'ciclista' : 'ciclistas'}</span></div>
     {error && <Banner tone="error" action={<button className="btn btn--ghost" disabled={loading} onClick={() => void load(term, rows.length ? nextOffset : 0, generation.current)}>Reintentar</button>}>{error}</Banner>}

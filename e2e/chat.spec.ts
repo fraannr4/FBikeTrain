@@ -63,7 +63,8 @@ test.describe('a 390 px', () => {
   test('lista vacía: título, texto y «Escribe a un amigo»; «Nuevo chat» lleva a tus amigos y mide 44 px', async ({ page }) => {
     await fakeChat(page, { conversations: [conversation({ last_kind: null, last_preview: '', unread: 0 })] });
     await page.goto('./#/chat');
-    await expect(page.getByRole('heading', { name: 'Chat', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Gente', level: 1 })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Partes de Gente' }).getByRole('link', { name: 'Chats', exact: true })).toHaveAttribute('aria-current', 'page');
     await expect(page.getByRole('heading', { name: 'Aún no has hablado con nadie' })).toBeVisible();
     await expect(page.getByText('Aquí verás tus conversaciones. Puedes escribir a cualquiera de tus amigos.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Escribe a un amigo' })).toHaveAttribute('href', '#/perfil/amigos');
@@ -82,7 +83,9 @@ test.describe('a 390 px', () => {
     await expect(list.locator('.chat-row-count')).toHaveText('2');
     await expect(list.getByText('Tú: Mañana te cuento qué tal la subida')).toBeVisible();
     await expect(list.getByText('Ayer')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Chat, 1 conversación sin leer' })).toBeVisible();
+    // La insignia del muelle suma lo pendiente de «Gente»; el control de partes lo reparte.
+    await expect(page.getByRole('navigation', { name: 'Menú principal' }).getByRole('link', { name: 'Gente, 1 pendiente' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Partes de Gente' }).getByRole('link', { name: 'Chats, 1 sin leer' })).toBeVisible();
   });
 
   test('abrir una conversación, escribir «Hola» y enviar', async ({ page }) => {

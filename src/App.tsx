@@ -1,6 +1,7 @@
 import { Suspense, useEffect, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { AppShell } from './ui/shell/AppShell';
+import { GenteIndex } from './ui/gente/GenteIndex';
 import { lazyPage, preloadWhenIdle } from './ui/shell/lazyPage';
 import { CyclingLoader } from './ui/components/CyclingLoader';
 
@@ -35,7 +36,7 @@ const Chats = lazyPage(() => import('./ui/pages/Chats').then((m) => ({ default: 
 const Chat = lazyPage(() => import('./ui/pages/Chat').then((m) => ({ default: m.Chat })));
 
 // Destinos de la barra de pestañas: se descargan en un rato libre, después de pintar la primera pantalla.
-const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, CommunityRetos, Mas];
+const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, Chats, CommunityRetos, Mas];
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`
@@ -99,6 +100,8 @@ export function App() {
           <Route path="/retos/anteriores" element={<Retos />} />
           <Route path="/retos/anterior/nuevo" element={<NuevoReto />} />
           <Route path="/retos/:id" element={<Reto />} />
+          {/* Pestaña «Gente»: abre la parte con algo pendiente; cada parte conserva su dirección. */}
+          <Route path="/gente" element={<GenteIndex />} />
           <Route path="/chat" element={<Chats />} />
           <Route path="/chat/:id" element={<Chat />} />
           {/* El plan tuvo los objetivos en la raíz en enlaces antiguos. */}

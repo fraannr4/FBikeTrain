@@ -81,18 +81,6 @@ export function dayMark(date: LocalDate, now: number): DayMark {
   };
 }
 
-/**
- * El entreno siguiente, en una línea: «Y el domingo 8: Rodaje suave a Tona, 50 km.». En trozos, para
- * aislar el nombre (`<bdi>`): un nombre en árabe o hebreo no arrastra la distancia al otro lado.
- */
-export function followUp(w: PlannedWorkout, now: number): { when: string; title: string; km: string } {
-  const days = daysUntil(w.date, now);
-  const when =
-    days === 0 ? 'Y hoy' : days === 1 ? 'Y mañana' : `Y el ${format(parseLocal(w.date), 'EEEE d', { locale: es })}`;
-  const km = w.distanceM ? `, ${formatNumber(w.distanceM / 1000)} km` : '';
-  return { when, title: w.title, km };
-}
-
 /** «13 de diciembre, faltan 37 días», «Mañana, 7 de noviembre». */
 export function eventWhen(goal: EventGoal, now: number): string {
   const date = format(parseLocal(goal.date), "d 'de' MMMM", { locale: es });

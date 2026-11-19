@@ -5,9 +5,14 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { AccountContext } from '../src/auth/AccountBoundary';
 import { Perfil } from '../src/ui/pages/Perfil';
 import { loadSettings, saveSettings } from '../src/settings/settings';
+import { countActivities, getMeta } from '../src/db/repo';
+import { getBackupMeta } from '../src/backup/backup';
+
+const DAY = 86_400_000;
 
 vi.mock('../src/settings/settings', () => ({ loadSettings: vi.fn(), saveSettings: vi.fn() }));
-vi.mock('../src/db/repo', () => ({ listActivities: vi.fn().mockResolvedValue([]) }));
+vi.mock('../src/db/repo', () => ({ listActivities: vi.fn().mockResolvedValue([]), countActivities: vi.fn(), getMeta: vi.fn() }));
+vi.mock('../src/backup/backup', async (original) => ({ ...(await original<typeof import('../src/backup/backup')>()), getBackupMeta: vi.fn() }));
 vi.mock('../src/ui/profile/JournalFeed', () => ({ JournalFeed: () => <section aria-label="Cuaderno de ruta" /> }));
 
 const PROFILE = { username: 'ana_ruta', display_name: 'Ana Ruta', stats_visibility: 'everyone', bio: 'La bici y los puertos.', riding_style: 'explorar', avatar_version: 0 };
@@ -33,6 +38,46 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(loadSettings).mockResolvedValue({ displayName: 'Ana', home: null, orsKey: 'local-key' } as unknown as Awaited<ReturnType<typeof loadSettings>>);
   vi.mocked(saveSettings).mockResolvedValue(undefined);
+  vi.mocked(countActivities).mockResolvedValue(3);
+  vi.mocked(getMeta).mockResolvedValue({ lastImportAt: Date.now() - DAY });
+  vi.mocked(getBackupMeta).mockResolvedValue({});
+});
+
+describe('«Tú»: tus datos y ajustes', () => {
+  const rows = () => within(screen.getByRole('list', { name: 'Tus datos y ajustes' })).getAllByRole('link');
+
+  it('arriba, antes de la ficha: Importar salidas, Ajustes, Copia de seguridad y Privacidad', async () => {
+    renderWith(fakeClient().client);
+    expect(screen.getByRole('heading', { level: 1, name: 'Tú' })).toBeInTheDocument();
+    expect(await screen.findByText('La última, ayer')).toBeInTheDocument();
+    expect(rows().map((a) => [a.querySelector('.row-title')?.textContent, a.getAttribute('href')])).toEqual([
+      ['Importar salidas', '/importar'],
+      ['Ajustes', '/ajustes'],
+      ['Copia de seguridad', '/ajustes?abrir=copia'],
+      ['Privacidad', '#/privacidad'],
+    ]);
+    expect(screen.getByText('Zona, punto de salida y tema')).toBeInTheDocument();
+    expect(screen.getByText('Qué se guarda y quién lo ve')).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Tus datos y ajustes' });
+    const identity = await screen.findByRole('region', { name: 'Tu identidad pública' });
+    expect(list.compareDocumentPosition(identity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Más opciones' })).not.toBeInTheDocument();
+  });
+
+  it('avisa de los cambios sin copiar en «Copia de seguridad»', async () => {
+    vi.mocked(getBackupMeta).mockResolvedValue({ calendarChangedAt: Date.now() - DAY });
+    renderWith(fakeClient().client);
+    expect(await screen.findByRole('link', { name: /^Copia de seguridad.*Hay cambios sin copiar/ })).toHaveAttribute('href', '/ajustes?abrir=copia');
+  });
+
+  it('sin salidas, lo primero es tu archivo de Strava', async () => {
+    vi.mocked(countActivities).mockResolvedValue(0);
+    renderWith(fakeClient().client);
+    expect(await screen.findByText('Empieza por tu archivo de Strava')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Importar salidas' })).toHaveAttribute('href', '/importar');
+    expect(screen.getByRole('link', { name: '¿Vienes de otro teléfono? Restaurar una copia' })).toHaveAttribute('href', '/ajustes?abrir=restaurar');
+    expect(rows().map((a) => a.querySelector('.row-title')?.textContent)).toEqual(['Ajustes', 'Privacidad']);
+  });
 });
 
 describe('Tu perfil', () => {

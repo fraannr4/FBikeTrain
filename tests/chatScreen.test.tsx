@@ -136,7 +136,7 @@ describe('conversación', () => {
     await user.type(screen.getByRole('textbox', { name: 'Motivo de la denuncia' }), 'Insultos sintéticos');
     await user.click(submit);
     await waitFor(() => expect(rpc).toHaveBeenCalledWith('report_chat_message', { message_id: 'm1', reason: 'Insultos sintéticos' }));
-    expect(await screen.findByRole('heading', { name: 'Chat', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Gente', level: 1 })).toBeInTheDocument();
   });
 
   it('si la conversación no está en tu lista, lo dice y lleva de vuelta al chat', async () => {

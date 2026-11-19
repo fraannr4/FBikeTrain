@@ -4,7 +4,6 @@ import type { WeeklyTrend } from '../src/ui/inicio/trend';
 import {
   dayMark,
   eventWhen,
-  followUp,
   heroLead,
   pickGoals,
   pickUpcoming,
@@ -112,17 +111,6 @@ describe('dayMark', () => {
   it('later days show the month', () => {
     expect(dayMark('2026-11-15', NOW)).toMatchObject({ weekday: 'dom', day: '15', under: 'nov', near: null });
     expect(dayMark('2026-11-15', NOW).spoken).toBe('Domingo 15 de noviembre');
-  });
-});
-
-describe('followUp', () => {
-  it('returns the parts so the title can be isolated', () => {
-    expect(followUp(wo('d', '2026-11-08', { title: 'رحلة الدراجة', distanceM: 55_000 }), NOW)).toEqual({
-      when: 'Y el domingo 8',
-      title: 'رحلة الدراجة',
-      km: ', 55 km',
-    });
-    expect(followUp(wo('s', '2026-11-07', { title: 'Rodaje' }), NOW)).toEqual({ when: 'Y mañana', title: 'Rodaje', km: '' });
   });
 });
 

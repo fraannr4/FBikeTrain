@@ -45,7 +45,8 @@ test('el enlace antiguo lleva a Amigos dentro del perfil y una sugerencia se añ
   const state = await fakeRpc(page);
   await page.goto('./#/amigos?vista=amigos');
   await expect(page).toHaveURL(/#\/perfil\/amigos$/);
-  await expect(page.getByRole('heading', { name: 'Amigos', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Gente', level: 1 })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Partes de Gente' }).getByRole('link', { name: 'Amigos', exact: true })).toHaveAttribute('aria-current', 'page');
   const suggestions = page.getByRole('region', { name: 'Sugerencias' });
   await suggestions.getByRole('button', { name: 'Añadir a Ana Ruta' }).click();
   await expect(suggestions.getByRole('listitem').filter({ hasText: 'Ana Ruta' }).getByText('Solicitud enviada')).toBeVisible();
@@ -78,6 +79,14 @@ for (const width of [360, 430]) {
       await page.goto('./#/perfil/amigos');
       await expect(page.getByRole('region', { name: 'Solicitudes recibidas' })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Sugerencias' }).getByText('Carla Cumbre')).toBeVisible();
+      // Cada amigo: «Escribir» y «Retar» a la derecha del nombre, también a 360 px. «Quitar» está en su perfil.
+      const row = page.getByRole('region', { name: 'Tus amigos' }).getByRole('listitem').first();
+      const name = await row.getByRole('link', { name: 'Bea', exact: true }).boundingBox();
+      const write = await row.getByRole('button', { name: 'Escribir a Bea' }).boundingBox();
+      await expect(row.getByRole('link', { name: 'Retar a Bea' })).toBeVisible();
+      expect(write!.x).toBeGreaterThanOrEqual(name!.x + name!.width);
+      expect(write!.height).toBeGreaterThanOrEqual(44);
+      await expect(page.getByRole('button', { name: /^Quitar/ })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
       await page.screenshot({ path: `${SHOTS}/amigos-lista-${tag}.png`, fullPage: true });
     });

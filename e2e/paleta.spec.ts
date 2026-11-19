@@ -109,7 +109,7 @@ for (const theme of ['dark', 'light'] as const) {
       await expectPaletteContrast(page, theme);
       await capture('inicio');
       await page.goto('#/historial');
-      await expect(page.getByRole('heading', { name: 'Historial', exact: true }).first()).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Salidas', exact: true }).first()).toBeVisible();
       await expect(page.getByText('Vuelta al Alto del Pinar').first()).toBeVisible();
       await capture('historial');
       await page.goto('#/historial/s0');

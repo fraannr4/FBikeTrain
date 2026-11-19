@@ -124,7 +124,7 @@ describe('SegmentedNav', () => {
   }
   function View() {
     const { pathname } = useLocation();
-    return <SegmentedNav label="Vistas del historial" items={ITEMS} current={pathname} />;
+    return <SegmentedNav label="Vistas de Salidas" items={ITEMS} current={pathname} />;
   }
 
   it('son enlaces con aria-current y cambian de vista', async () => {
@@ -136,7 +136,7 @@ describe('SegmentedNav', () => {
         <Where />
       </MemoryRouter>,
     );
-    const nav = screen.getByRole('navigation', { name: 'Vistas del historial' });
+    const nav = screen.getByRole('navigation', { name: 'Vistas de Salidas' });
     expect(within(nav).getByRole('link', { name: 'Salidas' })).toHaveAttribute('aria-current', 'page');
     await userEvent.click(within(nav).getByRole('link', { name: 'Subidas' }));
     expect(screen.getByTestId('where')).toHaveTextContent('/historial/subidas');

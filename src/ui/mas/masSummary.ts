@@ -94,7 +94,12 @@ function goalSummary(goals: Goal[], acts: StoredActivity[], now: number): MasSum
   return { text: 'Sin objetivos en curso' };
 }
 
-function backupSummary(d: MasData, now: number): MasSummary['backup'] {
+/** Fila «Importar salidas» (Más y «Tú»). */
+export const importText = (lastImportAt: number | undefined, now: number) =>
+  lastImportAt !== undefined ? `La última, ${ago(lastImportAt, now)}` : 'Aún no has importado';
+
+/** Fila «Copia de seguridad» (Más y «Tú»). */
+export function backupSummary(d: Pick<MasData, 'lastBackupAt' | 'calendarChangedAt'>, now: number): MasSummary['backup'] {
   if (needsBackup(d)) {
     return {
       text: d.lastBackupAt !== undefined ? `Sin copiar desde el ${dayMonth.format(d.lastBackupAt).replace(/\.$/, '')}` : 'Hay cambios sin copiar',
@@ -117,7 +122,7 @@ export function masSummary(d: MasData, now: number): MasSummary {
     routes: routesText(d.sigs, rides),
     calendar: calendarText(d.workouts, now),
     goal: goalSummary(d.goals, d.activities, now),
-    import: d.lastImportAt !== undefined ? `La última, ${ago(d.lastImportAt, now)}` : 'Aún no has importado',
+    import: importText(d.lastImportAt, now),
     backup: backupSummary(d, now),
   };
 }

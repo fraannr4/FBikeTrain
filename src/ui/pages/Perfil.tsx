@@ -16,7 +16,8 @@ import { Page } from '../components/Page';
 import { Banner } from '../components/Banner';
 import { Sheet } from '../components/Sheet';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { BookOpen, Ellipsis, MapPin, Pencil, Search, Swords, Users } from '../icons';
+import { BookOpen, MapPin, Pencil, Search, Swords, Users } from '../icons';
+import { DatosYAjustes } from '../perfil/DatosYAjustes';
 import { ProfileStats, type ProfileStat } from '../profile/ProfileStats';
 import { forgetOwnProfile } from '../shell/OwnProfileButton';
 import { formatCount, formatKm, formatMeters } from '../format';
@@ -115,15 +116,15 @@ export function Perfil() {
     { value: wins, label: 'Retos ganados', to: '/retos?vista=historial', name: wins === null ? 'Retos ganados, cargando' : `${formatCount(wins)} ${wins === 1 ? 'reto ganado' : 'retos ganados'}` },
     { value: year?.rides ?? null, label: `Salidas ${year?.year ?? new TZDate(Date.now(), TZ).getFullYear()}`, to: '/historial', name: year ? `${formatCount(year.rides)} ${year.rides === 1 ? 'salida' : 'salidas'} en ${year.year}` : 'Salidas del año, cargando' },
   ];
-  return <Page title="Tu perfil" back="/" className="page--profile" busy={!!account && !profile && !error}>
+  return <Page title="Tú" back="/" className="page--profile page--you" busy={!!account && !profile && !error}>
     {!account ? <p>Inicia sesión para ver tu perfil.</p> : <>
+      <DatosYAjustes />
       {error && <Banner tone="error" action={!profile ? <button className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button> : undefined}>{error}</Banner>}
       {!profile ? !error && <ProfileSkeleton label="Cargando tu perfil…" /> : <>
         <input ref={photoInput} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Archivo de foto de perfil" tabIndex={-1} onChange={e => void photo(e.target.files?.[0])} />
         <ProfileHero client={account.client} profile={{ ...profile, id: account.user.id }} own onPhoto={() => photoInput.current?.click()} photoBusy={photoBusy} stats={<ProfileStats label="Tus cifras" items={stats} />}>
           <button className="btn btn--primary" onClick={edit} aria-label="Editar perfil"><Pencil className="ic" aria-hidden="true" />Editar</button>
           <ShareProfileButton userId={account.user.id} name={profile.display_name} onResult={setNotice} />
-          <Link className="icon-btn profile-more" to="/mas" aria-label="Más opciones"><Ellipsis className="ic" aria-hidden="true" /></Link>
         </ProfileHero>
         {notice && <p className="profile-notice" role="status">{notice}</p>}
         <div className="profile-workspace"><div className="profile-stream">

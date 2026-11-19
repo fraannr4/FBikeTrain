@@ -8,10 +8,12 @@ import { usePageTitle } from '../hooks/usePageTitle';
 import { useContentReveal } from '../hooks/useContentReveal';
 
 type Props = {
-  /** `h1` de la pantalla (en Subidas, «Historial»: la pestaña). */
+  /** `h1` de la pantalla (en Subidas, «Salidas»: la pestaña). */
   title: string;
   /** Título de la barra compacta si no es `title` (en Subidas, «Subidas»: la vista). */
   barTitle?: string;
+  /** Título del documento si no es el de la barra (en las partes de «Gente», «Chat» o «Amigos»). */
+  docTitle?: string;
   /** Pantalla madre: con ella, «Volver a X» en la barra. Sin ella, la marca (pantallas raíz). */
   back?: string;
   /** Botones de icono de la barra superior. */
@@ -35,13 +37,13 @@ type Props = {
 
 /** Pantalla del kit: barra superior, cabecera con relieve y la rejilla `.page` de 28 px de hueco. */
 export function Page(props: Props) {
-  const { title, barTitle, back, actions, kicker, lead, nav, variant, busy, className, desktopMap, children } = props;
+  const { title, barTitle, docTitle, back, actions, kicker, lead, nav, variant, busy, className, desktopMap, children } = props;
   // Con la prop presente (aunque aún sin mapa) el envoltorio no cambia: los hijos no se remontan al llegar el mapa.
   const withMap = 'desktopMap' in props;
   const desktop = useDesktopLayout();
   const { pathname } = useLocation();
   const contentRef = useContentReveal<HTMLDivElement>(!!busy, pathname);
-  usePageTitle(barTitle ?? title);
+  usePageTitle(docTitle ?? barTitle ?? title);
   const cls = ['page', variant ? `page--${variant}` : '', className ?? ''].filter(Boolean).join(' ');
   return (
     <>

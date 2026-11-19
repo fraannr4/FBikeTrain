@@ -597,13 +597,13 @@ export function Subidas() {
 
   return (
     <Page
-      title="Historial"
+      title="Salidas"
       barTitle="Subidas"
       variant="dense"
       className="subidas"
       busy={!data && !failed}
       lead={lead}
-      nav={<SegmentedNav label="Vistas del historial" items={HISTORIAL_VIEWS} current="/historial/subidas" />}
+      nav={<SegmentedNav label="Vistas de Salidas" items={HISTORIAL_VIEWS} current="/historial/subidas" />}
     >
       {body}
       {item && data ? (

@@ -1,10 +1,7 @@
-import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { AccountContext, type Account } from '../src/auth/AccountBoundary';
-import { chatUnreadLabel, notifyChatChanged } from '../src/social/chatBadge';
-import { ChatButton } from '../src/ui/shell/ChatButton';
-import { ChatUnreadProvider } from '../src/ui/shell/ChatUnreadContext';
+import type { Account } from '../src/auth/AccountBoundary';
+import { notifyChatChanged } from '../src/social/chatBadge';
 import { useChatUnread } from '../src/ui/shell/useChatUnread';
 
 const account = (rpc: ReturnType<typeof vi.fn>, anonymous = false): Account => ({
@@ -18,37 +15,7 @@ function counting(...values: number[]) {
   return rpc.mockResolvedValue({ data: values[values.length - 1], error: null });
 }
 
-function renderButton(unread: number, value: Account | null) {
-  return render(
-    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <AccountContext.Provider value={value}>
-        <ChatUnreadProvider value={unread}><ChatButton /></ChatUnreadProvider>
-      </AccountContext.Provider>
-    </MemoryRouter>,
-  );
-}
-
-describe('icono de chat de la barra superior', () => {
-  it('abre el chat y dice cuántas conversaciones hay sin leer', () => {
-    renderButton(2, account(vi.fn()));
-    const link = screen.getByRole('link', { name: 'Chat, 2 conversaciones sin leer' });
-    expect(link).toHaveAttribute('href', '/chat');
-    expect(link.querySelector('.tab-badge')).toHaveTextContent('2');
-  });
-  it('singular, sin insignia a cero y «9+» por encima de nueve', () => {
-    expect(chatUnreadLabel(1)).toBe('Chat, 1 conversación sin leer');
-    const zero = renderButton(0, account(vi.fn()));
-    expect(screen.getByRole('link', { name: 'Chat' }).querySelector('.tab-badge')).toBeNull();
-    zero.unmount();
-    renderButton(12, account(vi.fn()));
-    expect(screen.getByRole('link', { name: 'Chat, 12 conversaciones sin leer' }).querySelector('.tab-badge')).toHaveTextContent('9+');
-  });
-  it('sin cuenta o con cuenta anónima no se pinta', () => {
-    expect(renderButton(3, null).container).toBeEmptyDOMElement();
-    expect(renderButton(3, account(vi.fn(), true)).container).toBeEmptyDOMElement();
-  });
-});
-
+// El acceso al chat vive ahora en «Gente» (muelle, carril y GenteNav): ver shell y genteNav.
 describe('recuento de conversaciones sin leer', () => {
   afterEach(() => {
     vi.useRealTimers();

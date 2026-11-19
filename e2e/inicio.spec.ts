@@ -168,34 +168,103 @@ test.describe('Inicio en el móvil', () => {
       }
     });
 
-  test('un nombre en árabe no arrastra la distancia al otro lado', async ({ page }) => {
+  test('un nombre en árabe no arrastra las cifras de «Hoy» ni desborda', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
-    const wo = (id: string, date: string, title: string, distanceM: number) => ({ id, date, title, distanceM, done: false, manual: true, createdAt: 1 });
+    const name = '東京サイクリング 早朝ライド — رحلة الدراجة الصباحية الطويلة جدا';
     await seed(page, {
       activities: HISTORY,
-      calendar: [
-        wo('sab', '2026-11-07', 'Lluçanès por Prats', 86_000),
-        wo('dom', '2026-11-08', '東京サイクリング 早朝ライド — رحلة الدراجة الصباحية', 55_000),
-      ],
+      calendar: [{ id: 'sab', date: '2026-11-07', title: name, distanceM: 55_000, done: false, manual: true, createdAt: 1 }],
     });
-    const foot = page.locator('.next .card-foot');
-    await expect(foot).toHaveText('Y el domingo 8: 東京サイクリング 早朝ライド — رحلة الدراجة الصباحية, 55 km.');
-    // La distancia se pinta a la derecha del nombre, no en medio.
-    const order = await foot.evaluate((p) => {
-      const range = document.createRange();
-      const km = [...p.childNodes].find((n) => n.textContent?.includes('55 km'))!;
-      range.selectNodeContents(km);
-      const kmRect = range.getBoundingClientRect();
-      // Lo que ocupa el nombre en la misma línea que la distancia.
-      const sameLine = [...p.querySelector('bdi')!.getClientRects()].filter((r) => Math.abs(r.bottom - kmRect.bottom) < 4);
-      return { kmLeft: kmRect.left, bdiRight: Math.max(...sameLine.map((r) => r.right), -Infinity) };
-    });
-    expect(order.kmLeft).toBeGreaterThanOrEqual(order.bdiRight - 1);
-    await expect(page.locator('.next-title')).toHaveAttribute('dir', 'auto');
-    await foot.scrollIntoViewIfNeeded();
+    const today = page.locator('.today');
+    const title = today.locator('.today-title');
+    await expect(title).toHaveText(name);
+    await expect(title).toHaveAttribute('dir', 'auto');
+    // Las cifras van en su propia línea, debajo del nombre (dos líneas como mucho), y el botón cabe.
+    const [t, meta, btn] = await Promise.all([title.boundingBox(), today.locator('.route-meta').boundingBox(), today.getByRole('link', { name: 'Ruta y GPX' }).boundingBox()]);
+    expect(meta!.y).toBeGreaterThanOrEqual(t!.y + t!.height - 1);
+    expect(btn!.x + btn!.width).toBeLessThanOrEqual(360);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    for (const th of ['dark', 'light'] as const) {
+      await setTheme(page, th);
+      await today.screenshot({ path: `${SHOTS}/r2-bidi-360-${th === 'dark' ? 'oscuro' : 'claro'}.png` });
+    }
+  });
+});
+
+// Distribución (2026-11-19): con cuenta registrada, la primera pantalla del móvil enseña el saludo,
+// «Hoy», «Tu gente» y el arranque de la semana. RPC simuladas; nombres inventados.
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
+const at = (hhmm: string) => new Date(`2026-11-06T${hhmm}:00+01:00`).toISOString();
+const PENDING = {
+  chat_unread_count: 2,
+  chat_list_conversations: [{
+    id: 'c1', kind: 'direct', title: null, peer_id: 'p1', peer_name: 'Ana Ruta', peer_avatar_version: 0, peer_last_read_at: null,
+    last_kind: 'text', last_preview: '¿Quedamos a las 8:15 mejor?', last_sender_id: 'p1', last_message_at: at('10:42'), unread: 2,
+    muted: false, can_send: true, last_deleted: false,
+  }],
+  list_community_challenges: [{
+    id: 'r1', title: 'Más kilómetros esta semana', kind: 'distance', created_at: at('09:15'), deadline: new Date(NOW.getTime() + 5 * DAY).toISOString(),
+    creator_id: 'p2', target_value: null, distance_m: null, segment_key: null, status: 'active', winner_ids: [],
+    members: [
+      { id: 'p2', username: 'martapuig', display_name: 'Marta Puig', status: 'accepted', accepted_at: null, score: null, updated_at: null },
+      { id: '00000000-0000-0000-0000-000000000011', username: 'yo', display_name: 'Yo', status: 'pending', accepted_at: null, score: null, updated_at: null },
+    ],
+  }],
+  list_friends: ['Pol Serra', 'Eva Mas'].map((n, i) => ({
+    friendship_id: `f${i}`, status: 'pending', direction: 'received',
+    profile: { id: `u${i}`, username: `u${i}`, display_name: n, locality: null, distance_km: null },
+  })),
+};
+const CALM = { chat_unread_count: 0, chat_list_conversations: [], list_community_challenges: [], list_friends: [] };
+
+async function fakeRpc(page: Page, data: Record<string, unknown>) {
+  await page.routeWebSocket(/supabase\.co/, () => {});
+  await page.route('https://*.supabase.co/rest/v1/rpc/*', async (r) => {
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+    const fn = new URL(r.request().url()).pathname.split('/').pop()!;
+    if (fn in data) return r.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(data[fn]) });
+    return r.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: fn.startsWith('list_') ? '[]' : 'null' });
+  });
+}
+
+const WEEK = [ride('w1', NOW.getTime() - 2 * DAY), ride('w2', NOW.getTime() - DAY)];
+const TODAY = [{ id: 'hoy', date: '2026-11-06', title: 'Vuelta al embalse', distanceM: 64_000, elevGainM: 820, done: false, manual: true, createdAt: 1 }];
+const bottomOf = async (page: Page, selector: string) => { const b = (await page.locator(selector).first().boundingBox())!; return b.y + b.height; };
+
+test.describe('Inicio en el móvil, primera pantalla con cuenta', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.clock.setFixedTime(NOW);
+    await page.route(/tile-cyclosm/, (r) => r.abort());
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+
+  test('con pendientes: saludo, «Hoy», «Tu gente» con tres filas y el arranque de la semana', async ({ page }) => {
+    await fakeRpc(page, PENDING);
+    await seed(page, { activities: [...HISTORY, ...WEEK], calendar: TODAY });
+    const people = page.getByRole('region', { name: 'Tu gente' });
+    await expect(people.getByRole('list', { name: 'Pendiente con tu gente' }).getByRole('link')).toHaveCount(3);
+    await expect(people.getByRole('link', { name: 'Ver todo lo pendiente con tu gente, 4' })).toHaveAttribute('href', '#/gente');
+    // El saludo se encoge (era de 367 px a este ancho).
+    const hero = (await page.locator('.hero').boundingBox())!;
+    expect(hero.height).toBeLessThan(300);
+    const dock = (await page.getByRole('navigation', { name: 'Menú principal' }).boundingBox())!.y;
+    for (const s of ['.today', '.people', '.week-title']) expect(await bottomOf(page, s)).toBeLessThanOrEqual(dock);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     for (const t of ['dark', 'light'] as const) {
       await setTheme(page, t);
-      await page.locator('.next').screenshot({ path: `${SHOTS}/r2-bidi-360-${t === 'dark' ? 'oscuro' : 'claro'}.png` });
+      await page.screenshot({ path: `${SHOTS}/distribucion-390-pendientes-${t === 'dark' ? 'oscuro' : 'claro'}.png` });
+    }
+  });
+
+  test('sin pendientes: una fila «Todo al día» y la semana entera en la primera pantalla', async ({ page }) => {
+    await fakeRpc(page, CALM);
+    await seed(page, { activities: [...HISTORY, ...WEEK], calendar: TODAY });
+    await expect(page.getByRole('link', { name: 'Tu gente: todo al día. Abrir Gente' })).toHaveAttribute('href', '#/gente');
+    const dock = (await page.getByRole('navigation', { name: 'Menú principal' }).boundingBox())!.y;
+    expect(await bottomOf(page, '.kpis')).toBeLessThanOrEqual(dock);
+    for (const t of ['dark', 'light'] as const) {
+      await setTheme(page, t);
+      await page.screenshot({ path: `${SHOTS}/distribucion-390-aldia-${t === 'dark' ? 'oscuro' : 'claro'}.png` });
     }
   });
 });

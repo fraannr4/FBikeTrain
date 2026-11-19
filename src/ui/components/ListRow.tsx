@@ -40,6 +40,8 @@ type RowProps = {
   trail?: ReactNode;
   /** Con `to`, la fila es un enlace; con `onClick`, un botón; sin nada, solo muestra. */
   to?: string;
+  /** Enlace fuera del router (`#/privacidad`, que pinta el acceso público). */
+  href?: string;
   onClick?: () => void;
   /** Nombre accesible completo si el texto visible no basta. */
   ariaLabel?: string;
@@ -51,7 +53,7 @@ type RowProps = {
  * Fila de lista: caja con icono o forma, título (salta de línea, nunca se corta), meta gris y, a la
  * derecha, cifra y flecha. Mide al menos 64 px de alto: se toca entera.
  */
-export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value, unit, trail, to, onClick, ariaLabel, titleId }: RowProps) {
+export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value, unit, trail, to, href, onClick, ariaLabel, titleId }: RowProps) {
   const body = (
     <>
       {lead !== undefined ? (
@@ -69,7 +71,7 @@ export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value
         </span>
         {meta ? <span className="row-meta">{meta}</span> : null}
       </span>
-      {value !== undefined || trail !== undefined || to || onClick ? (
+      {value !== undefined || trail !== undefined || to || href || onClick ? (
         <span className="row-trail">
           {value !== undefined ? (
             <span className="row-val">
@@ -78,7 +80,7 @@ export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value
             </span>
           ) : null}
           {trail}
-          {to || onClick ? <ChevronRight className="chev" aria-hidden="true" /> : null}
+          {to || href || onClick ? <ChevronRight className="chev" aria-hidden="true" /> : null}
         </span>
       ) : null}
     </>
@@ -86,7 +88,11 @@ export function ListRow({ title, meta, icon: Icon, lead, accent, leadTone, value
 
   return (
     <li>
-      {to ? (
+      {href ? (
+        <a className="row" href={href} data-m={accent} aria-label={ariaLabel}>
+          {body}
+        </a>
+      ) : to ? (
         // NavLink marca con `aria-current="page"` la fila de la pantalla abierta (lista y detalle a la vez en PC).
         <NavLink end className="row" to={to} data-m={accent} aria-label={ariaLabel}>
           {body}

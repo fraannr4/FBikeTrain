@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { AccountContext, type Account } from '../src/auth/AccountBoundary';
 import { Mas } from '../src/ui/pages/Mas';
 import { masSummary, type MasData } from '../src/ui/mas/masSummary';
 import { db } from '../src/db/db';
@@ -135,6 +137,23 @@ function renderMas() {
   );
 }
 
+const client = { rpc: vi.fn(async () => ({ data: [], error: null })) } as unknown as SupabaseClient;
+const REGISTERED: Account = { client, user: { id: 'u1' } as User };
+const ANONYMOUS: Account = { client, user: { id: 'u1', is_anonymous: true } as User };
+
+function renderMasWith(account: Account) {
+  return render(
+    <AccountContext.Provider value={account}>
+      <MemoryRouter initialEntries={['/mas']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <Routes>
+          <Route path="/mas" element={<Mas />} />
+          <Route path="/perfil" element={<p>Pantalla Tú</p>} />
+        </Routes>
+      </MemoryRouter>
+    </AccountContext.Provider>,
+  );
+}
+
 describe('Más', () => {
   beforeEach(async () => {
     await clearAllData();
@@ -191,6 +210,21 @@ describe('Más', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByText('Empieza por tu archivo de Strava')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('con cuenta registrada, /mas lleva a «Tú»', async () => {
+    renderMasWith(REGISTERED);
+    expect(await screen.findByText('Pantalla Tú')).toBeInTheDocument();
+  });
+
+  it('en modo local (cuenta anónima) sigue igual, sin filas de comunidad', async () => {
+    await db.activities.add(ride('r1', Date.now() - DAY));
+    renderMasWith(ANONYMOUS);
+    const datos = await screen.findByRole('region', { name: 'Datos y ajustes' });
+    expect(await within(datos).findByRole('link', { name: /^Importar salidas/ })).toHaveAttribute('href', '/importar');
+    expect(within(datos).getByRole('link', { name: /^Ajustes/ })).toHaveAttribute('href', '/ajustes');
+    for (const name of [/^Ciclistas/, /^Amigos/, /^Retos/]) expect(within(datos).queryByRole('link', { name })).not.toBeInTheDocument();
+    expect(screen.queryByText('Pantalla Tú')).not.toBeInTheDocument();
   });
 
   it('theme button flips the theme', async () => {

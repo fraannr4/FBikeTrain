@@ -69,7 +69,8 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
   );
 }
 
-export type NavItem = { to: string; label: string; icon?: LucideIcon };
+/** `count`: contador rojo junto al rótulo (oculto al lector); `ariaLabel` dice entonces el número. */
+export type NavItem = { to: string; label: string; icon?: LucideIcon; count?: string; ariaLabel?: string };
 
 /** Última posición del indicador por segmentado, para deslizarlo entre pantallas. */
 const lastIndex = new Map<string, number>();
@@ -80,7 +81,7 @@ const lastIndex = new Map<string, number>();
  * vista, el indicador sale de donde estaba en la pantalla anterior y se desliza a la nueva. Cambiar de
  * vista sustituye la entrada del historial: «atrás» sale de la pestaña, no recorre las vistas.
  */
-export function SegmentedNav({ label, items, current }: { label: string; items: NavItem[]; current: string }) {
+export function SegmentedNav({ label, items, current, className }: { label: string; items: NavItem[]; current: string; className?: string }) {
   const index = Math.max(
     0,
     items.findIndex((it) => it.to === current),
@@ -101,12 +102,13 @@ export function SegmentedNav({ label, items, current }: { label: string; items: 
   }, [label, index, reduced]);
 
   return (
-    <nav aria-label={label} className="seg seg--quiet" style={{ '--n': items.length } as CSSProperties}>
+    <nav aria-label={label} className={cx('seg seg--quiet', className)} style={{ '--n': items.length } as CSSProperties}>
       <span ref={ind} className="seg-ind seg-ind--nav" aria-hidden="true" style={indStyle(index)} />
       {items.map((it, i) => (
-        <Link key={it.to} to={it.to} replace aria-current={i === index ? 'page' : undefined}>
+        <Link key={it.to} to={it.to} replace aria-current={i === index ? 'page' : undefined} aria-label={it.ariaLabel}>
           {it.icon ? <it.icon className="ic" aria-hidden="true" /> : null}
           <span>{it.label}</span>
+          {it.count ? <span className="seg-count" aria-hidden="true">{it.count}</span> : null}
         </Link>
       ))}
     </nav>

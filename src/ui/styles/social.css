@@ -100,5 +100,12 @@
   .amigos-list > .person { grid-template-columns: minmax(0, 1fr) auto; }
   .amigos-list > .person .person-actions { justify-content: flex-end; }
 }
+/* Amigos en «Gente»: dos acciones por renglón («Quitar» está en el perfil), así que también a 360 px
+   caben a la derecha del nombre sin partir el renglón. */
+@media (max-width: 899px) {
+  .page--amigos .amigos-list > .person { grid-template-columns: minmax(0, 1fr) auto; }
+  .page--amigos .person-actions { flex-wrap: nowrap; justify-content: flex-end; }
+  .page--amigos .person-actions .btn { padding-inline: 12px; }
+}
 /* Escritorio: el enlace de pie arranca en el borde de la columna, no centrado a lo ancho */
 @media (min-width: 1024px) { .amigos-group > a.btn--ghost { justify-self: start; margin-left: -12px; } }

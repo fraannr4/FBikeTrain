@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FBikeTrain: lámina de la distribución (2026-11-19)</title>
+
+  <!-- Tema antes del primer pintado, como en index.html: localStorage 'fbt-theme' o, sin él, oscuro.
+       Añadido de la lámina: ?theme=light o ?theme=dark lo fuerzan. -->
+  <script>
+    (function () {
+      var t = 'dark';
+      try {
+        var s = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme');
+        if (s === 'light') t = 'light';
+      } catch (e) {}
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <!-- Tipografías: las mismas que importa src/main.tsx -->
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-400.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-500.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-600.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow-semi-condensed/latin-600.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow-semi-condensed/latin-700.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/big-shoulders-display/latin-700.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/big-shoulders-display/latin-800.css" />
+
+  <!-- Estilos reales de la app (los publicados el 19 de noviembre), en el orden de src/main.tsx;
+       después, los que trae cada pantalla. La lámina no los copia: los enlaza. -->
+  <link rel="stylesheet" href="../../../src/ui/styles/tokens.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/base.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/shell.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/kit.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/inicio.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/routes.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/escritorio.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/profile.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/chat.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/social.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/community.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/community-challenges.css" />
+
+  <style id="distribucion-css">
+/* =====================================================================
+   Distribución nueva. Lo único que la app no tiene ya: siete piezas.
+   Solo tokens: ningún color, radio ni sombra propios.
+   ===================================================================== */
+
+/* ---------- 1. Saludo compacto (móvil) ---------- */
+/* Hoy el paisaje reserva entre 150 y 196 px bajo la frase. Aquí, 84: la escena sigue a sangre
+   detrás del saludo y el perfil de tu última salida cierra el bloque. La fecha pasa al hito de «Hoy». */
+@media (max-width: 899px) {
+  .hero.hero--compact:not(.hero-empty) { padding-bottom: 84px; }
+  .hero--compact::before,
+  .hero--compact .land {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  }
+  .hero--compact + .today { margin-top: -32px; }
+}
+@media (min-width: 900px) {
+  .hero.hero--compact { min-height: clamp(240px, 19vw, 280px); }
+}
+
+/* ---------- 2. «Hoy»: el entreno o el plan del día ---------- */
+/* Sin caja: el hito de fecha del Plan (su banda dice «Hoy»), el nombre rotulado y una acción en crema.
+   El nombre y las cifras son el enlace al día en el Plan; el botón abre la ruta y su GPX. */
+.today {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+  min-width: 0;
+}
+.today-main { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: var(--target); color: inherit; border-radius: var(--r-md); }
+.today-title { font: 700 var(--fs-name)/1.08 var(--font-display); letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
+.today .route-meta { margin-top: 2px; }
+.today .btn { min-height: var(--target); padding-inline: 14px; font-size: 15px; white-space: nowrap; }
+
+/* ---------- 3. «Tu gente»: solo lo pendiente, tres filas como mucho ---------- */
+/* Los renglones son los de la lista de chats (regla fina, avatar redondo, hora y contador azul),
+   algo más bajos. Se arrima a «Hoy»: los dos bloques son «lo de hoy». */
+.people { display: grid; gap: 2px; min-width: 0; padding-top: var(--section-lead); border-top: 1px solid var(--rule); }
+.today + .people { margin-top: -20px; }
+.people-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--target); margin-top: -10px; }
+.people-title { font: 700 var(--fs-section)/1.1 var(--font-display); letter-spacing: 0; color: var(--ink); }
+.people .chat-list.list { border-top: 0; }
+.people .chat-list .row { min-height: 60px; padding: 8px 0; }
+.people .chat-list .row-lead,
+.people .chat-list .row-lead .profile-avatar { width: 40px; height: 40px; }
+.people .chat-list .row-lead .profile-avatar { font-size: 17px; }
+.people .chat-list.list--inset > li + li::before { margin-left: 52px; }
+/* Sin nada pendiente: una sola fila, callada, que sigue llevando a Gente */
+.people--calm { padding-top: 0; }
+.people-calm { display: flex; align-items: baseline; gap: 10px; min-height: 52px; padding-block: 15px; color: var(--ink-2); font-size: var(--t-sm); line-height: 1.4; }
+.people-calm b { font: 600 var(--t-md)/1.3 var(--font-ui); color: var(--ink); }
+.people-calm .chev { align-self: center; margin-left: auto; width: 18px; height: 18px; color: var(--ink-3); }
+
+/* ---------- 4. Gente: control de cuatro con contador ---------- */
+/* Es el `.seg` de enlaces del kit con cuatro partes. El contador es la insignia roja del muelle,
+   repartida: muelle 4 = Chats 2 + Amigos 1 + Retos 1. Cabe a 360 px con «9+». */
+.seg--4 > a { gap: 4px; padding: 0 2px; }
+.seg-count {
+  flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill);
+  background: var(--badge); color: var(--on-badge);
+  font: 700 12px/18px var(--font-ui); text-align: center; font-variant-numeric: tabular-nums;
+}
+/* Tras el control, 24 px: los 40 px separan secciones, no el control de lo suyo */
+.page > .seg--4 + * { margin-top: -16px; }
+/* Vistas dentro de una parte (Retos: En juego, Avisos, Historial): filtros pequeños, no otro control igual */
+.view-filters { gap: 8px; flex-wrap: wrap; }
+.view-filters > * { min-width: 0; padding: 0 14px; }
+
+/* ---------- 5. Amigos: dos acciones por renglón, también a 360 px ---------- */
+/* «Quitar» pasa al perfil del amigo: con dos botones, el renglón no se parte. */
+@media (max-width: 899px) {
+  .page--gente .amigos-list > .person { grid-template-columns: minmax(0, 1fr) auto; }
+  .page--gente .person-actions { flex-wrap: nowrap; justify-content: flex-end; }
+  .page--gente .person-actions .btn { padding-inline: 12px; }
+}
+
+/* ---------- 6. «Tú»: las cuatro entradas de «Más», encima de tu ficha ---------- */
+/* La lista es la `.list` del kit, tal cual. Solo cambia la fila de acciones de la ficha: sin el
+   botón de tres puntos, son dos columnas. */
+.profile-hero[data-own] .profile-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* ---------- 7. Carril de escritorio: grupo «Gente» y «Tú» al pie ---------- */
+.rail-you .profile-avatar { width: 26px; height: 26px; font-size: 13px; box-shadow: 0 0 0 2px var(--line-strong); }
+@media (min-width: 900px) and (min-height: 760px) {
+  .tabbar .tab.rail-you { position: absolute; bottom: 20px; left: var(--rail-pad, 8px); right: var(--rail-pad, 8px); margin: 0; }
+}
+  </style>
+
+  <style id="lamina-css">
+/* =====================================================================
+   Solo de la lámina (no se copia a la app).
+   Cada marco es un <iframe> que carga este mismo fichero con el ancla de
+   su pantalla: así las reglas @media, las unidades vw y dvh y lo que va
+   fijo se comportan como en un teléfono, no como en la lámina.
+   ===================================================================== */
+*, *::before, *::after { animation: none !important; transition: none !important; }  /* lámina sin animación */
+.lam-screen { display: none; }
+.lam-screen:target { display: block; }
+/* B es la pantalla A sin pendientes: mismo marcado, otra pieza de «Tu gente» y muelle sin insignia */
+:root:has(#p-b:target) #p-a { display: block; }
+:root:has(#p-b:target) .lam-if-pending,
+:root:not(:has(#p-b:target)) .lam-if-calm { display: none; }
+:root:has(.lam-screen:target) .lam-board { display: none; }
+:root:not(:has(.lam-screen:target)) body { background: var(--surface-3); }
+.lam-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.kpi .delta .ic { width: 14px; height: 14px; }
+
+:root { --lam-w: 390px; --lam-h: 844px; }
+.lam-board { width: max-content; margin: 0 auto; padding: var(--s-10); display: grid; gap: 72px; }
+.lam-sec { display: grid; gap: var(--s-8); justify-items: start; padding: var(--s-6); margin: calc(-1 * var(--s-6)); background: var(--surface-3); }
+.lam-head { display: grid; gap: var(--s-2); max-width: 1000px; }
+.lam-title { font: 800 var(--fs-hello-wide)/0.95 var(--font-display); color: var(--ink); }
+.lam-h2 { font: 800 40px/1 var(--font-display); color: var(--ink); }
+.lam-lead { max-width: 96ch; font-size: var(--t-md); line-height: 1.5; color: var(--ink-2); }
+.lam-lead b { font-weight: 600; color: var(--ink); }
+:root[data-theme="light"] .lam-only-dark, :root:not([data-theme="light"]) .lam-only-light { display: none; }
+.lam-grid { display: grid; grid-template-columns: repeat(4, calc(var(--lam-w) + 2px)); gap: var(--s-10); align-items: start; }
+.lam-fig { display: grid; gap: var(--s-3); min-width: 0; }
+.lam-cap { display: grid; align-content: start; gap: 2px; min-height: 112px; }
+.lam-cap-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 600 var(--t-md)/1.2 var(--font-ui); color: var(--ink); }
+.lam-letter { font: 800 var(--fs-fig2)/0.9 var(--font-display); color: var(--ink); }
+.lam-route { font: 500 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+.lam-note { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.lam-frame { display: block; width: calc(var(--lam-w) + 2px); height: calc(var(--lam-h) + 2px); border: 1px solid var(--line-strong); border-radius: var(--r-xl); background: var(--bg); pointer-events: none; }
+.lam-frame--pc { width: 1442px; height: 902px; border-radius: var(--r-lg); }
+.lam-legend { display: grid; align-content: start; gap: var(--s-3); padding-top: calc(112px + var(--s-3)); }
+.lam-legend h2 { font: 700 var(--fs-section)/1.1 var(--font-display); color: var(--ink); }
+.lam-legend ul { display: grid; gap: var(--s-2); }
+.lam-legend li { padding-top: var(--s-2); border-top: 1px solid var(--rule); font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.lam-legend li b { font-weight: 600; color: var(--ink); }
+
+/* Antes y ahora */
+.lam-bars { display: grid; grid-template-columns: repeat(2, 520px); gap: var(--s-10); align-items: start; }
+.lam-bar { display: grid; gap: var(--s-3); }
+.lam-bar-h { font: 700 var(--fs-section)/1.1 var(--font-display); color: var(--ink); }
+.lam-phone { display: grid; gap: var(--s-4); padding: var(--s-4); border: 1px solid var(--line-strong); border-radius: var(--r-xl); background: var(--bg); }
+.lam-phone-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; font: 700 18px/1 var(--font-fig); color: var(--ink); }
+.lam-phone-acts { display: flex; align-items: center; gap: 14px; font: 500 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+.lam-phone-acts > span { display: inline-flex; align-items: center; gap: 6px; }
+.lam-phone-acts .profile-avatar { width: 30px; height: 30px; font-size: 14px; box-shadow: 0 0 0 2px var(--line-strong); }
+.lam-dock { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 4px; border: 1px solid var(--line); border-radius: var(--r-xl); background: var(--surface); }
+.lam-dock li { position: relative; display: grid; justify-items: center; gap: 4px; padding: 4px 0; font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-3); }
+.lam-dock li[data-new] { color: var(--ink); font-weight: 600; }
+.lam-dock .tab-badge { position: absolute; top: -2px; left: calc(50% + 6px); box-shadow: 0 0 0 2px var(--surface); }
+.lam-bar-note { font-size: var(--t-sm); line-height: 1.45; color: var(--ink-2); max-width: 60ch; }
+.lam-bar-note b { font-weight: 600; color: var(--ink); }
+.lam-table { border-collapse: collapse; font-size: 15px; line-height: 1.4; color: var(--ink-2); }
+.lam-table caption { caption-side: top; padding-bottom: var(--s-3); text-align: left; font-size: var(--t-sm); color: var(--ink-2); }
+.lam-table th, .lam-table td { padding: 12px 28px 12px 0; border-top: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.lam-table thead th { border-top: 0; padding-block: 0 8px; font: 500 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-3); }
+.lam-table tbody th { width: 230px; font: 600 var(--t-md)/1.4 var(--font-ui); color: var(--ink); }
+.lam-table td { width: 380px; }
+.lam-table td.lam-taps { width: 190px; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lam-taps b { font: 700 22px/1 var(--font-display); color: var(--ink); }
+.lam-taps .ic { width: 16px; height: 16px; margin: 0 6px; vertical-align: -1px; color: var(--ink-3); }
+.lam-taps span { margin-left: 10px; font: 600 var(--t-sm)/1 var(--font-ui); color: var(--ink-2); }
+.lam-taps[data-d="menos"] span { color: var(--good); }
+.lam-taps[data-d="mas"] span { color: var(--warning); }
+.lam-table .lam-gone { color: var(--ink-3); }
+  </style>
+</head>
+<body>
+
+<!-- Iconos de lucide (los mismos trazos que lucide-react), como sprite -->
+<svg class="lam-sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-message-circle" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="m13 19 6-6"/><path d="M14.5 17.5 3.586 6.586A2 2 0 013 5.172V3h2.172a2 2 0 011.414.586L17.5 14.5"/><path d="m14.828 6.172 2.586-2.586A2 2 0 0118.828 3H21v2.172a2 2 0 01-.586 1.414l-2.586 2.586"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="m5 14 4 4"/><path d="m5 21-2-2"/><path d="M7.5 16.5 4 20"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></symbol>
+    <symbol id="i-square-pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></symbol>
+  </defs>
+</svg>
+
+<!-- Piezas repetidas (muelle y marca): el guion del final las estampa en cada pantalla -->
+<template id="t-brand">
+  <svg class="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+    <path class="brand-mark-relief" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" transform="translate(0 3)" stroke-width="8" stroke-linecap="round"/>
+    <path class="brand-mark-road" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" pathLength="1" stroke-width="7" stroke-linecap="round"/>
+    <circle class="brand-mark-destination" cx="53" cy="9" r="5" stroke-width="2.5"/>
+  </svg>
+</template>
+<template id="t-dock">
+  <!-- Muelle nuevo: Inicio · Salidas · Rutas · Plan · Gente. Desde 900 px es el carril: las cuatro
+       primeras, el grupo «Gente» con sus cuatro partes y «Tú» al pie. -->
+  <nav class="tabbar" aria-label="Menú principal">
+    <a class="rail-brand" aria-label="FBikeTrain, inicio"><span data-lam="brand"></span></a>
+    <a class="tab" data-tab="inicio"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg></span><span>Inicio</span></a>
+    <a class="tab" data-tab="salidas"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>Salidas</span></a>
+    <a class="tab" data-tab="rutas"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></span><span>Rutas</span></a>
+    <a class="tab" data-tab="plan"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg></span><span>Plan</span></a>
+    <a class="tab tab--mobile" data-tab="gente" aria-label="Gente, 4 pendientes">
+      <span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span class="tab-badge lam-if-pending" aria-hidden="true">4</span></span><span>Gente</span>
+    </a>
+    <div class="nav-community" role="group" aria-label="Gente">
+      <h2 class="rail-section">Gente</h2>
+      <a class="tab" aria-label="Chats, 2 sin leer"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-message-circle"/></svg><span class="tab-badge" aria-hidden="true">2</span></span><span>Chats</span></a>
+      <a class="tab" aria-label="Amigos, 1 solicitud"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg><span class="tab-badge" aria-hidden="true">1</span></span><span>Amigos</span></a>
+      <a class="tab" aria-label="Retos, 1 por responder"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg><span class="tab-badge" aria-hidden="true">1</span></span><span>Retos</span></a>
+      <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></span><span>Ciclistas</span></a>
+    </div>
+    <a class="tab tab--desktop rail-you" aria-label="Tú: perfil, importar y ajustes"><span class="tab-ic"><span class="profile-avatar" aria-hidden="true">L</span></span><span>Tú</span></a>
+  </nav>
+</template>
+
+<!-- =====================================================================
+     La lámina
+     ===================================================================== -->
+<main class="lam-board">
+
+  <section class="lam-sec" id="lam-movil">
+    <header class="lam-head">
+      <h1 class="lam-title">Distribución: lámina para aprobar</h1>
+      <p class="lam-lead">
+        Siete pantallas de teléfono a 390 px, <b class="lam-only-dark">tema oscuro</b><b class="lam-only-light">tema claro</b>,
+        pintadas con los estilos publicados el 19 de noviembre («Libro de ruta»): mismos colores, misma tipografía y mismas piezas.
+        <b>Solo cambia dónde está cada cosa.</b> Los datos son inventados.
+      </p>
+    </header>
+
+    <div class="lam-grid">
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">A</span> Inicio, con pendientes <span class="lam-route">#/</span></span>
+          <span class="lam-note">El saludo y su escena ocupan 247 px (hoy, 367). Debajo, «Hoy» con su acceso a la ruta, «Tu gente» con lo pendiente (tres filas como mucho) y el arranque de la semana.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-a" title="A. Inicio, con pendientes"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">B</span> Inicio, sin pendientes <span class="lam-route">#/</span></span>
+          <span class="lam-note">Sin nada que atender, «Tu gente» es una sola fila y el muelle no lleva insignia. La semana sube entera a la primera pantalla.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-b" title="B. Inicio, sin pendientes"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">C</span> Gente · Chats <span class="lam-route">#/chat</span></span>
+          <span class="lam-note">La pestaña Gente se abre aquí. El control de cuatro reparte en rojo la insignia del muelle (4 = 2 + 1 + 1); el azul sigue contando mensajes.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-c" title="C. Gente, Chats"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">D</span> Gente · Amigos <span class="lam-route">#/perfil/amigos</span></span>
+          <span class="lam-note">Las solicitudes, arriba. Cada amigo lleva «Escribir» y «Retar» en su renglón; «Quitar» pasa a su perfil para que quepan sin partirse.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-d" title="D. Gente, Amigos"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">E</span> Gente · Retos <span class="lam-route">#/retos</span></span>
+          <span class="lam-note">El contenido de hoy. Sus tres vistas pasan a filtros pequeños: dos controles iguales, uno encima de otro, no se leen.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-e" title="E. Gente, Retos"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">F</span> Gente · Ciclistas <span class="lam-route">#/ciclistas</span></span>
+          <span class="lam-note">El buscador de siempre. Pierde su filtro «Amigos»: ahora es la parte de al lado.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-f" title="F. Gente, Ciclistas"></iframe>
+      </figure>
+
+      <figure class="lam-fig">
+        <figcaption class="lam-cap">
+          <span class="lam-cap-h"><span class="lam-letter">G</span> Tú <span class="lam-route">#/perfil</span></span>
+          <span class="lam-note">Se abre desde tu foto. Las cuatro entradas que vivían en «Más» van encima de tu ficha: se ven sin desplazar.</span>
+        </figcaption>
+        <iframe class="lam-frame" data-p="p-g" title="G. Tú"></iframe>
+      </figure>
+
+      <aside class="lam-legend">
+        <h2>Qué cambia</h2>
+        <ul>
+          <li><b>Muelle.</b> Inicio, Salidas, Rutas, Plan y Gente. «Salidas» es «Historial» con otro nombre: <b>nombre por confirmar</b>.</li>
+          <li><b>Gente.</b> Chats, Amigos, Retos y Ciclistas en una pestaña. Cada parte conserva su dirección, así que los avisos siguen abriendo donde toca.</li>
+          <li><b>Insignia.</b> La roja del muelle suma lo pendiente; el control de Gente la reparte. Dentro de una conversación, el muelle se esconde como hoy.</li>
+          <li><b>Arriba a la derecha.</b> Solo tu foto. El icono de chat desaparece y la pantalla «Más», también.</li>
+          <li><b>Inicio.</b> «Hoy» y «Tu gente» antes que las cifras. Lo demás (objetivo, última salida, tendencia y carga) sigue debajo, sin cambios.</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <section class="lam-sec" id="lam-pc">
+    <header class="lam-head">
+      <h2 class="lam-h2">Escritorio, 1440 px</h2>
+      <p class="lam-lead">El carril lleva las cuatro primeras pestañas, el grupo «Gente» con sus cuatro partes y «Tú» al pie. En Inicio, «Hoy» y «Tu gente» encabezan la columna del plan. El mapa de la última salida es un esquema: la lámina no carga cartografía.</p>
+    </header>
+    <iframe class="lam-frame lam-frame--pc" data-p="p-pc" title="Escritorio. Inicio con el carril nuevo"></iframe>
+  </section>
+
+  <section class="lam-sec" id="lam-antes">
+    <header class="lam-head">
+      <h2 class="lam-h2">Antes y ahora: dónde queda cada cosa</h2>
+      <p class="lam-lead">Los toques se cuentan desde Inicio hasta tener la pantalla abierta, en el teléfono.</p>
+    </header>
+
+    <div class="lam-bars">
+      <figure class="lam-bar">
+        <figcaption class="lam-bar-h">Antes</figcaption>
+        <div class="lam-phone">
+          <div class="lam-phone-top">FBikeTrain
+            <span class="lam-phone-acts"><span><svg class="ic" aria-hidden="true"><use href="#i-message-circle"/></svg>Chat</span><span><span class="profile-avatar" aria-hidden="true">L</span>Tu perfil</span></span>
+          </div>
+          <ol class="lam-dock">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg>Inicio</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg>Historial</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Rutas</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Plan</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg>Retos</li>
+          </ol>
+        </div>
+        <p class="lam-bar-note">El chat, arriba, lejos del pulgar. Amigos, solo desde una cifra de tu perfil. Importar, Ajustes y la copia, en <b>«Más»</b>, detrás de la foto y de un botón de tres puntos.</p>
+      </figure>
+      <figure class="lam-bar">
+        <figcaption class="lam-bar-h">Ahora</figcaption>
+        <div class="lam-phone">
+          <div class="lam-phone-top">FBikeTrain
+            <span class="lam-phone-acts"><span><span class="profile-avatar" aria-hidden="true">L</span>Tú</span></span>
+          </div>
+          <ol class="lam-dock">
+            <li><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg>Inicio</li>
+            <li data-new><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg>Salidas</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Rutas</li>
+            <li><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Plan</li>
+            <li data-new><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg><span class="tab-badge" aria-hidden="true">4</span>Gente</li>
+          </ol>
+        </div>
+        <p class="lam-bar-note"><b>Salidas</b> es «Historial» con otro nombre (por confirmar). <b>Gente</b> reúne Chats, Amigos, Retos y Ciclistas, con la suma de lo pendiente. <b>Tú</b> lleva tu perfil y lo que estaba en «Más».</p>
+      </figure>
+    </div>
+
+    <table class="lam-table">
+      <caption>Cada fila: dónde estaba, dónde queda y cuántos toques cuesta.</caption>
+      <thead><tr><th scope="col">Qué</th><th scope="col">Antes</th><th scope="col">Ahora</th><th scope="col">Toques</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Chats</th><td>Icono de chat, arriba a la derecha</td><td>Pestaña Gente, que se abre en Chats</td><td class="lam-taps" data-d="igual"><b>1</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>1</b><span>igual, pero al pulgar</span></td></tr>
+        <tr><th scope="row">Un chat sin leer</th><td>Icono de chat y su conversación</td><td>Su fila en «Tu gente», en Inicio</td><td class="lam-taps" data-d="menos"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>1</b><span>uno menos</span></td></tr>
+        <tr><th scope="row">Amigos</th><td>Tu foto y la cifra «Amigos» de tu perfil</td><td>Gente y Amigos</td><td class="lam-taps" data-d="igual"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>igual, con nombre</span></td></tr>
+        <tr><th scope="row">Una solicitud de amistad</th><td>Tu foto y la cifra «Amigos»</td><td>Su fila en «Tu gente», en Inicio</td><td class="lam-taps" data-d="menos"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>1</b><span>uno menos</span></td></tr>
+        <tr><th scope="row">Escribir a un amigo</th><td>Chat, «Nuevo chat» y «Escribir»</td><td>Gente, Amigos y «Escribir»</td><td class="lam-taps" data-d="igual"><b>3</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>3</b><span>igual</span></td></tr>
+        <tr><th scope="row">Retos</th><td>Pestaña Retos</td><td>Gente y Retos</td><td class="lam-taps" data-d="mas"><b>1</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>uno más</span></td></tr>
+        <tr><th scope="row">Un reto por responder</th><td>Pestaña Retos, arriba del todo</td><td>Su fila en «Tu gente», en Inicio</td><td class="lam-taps" data-d="igual"><b>1</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>1</b><span>igual</span></td></tr>
+        <tr><th scope="row">Ciclistas</th><td>Retos y «Buscar»</td><td>Gente y Ciclistas</td><td class="lam-taps" data-d="igual"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>igual</span></td></tr>
+        <tr><th scope="row">Tu perfil</th><td>Tu foto</td><td>Tu foto («Tú»)</td><td class="lam-taps" data-d="igual"><b>1</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>1</b><span>igual</span></td></tr>
+        <tr><th scope="row">Importar salidas</th><td>Tu foto, tres puntos e «Importar salidas»</td><td>Tu foto e «Importar salidas»</td><td class="lam-taps" data-d="menos"><b>3</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>uno menos</span></td></tr>
+        <tr><th scope="row">Ajustes</th><td>Tu foto, tres puntos y «Ajustes»</td><td>Tu foto y «Ajustes»</td><td class="lam-taps" data-d="menos"><b>3</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>uno menos</span></td></tr>
+        <tr><th scope="row">Copia de seguridad</th><td>Tu foto, tres puntos y «Copia de seguridad»</td><td>Tu foto y «Copia de seguridad»</td><td class="lam-taps" data-d="menos"><b>3</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>uno menos</span></td></tr>
+        <tr><th scope="row">Privacidad</th><td>Sin entrada propia: un enlace junto a la conexión de Garmin</td><td>Tu foto y «Privacidad»</td><td class="lam-taps" data-d="menos"><b>2</b><span>con entrada propia</span></td></tr>
+        <tr><th scope="row">Tema claro u oscuro</th><td>Tu foto, tres puntos y el botón de tema</td><td>Tu foto, «Ajustes» y «Tema»</td><td class="lam-taps" data-d="igual"><b>3</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>3</b><span>igual</span></td></tr>
+        <tr><th scope="row">Subidas y Repetidas</th><td>Atajos de «Más» hacia Historial</td><td>En Salidas, donde ya estaban</td><td class="lam-taps" data-d="igual"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>igual</span></td></tr>
+        <tr><th scope="row">Calendario y Objetivos</th><td>Atajos de «Más» hacia Plan</td><td>En Plan, donde ya estaban</td><td class="lam-taps" data-d="igual"><b>2</b><svg class="ic" aria-hidden="true"><use href="#i-arrow-right"/></svg><b>2</b><span>igual</span></td></tr>
+        <tr><th scope="row">La pantalla «Más»</th><td>Tu foto y tres puntos</td><td class="lam-gone">Desaparece: todo lo suyo tiene otro sitio</td><td class="lam-taps"></td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<!-- =====================================================================
+     Las pantallas (cada marco enseña una, por su ancla)
+     ===================================================================== -->
+
+<!-- ============ A y B. Inicio (B: sin pendientes) ============ -->
+<span class="lam-screen" id="p-b"></span>
+<div class="app lam-screen" id="p-a">
+  <div data-lam="dock" data-current="inicio"></div>
+  <main class="main">
+    <div class="legacy">
+      <div class="home">
+        <section class="hero hero--compact" aria-label="Saludo">
+          <svg class="land" viewBox="0 0 390 248" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <defs>
+              <linearGradient id="lm-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--sky-0)"/><stop offset=".3" style="stop-color: var(--sky-1)"/>
+                <stop offset=".58" style="stop-color: var(--sky-2)"/><stop offset=".82" style="stop-color: var(--sky-3)"/>
+                <stop offset="1" style="stop-color: var(--sky-4)"/>
+              </linearGradient>
+              <linearGradient id="lm-near" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--ridge-near)"/><stop offset="1" style="stop-color: var(--surface)"/>
+              </linearGradient>
+              <radialGradient id="lm-glow">
+                <stop offset="0" style="stop-color: var(--orb-glow)"/><stop offset="1" style="stop-color: var(--orb-glow); stop-opacity: 0"/>
+              </radialGradient>
+            </defs>
+            <rect width="390" height="248" fill="url(#lm-sky)"/>
+            <g class="land-stars"><circle cx="34" cy="74" r=".9"/><circle cx="96" cy="22" r=".8"/><circle cx="168" cy="58" r="1"/><circle cx="226" cy="30" r=".8"/><circle cx="262" cy="92" r=".9"/><circle cx="352" cy="70" r=".8"/><circle cx="370" cy="132" r="1"/></g>
+            <circle cx="322" cy="118" r="44" fill="url(#lm-glow)"/>
+            <circle class="land-orb" cx="322" cy="118" r="10"/>
+            <path style="fill: var(--ridge-1)" d="M0 198C40 184 70 190 104 180S170 194 206 184 268 168 300 176 356 190 390 178V248H0Z"/>
+            <path style="fill: var(--ridge-2)" d="M0 212C36 204 60 196 96 202S150 214 190 204 250 186 286 192 350 208 390 198V248H0Z"/>
+            <path style="fill: var(--ridge-3)" d="M0 224C40 220 80 210 120 216S186 228 226 216 292 204 322 212 366 222 390 216V248H0Z"/>
+            <path fill="url(#lm-near)" d="M0 238 22 235 44 237 70 231 96 233 122 226 150 229 176 221 204 224 232 214 262 217 292 203 318 214 344 210 368 221 390 217V248H0Z"/>
+            <g class="ridge-light still"><path class="ridge-halo" d="M0 238 22 235 44 237 70 231 96 233 122 226 150 229 176 221 204 224 232 214 262 217 292 203 318 214 344 210 368 221 390 217"/><path class="ridge-core" d="M0 238 22 235 44 237 70 231 96 233 122 226 150 229 176 221 204 224 232 214 262 217 292 203 318 214 344 210 368 221 390 217"/></g>
+          </svg>
+          <div class="hero-top">
+            <span class="m-brand"><span data-lam="brand"></span><span class="m-brand-name">FBikeTrain</span></span>
+            <div class="acts">
+              <a class="round hero-route" aria-label="Generar ruta"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></a>
+              <a class="icon-btn appbar-profile" aria-label="Tú: perfil, importar y ajustes"><span class="profile-avatar" aria-hidden="true">L</span></a>
+            </div>
+          </div>
+          <div class="hero-copy">
+            <p class="hello">Hola, Laia.</p>
+            <p class="sub">En noviembre vas <b>por delante del ritmo</b>.</p>
+          </div>
+          <span class="summit-pin on" data-side="left" style="left: 74.87%; top: calc(81.85% - 9px)" aria-hidden="true">
+            <svg class="summit-vertex" width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 1.5 14.6 13.5H1.4Z"/><circle cx="8" cy="9.4" r="1.8"/></svg>
+            <span class="summit-lead"></span>
+          </span>
+          <span class="summit-lbl on" data-side="left" style="left: auto; right: calc(25.13% + 30px); top: calc(81.85% - 24px)">
+            <b>791 m</b><span>cima de tu última salida</span>
+          </span>
+        </section>
+
+        <!-- Hoy: el entreno del día, con acceso directo a su ruta -->
+        <section class="today" aria-label="Hoy">
+          <div class="hito-date" aria-hidden="true"><span class="hito-date-d">Hoy</span><span class="hito-date-n">19</span><span class="hito-date-m">nov</span></div>
+          <a class="today-main" aria-label="Hoy, 19 de noviembre: Vuelta al embalse, 64 kilómetros y 820 metros de desnivel, dureza media. Ver en el plan">
+            <span class="today-title">Vuelta al embalse</span>
+            <span class="route-meta"><span><b>64</b> km</span><span><b>820</b> m</span><span>Media</span></span>
+          </a>
+          <a class="btn btn--primary">Ruta y GPX</a>
+        </section>
+
+        <!-- Tu gente, con pendientes: chats sin leer, retos por responder y solicitudes. Tres filas como mucho. -->
+        <section class="people lam-if-pending" aria-labelledby="people-t">
+          <div class="people-h">
+            <h2 class="people-title" id="people-t">Tu gente</h2>
+            <a class="card-link" aria-label="Ver todo lo pendiente con tu gente, 4">Ver todo<svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></a>
+          </div>
+          <ul class="list list--inset chat-list" aria-label="Pendiente con tu gente">
+            <li>
+              <a class="row" aria-label="Chat de Ana Ruta, 2 mensajes sin leer. ¿Quedamos a las 8:15 mejor? 10:42">
+                <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">A</span></span>
+                <span class="row-main"><span class="row-title">Ana Ruta</span><span class="row-meta" dir="auto">¿Quedamos a las 8:15 mejor?</span></span>
+                <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">10:42</time><span class="chat-row-count" aria-hidden="true">2</span></span></span>
+              </a>
+            </li>
+            <li>
+              <a class="row" aria-label="Marta Puig te reta: más kilómetros esta semana. 9:15">
+                <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">M</span></span>
+                <span class="row-main"><span class="row-title">Marta Puig</span><span class="row-meta">Te reta: más kilómetros esta semana</span></span>
+                <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">9:15</time></span></span>
+              </a>
+            </li>
+            <li>
+              <a class="row" aria-label="Pol Serra quiere ser tu amigo. 8:03">
+                <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">P</span></span>
+                <span class="row-main"><span class="row-title">Pol Serra</span><span class="row-meta">Quiere ser tu amigo</span></span>
+                <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">8:03</time></span></span>
+              </a>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Tu gente, sin pendientes: una fila -->
+        <section class="people people--calm lam-if-calm" aria-label="Tu gente">
+          <a class="people-calm" aria-label="Tu gente: todo al día. Abrir Gente"><b>Tu gente</b>Todo al día<svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></a>
+        </section>
+
+        <section class="week" aria-labelledby="week-t">
+          <h2 class="week-title" id="week-t">Esta semana</h2>
+          <ul class="kpis">
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="true">
+              <span class="kpi-h"><span class="kpi-label">Distancia</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">122</span><span class="unit">km</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+106 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">Desnivel</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">1.628</span><span class="unit">m</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+84 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">En movimiento</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">5</span><span class="unit">h</span> <span class="fig">12</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+92 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">Velocidad media</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">23,5</span><span class="unit">km/h</span></span><span class="kpi-note delta down"><svg class="ic" aria-hidden="true"><use href="#i-arrow-down"/></svg><span class="delta-short">−2 %</span></span></span>
+            </button></li>
+          </ul>
+          <p class="week-cap">Frente a tus semanas a estas alturas: llevas el doble de distancia y casi el doble de desnivel.</p>
+        </section>
+
+        <div class="duo">
+          <section class="goal" aria-label="Objetivo de noviembre">
+            <div class="goal-h"><h2 class="glance-label">Objetivo de noviembre</h2><span class="goal-v">618<span class="u">de 800 km</span></span></div>
+            <div class="meter" style="--p: 0.7725; --pace: 0.63" role="img" aria-label="618 de 800 kilómetros; el ritmo esperado a día 19 son 507"><i></i><b></b></div>
+            <div class="meter-legend"><span>111 km por delante del ritmo</span><span>Quedan 11 días</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ C. Gente · Chats ============ -->
+<div class="app lam-screen" id="p-c">
+  <div data-lam="dock" data-current="gente"></div>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead"><a class="brand" aria-label="FBikeTrain, inicio"><span data-lam="brand"></span><span class="brand-name" aria-hidden="true">FBikeTrain</span></a></div>
+      <span class="appbar-title" aria-hidden="true">Gente</span>
+      <div class="appbar-actions">
+        <a class="icon-btn" aria-label="Nuevo chat"><svg class="ic" aria-hidden="true"><use href="#i-square-pen"/></svg></a>
+        <a class="icon-btn appbar-profile" aria-label="Tú: perfil, importar y ajustes"><span class="profile-avatar" aria-hidden="true">L</span></a>
+      </div>
+    </header>
+    <div class="page page--gente">
+      <header class="page-head"><h1 class="page-title">Gente</h1></header>
+      <nav class="seg seg--4" aria-label="Partes de Gente">
+        <span class="seg-ind" style="--n: 4; transform: translateX(0%)" aria-hidden="true"></span>
+        <a aria-current="page" aria-label="Chats, 2 sin leer"><span>Chats</span><span class="seg-count" aria-hidden="true">2</span></a>
+        <a aria-label="Amigos, 1 solicitud"><span>Amigos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a aria-label="Retos, 1 por responder"><span>Retos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a><span>Ciclistas</span></a>
+      </nav>
+      <ul class="list list--inset chat-list" aria-label="Conversaciones">
+        <li>
+          <a class="row" aria-label="Ana Ruta, 2 mensajes sin leer. ¿Quedamos a las 8:15 mejor? 10:42">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">A</span></span>
+            <span class="row-main"><span class="row-title">Ana Ruta</span><span class="row-meta" dir="auto">¿Quedamos a las 8:15 mejor?</span></span>
+            <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">10:42</time><span class="chat-row-count" aria-hidden="true">2</span></span></span>
+          </a>
+        </li>
+        <li>
+          <a class="row" aria-label="Grupeta del sábado, 5 mensajes sin leer. Marc: Yo llevo la cámara de repuesto. Ayer">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar chat-group-avatar"><svg class="ic"><use href="#i-users"/></svg></span></span>
+            <span class="row-main"><span class="row-title">Grupeta del sábado</span><span class="row-meta" dir="auto">Marc: Yo llevo la cámara de repuesto</span></span>
+            <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">Ayer</time><span class="chat-row-count" aria-hidden="true">5</span></span></span>
+          </a>
+        </li>
+        <li>
+          <a class="row">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">M</span></span>
+            <span class="row-main"><span class="row-title">Marc Coll</span><span class="row-meta" dir="auto">Tú: Mañana te cuento qué tal la subida</span></span>
+            <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">Ayer</time></span></span>
+          </a>
+        </li>
+        <li>
+          <a class="row">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">M</span></span>
+            <span class="row-main"><span class="row-title">Marta Puig</span><span class="row-meta" dir="auto">A ver quién suma más esta semana</span></span>
+            <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">Lun</time></span></span>
+          </a>
+        </li>
+        <li>
+          <a class="row">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">J</span></span>
+            <span class="row-main"><span class="row-title">Jordi Vila</span><span class="row-meta" dir="auto">Buena ruta la del domingo</span></span>
+            <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">15 nov</time></span></span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </main>
+</div>
+
+<!-- ============ D. Gente · Amigos ============ -->
+<div class="app lam-screen" id="p-d">
+  <div data-lam="dock" data-current="gente"></div>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead"><a class="brand" aria-label="FBikeTrain, inicio"><span data-lam="brand"></span><span class="brand-name" aria-hidden="true">FBikeTrain</span></a></div>
+      <span class="appbar-title" aria-hidden="true">Gente</span>
+      <div class="appbar-actions"><a class="icon-btn appbar-profile" aria-label="Tú: perfil, importar y ajustes"><span class="profile-avatar" aria-hidden="true">L</span></a></div>
+    </header>
+    <div class="page page--gente page--amigos">
+      <header class="page-head"><h1 class="page-title">Gente</h1></header>
+      <nav class="seg seg--4" aria-label="Partes de Gente">
+        <span class="seg-ind" style="--n: 4; transform: translateX(100%)" aria-hidden="true"></span>
+        <a aria-label="Chats, 2 sin leer"><span>Chats</span><span class="seg-count" aria-hidden="true">2</span></a>
+        <a aria-current="page" aria-label="Amigos, 1 solicitud"><span>Amigos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a aria-label="Retos, 1 por responder"><span>Retos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a><span>Ciclistas</span></a>
+      </nav>
+      <section class="amigos-group" aria-label="Solicitudes recibidas">
+        <h2>Solicitudes recibidas</h2>
+        <ul class="amigos-list">
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Pol Serra"><span class="person-name">Pol Serra</span><span class="person-meta">@polserra</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--primary" aria-label="Aceptar a Pol Serra">Aceptar</button><button type="button" class="btn btn--secondary" aria-label="Rechazar a Pol Serra">Rechazar</button></span>
+          </li>
+        </ul>
+      </section>
+      <section class="amigos-group" aria-label="Tus amigos">
+        <h2>Tus amigos · 4</h2>
+        <ul class="amigos-list">
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Ana Ruta"><span class="person-name">Ana Ruta</span><span class="person-meta">@anaruta</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--secondary" aria-label="Escribir a Ana Ruta">Escribir</button><a class="btn btn--primary" aria-label="Retar a Ana Ruta">Retar</a></span>
+          </li>
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Marc Coll"><span class="person-name">Marc Coll</span><span class="person-meta">@marccoll</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--secondary" aria-label="Escribir a Marc Coll">Escribir</button><a class="btn btn--primary" aria-label="Retar a Marc Coll">Retar</a></span>
+          </li>
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Marta Puig"><span class="person-name">Marta Puig</span><span class="person-meta">@martapuig</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--secondary" aria-label="Escribir a Marta Puig">Escribir</button><a class="btn btn--primary" aria-label="Retar a Marta Puig">Retar</a></span>
+          </li>
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Jordi Vila"><span class="person-name">Jordi Vila</span><span class="person-meta">@jordivila</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--secondary" aria-label="Escribir a Jordi Vila">Escribir</button><a class="btn btn--primary" aria-label="Retar a Jordi Vila">Retar</a></span>
+          </li>
+        </ul>
+      </section>
+      <section class="amigos-group" aria-label="Sugerencias">
+        <h2>Sugerencias</h2>
+        <ul class="amigos-list">
+          <li class="person">
+            <a class="person-main person-profile" aria-label="Núria Bosch"><span class="person-name">Núria Bosch</span><span class="person-meta">@nuriabosch</span></a>
+            <span class="person-actions"><button type="button" class="btn btn--primary" aria-label="Añadir a Núria Bosch">Añadir</button></span>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ E. Gente · Retos ============ -->
+<div class="app lam-screen" id="p-e">
+  <div data-lam="dock" data-current="gente"></div>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead"><a class="brand" aria-label="FBikeTrain, inicio"><span data-lam="brand"></span><span class="brand-name" aria-hidden="true">FBikeTrain</span></a></div>
+      <span class="appbar-title" aria-hidden="true">Gente</span>
+      <div class="appbar-actions"><a class="icon-btn appbar-profile" aria-label="Tú: perfil, importar y ajustes"><span class="profile-avatar" aria-hidden="true">L</span></a></div>
+    </header>
+    <div class="page page--gente page--community">
+      <header class="page-head"><h1 class="page-title">Gente</h1></header>
+      <nav class="seg seg--4" aria-label="Partes de Gente">
+        <span class="seg-ind" style="--n: 4; transform: translateX(200%)" aria-hidden="true"></span>
+        <a aria-label="Chats, 2 sin leer"><span>Chats</span><span class="seg-count" aria-hidden="true">2</span></a>
+        <a aria-label="Amigos, 1 solicitud"><span>Amigos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a aria-current="page" aria-label="Retos, 1 por responder"><span>Retos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a><span>Ciclistas</span></a>
+      </nav>
+      <section class="rival-row" aria-labelledby="rival-t">
+        <h2 id="rival-t" class="rival-row-title">¿A quién retas?</h2>
+        <ul class="rival-list">
+          <li><a class="rival" aria-label="Buscar rival"><span class="rival-ring rival-ring--add" aria-hidden="true"><svg class="ic"><use href="#i-plus"/></svg></span><span class="rival-name">Buscar</span></a></li>
+          <li><a class="rival" data-state="invited" aria-label="Marta Puig: te reta"><span class="rival-ring" aria-hidden="true"><span class="profile-avatar">M</span></span><span class="rival-name">Marta Puig</span><span class="rival-state">Te reta</span></a></li>
+          <li><a class="rival" data-state="active" aria-label="Marc Coll: en juego"><span class="rival-ring" aria-hidden="true"><span class="profile-avatar">M</span></span><span class="rival-name">Marc Coll</span><span class="rival-state">En juego</span></a></li>
+          <li><a class="rival" data-state="rematch" aria-label="Ana Ruta: revancha"><span class="rival-ring" aria-hidden="true"><span class="profile-avatar">A</span></span><span class="rival-name">Ana Ruta</span><span class="rival-state">Revancha</span></a></li>
+        </ul>
+      </section>
+      <nav class="cyclists-filters view-filters" aria-label="Vistas de retos">
+        <span aria-current="true">En juego</span><a>Avisos (1)</a><a>Historial</a>
+      </nav>
+      <section class="community-stack" aria-label="Retos en juego">
+        <article class="card community-challenge community-invite" aria-label="Marta Puig te reta: Más kilómetros esta semana">
+          <div class="community-card-top"><span class="chip community-invite-chip">Te reta Marta Puig</span><span class="community-eyebrow">Distancia</span></div>
+          <h2>Más kilómetros esta semana</h2>
+          <p>Duelo · Hasta el domingo 22</p>
+          <div class="btn-row community-invite-actions">
+            <button class="btn btn--primary" type="button" aria-label="Aceptar reto «Más kilómetros esta semana»">Aceptar reto</button>
+            <button class="btn btn--secondary" type="button" aria-label="Ahora no: «Más kilómetros esta semana»">Ahora no</button>
+          </div>
+        </article>
+        <div class="community-challenge-item">
+          <a class="card community-challenge">
+            <div class="community-card-top"><span class="community-eyebrow">Desnivel</span><span class="chip">En marcha</span></div>
+            <p class="community-time">Quedan 3 días</p>
+            <p class="community-opponent-line">Tú contra Marc Coll</p>
+            <h2>Más desnivel en noviembre</h2>
+            <p>Duelo · 2/2 participantes · Hasta el domingo 22</p>
+            <div class="community-duel community-duel--compact" role="group" aria-label="Comparativa del duelo">
+              <div class="community-duel-people">
+                <div class="community-duel-person"><span class="profile-avatar">L</span><span class="community-duel-name">Tú</span><strong>4.210 m</strong></div>
+                <div class="community-duel-person"><span class="profile-avatar">M</span><span class="community-duel-name">Marc Coll</span><strong>3.640 m</strong></div>
+              </div>
+              <span class="community-duel-vs" aria-hidden="true">vs</span>
+              <div class="community-duel-track" aria-hidden="true"><span style="transform: scaleX(0.536)"></span></div>
+              <p class="community-duel-lead" data-tone="ahead">Vas 570 m por delante</p>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ F. Gente · Ciclistas ============ -->
+<div class="app lam-screen" id="p-f">
+  <div data-lam="dock" data-current="gente"></div>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead"><a class="brand" aria-label="FBikeTrain, inicio"><span data-lam="brand"></span><span class="brand-name" aria-hidden="true">FBikeTrain</span></a></div>
+      <span class="appbar-title" aria-hidden="true">Gente</span>
+      <div class="appbar-actions"><a class="icon-btn appbar-profile" aria-label="Tú: perfil, importar y ajustes"><span class="profile-avatar" aria-hidden="true">L</span></a></div>
+    </header>
+    <div class="page page--gente">
+      <header class="page-head"><h1 class="page-title">Gente</h1></header>
+      <nav class="seg seg--4" aria-label="Partes de Gente">
+        <span class="seg-ind" style="--n: 4; transform: translateX(300%)" aria-hidden="true"></span>
+        <a aria-label="Chats, 2 sin leer"><span>Chats</span><span class="seg-count" aria-hidden="true">2</span></a>
+        <a aria-label="Amigos, 1 solicitud"><span>Amigos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a aria-label="Retos, 1 por responder"><span>Retos</span><span class="seg-count" aria-hidden="true">1</span></a>
+        <a aria-current="page"><span>Ciclistas</span></a>
+      </nav>
+      <div class="cyclists-workspace">
+        <div class="cyclists-discovery">
+          <form class="cyclists-search" role="search">
+            <button class="cyclists-search-icon" type="button" aria-label="Buscar"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></button>
+            <input type="search" placeholder="Nombre o @usuario" aria-label="Buscar ciclistas" />
+          </form>
+        </div>
+        <div class="cyclists-section-heading"><h2>Actividad reciente</h2><span>5 ciclistas</span></div>
+        <ul class="cyclists-list">
+          <li class="cyclist-card"><span class="profile-avatar cyclist-photo" aria-hidden="true">N</span><a class="cyclist-profile"><strong>Núria Bosch</strong><span>@nuriabosch</span><small>3 salidas esta semana</small></a><div class="cyclist-actions"><a class="btn btn--primary" aria-label="Retar a Núria Bosch">Retar</a><button class="cyclist-add" type="button" aria-label="Añadir a Núria Bosch"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></button></div></li>
+          <li class="cyclist-card"><span class="profile-avatar cyclist-photo" aria-hidden="true">P</span><a class="cyclist-profile"><strong>Pau Riera</strong><span>@pauriera</span><small>2 salidas esta semana</small></a><div class="cyclist-actions"><a class="btn btn--primary" aria-label="Retar a Pau Riera">Retar</a><button class="cyclist-add" type="button" aria-label="Añadir a Pau Riera"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></button></div></li>
+          <li class="cyclist-card"><span class="profile-avatar cyclist-photo" aria-hidden="true">C</span><a class="cyclist-profile"><strong>Clara Mas</strong><span>@claramas</span><small>1 salida esta semana</small></a><div class="cyclist-actions"><a class="btn btn--primary" aria-label="Retar a Clara Mas">Retar</a><button class="cyclist-add" type="button" aria-label="Añadir a Clara Mas"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></button></div></li>
+          <li class="cyclist-card"><span class="profile-avatar cyclist-photo" aria-hidden="true">I</span><a class="cyclist-profile"><strong>Iván Soler</strong><span>@ivansoler</span><small>1 salida esta semana</small></a><div class="cyclist-actions"><a class="btn btn--primary" aria-label="Retar a Iván Soler">Retar</a><button class="cyclist-add" type="button" aria-label="Añadir a Iván Soler"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></button></div></li>
+          <li class="cyclist-card"><span class="profile-avatar cyclist-photo" aria-hidden="true">E</span><a class="cyclist-profile"><strong>Elena Prat</strong><span>@elenaprat</span><small>1 salida esta semana</small></a><div class="cyclist-actions"><a class="btn btn--primary" aria-label="Retar a Elena Prat">Retar</a><button class="cyclist-add" type="button" aria-label="Añadir a Elena Prat"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></button></div></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ G. Tú ============ -->
+<div class="app lam-screen" id="p-g">
+  <div data-lam="dock"></div>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead"><a class="icon-btn" aria-label="Volver a Inicio"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-chevron-left"/></svg></a></div>
+      <span class="appbar-title" aria-hidden="true">Tú</span>
+      <div class="appbar-actions"></div>
+    </header>
+    <div class="page">
+      <header class="page-head"><h1 class="page-title">Tú</h1></header>
+      <ul class="list" aria-label="Tus datos y ajustes">
+        <li><a class="row"><span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-upload"/></svg></span><span class="row-main"><span class="row-title">Importar salidas</span><span class="row-meta">Última importación: 16 de noviembre</span></span><span class="row-trail"><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></a></li>
+        <li><a class="row"><span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-sliders"/></svg></span><span class="row-main"><span class="row-title">Ajustes</span><span class="row-meta">Zona, punto de salida y tema</span></span><span class="row-trail"><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></a></li>
+        <li><a class="row"><span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-archive"/></svg></span><span class="row-main"><span class="row-title">Copia de seguridad</span><span class="row-meta">Guardar o recuperar tus datos</span></span><span class="row-trail"><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></a></li>
+        <li><a class="row"><span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-lock"/></svg></span><span class="row-main"><span class="row-title">Privacidad</span><span class="row-meta">Qué se guarda y quién lo ve</span></span><span class="row-trail"><svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg></span></a></li>
+      </ul>
+      <section class="profile-hero" data-riding="subir" data-own="true" aria-label="Tu identidad pública">
+        <div class="profile-cover">
+          <svg class="profile-landscape" viewBox="0 0 1000 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <path class="profile-contour" d="M-50 60Q150-30 340 60T730 55T1100 40M-50 84Q150-6 340 84T730 79T1100 64M-50 108Q150 18 340 108T730 103T1100 88"/>
+            <path class="profile-far" d="M0 215 140 120 230 162 390 52 550 170 650 112 790 180 920 82 1000 140V240H0Z"/>
+            <path class="profile-near" d="M0 240 200 195 370 222 545 142 685 205 840 155 1000 220V240Z"/>
+            <path class="profile-signature" d="M565 240C510 217 577 208 589 191S536 179 569 164 628 170 646 143"/>
+            <circle class="profile-summit" cx="646" cy="143" r="5"/><circle class="profile-sun" cx="817" cy="62" r="22"/>
+          </svg>
+          <span class="profile-cover-label">Cuaderno de ruta <span>FB / 01</span></span>
+          <p class="profile-cover-copy">Cada ciclista,<br /><em>una manera de rodar.</em></p>
+        </div>
+        <div class="profile-intro">
+          <div class="profile-portrait"><span class="profile-avatar profile-avatar--large">L</span><button class="profile-camera" type="button" aria-label="Cambiar foto de perfil"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg></button></div>
+          <div class="profile-name-row"><div class="profile-name"><h2>Laia Font</h2><p>@laiafont</p></div><span class="profile-style"><svg class="ic" aria-hidden="true"><use href="#i-mountain"/></svg>Me gusta subir</span></div>
+          <p class="profile-bio">Puertos cortos entre semana y fondo los sábados.</p>
+          <ul class="profile-stats">
+            <li><a class="profile-stat" aria-label="4 amigos, 1 solicitud"><strong>4</strong><span>Amigos</span><small>1 solicitud</small></a></li>
+            <li><a class="profile-stat" aria-label="3 retos ganados"><strong>3</strong><span>Retos ganados</span></a></li>
+            <li><a class="profile-stat" aria-label="48 salidas en 2026"><strong>48</strong><span>Salidas 2026</span></a></li>
+          </ul>
+          <div class="profile-actions"><a class="btn btn--primary">Editar</a><a class="btn btn--secondary">Compartir</a></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ Escritorio. Inicio con el carril nuevo ============ -->
+<div class="app lam-screen" id="p-pc">
+  <div data-lam="dock" data-current="inicio"></div>
+  <main class="main">
+    <div class="legacy">
+      <div class="home">
+        <section class="hero hero--compact" aria-label="Saludo">
+          <svg class="land" viewBox="0 0 1256 274" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+            <defs>
+              <linearGradient id="lp-sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--sky-0)"/><stop offset=".3" style="stop-color: var(--sky-1)"/>
+                <stop offset=".58" style="stop-color: var(--sky-2)"/><stop offset=".82" style="stop-color: var(--sky-3)"/>
+                <stop offset="1" style="stop-color: var(--sky-4)"/>
+              </linearGradient>
+              <linearGradient id="lp-near" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" style="stop-color: var(--ridge-near)"/><stop offset="1" style="stop-color: var(--surface)"/>
+              </linearGradient>
+              <radialGradient id="lp-glow">
+                <stop offset="0" style="stop-color: var(--orb-glow)"/><stop offset="1" style="stop-color: var(--orb-glow); stop-opacity: 0"/>
+              </radialGradient>
+            </defs>
+            <rect width="1256" height="274" fill="url(#lp-sky)"/>
+            <g class="land-stars"><circle cx="90" cy="40" r="1"/><circle cx="250" cy="96" r=".9"/><circle cx="420" cy="30" r="1"/><circle cx="596" cy="70" r=".9"/><circle cx="700" cy="24" r="1"/><circle cx="842" cy="92" r=".9"/><circle cx="960" cy="36" r="1"/><circle cx="1128" cy="64" r=".9"/><circle cx="1210" cy="118" r="1"/></g>
+            <circle cx="1040" cy="104" r="70" fill="url(#lp-glow)"/>
+            <circle class="land-orb" cx="1040" cy="104" r="13"/>
+            <path style="fill: var(--ridge-1)" d="M0 196C120 170 220 188 330 172S520 196 640 178 820 150 930 164 1130 190 1256 168V274H0Z"/>
+            <path style="fill: var(--ridge-2)" d="M0 214C110 200 200 190 320 198S500 216 620 200 800 176 900 186 1120 208 1256 194V274H0Z"/>
+            <path style="fill: var(--ridge-3)" d="M0 230C130 222 260 208 390 216S600 232 720 216 930 200 1030 210 1180 224 1256 214V274H0Z"/>
+            <path fill="url(#lp-near)" d="M0 252 60 247 130 250 210 240 300 243 380 232 470 236 560 224 650 228 740 214 830 218 930 196 1010 214 1090 208 1170 224 1256 218V274H0Z"/>
+            <g class="ridge-light still"><path class="ridge-halo" d="M0 252 60 247 130 250 210 240 300 243 380 232 470 236 560 224 650 228 740 214 830 218 930 196 1010 214 1090 208 1170 224 1256 218"/><path class="ridge-core" d="M0 252 60 247 130 250 210 240 300 243 380 232 470 236 560 224 650 228 740 214 830 218 930 196 1010 214 1090 208 1170 224 1256 218"/></g>
+          </svg>
+          <div class="hero-top">
+            <div class="acts"><a class="round hero-route" aria-label="Generar ruta"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></a></div>
+          </div>
+          <div class="hero-copy">
+            <p class="hello">Hola, Laia.</p>
+            <p class="sub">En noviembre vas <b>por delante del ritmo</b>.</p>
+          </div>
+          <span class="summit-pin on" data-side="right" style="left: 74.04%; top: calc(71.53% - 9px)" aria-hidden="true">
+            <svg class="summit-vertex" width="16" height="16" viewBox="0 0 16 16" focusable="false"><path d="M8 1.5 14.6 13.5H1.4Z"/><circle cx="8" cy="9.4" r="1.8"/></svg>
+            <span class="summit-lead"></span>
+          </span>
+          <span class="summit-lbl on" data-side="right" style="left: calc(74.04% + 30px); top: calc(71.53% - 22px)">
+            <b>791 m</b><span>cima de tu última salida, en el km 19</span>
+          </span>
+        </section>
+
+        <section class="week" aria-labelledby="week-pc">
+          <h2 class="week-title" id="week-pc">Esta semana</h2>
+          <ul class="kpis">
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="true">
+              <span class="kpi-h"><span class="kpi-label">Distancia</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">122</span><span class="unit">km</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+106 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">Desnivel</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">1.628</span><span class="unit">m</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+84 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">En movimiento</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">5</span><span class="unit">h</span> <span class="fig">12</span></span><span class="kpi-note delta up"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg><span class="delta-short">+92 %</span></span></span>
+            </button></li>
+            <li><button class="kpi kpi--compact" type="button" aria-pressed="false">
+              <span class="kpi-h"><span class="kpi-label">Velocidad media</span></span>
+              <span class="kpi-row"><span class="kpi-value fig-i"><span class="fig">23,5</span><span class="unit">km/h</span></span><span class="kpi-note delta down"><svg class="ic" aria-hidden="true"><use href="#i-arrow-down"/></svg><span class="delta-short">−2 %</span></span></span>
+            </button></li>
+          </ul>
+        </section>
+
+        <section class="lastride" aria-labelledby="ride-pc">
+          <div class="card-h"><h2 class="card-title" id="ride-pc">Tu última salida</h2><a class="card-link">Ver salida<svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></a></div>
+          <div class="lam-map" role="img" aria-label="Esquema de la ruta de tu última salida">
+            <svg viewBox="0 0 700 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+              <path class="lam-map-contour" d="M-20 70Q120 10 260 70T540 60T740 40M-20 130Q120 70 260 130T540 120T740 100M-20 190Q120 130 260 190T540 180T740 160M-20 250Q120 190 260 250T540 240T740 220"/>
+              <path class="lam-map-route" d="M120 236C150 190 110 150 170 128S260 150 300 110 330 60 400 70 470 130 520 118 600 150 566 196 450 214 380 226 210 262 120 236Z"/>
+              <circle class="lam-map-start" cx="120" cy="236" r="6"/>
+            </svg>
+          </div>
+        </section>
+
+        <div class="duo">
+          <section class="today" aria-label="Hoy">
+            <div class="hito-date" aria-hidden="true"><span class="hito-date-d">Hoy</span><span class="hito-date-n">19</span><span class="hito-date-m">nov</span></div>
+            <a class="today-main" aria-label="Hoy, 19 de noviembre: Vuelta al embalse, 64 kilómetros y 820 metros de desnivel, dureza media. Ver en el plan">
+              <span class="today-title">Vuelta al embalse</span>
+              <span class="route-meta"><span><b>64</b> km</span><span><b>820</b> m</span><span>Media</span></span>
+            </a>
+            <a class="btn btn--primary">Ruta y GPX</a>
+          </section>
+          <section class="people" aria-labelledby="people-pc">
+            <div class="people-h">
+              <h2 class="people-title" id="people-pc">Tu gente</h2>
+              <a class="card-link" aria-label="Ver todo lo pendiente con tu gente, 4">Ver todo<svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></a>
+            </div>
+            <ul class="list list--inset chat-list" aria-label="Pendiente con tu gente">
+              <li>
+                <a class="row" aria-label="Chat de Ana Ruta, 2 mensajes sin leer. ¿Quedamos a las 8:15 mejor? 10:42">
+                  <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">A</span></span>
+                  <span class="row-main"><span class="row-title">Ana Ruta</span><span class="row-meta" dir="auto">¿Quedamos a las 8:15 mejor?</span></span>
+                  <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">10:42</time><span class="chat-row-count" aria-hidden="true">2</span></span></span>
+                </a>
+              </li>
+              <li>
+                <a class="row" aria-label="Marta Puig te reta: más kilómetros esta semana. 9:15">
+                  <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">M</span></span>
+                  <span class="row-main"><span class="row-title">Marta Puig</span><span class="row-meta">Te reta: más kilómetros esta semana</span></span>
+                  <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">9:15</time></span></span>
+                </a>
+              </li>
+              <li>
+                <a class="row" aria-label="Pol Serra quiere ser tu amigo. 8:03">
+                  <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">P</span></span>
+                  <span class="row-main"><span class="row-title">Pol Serra</span><span class="row-meta">Quiere ser tu amigo</span></span>
+                  <span class="row-trail"><span class="chat-row-side"><time class="chat-row-time">8:03</time></span></span>
+                </a>
+              </li>
+            </ul>
+          </section>
+          <section class="goal" aria-label="Objetivo de noviembre">
+            <div class="goal-h"><h2 class="glance-label">Objetivo de noviembre</h2><span class="goal-v">618<span class="u">de 800 km</span></span></div>
+            <div class="meter" style="--p: 0.7725; --pace: 0.63" role="img" aria-label="618 de 800 kilómetros; el ritmo esperado a día 19 son 507"><i></i><b></b></div>
+            <div class="meter-legend"><span>111 km por delante del ritmo</span><span>Quedan 11 días</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<style>
+/* Solo de la lámina: el esquema que hace de mapa en el marco de escritorio */
+.lam-map { height: 300px; border-radius: var(--r-lg); overflow: hidden; background: var(--surface-2); }
+.lam-map svg { display: block; width: 100%; height: 100%; }
+.lam-map-contour { fill: none; stroke: var(--contour); stroke-width: 1; }
+.lam-map-route { fill: none; stroke: var(--trace); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+.lam-map-start { fill: var(--bg); stroke: var(--trace); stroke-width: 3; }
+</style>
+
+<!-- Solo en la lámina. (1) Estampa el muelle y la marca en cada pantalla. (2) Cada marco carga este
+     mismo fichero con su pantalla y el tema en curso. (La consulta ?p= hace que la dirección del marco
+     no sea la de la lámina: el navegador no carga un marco con la misma dirección que su página.) -->
+<script>
+  (function () {
+    var dock = document.getElementById('t-dock');
+    var brand = document.getElementById('t-brand');
+    document.querySelectorAll('[data-lam="dock"]').forEach(function (slot) {
+      var nav = dock.content.firstElementChild.cloneNode(true);
+      var cur = slot.dataset.current;
+      if (cur === 'gente') nav.querySelector('[data-tab="gente"]').setAttribute('aria-current', 'page');
+      else if (cur) nav.querySelector('[data-tab="' + cur + '"]').setAttribute('aria-current', 'page');
+      slot.replaceWith(nav);
+    });
+    document.querySelectorAll('[data-lam="brand"]').forEach(function (slot) {
+      slot.replaceWith(brand.content.firstElementChild.cloneNode(true));
+    });
+    if (window.self === window.top && !location.hash) {
+      var theme = document.documentElement.getAttribute('data-theme');
+      document.querySelectorAll('iframe[data-p]').forEach(function (frame) {
+        frame.src = 'lamina.html?p=' + frame.dataset.p + '&theme=' + theme + '#' + frame.dataset.p;
+      });
+    }
+  })();
+</script>
+</body>
+</html>

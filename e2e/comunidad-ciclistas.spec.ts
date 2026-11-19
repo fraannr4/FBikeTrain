@@ -86,6 +86,8 @@ for (const width of [360, 390, 412, 430]) {
       await fakeCommunity(page, true);
       await page.goto('./#/ciclistas');
       await expect(page.getByRole('link', { name: `Ver perfil de ${NAME}` })).toBeVisible();
+      // Sin filtro «Todos / Amigos»: Amigos es una parte de «Gente».
+      await expect(page.getByRole('navigation', { name: 'Vistas de ciclistas' })).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
       const smallTargets = await page.locator('.cyclist-actions a, .cyclist-actions button').evaluateAll(elements => elements.filter(e => e.getBoundingClientRect().height < 44).length);
       expect(smallTargets).toBe(0);

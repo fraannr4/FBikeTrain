@@ -43,12 +43,15 @@ function setup({ challenges = [INVITATION, SENT, ACTIVE, DONE], notifications = 
 }
 
 describe('Retos como pestaña', () => {
-  it('es pantalla raíz: sin volver, con la lupa a Ciclistas y tu foto', async () => {
+  it('es pantalla raíz de «Gente»: sin volver y con tu foto; buscar rival vive en «¿A quién retas?»', async () => {
     setup();
-    expect(await screen.findByRole('heading', { name: 'Retos', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Gente', level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Volver/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Buscar ciclistas' })).toHaveAttribute('href', '/ciclistas');
-    expect(await screen.findByRole('link', { name: 'Tu perfil' })).toHaveAttribute('href', '/perfil');
+    expect(await screen.findByRole('link', { name: 'Tú: perfil, importar y ajustes' })).toHaveAttribute('href', '/perfil');
+    // La lupa de la cabecera repetía «Buscar» de la fila de rivales y la pestaña Ciclistas.
+    expect(screen.queryByRole('link', { name: 'Buscar ciclistas' })).not.toBeInTheDocument();
+    const row = await screen.findByRole('region', { name: '¿A quién retas?' });
+    expect(within(row).getByRole('link', { name: 'Buscar rival' })).toHaveAttribute('href', '/ciclistas');
   });
 
   it('la fila «¿A quién retas?» enseña cada rival con su estado en texto', async () => {
@@ -81,22 +84,49 @@ describe('Retos como pestaña', () => {
     expect(rpc).toHaveBeenCalledWith('respond_community_challenge', { challenge_id: 'c1', accept: false });
   });
 
-  it('segmentado En juego · Avisos · Historial', async () => {
+  it('filtros En juego · Avisos · Historial, pequeños y bajo «¿A quién retas?»', async () => {
     setup({ notifications: [{ id: 'n1', kind: 'invitation', challenge_id: 'c1', actor_id: 'p2', created_at: new Date().toISOString(), read_at: null }] });
     const user = userEvent.setup();
-    const seg = await screen.findByRole('group', { name: 'Vistas de retos' });
-    expect(within(seg).getAllByRole('button').map(b => b.textContent)).toEqual(['En juego', 'Avisos (1)', 'Historial']);
+    const views = await screen.findByRole('group', { name: 'Vistas de retos' });
+    const rivals = await screen.findByRole('region', { name: '¿A quién retas?' });
+    // Dos segmentados iguales seguidos (partes de Gente y vistas) no: las vistas son filtros.
+    expect(views).not.toHaveClass('seg');
+    expect(views).toHaveClass('view-filters');
+    expect(rivals.compareDocumentPosition(views) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(views).getAllByRole('button').map(b => b.textContent)).toEqual(['En juego', 'Avisos (1)', 'Historial']);
+    expect(within(views).getByRole('button', { name: 'En juego' })).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByText('Collado de las Encinas')).toBeInTheDocument();
     expect(screen.queryByText('Noviembre en llano')).not.toBeInTheDocument();
-    await user.click(within(seg).getByRole('button', { name: 'Historial' }));
+    await user.click(within(views).getByRole('button', { name: 'Historial' }));
+    expect(within(views).getByRole('button', { name: 'Historial' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(views).getByRole('button', { name: 'En juego' })).toHaveAttribute('aria-pressed', 'false');
     expect(await screen.findByText('Noviembre en llano')).toBeInTheDocument();
-    await user.click(within(seg).getByRole('button', { name: 'Avisos (1)' }));
+    await user.click(within(views).getByRole('button', { name: 'Avisos (1)' }));
     expect(screen.getByText('Te han invitado a un reto')).toBeInTheDocument();
+  });
+
+  it('los filtros se usan con el teclado', async () => {
+    setup();
+    const user = userEvent.setup();
+    const views = await screen.findByRole('group', { name: 'Vistas de retos' });
+    within(views).getByRole('button', { name: 'En juego' }).focus();
+    await user.tab();
+    await user.tab();
+    expect(within(views).getByRole('button', { name: 'Historial' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('region', { name: 'Historial de retos' })).toBeInTheDocument();
+    expect(within(views).getByRole('button', { name: 'Historial' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('abre el historial desde la dirección', async () => {
     setup({ path: '/retos?vista=historial' });
     expect(await screen.findByText('Noviembre en llano')).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Vistas de retos' })).getByRole('button', { name: 'Historial' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('abre los avisos desde la dirección', async () => {
+    setup({ path: '/retos?vista=avisos' });
+    expect(await screen.findByRole('region', { name: 'Notificaciones de retos' })).toBeInTheDocument();
   });
 
   it('sin retos, sugiere a quién retar y una plantilla rápida', async () => {

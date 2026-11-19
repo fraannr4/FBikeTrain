@@ -7,10 +7,10 @@ test('al cambiar de pestaña con el teclado, el foco pasa al contenido y el tít
   await page.goto('/');
   const menu = page.getByRole('navigation', { name: 'Menú principal' });
   await expect(page).toHaveTitle('Inicio · FBikeTrain');
-  await menu.getByRole('link', { name: 'Historial' }).focus();
+  await menu.getByRole('link', { name: 'Salidas' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('heading', { level: 1, name: 'Historial' })).toBeVisible();
-  await expect(page).toHaveTitle('Historial · FBikeTrain');
+  await expect(page.getByRole('heading', { level: 1, name: 'Salidas' })).toBeVisible();
+  await expect(page).toHaveTitle('Salidas · FBikeTrain');
   await expect(page.locator('main#contenido')).toBeFocused();
   // El siguiente Tab entra en la pantalla nueva, no en la pestaña vecina.
   await page.keyboard.press('Tab');

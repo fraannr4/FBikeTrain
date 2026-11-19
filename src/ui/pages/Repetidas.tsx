@@ -444,13 +444,13 @@ export function Repetidas() {
 
   return (
     <Page
-      title="Historial"
+      title="Salidas"
       barTitle="Repetidas"
       variant="dense"
       className="repetidas"
       busy={!data && !failed}
       lead={lead}
-      nav={<SegmentedNav label="Vistas del historial" items={HISTORIAL_VIEWS} current="/historial/repetidas" />}
+      nav={<SegmentedNav label="Vistas de Salidas" items={HISTORIAL_VIEWS} current="/historial/repetidas" />}
     >
       {body}
       {item && data ? (

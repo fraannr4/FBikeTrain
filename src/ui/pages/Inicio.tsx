@@ -28,6 +28,8 @@ import { KpiCard } from '../inicio/KpiCard';
 import { LoadCard } from '../inicio/LoadCard';
 import { NextWorkout } from '../inicio/NextWorkout';
 import { TrendCard } from '../inicio/TrendCard';
+import { TuGente } from '../inicio/TuGente';
+import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { weeklyTrend } from '../inicio/trend';
 import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { YourData } from '../inicio/YourData';
@@ -284,6 +286,7 @@ const REF_SPEED = 'frente a tu media';
 
 function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => void }) {
   const { acts, total, firstStart, lastRide, workouts, goals, lastImportAt, lastBackupAt, displayName, thresholds, now } = data;
+  const wide = useDesktopLayout();
   const [metric, setMetric] = useState<Accent>('dist');
   // La métrica de partida (Distancia) no se recalca con el borde de color hasta que eliges una.
   const [picked, setPicked] = useState(false);
@@ -326,6 +329,19 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
   // Lo que toca y cómo vas, en palabras; sin plan, lo que llevas. Las diferencias están en las cifras.
   const sentence = lead ? { lead: lead.lead, figure: lead.name, tail: lead.tail } : heroSentence(current, null);
   const speedMean = trend.series.speed.mean;
+
+  // Lo de hoy: el próximo entreno y lo que tu gente espera de ti. En el móvil, bajo el saludo; desde
+  // 1024 px, al frente de la columna del plan (lámina de distribución, 2026-11-19).
+  const today = (
+    <>
+      <NextWorkout items={plan.upcoming} now={now} kmh={speedMean} />
+      <TuGente />
+    </>
+  );
+  // Un solo objetivo de volumen, el del mes si lo hay (como el prototipo); el de la semana vive en
+  // Plan > Objetivos.
+  const first = plan.glances[0];
+  const goal = first ? <GoalGlance id={`objetivo-${first.id}`} glance={first.glance} /> : null;
 
   // Las cifras de la semana van tras el paisaje, sin caja, con la distancia de titular. Es la misma
   // composición a cualquier ancho; inicio.css la apila en el móvil y la pone en una línea en escritorio.
@@ -393,17 +409,17 @@ function Dashboard({ data, onDemoLoaded }: { data: Data; onDemoLoaded: () => voi
         }
       />
 
+      {wide ? null : today}
+
       {weekSection}
 
-      <div className="duo">
-        {/* Un solo objetivo de volumen, el del mes si lo hay (como el prototipo): con los dos, «Próximo
-            entreno» no asoma en el primer pantallazo del teléfono. El de la semana vive en Plan > Objetivos. */}
-        {plan.glances.slice(0, 1).map(({ id, glance }) => (
-          <GoalGlance key={id} id={`objetivo-${id}`} glance={glance} />
-        ))}
-        <NextWorkout items={plan.upcoming} now={now} kmh={speedMean} />
-        {plan.event ? <EventGoalRow goal={plan.event} now={now} /> : null}
-      </div>
+      {wide || goal || plan.event ? (
+        <div className="duo">
+          {wide ? today : null}
+          {goal}
+          {plan.event ? <EventGoalRow goal={plan.event} now={now} /> : null}
+        </div>
+      ) : null}
 
       {lastRide ? (
         <RideMapCard activity={lastRide} track={track} profile={rideProfile} level={level} now={now} />

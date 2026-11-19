@@ -84,7 +84,7 @@ export function Compartido() {
       <div className="section-h"><h2 className="section-title">{items.length} {items.length === 1 ? 'fichero recibido' : 'ficheros recibidos'}</h2></div>
       <ul className="shared-list">{items.map((item, index) => <li className="card shared-file" key={index}>
         <strong>{item.file.name}</strong>
-        <span className={item.error ? 'shared-error' : ''}>{item.error ?? (item.destination === 'route' ? item.saved ? 'Guardado en la biblioteca' : 'Ruta · Biblioteca de rutas' : item.saved ? 'Procesado · Consulta el informe' : 'Actividad · Historial de salidas')}</span>
+        <span className={item.error ? 'shared-error' : ''}>{item.error ?? (item.destination === 'route' ? item.saved ? 'Guardado en la biblioteca' : 'Ruta · Biblioteca de rutas' : item.saved ? 'Procesado · Consulta el informe' : 'Actividad · Salidas')}</span>
         {item.destination && !item.saved && !/\.fit$/i.test(item.file.name) && <label className="field">
           <span className="field-label">Guardar {item.file.name} como</span>
           <select className="input" disabled={busy} value={item.destination} onChange={event => {
@@ -92,7 +92,7 @@ export function Compartido() {
             setItems(rows => rows?.map((row, i) => i === index ? { ...row, destination, error: undefined } : row) ?? null);
           }}>
             <option value="route">Ruta de referencia · Biblioteca</option>
-            <option value="activity">Actividad realizada · Historial</option>
+            <option value="activity">Actividad realizada · Salidas</option>
           </select>
         </label>}
       </li>)}</ul>
@@ -105,7 +105,7 @@ export function Compartido() {
     {report && <ImportReportView report={report} />}
     {!busy && items !== null && <div className="shared-actions">
       {(routes > 0 || activities === 0) && <Link className="btn btn--secondary btn--block" to="/rutas/biblioteca">Ir a la biblioteca</Link>}
-      {(activities > 0 || routes === 0) && <Link className="btn btn--secondary btn--block" to="/historial">Ir al historial</Link>}
+      {(activities > 0 || routes === 0) && <Link className="btn btn--secondary btn--block" to="/historial">Ir a Salidas</Link>}
     </div>}
   </Page>;
 }

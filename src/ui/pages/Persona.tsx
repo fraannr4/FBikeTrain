@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useAccount, type Account } from '../../auth/AccountBoundary';
+import { notifyCommunityChanged } from '../../social/communityBadge';
 import { listCommunityChallenges } from '../../social/communityChallenges';
 import { loadPublicProfile } from '../../social/publicProfile';
 import { Banner } from '../components/Banner';
@@ -56,6 +57,8 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
     setBusy(true); setError(''); setNotice('');
     try {
       await run();
+      // «Gente» vuelve a contar las solicitudes de amistad.
+      notifyCommunityChanged();
       // Si falla el refresco, retirar las acciones hasta volver a conocer la relación.
       setData(null);
       setData(await load());

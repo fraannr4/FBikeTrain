@@ -53,14 +53,14 @@ for (const theme of ['light', 'dark'] as const) {
       await page.addInitScript(t => localStorage.setItem('fbt-theme', t), theme);
       await mockCommunity(page);
       await page.goto('#/historial');
-      await expect(page.getByRole('heading', { level: 1, name: 'Historial' })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: 'Salidas' })).toBeVisible();
       const menu = page.getByRole('navigation', { name: 'Menú principal' });
-      for (const name of ['Rutas', 'Plan', 'Historial']) {
+      for (const name of ['Rutas', 'Plan', 'Salidas']) {
         await menu.getByRole('link', { name, exact: true }).click();
         await expect(page).toHaveTitle(`${name === 'Plan' ? 'Calendario' : name} · FBikeTrain`);
         expect(await page.locator('main').evaluate(el => getComputedStyle(el).transform)).toBe('none');
       }
-      const views = page.getByRole('navigation', { name: 'Vistas del historial' });
+      const views = page.getByRole('navigation', { name: 'Vistas de Salidas' });
       await views.getByRole('link', { name: 'Subidas' }).click();
       await expect(views.getByRole('link', { name: 'Subidas' })).toHaveAttribute('aria-current', 'page');
       await views.getByRole('link', { name: 'Repetidas' }).click();

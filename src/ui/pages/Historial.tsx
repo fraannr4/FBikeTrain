@@ -87,7 +87,7 @@ export function Historial() {
     setAttempt((n) => n + 1);
   };
 
-  const nav = <SegmentedNav label="Vistas del historial" items={HISTORIAL_VIEWS} current="/historial" />;
+  const nav = <SegmentedNav label="Vistas de Salidas" items={HISTORIAL_VIEWS} current="/historial" />;
   let body: ReactNode;
   if (load.status === 'loading') body = <Loading nav={nav} />;
   else if (load.status === 'error')
@@ -133,7 +133,7 @@ export function Historial() {
 
   return (
     <Page
-      title="Historial"
+      title="Salidas"
       variant="dense"
       className="hist"
       busy={load.status === 'loading'}

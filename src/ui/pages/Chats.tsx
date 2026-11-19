@@ -6,6 +6,7 @@ import { CHAT_CHANGED_EVENT } from '../../social/chatBadge';
 import { listTime, previewLine, visibleConversations } from '../chat/model';
 import { Banner } from '../components/Banner';
 import { EmptyState } from '../components/EmptyState';
+import { GenteNav } from '../gente/GenteNav';
 import { List, ListRow } from '../components/ListRow';
 import { Page } from '../components/Page';
 import { SkeletonRows } from '../components/Skeleton';
@@ -20,12 +21,14 @@ const REFRESH_MS = 30_000;
 const message = (e: unknown) => (e instanceof Error ? e.message : 'No se ha podido completar. Comprueba la conexión e inténtalo de nuevo.');
 export const REGISTERED_ONLY = 'Necesitas una cuenta registrada para usar el chat.';
 
-/** `#/chat`: pantalla raíz con la lista de conversaciones. «Nuevo chat» abre tus amigos. */
+/** `#/chat`: parte Chats de «Gente», con la lista de conversaciones. «Nuevo chat» abre tus amigos. */
 export function Chats() {
   const account = useAccount();
   return (
     <Page
-      title="Chat"
+      title="Gente"
+      docTitle="Chat"
+      nav={<GenteNav />}
       actions={
         <Link className="icon-btn" to="/perfil/amigos" aria-label="Nuevo chat">
           <SquarePen className="ic" aria-hidden="true" />

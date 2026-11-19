@@ -1,5 +1,6 @@
 import { createContext, useContext, useRef, type MouseEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { useAccount } from '../../auth/AccountBoundary';
 import { screenName } from './screens';
 
 type Entry = { key: string; pathname: string };
@@ -34,7 +35,7 @@ export function NavHistoryProvider({ children }: { children: ReactNode }) {
 }
 
 export type BackTarget = {
-  /** «Volver a Rutas», «Volver al historial». */
+  /** «Volver a Rutas», «Volver a Salidas». */
   label: string;
   /** Adónde lleva el enlace si no se vuelve con el historial del navegador. */
   to: string;
@@ -46,9 +47,12 @@ export type BackTarget = {
 /**
  * Destino de «Volver». Si se llegó desde otra pantalla de la app, vuelve con el historial del
  * navegador (conserva el desplazamiento de la lista) y dice a cuál: «Volver a Inicio». Si se entró
- * directamente (enlace, recarga), lleva a la pantalla madre `parent`.
+ * directamente (enlace, recarga), lleva a la pantalla madre `parent`. Con cuenta registrada, lo de
+ * «Más» (Ajustes, Importar, Compartido) cuelga de «Tú».
  */
 export function useBack(parent: string): BackTarget {
+  const account = useAccount();
+  if (parent === '/mas' && account && !account.user.is_anonymous) parent = '/perfil';
   const prev = useContext(PrevContext);
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -65,10 +69,5 @@ export function useBack(parent: string): BackTarget {
     e.preventDefault();
     navigate(-1);
   };
-  return { label: backLabel(screenName(to)), to, onClick, go };
-}
-
-/** «Volver a Rutas»; con el artículo cuando el nombre es común: «Volver al historial». */
-function backLabel(name: string): string {
-  return name === 'Historial' ? 'Volver al historial' : `Volver a ${name}`;
+  return { label: `Volver a ${screenName(to)}`, to, onClick, go };
 }

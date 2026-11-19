@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import { useAccount } from '../../auth/AccountBoundary';
+import { Link, Navigate } from 'react-router-dom';
+import { useAccount, type Account } from '../../auth/AccountBoundary';
 import { getBackupMeta } from '../../backup/backup';
 import { listGoals, listWorkouts } from '../../calendar/calendarRepo';
 import { getMeta, listActivities, listClimbEfforts, listRouteSigs } from '../../db/repo';
@@ -15,12 +15,10 @@ import {
   Repeat,
   SlidersHorizontal,
   Sun,
-  Swords,
   Target,
   TriangleAlert,
   Upload,
   User,
-  Users,
 } from '../icons';
 import { Banner } from '../components/Banner';
 import { List, ListRow } from '../components/ListRow';
@@ -63,12 +61,20 @@ function ThemeButton() {
 }
 
 /**
- * Más: Explorar (las vistas de Historial y Plan, con lo que dice cada una) y Datos y ajustes
- * (Ajustes, Importar y la copia). Sin salidas, lo primero es importar; sin almacenamiento, solo queda
- * «Reintentar».
+ * Más, solo en modo local (sin cuenta o con cuenta anónima): con cuenta registrada, lo de aquí está en
+ * «Tú» y `/mas` lleva allí.
  */
 export function Mas() {
   const account = useAccount();
+  if (account && !account.user.is_anonymous) return <Navigate replace to="/perfil" />;
+  return <MasView account={account} />;
+}
+
+/**
+ * Explorar (las vistas de Salidas y Plan, con lo que dice cada una) y Datos y ajustes (Ajustes,
+ * Importar y la copia). Sin salidas, lo primero es importar; sin almacenamiento, solo queda «Reintentar».
+ */
+function MasView({ account }: { account: Account | null }) {
   const [load, setLoad] = useState<Load>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => {
@@ -129,14 +135,14 @@ export function Mas() {
           to={to('/historial/subidas')}
           icon={Mountain}
           accent="elev"
-          title={<Where name="Subidas" tab="Historial" />}
+          title={<Where name="Subidas" tab="Salidas" />}
           meta={meta(s?.climbs)}
         />
         <ListRow
           to={to('/historial/repetidas')}
           icon={Repeat}
           accent="time"
-          title={<Where name="Repetidas" tab="Historial" />}
+          title={<Where name="Repetidas" tab="Salidas" />}
           meta={meta(s?.routes)}
         />
         <ListRow
@@ -189,9 +195,6 @@ export function Mas() {
       ) : null}
       <List inset className={off ? 'list--off' : undefined}>
         {account && <ListRow to="/perfil" icon={User} title="Tu perfil" meta="Nombre, privacidad y cuenta" />}
-        {account && <ListRow to="/ciclistas" icon={Users} title="Ciclistas" meta="Toda la comunidad" />}
-        {account && <ListRow to="/amigos" icon={Users} accent="time" title="Amigos" meta="Buscar personas y solicitudes" />}
-        {account && <ListRow to="/retos" icon={Swords} accent="elev" title="Retos" meta="Duelos y retos de grupo de 1 a 30 días" />}
         <ListRow to="/ajustes" icon={SlidersHorizontal} title="Ajustes" meta="Nombre, Casa, claves y tema" />
         {empty ? null : (
           <ListRow to={to('/importar')} icon={Upload} accent="dist" title="Importar salidas" meta={meta(s?.import)} />
@@ -247,7 +250,7 @@ export function Mas() {
   );
 }
 
-/** «Subidas en Historial»: junto al nombre, en qué pestaña se abre; la meta queda para el dato. */
+/** «Subidas en Salidas»: junto al nombre, en qué pestaña se abre; la meta queda para el dato. */
 function Where({ name, tab }: { name: string; tab: string }) {
   return (
     <>

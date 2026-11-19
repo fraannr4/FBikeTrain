@@ -1,0 +1,20 @@
+/* =====================================================================
+   «Gente»: el control de cuatro partes (Chats, Amigos, Retos y Ciclistas).
+   Es el `.seg` de enlaces del kit. El contador es la insignia roja del muelle,
+   repartida: muelle 4 = Chats 2 + Amigos 1 + Retos 1. Cabe a 360 px con «9+».
+   Solo tokens. Desde 900 px no se pinta: el carril lleva las cuatro partes.
+   ===================================================================== */
+.seg--4 > a { gap: 4px; padding: 0 2px; }
+.seg-count {
+  flex: none; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-pill);
+  background: var(--badge); color: var(--on-badge);
+  font: 700 12px/18px var(--font-ui); text-align: center; font-variant-numeric: tabular-nums;
+}
+/* El hueco del rótulo (`.seg > a span`) no recorta el contador */
+.seg > a .seg-count { overflow: visible; }
+/* Tras el control, 24 px: los 40 px separan secciones, no el control de lo suyo */
+.page > .seg--4 + * { margin-top: -16px; }
+/* Ciclistas lleva 16 px de hueco entre bloques: sin esto el buscador se pega al control */
+.page--cyclists > .seg--4 + * { margin-top: 8px; }
+/* Vistas dentro de una parte (Retos: En juego, Avisos, Historial): filtros pequeños, no otro control igual */
+.view-filters { display: flex; flex-wrap: wrap; gap: 0 8px; }

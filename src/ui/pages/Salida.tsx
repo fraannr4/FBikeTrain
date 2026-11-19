@@ -154,13 +154,13 @@ export function Salida() {
             title={base === 'missing' ? 'No se encuentra la salida' : 'No se ha podido leer la salida'}
             text={
               base === 'missing'
-                ? 'Puede que se borrara al volver a importar el archivo de Strava. Búscala en el historial por su nombre.'
+                ? 'Puede que se borrara al volver a importar el archivo de Strava. Búscala en Salidas por su nombre.'
                 : 'El almacenamiento del navegador no responde. Recarga la página.'
             }
             action={
               <Link className="btn btn--primary" to="/historial">
                 <ChartColumn className="ic" aria-hidden="true" />
-                Ir al historial
+                Ir a Salidas
               </Link>
             }
           />

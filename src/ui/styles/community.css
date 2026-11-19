@@ -7,9 +7,6 @@
 .cyclists-search input::placeholder { color: var(--ink-3); opacity: 1; }
 .cyclists-search input::-webkit-search-cancel-button { display: none; }
 .cyclists-search-icon { display: inline-grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border-radius: 10px; color: var(--ink-2); }
-.cyclists-filters { display: flex; align-items: center; gap: 10px; }
-.cyclists-filters > * { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 78px; padding: 0 18px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
-.cyclists-filters > [aria-current] { color: var(--bg); background: var(--acc-elev); border-color: var(--acc-elev); }
 .cyclists-section-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; justify-content: space-between; }
 .cyclists-section-heading h2 { margin: 0; font-size: 19px; overflow-wrap: anywhere; }
 .cyclists-section-heading > span { font-size: 12px; color: var(--ink-3); }
@@ -47,9 +44,7 @@
 .cyclist-friend--sent { color: var(--ink-3); }
 
 /* ===== Libro de ruta (tanda 2): Ciclistas =====
-   El filtro elegido usa la superficie clara del segmentado (como los chips del kit), no el ámbar;
-   las iniciales van en tinta; mínimos de 12 px y regla fina entre personas. */
-.cyclists-filters > [aria-current] { color: var(--ink); background: var(--seg-thumb); border-color: var(--ink-2); }
+   Las iniciales van en tinta; mínimos de 12 px y regla fina entre personas. */
 .cyclists-section-heading h2 { font: 700 var(--fs-section)/1.1 var(--font-display); }
 .cyclist-card { border-top-color: var(--rule); }
 .cyclist-photo { color: var(--ink-2); font: 700 20px/1 var(--font-display); }

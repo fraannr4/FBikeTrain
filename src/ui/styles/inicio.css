@@ -407,35 +407,44 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
   a.card.goal-event:hover { background: var(--surface-2); }
 }
 
-.next-main { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; }
-.next-body { min-width: 0; }
-/* Nombres largos: tres líneas como mucho; «Ver nombre entero» (NextWorkout) los despliega */
-.next-title {
-  margin-top: 2px;
-  color: var(--ink);
-  font: 700 var(--fs-name) / 1.1 var(--font-display);
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* ---------- «Hoy»: el próximo entreno en una línea (lámina de distribución, 2026-11-19) ---------- */
+/* Sin caja: el hito de fecha del Plan, el nombre rotulado y una acción en crema. El nombre y las
+   cifras son el enlace al Plan; el botón abre Rutas. */
+.today {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 12px;
+  min-width: 0;
 }
-.next-title.is-open { display: block; overflow: visible; }
-.next-more {
-  min-height: var(--target);
-  margin-block: -6px -8px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--link);
-  font: 600 var(--t-sm) / 1 var(--font-ui);
-  cursor: pointer;
+.today-main { display: grid; align-content: center; gap: 2px; min-width: 0; min-height: var(--target); color: inherit; border-radius: var(--r-md); }
+/* Nombres largos: dos líneas como mucho; entero en el Plan y en el nombre del enlace */
+.today-title {
+  color: var(--ink); font: 700 var(--fs-name)/1.08 var(--font-display); letter-spacing: 0;
+  overflow-wrap: anywhere; text-wrap: balance;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
 }
-.next-notes { margin-top: 6px; color: var(--ink-2); font-size: var(--t-sm); overflow-wrap: anywhere; }
-.next-actions { margin-top: 14px; }
-.next-empty { display: grid; justify-items: start; gap: 12px; color: var(--ink-2); }
+.today .route-meta { margin-top: 2px; }
+.today .btn { min-height: var(--target); padding-inline: 14px; font-size: 15px; white-space: nowrap; }
+.today--empty { grid-template-columns: minmax(0, 1fr) auto; }
+.today-none { color: var(--ink-2); }
+
+/* ---------- «Tu gente»: solo lo pendiente, tres filas como mucho ---------- */
+/* Los renglones son los de la lista de chats, algo más bajos. Se arrima a «Hoy»: los dos son «lo de hoy». */
+.people { display: grid; gap: 2px; min-width: 0; padding-top: var(--section-lead); border-top: 1px solid var(--rule); }
+.today + .people { margin-top: -20px; }
+.people-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--target); margin-top: -10px; }
+.people-title { color: var(--ink); font: 700 var(--fs-section)/1.1 var(--font-display); letter-spacing: 0; }
+.people .chat-list.list { border-top: 0; }
+.people .chat-list .row { min-height: 60px; padding: 8px 0; }
+.people .chat-list .row-lead,
+.people .chat-list .row-lead .profile-avatar { width: 40px; height: 40px; }
+.people .chat-list .row-lead .profile-avatar { font-size: 17px; }
+.people .chat-list.list--inset > li + li::before { margin-left: 52px; }
+/* Sin nada pendiente (o sin saberlo): una sola fila, callada, que sigue llevando a Gente */
+.people--calm { padding-top: 0; }
+.people-calm { display: flex; align-items: baseline; gap: 10px; min-width: 0; min-height: 52px; padding-block: 15px; color: var(--ink-2); font-size: var(--t-sm); line-height: 1.4; }
+.people-calm b { color: var(--ink); font: 600 var(--t-md)/1.3 var(--font-ui); }
+.people-calm .chev { align-self: center; flex: none; margin-left: auto; width: 18px; height: 18px; color: var(--ink-3); }
+.people-calm .sk { align-self: center; }
 
 /* ---------- Vacío: importar o ver el ejemplo ---------- */
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
@@ -448,12 +457,6 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
 .sk-kpi { display: grid; gap: 12px; min-height: 76px; }
 .home-loading .sk-stack { display: grid; gap: 10px; }
 
-/* ---------- Tableta y escritorio: objetivo y evento a la izquierda, entreno a la derecha ---------- */
-@media (min-width: 600px) {
-  .duo { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-  .duo > .next { grid-column: 2; grid-row: 1 / span 3; }
-  .duo > .next:first-child { grid-column: auto; grid-row: auto; }
-}
 /* Apaisado en el teléfono: el saludo se encoge, el paisaje queda en una franja y las cifras suben.
    Sin salidas, la frase y la nota del ejemplo se quedan: son las que explican qué hacer. */
 @media (max-height: 500px) and (max-width: 899px) {
@@ -682,9 +685,17 @@ a.card.goal-event {  /* .card:not(:has(> .card-h)) de base.css pesa más que a.g
 .load-compact { padding-top: var(--section-lead); border-top: 1px solid var(--rule); }
 
 /* ---- Solo el móvil: el paisaje deja sitio al perfil bajo la frase y el mapa va a sangre ---- */
+/* Saludo compacto (lámina de distribución, 2026-11-19); «Hoy» se arrima al pie del paisaje. La
+   lámina deja 84 px bajo la frase, pero con la escena de hoy (scene.ts) la cresta sale casi plana y
+   el rótulo de la cima no cabe por debajo de unos 110: con 112 sigue cabiendo, en dos líneas. */
 @media (max-width: 899px) {
-  .hero:not(.hero-empty) { padding-bottom: clamp(150px, 44vw, 196px); }
-  .hero + .week { margin-top: -20px; }
+  .hero:not(.hero-empty) { padding-bottom: 112px; }
+  .hero:not(.hero-empty)::before,
+  .hero:not(.hero-empty) .land {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  }
+  .hero + .today { margin-top: -32px; }
   .lastride-map { margin-inline: calc(-1 * var(--gutter)); }
 }
 

@@ -6,6 +6,7 @@ import { AccountContext } from '../src/auth/AccountBoundary';
 import { Persona } from '../src/ui/pages/Persona';
 import { ToastProvider } from '../src/ui/components/Toast';
 import type { FriendRow } from '../src/social/friends';
+import { COMMUNITY_CHANGED_EVENT } from '../src/social/communityBadge';
 
 const profile = { id: 'p2', username: 'ana_ruta', display_name: 'Ana Ruta', bio: 'Historias sobre dos ruedas.', riding_style: 'subir', avatar_version: 0 };
 function setup(initial: FriendRow[] = [], fail = false, missing = false, challenges: unknown[] = []) {
@@ -123,4 +124,16 @@ it('un perfil borrado tiene estado explícito', async () => {
   setup([], false, true);
   expect(await screen.findByRole('heading', { name: 'Perfil no disponible' })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Añadir amigo' })).not.toBeInTheDocument();
+});
+
+it('responder a una solicitud avisa al armazón para que recuente las solicitudes', async () => {
+  setup([{ friendship_id: 'f1', status: 'pending', direction: 'received', profile: { ...profile, locality: null, distance_km: null } }]);
+  const heard = vi.fn();
+  window.addEventListener(COMMUNITY_CHANGED_EVENT, heard);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Responder solicitud' }));
+  await user.click(screen.getByRole('button', { name: 'Aceptar solicitud' }));
+  expect(await screen.findByRole('button', { name: 'Amigos' })).toBeInTheDocument();
+  expect(heard).toHaveBeenCalled();
+  window.removeEventListener(COMMUNITY_CHANGED_EVENT, heard);
 });

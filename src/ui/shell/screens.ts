@@ -1,7 +1,10 @@
 import { Calendar, Target } from '../icons';
 
-/** Las cinco pestañas de la barra inferior. */
-export type TabId = 'inicio' | 'historial' | 'rutas' | 'plan' | 'mas';
+/**
+ * Las pestañas del muelle. Con cuenta registrada, la quinta es «Gente» y «mas» agrupa lo que cuelga de
+ * tu foto («Tú»); en el modo local, la quinta es «Más».
+ */
+export type TabId = 'inicio' | 'historial' | 'rutas' | 'plan' | 'gente' | 'mas';
 
 /** Ruta de la pantalla raíz de cada pestaña. */
 export const TAB_ROOT: Record<TabId, string> = {
@@ -9,22 +12,26 @@ export const TAB_ROOT: Record<TabId, string> = {
   historial: '/historial',
   rutas: '/rutas',
   plan: '/plan',
+  gente: '/gente',
   mas: '/mas',
 };
 
-/** Agrupa las pantallas secundarias: Perfil con cuenta en móvil; Más en el modo local. */
+const GENTE = ['/gente', '/chat', '/retos', '/ciclistas', '/perfil/amigos', '/amigos', '/personas/'];
+const MAS = ['/perfil', '/mas', '/importar', '/compartido', '/ajustes', '/zona'];
+
+/** Pestaña de cada pantalla: Chats, Amigos, Retos y Ciclistas son de «Gente»; tu perfil y tus datos, de «Más». */
 export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/historial')) return 'historial';
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
-  if (pathname.startsWith('/perfil') || pathname.startsWith('/personas') || pathname.startsWith('/ciclistas')) return 'mas';
-  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos') || pathname.startsWith('/chat')) return 'mas';
+  if (GENTE.some((p) => pathname.startsWith(p))) return 'gente';
+  if (MAS.some((p) => pathname.startsWith(p))) return 'mas';
   return 'inicio';
 }
 
 const NAMES: Record<string, string> = {
   '/': 'Inicio',
-  '/historial': 'Historial',
+  '/historial': 'Salidas',
   '/historial/subidas': 'Subidas',
   '/historial/repetidas': 'Repetidas',
   '/rutas': 'Rutas',
@@ -32,7 +39,8 @@ const NAMES: Record<string, string> = {
   '/plan': 'Plan',
   '/plan/objetivos': 'Objetivos',
   '/mas': 'Más',
-  '/perfil': 'Tu perfil',
+  '/perfil': 'Tú',
+  '/gente': 'Gente',
   '/perfil/nuevo': 'Tu perfil ciclista',
   '/importar': 'Importar',
   '/compartido': 'Ficheros compartidos',
@@ -47,7 +55,7 @@ const NAMES: Record<string, string> = {
   '/chat': 'Chat',
 };
 
-/** Nombre de la pantalla, para «Volver a Historial». Una salida concreta es «Salida». */
+/** Nombre de la pantalla, para «Volver a Salidas». Una salida concreta es «Salida». */
 export function screenName(pathname: string): string {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
   if (NAMES[path]) return NAMES[path];

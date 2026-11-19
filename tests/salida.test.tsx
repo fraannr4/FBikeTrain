@@ -234,7 +234,8 @@ describe('Salida', () => {
   it('unknown id shows not found', async () => {
     renderAt('#/historial/nada');
     expect(await screen.findByRole('heading', { name: 'No se encuentra la salida' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir al historial' })).toHaveAttribute('href', '#/historial');
+    expect(screen.getByText(/Búscala en Salidas por su nombre\./)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a Salidas' })).toHaveAttribute('href', '#/historial');
   });
 
   it('shows analysis progress', async () => {

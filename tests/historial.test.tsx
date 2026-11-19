@@ -103,7 +103,7 @@ describe('Historial', () => {
   it('sidebar links to historial', () => {
     renderAt('#/');
     const nav = screen.getByRole('navigation', { name: 'Menú principal' });
-    expect(within(nav).getByRole('link', { name: 'Historial' })).toHaveAttribute('href', '#/historial');
+    expect(within(nav).getByRole('link', { name: 'Salidas' })).toHaveAttribute('href', '#/historial');
   });
 
   it('lists rides newest first', async () => {
@@ -375,7 +375,7 @@ describe('Historial', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: 'Ver 1 salida' }));
     await vi.waitFor(() => expect(rideLinks()).toHaveLength(1));
     await userEvent.click(rideLinks()[0]);
-    await userEvent.click(await screen.findByRole('link', { name: 'Volver al historial' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'Volver a Salidas' }));
     await waitRides(1);
     expect(screen.getByRole('button', { name: 'Quitar el filtro Más de 90 km' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('1 de 4 salidas');
@@ -391,12 +391,12 @@ describe('Historial', () => {
     await db.activities.bulkAdd(many);
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     renderAt('#/');
-    await userEvent.click(within(screen.getByRole('navigation', { name: 'Menú principal' })).getByRole('link', { name: 'Historial' }));
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Menú principal' })).getByRole('link', { name: 'Salidas' }));
     await waitRides(50);
     await userEvent.click(screen.getByRole('button', { name: 'Mostrar más' }));
     await vi.waitFor(() => expect(rideLinks()).toHaveLength(100));
     await userEvent.click(rideLinks()[80]);
-    await userEvent.click(await screen.findByRole('link', { name: 'Volver al historial' }));
+    await userEvent.click(await screen.findByRole('link', { name: 'Volver a Salidas' }));
     await waitRides(100);
     expect(document.activeElement).toBe(rideLinks()[80]);
     scrollTo.mockRestore();
@@ -410,7 +410,7 @@ describe('Historial', () => {
     await userEvent.click(within(nav).getByRole('link', { name: 'Inicio' }));
     await vi.waitFor(() => expect(window.location.hash).toBe('#/'));
     // Clic síncrono: sin dar tiempo a leer la base, la lista ya tiene que estar.
-    fireEvent.click(within(nav).getByRole('link', { name: 'Historial' }));
+    fireEvent.click(within(nav).getByRole('link', { name: 'Salidas' }));
     expect(rideLinks()).toHaveLength(2);
     expect(screen.queryByText('Cargando tus salidas…')).not.toBeInTheDocument();
   });
@@ -422,7 +422,7 @@ describe('Historial', () => {
     window.location.hash = '#/historial';
     await waitRides(1);
     await userEvent.click(rideLinks()[0]);
-    expect(await screen.findByRole('link', { name: 'Volver al historial' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Volver a Salidas' })).toBeInTheDocument();
   });
 
   it('a cleared search does not come back when sorting before the list catches up', async () => {

@@ -17,7 +17,7 @@ describe('App', () => {
       .getAllByRole('link')
       .filter((a) => a.classList.contains('tab'))
       .map((a) => a.textContent);
-    expect(tabs).toEqual(['Inicio', 'Historial', 'Rutas', 'Plan', 'Más']);
+    expect(tabs).toEqual(['Inicio', 'Salidas', 'Rutas', 'Plan', 'Más']);
     expect(await screen.findByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument();
   });
 
@@ -28,9 +28,9 @@ describe('App', () => {
   });
 
   it.each([
-    ['#/historial', 'Historial'],
-    ['#/historial/subidas', 'Historial'],
-    ['#/historial/repetidas', 'Historial'],
+    ['#/historial', 'Salidas'],
+    ['#/historial/subidas', 'Salidas'],
+    ['#/historial/repetidas', 'Salidas'],
     ['#/historial/demo-001', 'Salida'],
     ['#/rutas', 'Rutas'],
     ['#/plan', 'Plan'],
@@ -42,16 +42,16 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { level: 1, name: h1 })).toBeInTheDocument();
   });
 
-  it('Subidas marca su vista en el segmentado y una salida vuelve al historial', async () => {
+  it('Subidas marca su vista en el segmentado y una salida vuelve a Salidas', async () => {
     window.location.hash = '#/historial/subidas';
     const { unmount } = render(<App />);
-    const views = await screen.findByRole('navigation', { name: 'Vistas del historial' });
+    const views = await screen.findByRole('navigation', { name: 'Vistas de Salidas' });
     expect(within(views).getByRole('link', { name: 'Subidas' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
     window.location.hash = '#/historial/demo-001';
     render(<App />);
-    expect(await screen.findByRole('link', { name: 'Volver al historial' })).toHaveAttribute('href', '#/historial');
+    expect(await screen.findByRole('link', { name: 'Volver a Salidas' })).toHaveAttribute('href', '#/historial');
   });
 
   it('Más lleva a Ajustes e Importar', async () => {

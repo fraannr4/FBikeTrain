@@ -23,6 +23,16 @@ for (const width of [360, 430]) {
       await page.route('https://*.supabase.co/rest/v1/rpc/touch_community_activity', route => route.fulfill({ status: 204, headers: CORS }));
       await page.goto('./#/perfil');
       await expect(page.getByRole('region', { name: 'Tu identidad pública' })).toContainText('@maximiliana_de_los_santos_inoce');
+      // «Tú»: arriba, lo de este dispositivo. Sin salidas, primero la tarjeta para importar.
+      await expect(page.getByRole('heading', { level: 1, name: 'Tú' })).toBeVisible();
+      await expect(page.getByText('Empieza por tu archivo de Strava')).toBeVisible();
+      const datos = page.getByRole('list', { name: 'Tus datos y ajustes' });
+      await expect(datos.getByRole('link', { name: /^Ajustes/ })).toHaveAttribute('href', '#/ajustes');
+      await expect(datos.getByRole('link', { name: /^Privacidad/ })).toHaveAttribute('href', '#/privacidad');
+      await expect(page.getByRole('link', { name: 'Más opciones' })).toHaveCount(0);
+      const edit = await page.getByRole('button', { name: 'Editar perfil', exact: true }).boundingBox();
+      const share = await page.getByRole('button', { name: 'Compartir perfil', exact: true }).boundingBox();
+      expect(edit && share && Math.abs(edit.y - share.y) < 2 && edit.width > 100 && share.width > 100).toBe(true);
       await expect(page.getByRole('list', { name: 'Tus cifras' }).getByRole('link', { name: /amigos/ })).toHaveAttribute('href', '#/perfil/amigos');
       await expect(page.getByRole('link', { name: 'Ciclistas' }).first()).toHaveAttribute('href', '#/ciclistas');
       await expect(page.getByRole('link', { name: /Mis retos/ })).toHaveAttribute('href', '#/retos');

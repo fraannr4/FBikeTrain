@@ -6,9 +6,7 @@ import { NavHistoryProvider } from './navHistory';
 import { isSheetState } from './sheetRoute';
 import { TabBar } from './TabBar';
 import { usePlanBadge } from './usePlanBadge';
-import { useCommunityBadge } from './useCommunityBadge';
-import { useChatUnread } from './useChatUnread';
-import { ChatUnreadProvider } from './ChatUnreadContext';
+import { GentePendingProvider, useGenteCounts } from './GentePendingContext';
 import { useAccount } from '../../auth/AccountBoundary';
 import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 import { CommunitySync } from '../../social/CommunitySync';
@@ -20,18 +18,15 @@ import { tabOf } from './screens';
 
 /**
  * Armazón: «Saltar al contenido», contenido, barra inferior de cinco pestañas (carril lateral
- * desde 900 px, con accesos a la comunidad) y avisos. Cada pantalla pinta su propia barra superior (`AppBar`).
+ * desde 900 px, con el grupo «Gente») y avisos. Cada pantalla pinta su propia barra superior (`AppBar`).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const { pathname, state } = useLocation();
   const navType = useNavigationType();
   const planBadge = usePlanBadge(pathname);
-  // Retos se recuenta al entrar y salir de sus pantallas, no en cada cambio de ruta.
   const account = useAccount();
-  const retosBadge = useCommunityBadge(account, pathname.startsWith('/retos') ? pathname : '');
-  // El chat se recuenta en cada cambio de pantalla: es una consulta corta y un mensaje puede llegar en cualquiera.
-  const chatUnread = useChatUnread(account, pathname);
+  const gente = useGenteCounts(account, pathname);
   const overSheet = isSheetState(state);
   const reduced = useReducedMotion();
 
@@ -48,7 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const main = mainRef.current;
     let animation: Animation | undefined;
     if (main && !overSheet) {
-      const tabs = ['inicio', 'historial', 'rutas', 'plan', 'mas'];
+      const tabs = ['inicio', 'historial', 'rutas', 'plan', 'gente', 'mas'];
       const direction = Math.sign(tabs.indexOf(tabOf(pathname)) - tabs.indexOf(tabOf(previous)));
       const head = main.querySelector<HTMLElement>('.page-head');
       if (!reduced && head?.animate) {
@@ -83,10 +78,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <GarminProvider>
         <GarminAttributionProvider><NavHistoryProvider>
           <main id="contenido" ref={mainRef} tabIndex={-1} className="main">
-            <ChatUnreadProvider value={chatUnread}>{children}</ChatUnreadProvider>
+            <GentePendingProvider value={gente}>{children}</GentePendingProvider>
           </main>
         </NavHistoryProvider></GarminAttributionProvider>
-        <TabBar pathname={pathname} planBadge={planBadge} retosBadge={retosBadge} chatBadge={chatUnread} />
+        <TabBar pathname={pathname} planBadge={planBadge} gente={gente} />
         </GarminProvider>
         </ConnectionsProvider>
       </ToastProvider>

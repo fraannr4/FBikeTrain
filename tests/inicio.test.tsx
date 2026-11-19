@@ -10,6 +10,8 @@ import { fullText } from './helpers/text';
 import { resetInicioMemory } from '../src/ui/inicio/inicioMemory';
 import { saveSettings, DEFAULT_SETTINGS } from '../src/settings/settings';
 import type { ActivityTotals, Goal, PlannedWorkout, StoredActivity, TrackPoint } from '../src/domain/types';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
+import { AccountContext, type Account } from '../src/auth/AccountBoundary';
 
 // «Ver con datos de ejemplo» guarda dos salidas sintéticas en vez de las ~200 de la demostración.
 vi.mock('../src/demo/demoData', async (importOriginal) => {
@@ -257,6 +259,44 @@ describe('Inicio', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument();
   });
 
+  describe('order: greeting, «Hoy», «Tu gente» and the week first', () => {
+    /** Cada elemento va después del anterior en el documento. */
+    function expectInOrder(...els: Element[]) {
+      for (let i = 1; i < els.length; i++)
+        expect(els[i - 1].compareDocumentPosition(els[i]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+
+    it('without an account: greeting, «Hoy», the week and the rest; no «Tu gente»', async () => {
+      await seed(thisWeek);
+      renderInicio();
+      const week = await screen.findByRole('region', { name: 'Esta semana' });
+      const hero = screen.getByRole('region', { name: 'Resumen de la semana' });
+      const today = screen.getByRole('region', { name: 'Próximo entreno' });
+      expectInOrder(hero, today, week, screen.getByRole('region', { name: 'Tus últimas 12 semanas' }));
+      expect(screen.queryByRole('region', { name: 'Tu gente' })).not.toBeInTheDocument();
+    });
+
+    it('with a registered account, «Tu gente» goes between «Hoy» and the week', async () => {
+      await seed(thisWeek);
+      const rpc = vi.fn(async () => ({ data: [], error: null }));
+      const account: Account = { client: { rpc } as unknown as SupabaseClient, user: { id: 'u1' } as User };
+      window.location.hash = '#/';
+      render(
+        <AccountContext.Provider value={account}>
+          <App />
+        </AccountContext.Provider>,
+      );
+      const people = await screen.findByRole('link', { name: 'Tu gente: todo al día. Abrir Gente' });
+      expectInOrder(
+        screen.getByRole('region', { name: 'Resumen de la semana' }),
+        screen.getByRole('region', { name: 'Próximo entreno' }),
+        people,
+        screen.getByRole('region', { name: 'Esta semana' }),
+      );
+      expect(rpc).toHaveBeenCalledWith('chat_list_conversations');
+    });
+  });
+
   it('hero shows the summit of the last ride', async () => {
     const withTrack = ride('2026-11-05T08:00:00Z', { distanceM: 48_000, elevGainM: 640, movingTimeS: 7_320 }, { hasTrack: true });
     const track: TrackPoint[] = [
@@ -434,26 +474,25 @@ describe('Inicio', () => {
       expect(screen.queryByRole('link', { name: /Marxa/ })).not.toBeInTheDocument();
     });
 
-    it('shows next two workouts', async () => {
+    it('«Hoy» shows the next workout in one line: the plan behind its name and the route beside it', async () => {
       await seed(thisWeek);
       await saveWorkout(workout('hecho', '2026-11-06', { done: true, title: 'Ya hecho' }));
       await saveWorkout(workout('sab', '2026-11-07', { title: 'Lluçanès por Prats', distanceM: 86_000, elevGainM: 1_320 }));
       await saveWorkout(workout('dom', '2026-11-08', { title: 'Rodaje suave a Tona', distanceM: 50_000 }));
-      await saveWorkout(workout('lun', '2026-11-09', { title: 'Tercero' }));
       renderInicio();
       const next = await screen.findByRole('region', { name: 'Próximo entreno' });
-      expect(within(next).getByRole('heading', { level: 3, name: 'Lluçanès por Prats' })).toBeInTheDocument();
-      expect(within(next).getByText('Mañana, sábado 7 de noviembre')).toBeInTheDocument();
-      expect(within(next).getByText(fullText('86 km'))).toBeInTheDocument();
-      expect(within(next).getByText(fullText('1320 m'))).toBeInTheDocument();
-      // El nombre va aislado en <bdi>: un título en árabe no arrastra la distancia al otro lado.
-      const foot = next.querySelector('.card-foot');
-      expect(foot).toHaveTextContent('Y el domingo 8: Rodaje suave a Tona, 50 km.');
-      expect(foot?.querySelector('bdi')).toHaveTextContent('Rodaje suave a Tona');
-      expect(within(next).getByRole('link', { name: 'Ver el plan de entrenos' })).toHaveAttribute('href', '#/plan');
-      expect(within(next).getByRole('link', { name: /Ruta y GPX/ })).toHaveAttribute('href', '#/rutas');
+      const name = within(next).getByRole('link', {
+        name: /^Mañana, sábado 7 de noviembre: Lluçanès por Prats, 86 km, 1320 m de desnivel(, unas .+)?\. Ver en el plan$/,
+      });
+      expect(name).toHaveAttribute('href', '#/plan');
+      expect(within(name).getByText('Lluçanès por Prats')).toHaveAttribute('dir', 'auto');
+      expect(within(name).getByText(fullText('86 km'))).toBeInTheDocument();
+      expect(within(name).getByText(fullText('1320 m'))).toBeInTheDocument();
+      expect(within(next).getByRole('link', { name: 'Ruta y GPX' })).toHaveAttribute('href', '#/rutas');
+      // Uno solo: el siguiente y lo ya hecho están en el Plan.
+      expect(within(next).getAllByRole('link')).toHaveLength(2);
+      expect(screen.queryByText(/Rodaje suave a Tona/)).not.toBeInTheDocument();
       expect(screen.queryByText('Ya hecho')).not.toBeInTheDocument();
-      expect(screen.queryByText(/Tercero/)).not.toBeInTheDocument();
       // El saludo dice lo que toca mañana.
       expect(screen.getByText(fullText('Mañana toca Lluçanès.'))).toBeInTheDocument();
     });
@@ -466,7 +505,7 @@ describe('Inicio', () => {
       const marker = next.querySelector('.hito-date');
       expect(marker).toHaveTextContent('dom15nov');
       expect(marker).toHaveAttribute('aria-hidden', 'true');
-      expect(within(next).getByText('Domingo 15 de noviembre')).toBeInTheDocument();
+      expect(within(next).getByRole('link', { name: 'Domingo 15 de noviembre: Montseny. Ver en el plan' })).toBeInTheDocument();
     });
 
     it('no planned workouts invites to calendar', async () => {

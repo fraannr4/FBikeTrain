@@ -28,8 +28,11 @@ function ownIdentity(client: SupabaseClient, userId: string): Promise<Identity |
   return pending;
 }
 
-/** Tu foto arriba a la derecha de las pantallas raíz del móvil: abre el perfil. En PC lo lleva el carril. */
-export function OwnProfileButton({ className = 'icon-btn appbar-profile' }: { className?: string }) {
+/** Nombre accesible de tu foto: abre «Tú», con tu perfil, Importar y Ajustes. */
+export const YOU_LABEL = 'Tú: perfil, importar y ajustes';
+
+/** Tu foto (o el icono de persona mientras llega). Sin cuenta, nada. */
+export function OwnAvatar() {
   const account = useAccount();
   const [me, setMe] = useState<Identity | null>(null);
   const client = account?.client;
@@ -41,13 +44,20 @@ export function OwnProfileButton({ className = 'icon-btn appbar-profile' }: { cl
     return () => { live = false; };
   }, [client, userId]);
   if (!account) return null;
+  return me ? (
+    <ProfileAvatar client={account.client} userId={account.user.id} name={me.display_name} version={me.avatar_version} />
+  ) : (
+    <User className="ic" aria-hidden="true" />
+  );
+}
+
+/** Tu foto arriba a la derecha de las pantallas raíz del móvil: abre «Tú». En PC lo lleva el carril. */
+export function OwnProfileButton({ className = 'icon-btn appbar-profile' }: { className?: string }) {
+  const account = useAccount();
+  if (!account) return null;
   return (
-    <Link className={className} to="/perfil" aria-label="Tu perfil">
-      {me ? (
-        <ProfileAvatar client={account.client} userId={account.user.id} name={me.display_name} version={me.avatar_version} />
-      ) : (
-        <User className="ic" aria-hidden="true" />
-      )}
+    <Link className={className} to="/perfil" aria-label={YOU_LABEL}>
+      <OwnAvatar />
     </Link>
   );
 }

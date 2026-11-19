@@ -198,10 +198,11 @@ if (!matrix) for (const width of [1024, 1440, 1920]) for (const theme of ['light
       db.close();
     }, { database: TEST_DATABASE, now: NOW.getTime() });
     await page.reload();
-    await expect(page.locator('.next-title')).toContainText('Entreno sintético');
+    // «Hoy» encabeza la columna del plan (lámina de distribución, 2026-11-19).
+    await expect(page.locator('.duo > .today:first-child .today-title')).toContainText('Entreno sintético');
     await expect(page.locator('.goal-event')).toBeVisible();
     await expect(page.locator('.summit-lbl.on')).toBeVisible();
-    await expect(page.locator('.next-actions').getByRole('link', { name: 'Ruta y GPX' })).toBeVisible();
+    await expect(page.locator('.today').getByRole('link', { name: 'Ruta y GPX' })).toBeVisible();
     await balanced();
     await noOverflow();
     await page.screenshot({ path: `${folder}/${width}-${theme}-planificado.png`, fullPage: true, animations: 'disabled' });
