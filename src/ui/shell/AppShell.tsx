@@ -7,6 +7,8 @@ import { isSheetState } from './sheetRoute';
 import { TabBar } from './TabBar';
 import { usePlanBadge } from './usePlanBadge';
 import { useCommunityBadge } from './useCommunityBadge';
+import { useChatUnread } from './useChatUnread';
+import { ChatUnreadProvider } from './ChatUnreadContext';
 import { useAccount } from '../../auth/AccountBoundary';
 import { ConnectionsProvider } from '../../connections/ConnectionsProvider';
 import { CommunitySync } from '../../social/CommunitySync';
@@ -26,7 +28,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navType = useNavigationType();
   const planBadge = usePlanBadge(pathname);
   // Retos se recuenta al entrar y salir de sus pantallas, no en cada cambio de ruta.
-  const retosBadge = useCommunityBadge(useAccount(), pathname.startsWith('/retos') ? pathname : '');
+  const account = useAccount();
+  const retosBadge = useCommunityBadge(account, pathname.startsWith('/retos') ? pathname : '');
+  // El chat se recuenta en cada cambio de pantalla: es una consulta corta y un mensaje puede llegar en cualquiera.
+  const chatUnread = useChatUnread(account, pathname);
   const overSheet = isSheetState(state);
   const reduced = useReducedMotion();
 
@@ -78,10 +83,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <GarminProvider>
         <GarminAttributionProvider><NavHistoryProvider>
           <main id="contenido" ref={mainRef} tabIndex={-1} className="main">
-            {children}
+            <ChatUnreadProvider value={chatUnread}>{children}</ChatUnreadProvider>
           </main>
         </NavHistoryProvider></GarminAttributionProvider>
-        <TabBar pathname={pathname} planBadge={planBadge} retosBadge={retosBadge} />
+        <TabBar pathname={pathname} planBadge={planBadge} retosBadge={retosBadge} chatBadge={chatUnread} />
         </GarminProvider>
         </ConnectionsProvider>
       </ToastProvider>

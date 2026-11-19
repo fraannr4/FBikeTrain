@@ -18,12 +18,13 @@ function setup(initial: FriendRow[] = [], fail = false, missing = false, challen
     if (fn === 'request_friendship') friends = [{ friendship_id: 'f1', status: 'pending', direction: 'sent', profile: { ...profile, locality: null, distance_km: null } }];
     if (fn === 'accept_friendship') friends = friends.map(f => ({ ...f, status: 'accepted' }));
     if (fn === 'remove_friendship') friends = [];
+    if (fn === 'chat_open_direct') return { data: 'c9', error: null };
     return { error: null };
   });
   const from = vi.fn(() => ({ select }));
   render(<AccountContext.Provider value={{ client: { from, rpc } as unknown as SupabaseClient, user: { id: 'u1' } as User }}>
     <MemoryRouter initialEntries={['/personas/p2']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <ToastProvider><Routes><Route path="/personas/:id" element={<Persona />} /></Routes></ToastProvider>
+      <ToastProvider><Routes><Route path="/personas/:id" element={<Persona />} /><Route path="/chat/:id" element={<p>Conversación abierta</p>} /></Routes></ToastProvider>
     </MemoryRouter>
   </AccountContext.Provider>);
   return { select, rpc };
@@ -51,6 +52,20 @@ it('Retar va junto al botón de amistad y se puede responder a una solicitud', a
   await user.click(screen.getByRole('button', { name: 'Responder solicitud' }));
   await user.click(screen.getByRole('button', { name: 'Aceptar solicitud' }));
   expect(await screen.findByRole('button', { name: 'Amigos' })).toBeInTheDocument();
+});
+
+it('siendo amigos, «Escribir» abre vuestra conversación', async () => {
+  const { rpc } = setup([{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: { ...profile, locality: null, distance_km: null } }]);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Escribir a Ana Ruta' }));
+  expect(rpc).toHaveBeenCalledWith('chat_open_direct', { target_id: 'p2' });
+  expect(await screen.findByText('Conversación abierta')).toBeInTheDocument();
+});
+
+it('con una solicitud pendiente no se puede escribir', async () => {
+  setup([{ friendship_id: 'f1', status: 'pending', direction: 'sent', profile: { ...profile, locality: null, distance_km: null } }]);
+  expect(await screen.findByRole('button', { name: 'Solicitud enviada' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Escribir a Ana Ruta' })).not.toBeInTheDocument();
 });
 
 it('siendo amigos, el menú permite eliminar la amistad', async () => {

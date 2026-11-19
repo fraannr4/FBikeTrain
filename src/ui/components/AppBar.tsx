@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft } from '../icons';
 import { BrandMark } from '../shell/BrandMark';
+import { ChatButton } from '../shell/ChatButton';
 import { OwnProfileButton } from '../shell/OwnProfileButton';
 import { useBack } from '../shell/navHistory';
 import { useReducedMotion } from '../theme/motion';
@@ -18,8 +19,8 @@ type Props = {
 /**
  * Barra superior compacta. Las pantallas raíz de cada pestaña llevan la marca; las demás, la flecha
  * de volver, que usa el historial si se llegó desde otra pantalla y dice a cuál vuelve. Se vuelve de
- * vidrio cuando el título grande (`.page-title`) pasa por debajo. Con cuenta, las raíces llevan tu foto
- * a la derecha, que abre el perfil (solo en el móvil: en PC está en el carril).
+ * vidrio cuando el título grande (`.page-title`) pasa por debajo. Con cuenta, las raíces llevan a la
+ * derecha el acceso al chat y tu foto, que abre el perfil (solo en el móvil: en PC están en el carril).
  */
 export function AppBar({ title, back, actions }: Props) {
   const ref = useRef<HTMLElement>(null);
@@ -32,7 +33,7 @@ export function AppBar({ title, back, actions }: Props) {
       </span>
       <div className="appbar-actions">
         {actions}
-        {back ? null : <OwnProfileButton />}
+        {back ? null : <><ChatButton /><OwnProfileButton /></>}
       </div>
     </header>
   );

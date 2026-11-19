@@ -18,7 +18,7 @@ export function tabOf(pathname: string): TabId {
   if (pathname.startsWith('/rutas')) return 'rutas';
   if (pathname.startsWith('/plan')) return 'plan';
   if (pathname.startsWith('/perfil') || pathname.startsWith('/personas') || pathname.startsWith('/ciclistas')) return 'mas';
-  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos')) return 'mas';
+  if (pathname.startsWith('/mas') || pathname.startsWith('/importar') || pathname.startsWith('/compartido') || pathname.startsWith('/ajustes') || pathname.startsWith('/zona') || pathname.startsWith('/amigos') || pathname.startsWith('/retos') || pathname.startsWith('/chat')) return 'mas';
   return 'inicio';
 }
 
@@ -44,6 +44,7 @@ const NAMES: Record<string, string> = {
   '/retos/anteriores': 'Retos anteriores',
   '/retos': 'Retos',
   '/retos/nuevo': 'Nuevo reto',
+  '/chat': 'Chat',
 };
 
 /** Nombre de la pantalla, para «Volver a Historial». Una salida concreta es «Salida». */
@@ -54,6 +55,7 @@ export function screenName(pathname: string): string {
   if (path.startsWith('/historial/repetidas/')) return 'Repetidas';
   if (path.startsWith('/historial/')) return 'Salida';
   if (path.startsWith('/retos/')) return 'Reto';
+  if (path.startsWith('/chat/')) return 'Conversación';
   if (path.startsWith('/personas/')) return 'Perfil del ciclista';
   return 'Inicio';
 }

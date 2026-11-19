@@ -438,3 +438,20 @@ Comprobación local con datos sintéticos. No se ha publicado nada: ni migracion
   - El caso de «4 avisos largos» no se puede dar: el generador emite como mucho 2.
 - Capturas a 360×740 y 430×932 en `test-results/rutas/`, revisadas: formulario, propuestas, sin resultados y buscando. El botón «Proponer rutas» se ve sin desplazar.
 - Queda para la prueba real: aplicar `202611160001` en producción, hacer la primera carga, ejecutar `check-generator.ts` con ORS real (al menos 3 válidas en 60 km y en 60 km con 800 m), desplegar y probar en el móvil desde Caldes. La migración `202611160002` se aplica la última.
+
+## Chat entre ciclistas, lote 1 — 2026-11-19
+
+Local, antes de publicar:
+
+- `npm run test:db`: `PASS: chat: solo miembros leen, escritura solo por RPC, id idempotente, cuotas, amistad y bloqueo, denuncia y aviso push con freno de 20 s.`
+- `npx vitest run`: 191 archivos, 2144 pruebas. `npx tsc --noEmit` limpio. `npm run build` bien.
+- `npx playwright test e2e/chat.spec.ts --workers=2`: 14 de 14 a 360, 390, 430 y 1440 px. Cubre el reintento sin duplicar, el sondeo sin WebSocket, «Ya no sois amigos» con la conversación abierta y los textos extremos. Capturas miradas en `test-results/chat/`.
+- La pasada completa de Playwright se abortó por falta de memoria del PC, sin resultado. La ejecuta el despliegue de GitHub al subir.
+
+Producción, con el sí del usuario:
+
+- Antes de aplicar: ninguna tabla ni función de chat, la publicación `supabase_realtime` existe, `pg_net` instalado y la última migración era `202611170006`.
+- `202611190001_chat.sql` aplicada y anotada en `supabase_migrations.schema_migrations`. Comprobado después: 3 tablas con RLS, 10 funciones, la política `chat_messages_read`, el trigger `chat_messages_push`, `chat_messages` dentro de `supabase_realtime` y un único permiso directo (`chat_messages`, `SELECT`).
+- Función `push` desplegada con `--no-verify-jwt`: versión 4, activa. Una llamada sin `x-push-secret` responde 401.
+
+Falta la prueba real con dos cuentas: hacerse amigos, escribir en los dos sentidos, que el mensaje llegue sin recargar, «Visto», el aviso push con el texto y la app cerrada, abrir el aviso y caer en la conversación, borrar un mensaje, la pulsación larga y, en iPhone, el campo sobre el teclado. Y con una tercera sesión que no es miembro, que no reciba nada por el canal.

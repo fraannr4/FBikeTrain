@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { AccountContext } from '../src/auth/AccountBoundary';
 import { ToastProvider } from '../src/ui/components/Toast';
@@ -47,6 +47,21 @@ describe('Amigos dentro del perfil', () => {
     const mine = await screen.findByRole('region', { name: 'Tus amigos' });
     expect(within(mine).getByRole('link', { name: 'Ana Ruta' })).toHaveAttribute('href', '/personas/p2');
     expect(within(mine).getByRole('link', { name: 'Retar a Ana Ruta' })).toHaveAttribute('href', '/retos/nuevo?ciclista=p2');
+  });
+
+  it('«Escribir» abre la conversación con un amigo', async () => {
+    const { client, rpc } = fakeClient({ search_profiles_near: () => ({ data: [] }), chat_open_direct: () => ({ data: 'c7' }) }, [{ friendship_id: 'f1', status: 'accepted', direction: 'sent', profile: ana }]);
+    render(
+      <AccountContext.Provider value={{ client, user: { id: 'u1' } as User }}>
+        <MemoryRouter initialEntries={['/perfil/amigos']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ToastProvider><Routes><Route path="/perfil/amigos" element={<Amigos />} /><Route path="/chat/:id" element={<p>Conversación abierta</p>} /></Routes></ToastProvider>
+        </MemoryRouter>
+      </AccountContext.Provider>,
+    );
+    const mine = await screen.findByRole('region', { name: 'Tus amigos' });
+    await userEvent.setup().click(within(mine).getByRole('button', { name: 'Escribir a Ana Ruta' }));
+    expect(rpc).toHaveBeenCalledWith('chat_open_direct', { target_id: 'p2' });
+    expect(await screen.findByText('Conversación abierta')).toBeInTheDocument();
   });
 
   it('las solicitudes recibidas van arriba y se aceptan o rechazan', async () => {

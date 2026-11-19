@@ -1,10 +1,11 @@
 import type { VapidKeys } from './webpush.ts';
 
 /**
- * Avisos push de la comunidad. La función la dispara un Database Webhook de Supabase al insertar en
- * `community_notifications`; el webhook se identifica con un secreto compartido de servidor.
+ * Avisos push de la comunidad y del chat. La función la dispara un trigger de la base al insertar en
+ * `community_notifications` o en `chat_messages`; la llamada se identifica con un secreto compartido de servidor.
  * La carga lleva un texto corto en castellano, el nombre público de quien provoca el aviso y una ruta
- * de la app: nunca tracks, ubicaciones ni identificadores de cuenta.
+ * de la app: nunca tracks, ubicaciones ni identificadores de cuenta. En un mensaje de texto del chat
+ * viaja además el principio de lo que escribió la persona (decisión del usuario del 2026-11-19).
  */
 export type PushSubscriptionRow = { id: string; endpoint: string; p256dh: string; auth: string };
 export type PushDependencies = {
@@ -56,6 +57,48 @@ export function pushMessage(kind: string, challengeId: string | null, actor: str
   }
 }
 
+const MAX_PREVIEW_UNITS = 120;
+/**
+ * Principio de un mensaje de chat listo para el aviso: sin caracteres de control, saltos ni marcas de
+ * dirección forzada, con los espacios colapsados. Se corta sin partir un emoji; el límite cuenta unidades
+ * UTF-16 porque `public/sw.js` recorta el cuerpo así. `null` si no queda nada.
+ */
+export function cleanPreview(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const text = value.replace(/[\u0000-\u001f\u007f-\u009f\u2028-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim();
+  let preview = '';
+  for (const char of text) {
+    if (preview.length + char.length > MAX_PREVIEW_UNITS) break;
+    preview += char;
+  }
+  return preview || null;
+}
+
+// Frases por tipo: con el nombre en el título (chat de dos), con el nombre delante (grupo) y sin nombre.
+const CHAT_LINES = new Map<string, readonly [string, string, string]>([
+  ['text', ['Te ha escrito.', 'ha escrito.', 'Te han escrito.']],
+  ['ride', ['Te ha enviado una salida.', 'ha enviado una salida.', 'Te han enviado una salida.']],
+  ['route', ['Te ha enviado una ruta.', 'ha enviado una ruta.', 'Te han enviado una ruta.']],
+  ['library_route', ['Te ha enviado una ruta.', 'ha enviado una ruta.', 'Te han enviado una ruta.']],
+  ['proposal', ['Propone una salida.', 'propone una salida.', 'Te proponen una salida.']],
+]);
+
+/**
+ * Aviso de un mensaje de chat. El título es el grupo o, en un chat de dos, quien escribe. Solo un mensaje
+ * de texto lleva `preview`; una salida, una ruta o una propuesta dicen su tipo, nunca el lugar ni el trazado.
+ * `null`: ese tipo (por ejemplo `system`) no genera aviso.
+ */
+export function chatPushMessage(kind: string, conversationId: string, actor: string | null, groupTitle: string | null, preview: string | null): PushMessage | null {
+  const lines = CHAT_LINES.get(kind);
+  if (!lines) return null;
+  const named = groupTitle !== null && actor !== null;
+  let body: string;
+  if (kind === 'text' && preview) body = named ? `${actor}: ${preview}` : preview;
+  else if (!actor) body = lines[2];
+  else body = named ? `${actor} ${lines[1]}` : lines[0];
+  return { title: groupTitle ?? actor ?? 'Mensaje nuevo', body, url: `#/chat/${conversationId}`, tag: 'chat' };
+}
+
 async function sameSecret(given: string, expected: string): Promise<boolean> {
   const [a, b] = await Promise.all([given, expected].map(async value => new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value)))));
   let diff = 0;
@@ -92,19 +135,28 @@ export async function handlePush(request: Request, deps: PushDependencies): Prom
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) return reply(400, { error: 'invalid_request' });
   const raw = await readBody(request);
   if (raw === null) return reply(413, { error: 'too_large' });
-  let event: { type?: unknown; table?: unknown; record?: { user_id?: unknown; kind?: unknown; challenge_id?: unknown; actor_name?: unknown } | null };
+  let event: { type?: unknown; table?: unknown; record?: Record<string, unknown> | null };
   try { event = JSON.parse(raw); } catch { return reply(400, { error: 'invalid_request' }); }
-  if (event?.type !== 'INSERT' || event.table !== 'community_notifications') return reply(200, { ignored: true });
-  const record = event.record;
-  const challengeId = record?.challenge_id ?? null;
-  if (typeof record?.user_id !== 'string' || !UUID.test(record.user_id) || typeof record.kind !== 'string'
-    || (challengeId !== null && (typeof challengeId !== 'string' || !UUID.test(challengeId)))) return reply(400, { error: 'invalid_request' });
-  const message = pushMessage(record.kind, challengeId, cleanActorName(record.actor_name));
+  if (event?.type !== 'INSERT' || (event.table !== 'community_notifications' && event.table !== 'chat_messages')) return reply(200, { ignored: true });
+  const record = event.record ?? {};
+  const { user_id: userId, kind } = record;
+  const isUuid = (value: unknown): value is string => typeof value === 'string' && UUID.test(value);
+  if (!isUuid(userId) || typeof kind !== 'string') return reply(400, { error: 'invalid_request' });
+  let message: PushMessage | null;
+  if (event.table === 'chat_messages') {
+    const conversationId = record.conversation_id;
+    if (!isUuid(conversationId)) return reply(400, { error: 'invalid_request' });
+    message = chatPushMessage(kind, conversationId, cleanActorName(record.actor_name), cleanActorName(record.title), cleanPreview(record.preview));
+  } else {
+    const challengeId = record.challenge_id ?? null;
+    if (challengeId !== null && !isUuid(challengeId)) return reply(400, { error: 'invalid_request' });
+    message = pushMessage(kind, challengeId, cleanActorName(record.actor_name));
+  }
   if (!message) return reply(200, { ignored: true });
 
   const plaintext = encoder.encode(JSON.stringify(message));
   const totals = { sent: 0, removed: 0, failed: 0 };
-  const rows = await deps.listSubscriptions(record.user_id);
+  const rows = await deps.listSubscriptions(userId);
   const deliver = async (row: PushSubscriptionRow) => {
     if (!isAllowedPushEndpoint(row.endpoint)) { await deps.deleteSubscription(row.id); totals.removed++; return; }
     let body: Uint8Array;

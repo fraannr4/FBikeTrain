@@ -32,3 +32,9 @@
 @media (min-width: 900px) {
   .app .appbar-profile { display: none; }
 }
+
+/* Acceso al chat junto a tu foto (móvil), con la misma insignia que las pestañas. En PC, «Chat» va en el carril. */
+.appbar-chat .tab-badge { top: 4px; left: calc(50% + 2px); box-shadow: 0 0 0 2px var(--bg); }
+@media (min-width: 900px) {
+  .app .appbar-chat { display: none; }
+}

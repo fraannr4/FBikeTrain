@@ -13,6 +13,7 @@ import {
 } from '../../social/friends';
 import { formatCount } from '../format';
 import { Search, UserPlus } from '../icons';
+import { WriteButton } from '../chat/WriteButton';
 import { Banner } from '../components/Banner';
 import { Field } from '../components/Field';
 import { Page } from '../components/Page';
@@ -145,6 +146,7 @@ function AmigosView({ account }: { account: Account }) {
                         </>
                       ) : (
                         <>
+                          <WriteButton client={client} userId={f.profile.id} name={f.profile.display_name} />
                           <Link className="btn btn--primary" to={`/retos/nuevo?ciclista=${encodeURIComponent(f.profile.id)}`} aria-label={`Retar a ${f.profile.display_name}`}>Retar</Link>
                           <ActionButton label="Quitar" name={f.profile.display_name} busy={busy} onClick={() => setConfirmId(f.friendship_id)} />
                         </>

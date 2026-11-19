@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FBikeTrain: lámina del chat (2026-11-19)</title>
+
+  <!-- Tema antes del primer pintado, como en index.html: localStorage 'fbt-theme' o, sin él, oscuro.
+       Añadido de la lámina: ?theme=light o ?theme=dark lo fuerzan. -->
+  <script>
+    (function () {
+      var t = 'dark';
+      try {
+        var s = new URLSearchParams(location.search).get('theme') || localStorage.getItem('fbt-theme');
+        if (s === 'light') t = 'light';
+      } catch (e) {}
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+
+  <!-- Tipografías: las mismas que importa src/main.tsx -->
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-400.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-500.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow/latin-600.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow-semi-condensed/latin-600.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow-semi-condensed/latin-700.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/barlow-semi-condensed/latin-700-italic.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/big-shoulders-display/latin-700.css" />
+  <link rel="stylesheet" href="../../../node_modules/@fontsource/big-shoulders-display/latin-800.css" />
+
+  <!-- Estilos reales de la app, en el orden de src/main.tsx (profile.css lo trae OwnProfileButton) -->
+  <link rel="stylesheet" href="../../../src/ui/styles/tokens.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/base.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/shell.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/kit.css" />
+  <link rel="stylesheet" href="../../../src/ui/styles/profile.css" />
+
+  <style id="chat-css">
+/* =====================================================================
+   Chat. Para copiar tal cual a src/ui/styles/chat.css (después de kit.css).
+   Solo tokens: ningún color, radio ni sombra propios.
+   Oficios del color: crema (--primary) para enviar y «Me apunto»; azul para
+   lo no leído y los enlaces; rojo solo para «No enviado».
+   Burbuja propia y ajena se distinguen sin color: lado, relleno frente a
+   filo, y la esquina recta del lado de quien escribe.
+   ===================================================================== */
+
+/* ---------- 1. Entrada: icono de chat en la barra superior de las pantallas raíz ---------- */
+/* La insignia es la `.tab-badge` del kit; aquí solo se recoloca sobre un botón de 44 px. */
+.appbar-chat .tab-badge { top: 4px; left: calc(50% + 2px); box-shadow: 0 0 0 2px var(--bg); }
+@media (min-width: 900px) { .app .appbar-chat { display: none; } }  /* en PC, «Chat» va en el carril */
+
+/* ---------- 2. Lista de conversaciones (#/chat) ---------- */
+/* Renglones sobre la página, como las salidas de Historial: sin caja, regla fina y avatar redondo.
+   Marcado: <List inset className="chat-list"> con un <ListRow lead={avatar} trail={…}> por conversación. */
+.chat-list.list { background: none; border: 0; border-top: 1px solid var(--rule); border-radius: 0; box-shadow: none; }
+.chat-list.list--inset > li + li::before { margin-left: 56px; background: var(--rule); }
+.chat-list .row { min-height: 72px; padding: 12px 0; column-gap: 12px; }
+.chat-list .row-lead { width: 44px; height: 44px; border-radius: var(--r-pill); background: none; }
+.chat-list .row-lead .profile-avatar { width: 44px; height: 44px; font-size: 18px; }
+.chat-list .row-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }  /* última línea: una sola, con puntos */
+.chat-list .row-trail { align-self: start; padding-top: 2px; }
+.chat-list .row-trail .chev { display: none; }
+.chat-row-side { display: grid; justify-items: end; gap: 6px; }
+.chat-row-time { font: 500 var(--t-xs)/1.3 var(--font-ui); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chat-row-count {
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: var(--r-pill);
+  background: var(--action); color: var(--on-action);
+  font: 700 var(--t-xs)/22px var(--font-ui); text-align: center; font-variant-numeric: tabular-nums;
+}
+/* Sin leer: el renglón que lleva contador. Nombre con más peso, última línea en tinta y hora en azul. */
+.chat-list .row:has(.chat-row-count) .row-title { font-weight: 600; }
+.chat-list .row:has(.chat-row-count) .row-meta { color: var(--ink); }
+.chat-list .row:has(.chat-row-count) .chat-row-time { color: var(--link); font-weight: 600; }
+
+/* ---------- 3. Conversación (#/chat/:id): barra, hilo y campo ---------- */
+/* Tres filas a la altura de la ventana. `--chat-vh` lo pone el JS con visualViewport al abrir el teclado. */
+.chat-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: var(--chat-vh, 100dvh); }
+@media (max-width: 899px) { .app:has(.chat-screen) .tabbar { display: none; } }  /* sin muelle inferior */
+
+/* Barra: volver, avatar y nombre rotulado. Siempre opaca, con regla. */
+.chat-bar { grid-template-columns: auto minmax(0, 1fr) auto; background: var(--bg); border-bottom-color: var(--rule); }
+.chat-peer { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: var(--target); }
+.chat-peer .profile-avatar { width: 36px; height: 36px; font-size: 16px; }
+.chat-peer .profile-avatar .ic { width: 18px; height: 18px; }
+.chat-group-avatar { color: var(--ink-2); }
+.chat-peer-main { display: grid; min-width: 0; }
+.chat-peer-name { font: 700 var(--fs-name)/1.05 var(--font-display); letter-spacing: 0; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-peer-sub { font: 500 var(--t-xs)/1.3 var(--font-ui); color: var(--ink-3); }
+
+/* Hilo: se desplaza solo él. Con pocos mensajes, quedan pegados al campo. */
+.chat-thread {
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  padding: 12px calc(var(--gutter) + var(--safe-r)) 16px calc(var(--gutter) + var(--safe-l));
+}
+.chat-thread > :first-child { margin-top: auto; }
+.chat-day { display: grid; gap: 12px; }
+.chat-day + .chat-day { margin-top: 16px; }
+/* Separador de día: rótulo entre dos reglas finas («Ayer», «Hoy», «Lunes 16 de noviembre») */
+.chat-day-label { display: flex; align-items: center; gap: 12px; font: 700 var(--fs-title)/1 var(--font-display); letter-spacing: 0; color: var(--ink-2); }
+.chat-day-label::before, .chat-day-label::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.chat-msgs { display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- 4. Mensajes ---------- */
+/* Ajeno: a la izquierda, papel con filo. Propio: a la derecha, relleno sin filo. */
+.chat-msg {
+  --chat-fill: var(--surface); --chat-edge: var(--rule);
+  display: grid; justify-items: start; align-self: flex-start; min-width: 0; max-width: 84%;
+}
+.chat-msg--own { --chat-fill: var(--surface-3); --chat-edge: transparent; justify-items: end; align-self: flex-end; }
+.chat-msg--in + .chat-msg--own, .chat-msg--own + .chat-msg--in { margin-top: 8px; }  /* cambia quien escribe: más aire */
+.chat-bubble {
+  display: flow-root; min-width: 0; max-width: 100%; padding: 8px 12px;
+  background: var(--chat-fill); border: 1px solid var(--chat-edge);
+  border-radius: var(--r-lg); border-bottom-left-radius: var(--s-1);
+  color: var(--ink); font: 400 var(--t-md)/1.4 var(--font-ui); overflow-wrap: anywhere;
+}
+.chat-msg--own .chat-bubble { border-bottom-left-radius: var(--r-lg); border-bottom-right-radius: var(--s-1); }
+.chat-text { white-space: pre-wrap; }
+/* La hora cierra la última línea; si no cabe, baja a la derecha */
+.chat-time { float: right; margin: 6px 0 0 12px; font: 500 var(--t-xs)/16px var(--font-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* En grupo: quién escribe, sobre su primer mensaje seguido */
+.chat-author { margin: 4px 0 3px 12px; font: 600 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+/* Borrado: queda el hueco, sin relleno */
+.chat-bubble--deleted { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px dashed var(--line-strong); color: var(--ink-3); font-size: 15px; }
+.chat-bubble--deleted .ic { width: 16px; height: 16px; }
+/* Bajo un mensaje propio: «Visto» o «No enviado» con «Reintentar» */
+.chat-status { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 3px; font: 500 var(--t-xs)/1.3 var(--font-ui); color: var(--ink-3); }
+.chat-status .ic { width: 16px; height: 16px; }
+.chat-status--failed { margin-top: 0; font-size: var(--t-sm); color: var(--critical); }
+.chat-msg--failed .chat-bubble { border: 1px dashed var(--critical); }
+.chat-retry { min-height: var(--target); margin-right: -8px; padding: 0 8px; border-radius: var(--r-md); color: var(--link); font: 600 var(--t-sm)/1 var(--font-ui); }
+/* Aviso del sistema («Marc se apunta»): centrado, sin burbuja */
+.chat-system { align-self: center; max-width: 100%; margin: 10px 0; padding: 0 12px; font: 500 var(--t-sm)/1.4 var(--font-ui); color: var(--ink-2); text-align: center; }
+
+/* ---------- 5. Tarjetas: salida, ruta y propuesta ---------- */
+/* Una tarjeta es un objeto: caja de --r-lg con el mismo lado, relleno y esquina que la burbuja. */
+.chat-msg--card { width: 86%; max-width: 340px; }
+.chat-card {
+  width: 100%; min-width: 0; overflow: hidden;
+  background: var(--chat-fill); border: 1px solid var(--chat-edge);
+  border-radius: var(--r-lg); border-bottom-left-radius: var(--s-1); color: var(--ink);
+}
+.chat-msg--own .chat-card { border-bottom-left-radius: var(--r-lg); border-bottom-right-radius: var(--s-1); }
+.chat-card-shape { display: block; height: 88px; background: var(--surface-2); }  /* forma de la salida, a sangre */
+.chat-card-body { display: grid; gap: 10px; padding: 12px; }
+.chat-card-head { display: grid; gap: 3px; min-width: 0; }
+.chat-card-kind { display: flex; align-items: center; gap: 6px; font: 600 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2); }
+.chat-card-kind .ic { width: 16px; height: 16px; }
+.chat-card-title { font: 700 var(--fs-name)/1.05 var(--font-display); letter-spacing: 0; color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
+.chat-card-sub { font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); }
+.chat-card .profile { height: 56px; }
+/* Ficha técnica: cifra rotulada arriba, etiqueta debajo */
+.chat-figs { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.chat-fig { display: flex; flex-direction: column-reverse; gap: 3px; }
+.chat-fig dt { font: 500 var(--t-xs)/1.2 var(--font-ui); color: var(--ink-2); }
+.chat-fig dd { font: 700 var(--fs-section)/1 var(--font-display); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chat-fig-u { margin-left: 3px; font: 500 var(--fs-fig2-unit)/1 var(--font-ui); color: var(--ink-2); }
+/* Propuesta: hito de fecha del kit, título, día y hora, punto de encuentro, quién va */
+.chat-plan { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; }
+.chat-plan-rows { display: grid; gap: 4px; margin-top: 6px; font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); }
+.chat-plan-row { display: flex; align-items: flex-start; gap: 6px; }
+.chat-plan-row .ic { width: 16px; height: 16px; margin-top: 1px; color: var(--ink-3); }
+.chat-card-going { font-size: var(--t-sm); line-height: 1.35; color: var(--ink-2); }
+.chat-card-going b { font-weight: 600; color: var(--ink); }
+.chat-card-actions { display: grid; gap: 8px; }
+.chat-card-actions--row { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.chat-card-actions .btn { min-height: var(--target); padding: 0 12px; font-size: 15px; }
+.chat-card .chat-time { float: none; margin: -4px 0 -2px; justify-self: end; }
+
+/* ---------- 6. Campo de texto fijo abajo (y su versión de solo lectura) ---------- */
+.chat-composer {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; gap: 6px;
+  padding: 8px calc(var(--gutter) - 8px + var(--safe-r)) calc(8px + var(--safe-b)) calc(var(--gutter) - 8px + var(--safe-l));
+  background: var(--bg); border-top: 1px solid var(--rule);
+}
+.chat-attach { color: var(--ink); }
+/* Crece con el texto hasta 5 líneas (field-sizing donde exista; si no, lo ajusta el JS) */
+.chat-input {
+  display: block; width: 100%; min-height: var(--target); max-height: calc(5 * 24px + 20px); padding: 9px 14px; resize: none;
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+  color: var(--ink); font: 400 var(--t-md)/24px var(--font-ui); field-sizing: content;
+}
+.chat-input::placeholder { color: var(--ink-3); opacity: 1; }
+.chat-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; border-color: transparent; border-radius: var(--r-lg); }
+.chat-send {
+  display: inline-grid; place-items: center; width: var(--target); height: var(--target); flex: none; border-radius: var(--r-pill);
+  background: var(--primary); color: var(--on-primary);
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.chat-send .ic { stroke-width: 2.4; }
+.chat-send:active { transform: scale(0.97); }
+.chat-send[disabled] { background: var(--surface-3); color: var(--ink-3); pointer-events: none; }  /* campo vacío */
+.chat-counter { grid-column: 2; font: 500 var(--t-xs)/1.3 var(--font-ui); color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }  /* solo al pasar de 1800 */
+.chat-readonly {
+  display: flex; align-items: center; gap: 10px; min-height: 61px;
+  padding: 12px calc(var(--gutter) + var(--safe-r)) calc(12px + var(--safe-b)) calc(var(--gutter) + var(--safe-l));
+  background: var(--bg); border-top: 1px solid var(--rule); font-size: 15px; line-height: 1.35; color: var(--ink-2);
+}
+.chat-readonly .ic { color: var(--ink-3); }
+
+@media (hover: hover) and (pointer: fine) {
+  .chat-send:hover { background: var(--primary-hover); }
+  .chat-retry:hover { background: color-mix(in srgb, var(--action) 12%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .chat-send:active { transform: none; } }
+@media (forced-colors: active) { .chat-bubble, .chat-card { border-color: CanvasText; } }
+  </style>
+
+  <style id="lamina-css">
+/* =====================================================================
+   Solo de la lámina (no se copia a la app).
+   Cada marco es un <iframe> de 390 px que carga este mismo fichero con el
+   ancla de su pantalla: así las reglas @media, las unidades vw y dvh y lo
+   que va fijo se comportan como en un teléfono, no como en la lámina.
+   ===================================================================== */
+*, *::before, *::after { animation: none !important; transition: none !important; }  /* lámina sin animación */
+.lam-screen, .lam-overlay { display: none; }
+.lam-screen:target, .lam-overlay:target { display: block; }
+:root:has(#p-d:target) #p-c { display: block; }           /* D es la pantalla C con la hoja encima */
+:root:has(:target) .lam-board { display: none; }
+:root:not(:has(:target)) body { background: var(--surface-3); }
+.lam-scrim { position: fixed; inset: 0; z-index: 55; background: var(--scrim); }
+.lam-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+:root { --lam-w: 390px; --lam-h: 844px; }
+.lam-board { width: max-content; margin: 0 auto; padding: var(--s-10); display: grid; gap: var(--s-8); }
+.lam-head { display: grid; gap: var(--s-2); max-width: 1000px; }
+.lam-title { font: 800 var(--fs-hello-wide)/0.95 var(--font-display); color: var(--ink); }
+.lam-lead { max-width: 96ch; font-size: var(--t-md); color: var(--ink-2); }
+.lam-lead b { font-weight: 600; color: var(--ink); }
+:root[data-theme="light"] .lam-only-dark, :root:not([data-theme="light"]) .lam-only-light { display: none; }
+.lam-grid { display: grid; grid-template-columns: repeat(3, calc(var(--lam-w) + 2px)); gap: var(--s-10); align-items: start; }
+.lam-fig { display: grid; gap: var(--s-3); min-width: 0; }
+.lam-cap { display: grid; align-content: start; gap: 2px; min-height: 96px; }
+.lam-cap-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font: 600 var(--t-md)/1.2 var(--font-ui); color: var(--ink); }
+.lam-letter { font: 800 var(--fs-fig2)/0.9 var(--font-display); color: var(--ink); }
+.lam-route { font: 500 var(--t-sm)/1.2 var(--font-ui); color: var(--ink-2); }
+.lam-note { font-size: var(--t-sm); line-height: 1.4; color: var(--ink-2); text-wrap: pretty; }
+.lam-frame { display: block; width: calc(var(--lam-w) + 2px); height: calc(var(--lam-h) + 2px); border: 1px solid var(--line-strong); border-radius: var(--r-xl); background: var(--bg); pointer-events: none; }
+.lam-frame--short { height: 322px; }
+.lam-legend { grid-column: span 2; display: grid; align-content: start; gap: var(--s-3); padding-top: calc(96px + var(--s-3)); max-width: 72ch; }
+.lam-legend h2 { font: 700 var(--fs-section)/1.1 var(--font-display); color: var(--ink); }
+.lam-legend ul { display: grid; gap: var(--s-2); }
+.lam-legend li { padding-top: var(--s-2); border-top: 1px solid var(--rule); font-size: 15px; line-height: 1.45; color: var(--ink-2); }
+.lam-legend li b { font-weight: 600; color: var(--ink); }
+  </style>
+</head>
+<body>
+
+<!-- Iconos de lucide (los mismos trazos que lucide-react), como sprite -->
+<svg class="lam-sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-message-circle" viewBox="0 0 24 24"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></symbol>
+    <symbol id="i-calendar-plus" viewBox="0 0 24 24"><path d="M16 18h6"/><path d="M16 2v3"/><path d="M19 15v6"/><path d="M21 11.5V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2h8.3"/><path d="M3 9h18"/><path d="M8 2v3"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></symbol>
+    <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+    <symbol id="i-circle-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></symbol>
+    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-chart-column" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="m13 19 6-6"/><path d="M14.5 17.5 3.586 6.586A2 2 0 013 5.172V3h2.172a2 2 0 011.414.586L17.5 14.5"/><path d="m14.828 6.172 2.586-2.586A2 2 0 0118.828 3H21v2.172a2 2 0 01-.586 1.414l-2.586 2.586"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/><path d="m5 14 4 4"/><path d="m5 21-2-2"/><path d="M7.5 16.5 4 20"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-ellipsis" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  </defs>
+</svg>
+
+<!-- =====================================================================
+     La lámina: seis marcos de 390 px y una miniatura
+     ===================================================================== -->
+<main class="lam-board">
+  <header class="lam-head">
+    <h1 class="lam-title">Chat: lámina para aprobar</h1>
+    <p class="lam-lead">
+      Seis pantallas de teléfono a 390 px, <b class="lam-only-dark">tema oscuro</b><b class="lam-only-light">tema claro</b>,
+      pintadas con los estilos publicados el 19 de noviembre («Libro de ruta»): mismos colores, misma tipografía y mismas piezas.
+      Lo único nuevo son las burbujas, las tarjetas y el campo de texto. Los datos son inventados.
+    </p>
+  </header>
+
+  <div class="lam-grid">
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">A</span> Lista de conversaciones <span class="lam-route">#/chat</span></span>
+        <span class="lam-note">Se entra por el icono de chat de la barra superior, junto a tu foto. Su insignia cuenta conversaciones sin leer; el contador azul del renglón, mensajes.</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-a" title="A. Lista de conversaciones"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">B</span> Lista vacía <span class="lam-route">#/chat</span></span>
+        <span class="lam-note">Como los demás vacíos de la app: sin caja, a la izquierda, título rotulado y una sola acción en crema.</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-b" title="B. Lista vacía"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">C</span> Conversación <span class="lam-route">#/chat/:id</span></span>
+        <span class="lam-note">Sin muelle inferior. Lo tuyo a la derecha y lo ajeno a la izquierda, por días. Se ven «Visto», «Mensaje borrado» y un «No enviado» con «Reintentar».</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-c" title="C. Conversación"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">D</span> Hoja del botón «+»</span>
+        <span class="lam-note">La hoja inferior y las opciones son las del kit. «Salida» y «Ruta» llegan con el lote 2; «Proponer salida», con el lote 3.</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-d" title="D. Hoja del botón más"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">E</span> Tarjetas de salida y de ruta</span>
+        <span class="lam-note">La salida viaja con sus cifras y la forma recortada en los extremos; la ruta, con su perfil y dos acciones. Con el campo vacío, enviar queda apagado.</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-e" title="E. Tarjetas de salida y de ruta"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">F</span> Grupo con propuesta de salida</span>
+        <span class="lam-note">En un grupo, cada mensaje ajeno lleva el nombre de quien escribe y no hay «Visto». La propuesta usa el hito de fecha del Plan.</span>
+      </figcaption>
+      <iframe class="lam-frame" data-p="p-f" title="F. Grupo con propuesta de salida"></iframe>
+    </figure>
+
+    <figure class="lam-fig">
+      <figcaption class="lam-cap">
+        <span class="lam-cap-h"><span class="lam-letter">G</span> Solo lectura</span>
+        <span class="lam-note">Al dejar de ser amigos, el campo de texto se sustituye por una línea que lo explica. El historial sigue ahí.</span>
+      </figcaption>
+      <iframe class="lam-frame lam-frame--short" data-p="p-g" title="G. Conversación de solo lectura"></iframe>
+    </figure>
+
+    <aside class="lam-legend" aria-label="Cómo leer la lámina">
+      <h2>Cómo leerla</h2>
+      <ul>
+        <li><b>Tuyo y ajeno, sin depender del color.</b> Tuyo: a la derecha, relleno, esquina recta abajo a la derecha. Ajeno: a la izquierda, papel con un filo fino, esquina recta abajo a la izquierda.</li>
+        <li><b>Un color, un oficio.</b> Crema: enviar y «Me apunto». Azul: lo no leído, «Reintentar» y la fecha del hito. Rojo: solo «No enviado» y la insignia, que es la que ya llevan Retos y el resto.</li>
+        <li><b>No se ve aquí.</b> El escritorio (lista y conversación a la vez), el menú de «Borrar» y «Denunciar» y la propuesta ya respondida.</li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<!-- =====================================================================
+     Las pantallas (cada marco enseña una, por su ancla)
+     ===================================================================== -->
+
+<!-- ============ A. Lista de conversaciones ============ -->
+<div class="app lam-screen" id="p-a">
+  <nav class="tabbar" aria-label="Menú principal">
+    <a class="rail-brand" aria-label="FBikeTrain, inicio"></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg></span><span>Inicio</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>Historial</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></span><span>Rutas</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg></span><span>Plan</span></a>
+    <a class="tab tab--mobile"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg></span><span>Retos</span></a>
+  </nav>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead">
+        <a class="brand" aria-label="FBikeTrain, inicio">
+          <svg class="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+            <path class="brand-mark-relief" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" transform="translate(0 3)" stroke-width="8" stroke-linecap="round"/>
+            <path class="brand-mark-road" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" pathLength="1" stroke-width="7" stroke-linecap="round"/>
+            <circle class="brand-mark-destination" cx="53" cy="9" r="5" stroke-width="2.5"/>
+          </svg>
+          <span class="brand-name" aria-hidden="true">FBikeTrain</span>
+        </a>
+      </div>
+      <span class="appbar-title" aria-hidden="true">Chat</span>
+      <div class="appbar-actions">
+        <a class="icon-btn appbar-chat" aria-label="Chat, 1 conversación sin leer" aria-current="page">
+          <svg class="ic" aria-hidden="true"><use href="#i-message-circle"/></svg>
+          <span class="tab-badge" aria-hidden="true">1</span>
+        </a>
+        <a class="icon-btn appbar-profile" aria-label="Tu perfil"><span class="profile-avatar" aria-hidden="true">L</span></a>
+      </div>
+    </header>
+    <div class="page">
+      <header class="page-head"><h1 class="page-title">Chat</h1></header>
+      <ul class="list list--inset chat-list" aria-label="Conversaciones">
+        <li>
+          <a class="row" aria-label="Ana Ruta, 2 mensajes sin leer. ¿Quedamos a las 8:15 mejor? 10:42">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">A</span></span>
+            <span class="row-main">
+              <span class="row-title">Ana Ruta</span>
+              <span class="row-meta" dir="auto">¿Quedamos a las 8:15 mejor?</span>
+            </span>
+            <span class="row-trail">
+              <span class="chat-row-side">
+                <time class="chat-row-time">10:42</time>
+                <span class="chat-row-count" aria-hidden="true">2</span>
+              </span>
+              <svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="row">
+            <span class="row-lead row-lead--shape" aria-hidden="true"><span class="profile-avatar">M</span></span>
+            <span class="row-main">
+              <span class="row-title">Marc Coll</span>
+              <span class="row-meta" dir="auto">Tú: Mañana te cuento qué tal la subida</span>
+            </span>
+            <span class="row-trail">
+              <span class="chat-row-side"><time class="chat-row-time">Ayer</time></span>
+              <svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </main>
+</div>
+
+<!-- ============ B. Lista vacía ============ -->
+<div class="app lam-screen" id="p-b">
+  <nav class="tabbar" aria-label="Menú principal">
+    <a class="rail-brand" aria-label="FBikeTrain, inicio"></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg></span><span>Inicio</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>Historial</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></span><span>Rutas</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg></span><span>Plan</span></a>
+    <a class="tab tab--mobile"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg></span><span>Retos</span></a>
+  </nav>
+  <main class="main">
+    <header class="appbar">
+      <div class="appbar-lead">
+        <a class="brand" aria-label="FBikeTrain, inicio">
+          <svg class="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true" focusable="false">
+            <path class="brand-mark-relief" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" transform="translate(0 3)" stroke-width="8" stroke-linecap="round"/>
+            <path class="brand-mark-road" d="M10 54C16 42 48 50 48 36C48 23 16 35 16 22C16 12 44 18 53 9" pathLength="1" stroke-width="7" stroke-linecap="round"/>
+            <circle class="brand-mark-destination" cx="53" cy="9" r="5" stroke-width="2.5"/>
+          </svg>
+          <span class="brand-name" aria-hidden="true">FBikeTrain</span>
+        </a>
+      </div>
+      <span class="appbar-title" aria-hidden="true">Chat</span>
+      <div class="appbar-actions">
+        <a class="icon-btn appbar-chat" aria-label="Chat" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-message-circle"/></svg></a>
+        <a class="icon-btn appbar-profile" aria-label="Tu perfil"><span class="profile-avatar" aria-hidden="true">L</span></a>
+      </div>
+    </header>
+    <div class="page">
+      <header class="page-head"><h1 class="page-title">Chat</h1></header>
+      <div class="state">
+        <span class="state-ic" aria-hidden="true"><svg class="ic"><use href="#i-message-circle"/></svg></span>
+        <h2 class="state-title">Aún no has hablado con nadie</h2>
+        <p class="state-text">Aquí verás tus conversaciones. Puedes escribir a cualquiera de tus amigos.</p>
+        <a class="btn btn--primary">Escribe a un amigo</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ C. Conversación de dos (y D, con la hoja encima) ============ -->
+<div class="app lam-screen" id="p-c">
+  <!-- El muelle está en el marcado, como en la app: lo oculta la regla `.app:has(.chat-screen) .tabbar` -->
+  <nav class="tabbar" aria-label="Menú principal">
+    <a class="rail-brand" aria-label="FBikeTrain, inicio"></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-house"/></svg></span><span>Inicio</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-chart-column"/></svg></span><span>Historial</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg></span><span>Rutas</span></a>
+    <a class="tab"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg></span><span>Plan</span></a>
+    <a class="tab tab--mobile"><span class="tab-ic"><svg class="ic" aria-hidden="true"><use href="#i-swords"/></svg></span><span>Retos</span></a>
+  </nav>
+  <main class="main">
+    <div class="chat-screen">
+      <header class="appbar chat-bar">
+        <div class="appbar-lead"><a class="icon-btn" aria-label="Volver a Chat"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-chevron-left"/></svg></a></div>
+        <a class="chat-peer" aria-label="Ana Ruta, ver su perfil">
+          <span class="profile-avatar" aria-hidden="true">A</span>
+          <span class="chat-peer-main"><h1 class="chat-peer-name">Ana Ruta</h1></span>
+        </a>
+        <div class="appbar-actions"></div>
+      </header>
+
+      <div class="chat-thread" role="log" aria-label="Mensajes con Ana Ruta">
+        <section class="chat-day">
+          <h2 class="chat-day-label">Ayer</h2>
+          <ol class="chat-msgs">
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">¿Te apuntas el sábado? Salimos a las 8:30 desde la fuente de la plaza.</span><time class="chat-time">18:02</time></p>
+            </li>
+            <li class="chat-msg chat-msg--own">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Sí, cuenta conmigo</span><time class="chat-time">18:10</time></p>
+            </li>
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Perfecto. La idea es subir por la carretera vieja, parar a desayunar arriba y bajar por el otro lado antes de que apriete el viento. Unos 90 km con calma; si llueve, lo dejamos para el domingo.</span><time class="chat-time">18:14</time></p>
+            </li>
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble chat-bubble--deleted"><svg class="ic" aria-hidden="true"><use href="#i-ban"/></svg>Mensaje borrado</p>
+            </li>
+          </ol>
+        </section>
+        <section class="chat-day">
+          <h2 class="chat-day-label">Hoy</h2>
+          <ol class="chat-msgs">
+            <li class="chat-msg chat-msg--own">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">¿Llevo cámaras de repuesto?</span><time class="chat-time">9:30</time></p>
+              <p class="chat-status">Visto</p>
+            </li>
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Sí, por favor. Yo llevo la bomba.</span><time class="chat-time">10:41</time></p>
+            </li>
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">¿Quedamos a las 8:15 mejor?</span><time class="chat-time">10:42</time></p>
+            </li>
+            <li class="chat-msg chat-msg--own chat-msg--failed">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Vale, a las 8:15 en la fuente</span><time class="chat-time">10:44</time></p>
+              <p class="chat-status chat-status--failed">
+                <svg class="ic" aria-hidden="true"><use href="#i-circle-alert"/></svg>No enviado
+                <button type="button" class="chat-retry">Reintentar</button>
+              </p>
+            </li>
+          </ol>
+        </section>
+      </div>
+
+      <form class="chat-composer">
+        <button type="button" class="icon-btn chat-attach" aria-label="Enviar una salida, una ruta o una propuesta" aria-haspopup="dialog"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <label class="sr-only" for="c-msg">Mensaje</label>
+        <textarea class="chat-input" id="c-msg" rows="1" placeholder="Mensaje" maxlength="2000">Perfecto, nos vemos allí</textarea>
+        <button type="submit" class="chat-send" aria-label="Enviar"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- ============ D. Hoja del botón «+» (componente Sheet del kit, abierta sobre C) ============ -->
+<div class="lam-overlay" id="p-d">
+  <div class="lam-scrim"></div>
+  <dialog class="sheet is-open" open aria-labelledby="d-title">
+    <div class="sheet-grab">
+      <span class="sheet-handle" aria-hidden="true"></span>
+      <div class="sheet-h">
+        <h2 class="sheet-title" id="d-title">Enviar</h2>
+        <button type="button" class="icon-btn" aria-label="Cerrar"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <button type="button" class="choice">
+        <span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-bike"/></svg></span>
+        <span><b>Salida</b><span>Cifras y forma, sin los extremos</span></span>
+        <svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+      </button>
+      <button type="button" class="choice">
+        <span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-route"/></svg></span>
+        <span><b>Ruta</b><span>De Mis rutas o de la biblioteca</span></span>
+        <svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+      </button>
+      <button type="button" class="choice">
+        <span class="row-lead" aria-hidden="true"><svg class="ic"><use href="#i-calendar-plus"/></svg></span>
+        <span><b>Proponer salida</b><span>Día, hora y punto de encuentro</span></span>
+        <svg class="ic chev" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+      </button>
+    </div>
+  </dialog>
+</div>
+
+<!-- ============ E. Tarjetas de salida y de ruta ============ -->
+<div class="app lam-screen" id="p-e">
+  <main class="main">
+    <div class="chat-screen">
+      <header class="appbar chat-bar">
+        <div class="appbar-lead"><a class="icon-btn" aria-label="Volver a Chat"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-chevron-left"/></svg></a></div>
+        <a class="chat-peer" aria-label="Marc Coll, ver su perfil">
+          <span class="profile-avatar" aria-hidden="true">M</span>
+          <span class="chat-peer-main"><h1 class="chat-peer-name">Marc Coll</h1></span>
+        </a>
+        <div class="appbar-actions"></div>
+      </header>
+
+      <div class="chat-thread" role="log" aria-label="Mensajes con Marc Coll">
+        <section class="chat-day">
+          <h2 class="chat-day-label">Hoy</h2>
+          <ol class="chat-msgs">
+            <li class="chat-msg chat-msg--own">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Mira la de ayer</span><time class="chat-time">9:05</time></p>
+            </li>
+            <!-- Tarjeta de salida: forma recortada 500 m por extremo (trazo abierto, sin punto de inicio) -->
+            <li class="chat-msg chat-msg--own chat-msg--card">
+              <article class="chat-card" aria-label="Salida: Vuelta al embalse">
+                <span class="chat-card-shape">
+                  <svg class="shape" viewBox="0 0 308 88" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Forma del recorrido, sin el principio ni el final">
+                    <ellipse class="contour" cx="232" cy="28" rx="28" ry="15" transform="rotate(-14 232 28)"/>
+                    <ellipse class="contour" cx="232" cy="28" rx="62" ry="34" transform="rotate(-14 232 28)"/>
+                    <ellipse class="contour" cx="232" cy="28" rx="100" ry="56" transform="rotate(-14 232 28)"/>
+                    <ellipse class="contour" cx="232" cy="28" rx="142" ry="80" transform="rotate(-14 232 28)"/>
+                    <ellipse class="contour" cx="232" cy="28" rx="188" ry="106" transform="rotate(-14 232 28)"/>
+                    <g transform="translate(8 0) scale(0.95 0.9)">
+                    <path class="halo" d="M118 82C92 80 70 62 84 42C96 24 124 34 144 26C168 16 196 12 218 24C244 38 240 68 214 76C194 82 182 62 162 66C148 69 146 80 134 84"/>
+                    <path class="core" d="M118 82C92 80 70 62 84 42C96 24 124 34 144 26C168 16 196 12 218 24C244 38 240 68 214 76C194 82 182 62 162 66C148 69 146 80 134 84"/>
+                    <path class="thread" d="M118 82C92 80 70 62 84 42C96 24 124 34 144 26C168 16 196 12 218 24C244 38 240 68 214 76C194 82 182 62 162 66C148 69 146 80 134 84"/>
+                    </g>
+                  </svg>
+                </span>
+                <div class="chat-card-body">
+                  <div class="chat-card-head">
+                    <span class="chat-card-kind"><svg class="ic" aria-hidden="true"><use href="#i-bike"/></svg>Salida</span>
+                    <h3 class="chat-card-title" dir="auto">Vuelta al embalse</h3>
+                    <span class="chat-card-sub">Miércoles 18 de noviembre</span>
+                  </div>
+                  <dl class="chat-figs">
+                    <div class="chat-fig"><dt>Distancia</dt><dd>86,4<span class="chat-fig-u">km</span></dd></div>
+                    <div class="chat-fig"><dt>Tiempo</dt><dd>3<span class="chat-fig-u">h</span> 12<span class="chat-fig-u">min</span></dd></div>
+                    <div class="chat-fig"><dt>Desnivel</dt><dd>1.240<span class="chat-fig-u">m</span></dd></div>
+                  </dl>
+                  <time class="chat-time">9:05</time>
+                </div>
+              </article>
+            </li>
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Qué buena. Te paso la del domingo</span><time class="chat-time">9:20</time></p>
+            </li>
+            <!-- Tarjeta de ruta: perfil coloreado por pendiente (clases .profile del kit) -->
+            <li class="chat-msg chat-msg--in chat-msg--card">
+              <article class="chat-card" aria-label="Ruta: Circular de los tres collados">
+                <div class="chat-card-body">
+                  <div class="chat-card-head">
+                    <span class="chat-card-kind"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Ruta</span>
+                    <h3 class="chat-card-title" dir="auto">Circular de los tres collados</h3>
+                  </div>
+                  <svg class="profile" viewBox="0 0 300 60" preserveAspectRatio="none" role="img" aria-label="Perfil de altitud: tres subidas, la más alta a media ruta">
+                    <polygon class="g0" points="0,60 0,51.8 20.5,50.2 20.5,60"/>
+                    <polygon class="g1" points="20,60 20,50.2 40.5,43.6 40.5,60"/>
+                    <polygon class="g3" points="40,60 40,43.6 60.5,32.1 60.5,60"/>
+                    <polygon class="g2" points="60,60 60,32.1 80.5,22.3 80.5,60"/>
+                    <polygon class="g0" points="80,60 80,22.3 100,28.8 120.5,35.4 120.5,60"/>
+                    <polygon class="g2" points="120,60 120,35.4 140.5,25.6 140.5,60"/>
+                    <polygon class="g4" points="140,60 140,25.6 160.5,12.4 160.5,60"/>
+                    <polygon class="g1" points="160,60 160,12.4 180.5,5.9 180.5,60"/>
+                    <polygon class="g0" points="180,60 180,5.9 200,19 220.5,32.1 220.5,60"/>
+                    <polygon class="g1" points="220,60 220,32.1 240.5,28.8 240.5,60"/>
+                    <polygon class="g2" points="240,60 240,28.8 260.5,19 260.5,60"/>
+                    <polygon class="g0" points="260,60 260,19 280,38.7 300,51.8 300,60"/>
+                    <polyline class="edge" vector-effect="non-scaling-stroke" points="0,51.8 20,50.2 40,43.6 60,32.1 80,22.3 100,28.8 120,35.4 140,25.6 160,12.4 180,5.9 200,19 220,32.1 240,28.8 260,19 280,38.7 300,51.8"/>
+                    <line class="base" vector-effect="non-scaling-stroke" x1="0" y1="59.5" x2="300" y2="59.5"/>
+                  </svg>
+                  <dl class="chat-figs">
+                    <div class="chat-fig"><dt>Distancia</dt><dd>72,5<span class="chat-fig-u">km</span></dd></div>
+                    <div class="chat-fig"><dt>Desnivel</dt><dd>1.180<span class="chat-fig-u">m</span></dd></div>
+                  </dl>
+                  <div class="chat-card-actions">
+                    <button type="button" class="btn btn--secondary">Guardar en Mis rutas</button>
+                    <button type="button" class="btn btn--ghost"><svg class="ic" aria-hidden="true"><use href="#i-download"/></svg>Descargar GPX</button>
+                  </div>
+                  <time class="chat-time">9:21</time>
+                </div>
+              </article>
+            </li>
+          </ol>
+        </section>
+      </div>
+
+      <form class="chat-composer">
+        <button type="button" class="icon-btn chat-attach" aria-label="Enviar una salida, una ruta o una propuesta" aria-haspopup="dialog"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <label class="sr-only" for="e-msg">Mensaje</label>
+        <textarea class="chat-input" id="e-msg" rows="1" placeholder="Mensaje" maxlength="2000"></textarea>
+        <button type="submit" class="chat-send" aria-label="Enviar" disabled><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- ============ F. Grupo con propuesta de salida ============ -->
+<div class="app lam-screen" id="p-f">
+  <main class="main">
+    <div class="chat-screen">
+      <header class="appbar chat-bar">
+        <div class="appbar-lead"><a class="icon-btn" aria-label="Volver a Chat"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-chevron-left"/></svg></a></div>
+        <div class="chat-peer">
+          <span class="profile-avatar chat-group-avatar" aria-hidden="true"><svg class="ic"><use href="#i-users"/></svg></span>
+          <span class="chat-peer-main">
+            <h1 class="chat-peer-name">Grupeta del sábado</h1>
+            <span class="chat-peer-sub">5 personas</span>
+          </span>
+        </div>
+        <div class="appbar-actions">
+          <button type="button" class="icon-btn" aria-label="Personas y opciones del grupo"><svg class="ic" aria-hidden="true"><use href="#i-ellipsis"/></svg></button>
+        </div>
+      </header>
+
+      <div class="chat-thread" role="log" aria-label="Mensajes de Grupeta del sábado">
+        <section class="chat-day">
+          <h2 class="chat-day-label">Hoy</h2>
+          <ol class="chat-msgs">
+            <li class="chat-msg chat-msg--in">
+              <span class="chat-author">Ana Ruta</span>
+              <p class="chat-bubble"><span class="chat-text" dir="auto">¿Quién se viene el sábado?</span><time class="chat-time">8:02</time></p>
+            </li>
+            <li class="chat-msg chat-msg--in chat-msg--card">
+              <article class="chat-card" aria-label="Propuesta de salida: Sábado largo por el valle">
+                <div class="chat-card-body">
+                  <span class="chat-card-kind"><svg class="ic" aria-hidden="true"><use href="#i-calendar-plus"/></svg>Propuesta de salida</span>
+                  <div class="chat-plan">
+                    <span class="hito-date" aria-hidden="true"><span class="hito-date-d">sáb</span><span class="hito-date-n">21</span><span class="hito-date-m">nov</span></span>
+                    <div class="chat-card-head">
+                      <h3 class="chat-card-title" dir="auto">Sábado largo por el valle</h3>
+                      <div class="chat-plan-rows">
+                        <span class="chat-plan-row"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg>Sábado 21 de noviembre, 8:30</span>
+                        <span class="chat-plan-row"><svg class="ic" aria-hidden="true"><use href="#i-map-pin"/></svg>Fuente de la plaza</span>
+                      </div>
+                    </div>
+                  </div>
+                  <dl class="chat-figs">
+                    <div class="chat-fig"><dt>Distancia</dt><dd>92<span class="chat-fig-u">km</span></dd></div>
+                    <div class="chat-fig"><dt>Desnivel</dt><dd>1.350<span class="chat-fig-u">m</span></dd></div>
+                  </dl>
+                  <p class="chat-card-going">Van: <b>Ana, Marc</b></p>
+                  <div class="chat-card-actions chat-card-actions--row">
+                    <button type="button" class="btn btn--primary">Me apunto</button>
+                    <button type="button" class="btn btn--secondary">No puedo</button>
+                  </div>
+                  <time class="chat-time">8:03</time>
+                </div>
+              </article>
+            </li>
+            <li class="chat-system">Marc se apunta</li>
+            <li class="chat-msg chat-msg--in">
+              <span class="chat-author">Marc Coll</span>
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Yo voy. ¿Paramos a desayunar a mitad?</span><time class="chat-time">8:15</time></p>
+            </li>
+            <li class="chat-msg chat-msg--own">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Me lo pienso y os digo esta tarde</span><time class="chat-time">8:20</time></p>
+            </li>
+          </ol>
+        </section>
+      </div>
+
+      <form class="chat-composer">
+        <button type="button" class="icon-btn chat-attach" aria-label="Enviar una salida, una ruta o una propuesta" aria-haspopup="dialog"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <label class="sr-only" for="f-msg">Mensaje</label>
+        <textarea class="chat-input" id="f-msg" rows="1" placeholder="Mensaje" maxlength="2000"></textarea>
+        <button type="submit" class="chat-send" aria-label="Enviar" disabled><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- ============ G. Solo lectura: ya no sois amigos ============ -->
+<div class="app lam-screen" id="p-g">
+  <main class="main">
+    <div class="chat-screen">
+      <header class="appbar chat-bar">
+        <div class="appbar-lead"><a class="icon-btn" aria-label="Volver a Chat"><svg class="ic ic-lg" aria-hidden="true"><use href="#i-chevron-left"/></svg></a></div>
+        <a class="chat-peer" aria-label="Pol Serra, ver su perfil">
+          <span class="profile-avatar" aria-hidden="true">P</span>
+          <span class="chat-peer-main"><h1 class="chat-peer-name">Pol Serra</h1></span>
+        </a>
+        <div class="appbar-actions"></div>
+      </header>
+
+      <div class="chat-thread" role="log" aria-label="Mensajes con Pol Serra">
+        <section class="chat-day">
+          <h2 class="chat-day-label">Lunes 16 de noviembre</h2>
+          <ol class="chat-msgs">
+            <li class="chat-msg chat-msg--in">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Avísame si repetís la ruta</span><time class="chat-time">19:40</time></p>
+            </li>
+            <li class="chat-msg chat-msg--own">
+              <p class="chat-bubble"><span class="chat-text" dir="auto">Hecho, te digo algo</span><time class="chat-time">19:52</time></p>
+            </li>
+          </ol>
+        </section>
+      </div>
+
+      <p class="chat-readonly"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg>Ya no sois amigos: no puedes escribir aquí.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Solo en la lámina: cada marco carga este mismo fichero con su pantalla y el tema en curso.
+     (La consulta ?p= hace que la dirección del marco no sea la de la lámina: el navegador no carga un marco con la misma dirección que su página.) -->
+<script>
+  if (window.self === window.top && !location.hash) {
+    var theme = document.documentElement.getAttribute('data-theme');
+    document.querySelectorAll('iframe[data-p]').forEach(function (frame) {
+      frame.src = 'lamina.html?p=' + frame.dataset.p + '&theme=' + theme + '#' + frame.dataset.p;
+    });
+  }
+</script>
+</body>
+</html>

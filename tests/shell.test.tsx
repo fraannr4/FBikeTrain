@@ -128,6 +128,10 @@ describe('screens', () => {
     expect(screenName('/retos')).toBe('Retos');
     expect(screenName('/retos/nuevo')).toBe('Nuevo reto');
     expect(screenName('/retos/abc-123')).toBe('Reto');
+    expect(tabOf('/chat')).toBe('mas');
+    expect(tabOf('/chat/c1')).toBe('mas');
+    expect(screenName('/chat')).toBe('Chat');
+    expect(screenName('/chat/c1')).toBe('Conversación');
   });
 });
 
@@ -135,6 +139,7 @@ describe('navegación social con cuenta', () => {
   it.each([
     ['/perfil', 'Tu perfil'], ['/zona', 'Tu perfil'], ['/amigos', 'Amigos'], ['/perfil/amigos', 'Amigos'],
     ['/personas/p2', 'Ciclistas'], ['/ciclistas', 'Ciclistas'], ['/retos/nuevo', 'Retos'], ['/retos/r1', 'Retos'],
+    ['/chat', 'Chat'], ['/chat/c1', 'Chat'],
   ])('el carril selecciona %s en %s', (pathname, label) => {
     render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
       <MemoryRouter><TabBar pathname={pathname} planBadge={0} /></MemoryRouter>
@@ -146,6 +151,24 @@ describe('navegación social con cuenta', () => {
     // En el móvil, la quinta pestaña es Retos; el perfil se abre desde la foto de la cabecera.
     expect(screen.queryByRole('link', { name: 'Perfil' })).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Retos' }).filter(link => link.classList.contains('tab--mobile'))).toHaveLength(1);
+  });
+
+  it('el carril lleva «Chat» con las conversaciones sin leer; en el chat no se marca ninguna pestaña del móvil', () => {
+    render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1' } as User }}>
+      <MemoryRouter><TabBar pathname="/chat" planBadge={0} chatBadge={2} /></MemoryRouter>
+    </AccountContext.Provider>);
+    const chat = screen.getByRole('link', { name: 'Chat, 2 conversaciones sin leer' });
+    expect(chat).toHaveAttribute('href', '/chat');
+    expect(chat.querySelector('.tab-badge')).toHaveTextContent('2');
+    const current = screen.getAllByRole('link').filter(link => link.getAttribute('aria-current') === 'page');
+    expect(current).toEqual([chat]);
+  });
+
+  it('una cuenta anónima no ve «Chat» en el carril', () => {
+    render(<AccountContext.Provider value={{ client: {} as SupabaseClient, user: { id: 'u1', is_anonymous: true } as User }}>
+      <MemoryRouter><TabBar pathname="/" planBadge={0} chatBadge={2} /></MemoryRouter>
+    </AccountContext.Provider>);
+    expect(screen.queryByRole('link', { name: /Chat/ })).not.toBeInTheDocument();
   });
 
   it('Más sigue disponible y seleccionado al abrir ajustes', () => {

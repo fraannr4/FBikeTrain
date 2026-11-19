@@ -3,8 +3,9 @@ const CONTACT = 'fbiketrain@gmail.com';
 /** Página pública sin dependencias de la sesión ni del almacén de salidas. Garmin exige una política accesible sin cuenta. */
 export function Privacidad() {
   return <main className="privacy-page" id="contenido">
-    <header><p className="page-kicker">FBikeTrain</p><h1 className="page-title">Privacidad</h1><p>Actualizada el 16 de noviembre de 2026.</p></header>
+    <header><p className="page-kicker">FBikeTrain</p><h1 className="page-title">Privacidad</h1><p>Actualizada el 19 de noviembre de 2026.</p></header>
     <section><h2>Tu cuenta y tus salidas</h2><p>FBikeTrain es una aplicación personal de ciclismo. El correo de acceso y la sesión se gestionan con Supabase. Las salidas, tracks, calendario, objetivos y ajustes se guardan en este navegador, separados por cuenta.</p><p>Lo que compartes en la parte social (perfil, amistades, retos y cuaderno) se guarda en Supabase, con acceso limitado a tu cuenta y a las personas que tú permitas. Puedes borrar los datos de este navegador desde Ajustes; una copia de seguridad descargada queda bajo tu control.</p></section>
+    <section><h2>Chat</h2><p>Solo puedes escribir a tus amigos. Los mensajes se guardan en Supabase y solo los leen las personas de cada conversación. No hay cifrado de extremo a extremo: quien administra el proyecto podría leerlos. El texto de un mensaje viaja en el aviso push y aparece en la pantalla de quien lo recibe. Cada uno puede borrar sus mensajes para todos, y al borrar tu cuenta se borran todos tus mensajes. La IA no interviene en el chat.</p></section>
     <section><h2>Garmin Connect</h2>
       <p>Conectar Garmin es opcional y usa la autorización oficial de Garmin: inicias sesión en la web de Garmin y eliges qué permites. FBikeTrain nunca ve ni guarda tu contraseña de Garmin.</p>
       <p>Qué guardamos en el servidor (Supabase): tu identificador de usuario de Garmin, los permisos que concedes y los tokens de acceso, cifrados y ligados a tu cuenta. Nunca llegan al navegador ni a las copias de seguridad.</p>

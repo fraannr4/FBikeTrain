@@ -1,5 +1,21 @@
 # Estado del proyecto FBikeTrain
 
+## Retomar aquí (2026-11-19): chat entre ciclistas, lote 1 publicado
+
+- **Petición:** un chat dentro de la app para hablar, enviarse salidas y rutas y quedar para salir.
+- **Decidido** por el usuario el 2026-11-19 (no se reabre): solo entre amigos; icono con insignia en la barra superior y Retos sigue en la barra inferior; el aviso push lleva nombre y texto; sin cifrado de extremo a extremo; sin fotos; una salida enviada lleva cifras y la forma recortada 500 m por extremo; grupos de hasta 20 en el lote 3; cada uno borra sus mensajes; «Visto» solo de dos; denuncias en el panel de Supabase; una propuesta aceptada pasa sola al Plan; sin recordatorios fuera de la app; «No enviado» con «Reintentar»; estilo «Libro de ruta» con lámina previa; prueba real con su segunda cuenta.
+- **Documentos:** especificación en `docs/superpowers/specs/2026-11-19-chat-design.md`; plan de implementación en `docs/superpowers/plans/2026-11-19-chat.md`.
+- **Lotes:** 0, lámina de diseño para su aprobación; 1, texto entre dos amigos con tiempo real, insignia y push; 2, enviar salidas y rutas; 3, grupos y propuestas de salida.
+- **Hecho:** análisis, decisiones, especificación, plan y lámina del lote 0 (`docs/design/2026-11-19-chat/`: `lamina.html`, capturas a 390 px en claro y oscuro, y `README.md` con las clases `chat-*`).
+- **Lámina aprobada** por el usuario el 2026-11-19, con dos decisiones más: la insignia del icono de chat va en rojo, como la de Retos, y la lista de chats lleva un botón «Nuevo chat» que abre la lista de amigos.
+- **Lote 1, tareas 1 a 5 hechas (2026-11-19):** migración `supabase/migrations/202611190001_chat.sql` con sus pruebas (`npm run test:db` en verde); cliente `src/social/chat.ts`; aviso push del chat en `src/push/service.ts`; icono con insignia en la barra superior y «Chat» en el carril de PC (`src/ui/shell/ChatButton.tsx`, `useChatUnread.ts`); tiempo real con sondeo de reserva en `src/social/chatRealtime.ts`. Verificado con 125 pruebas en 5 archivos y `npx tsc --noEmit`. El estado y las desviaciones de cada tarea están anotados en el plan.
+- **Tarea 6 hecha (2026-11-19):** pantallas `#/chat` (`src/ui/pages/Chats.tsx`) y `#/chat/:id` (`src/ui/pages/Chat.tsx`, con `src/ui/chat/`), estilos en `src/ui/styles/chat.css` copiados de la lámina, «Escribir» en Persona y Amigos, apartado «Chat» en Privacidad y `e2e/chat.spec.ts`. Envío optimista con reintento del mismo id, solo lectura al dejar de ser amigos, «Visto», borrar el tuyo, denunciar y bloquear el ajeno, sondeo de reserva cada 10 s. Sin botón «+» hasta el lote 2.
+- **Tarea 7, verificado el 2026-11-19:** `npm run test:db` en verde; `npx vitest run` con 2144 pruebas en 191 archivos; `npx tsc --noEmit` limpio; `npm run build` bien; `e2e/chat.spec.ts` 14 de 14 a 360, 390, 430 y 1440 px, con capturas miradas en `test-results/chat/`.
+- **Playwright completo, sin resultado:** la pasada local de las 44 specs se abortó el 2026-11-19 por falta de memoria del PC (356 errores `worker process exited unexpectedly`, ninguno de la app). El icono de chat nuevo aparece en la barra superior de casi todas las pantallas, así que conviene repetirla con el PC descargado antes del push; si no, la ejecuta el despliegue de GitHub al subir.
+- **Sin comprobar, solo se puede con la tarea 8:** Realtime con la sesión real, el teclado del iPhone sobre el campo, la pulsación larga en pantalla táctil, el aviso push de un mensaje y cargar mensajes anteriores al subir.
+- **Producción (2026-11-19, con el sí del usuario):** migración `202611190001_chat.sql` aplicada y anotada; función `push` desplegada en la versión 4; `chat_messages` está en la publicación `supabase_realtime`. Detalle en `docs/verificaciones.md`.
+- **Siguiente:** la prueba real del usuario con su segunda cuenta (lista en `docs/verificaciones.md`) y, con su resultado, el lote 2: enviar salidas y rutas.
+
 ## Retomar aquí (2026-11-19): transiciones y cargas
 
 - **Petición:** extender la fluidez de la bienvenida a las cargas, pestañas y vistas interiores, conservando Libro de ruta. Plan: `docs/superpowers/plans/2026-11-19-transiciones.md`.

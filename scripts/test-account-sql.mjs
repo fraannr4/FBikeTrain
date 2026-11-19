@@ -108,6 +108,9 @@ try {
   await db.exec(await readFile(new URL('../supabase/migrations/202611170006_device_sync.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/tests/device_sync.sql', import.meta.url), 'utf8'));
   console.log('PASS: sincronización entre dispositivos: solo lo propio, gana el cambio más reciente, borrados, cuota y sin acceso anónimo.');
+  await db.exec(await readFile(new URL('../supabase/migrations/202611190001_chat.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/tests/chat.sql', import.meta.url), 'utf8'));
+  console.log('PASS: chat: solo miembros leen, escritura solo por RPC, id idempotente, cuotas, amistad y bloqueo, denuncia y aviso push con freno de 20 s.');
 } finally {
   await db.close();
 }

@@ -11,6 +11,7 @@ import { JournalFeed } from '../profile/JournalFeed';
 import { CommunitySafety } from '../profile/CommunitySafety';
 import { FriendshipActions } from '../profile/FriendshipActions';
 import { ProfileStats } from '../profile/ProfileStats';
+import { WriteButton } from '../chat/WriteButton';
 import '../styles/profile.css';
 import '../styles/social.css';
 
@@ -78,6 +79,7 @@ function PersonaView({ account, id }: { account: Account; id: string }) {
       ]} />}>
         {f?.profile.locality && <p className="help">{f.profile.locality}</p>}
         <FriendshipActions client={account.client} targetId={id} name={data.profile.display_name} friendship={f ?? null} busy={busy} act={act} onBlocked={blocked} />
+        {f?.status === 'accepted' && <div className="btn-row"><WriteButton client={account.client} userId={id} name={data.profile.display_name} icon /></div>}
       </ProfileHero>
       <section className="profile-public-journal" aria-label="Cuaderno del ciclista"><div className="profile-journal-heading"><span className="profile-eyebrow">Kilómetros con historia</span><h2>Su cuaderno de ruta</h2><p>Las historias que ha elegido compartir.</p></div><JournalFeed client={account.client} userId={account.user.id} targetId={data.profile.id} /></section>
       <CommunitySafety client={account.client} targetId={id} name={data.profile.display_name} onBlocked={blocked} />

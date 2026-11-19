@@ -31,6 +31,8 @@ const CommunityRetos = lazyPage(() => import('./ui/pages/CommunityRetos').then((
 const CommunityNuevoReto = lazyPage(() => import('./ui/pages/CommunityNuevoReto').then((m) => ({ default: m.CommunityNuevoReto })));
 const NoEncontrada = lazyPage(() => import('./ui/pages/NoEncontrada').then((m) => ({ default: m.NoEncontrada })));
 const CommunityReto = lazyPage(() => import('./ui/pages/CommunityReto').then((m) => ({ default: m.CommunityReto })));
+const Chats = lazyPage(() => import('./ui/pages/Chats').then((m) => ({ default: m.Chats })));
+const Chat = lazyPage(() => import('./ui/pages/Chat').then((m) => ({ default: m.Chat })));
 
 // Destinos de la barra de pestañas: se descargan en un rato libre, después de pintar la primera pantalla.
 const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, CommunityRetos, Mas];
@@ -97,6 +99,8 @@ export function App() {
           <Route path="/retos/anteriores" element={<Retos />} />
           <Route path="/retos/anterior/nuevo" element={<NuevoReto />} />
           <Route path="/retos/:id" element={<Reto />} />
+          <Route path="/chat" element={<Chats />} />
+          <Route path="/chat/:id" element={<Chat />} />
           {/* El plan tuvo los objetivos en la raíz en enlaces antiguos. */}
           <Route path="/objetivos" element={<Navigate to="/plan/objetivos" replace />} />
           <Route path="*" element={<NoEncontrada />} />

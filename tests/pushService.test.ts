@@ -1,4 +1,4 @@
-import { cleanActorName, handlePush, isAllowedPushEndpoint, pushMessage, type PushDependencies, type PushSubscriptionRow } from '../src/push/service';
+import { chatPushMessage, cleanActorName, cleanPreview, handlePush, isAllowedPushEndpoint, pushMessage, type PushDependencies, type PushSubscriptionRow } from '../src/push/service';
 
 const SECRET = 's'.repeat(40);
 const USER = '00000000-0000-0000-0000-000000000011';
@@ -121,6 +121,78 @@ describe('push: texto del aviso', () => {
     expect(Object.keys(payload).sort()).toEqual(['body', 'tag', 'title', 'url']);
     expect(JSON.stringify(payload)).not.toContain(ACTOR);
     expect(JSON.stringify(payload)).not.toContain(USER);
+  });
+});
+
+const CONVERSATION = '00000000-0000-0000-0000-0000000000d1';
+const chatWebhook = (record: Record<string, unknown> = {}) =>
+  webhook({ user_id: USER, kind: 'text', conversation_id: CONVERSATION, actor_name: 'Ana Ruta', title: null, preview: '¿Salimos mañana?', ...record }, { table: 'chat_messages' });
+const sentPayload = (deps: PushDependencies) => JSON.parse(new TextDecoder().decode((deps.encrypt as ReturnType<typeof vi.fn>).mock.calls[0][0] as Uint8Array));
+
+describe('push: avisos del chat', () => {
+  it('chat de dos: título con el nombre y cuerpo con el texto', () => {
+    expect(chatPushMessage('text', CONVERSATION, 'Ana Ruta', null, '¿Salimos mañana?'))
+      .toEqual({ title: 'Ana Ruta', body: '¿Salimos mañana?', url: `#/chat/${CONVERSATION}`, tag: 'chat' });
+  });
+  it('grupo: título con el grupo y el nombre delante del texto', () => {
+    expect(chatPushMessage('text', CONVERSATION, 'Ana Ruta', 'Grupeta sábado', 'vale')).toMatchObject({ title: 'Grupeta sábado', body: 'Ana Ruta: vale' });
+  });
+  it.each([
+    ['text', 'Te ha escrito.', 'Ana ha escrito.', 'Te han escrito.'],
+    ['ride', 'Te ha enviado una salida.', 'Ana ha enviado una salida.', 'Te han enviado una salida.'],
+    ['route', 'Te ha enviado una ruta.', 'Ana ha enviado una ruta.', 'Te han enviado una ruta.'],
+    ['library_route', 'Te ha enviado una ruta.', 'Ana ha enviado una ruta.', 'Te han enviado una ruta.'],
+    ['proposal', 'Propone una salida.', 'Ana propone una salida.', 'Te proponen una salida.'],
+  ])('%s sin texto: dice el tipo, con el nombre donde toca', (kind, direct, group, anonymous) => {
+    expect(chatPushMessage(kind, CONVERSATION, 'Ana', null, null)).toMatchObject({ title: 'Ana', body: direct });
+    expect(chatPushMessage(kind, CONVERSATION, 'Ana', 'Grupeta', null)).toMatchObject({ title: 'Grupeta', body: group });
+    expect(chatPushMessage(kind, CONVERSATION, null, null, null)).toMatchObject({ title: 'Mensaje nuevo', body: anonymous });
+  });
+  it('el texto solo viaja en los mensajes de texto; system y tipos desconocidos no avisan', () => {
+    expect(chatPushMessage('ride', CONVERSATION, 'Ana', null, 'no debe salir')?.body).toBe('Te ha enviado una salida.');
+    for (const kind of ['system', 'otra', 'constructor', '']) expect(chatPushMessage(kind, CONVERSATION, 'Ana', null, 'x')).toBeNull();
+  });
+  it('cleanPreview quita controles y saltos, colapsa espacios y corta a 120 sin partir un emoji', () => {
+    expect(cleanPreview('  Hola\n\n\u202equé\ttal  ')).toBe('Hola qué tal');
+    expect(cleanPreview('x'.repeat(500))).toHaveLength(120);
+    expect(cleanPreview('😀'.repeat(200))).toBe('😀'.repeat(60));
+    expect(cleanPreview(`a${'😀'.repeat(200)}`)).toBe(`a${'😀'.repeat(59)}`);
+    expect(cleanPreview('👨‍👩‍👧 vamos')).toBe('👨‍👩‍👧 vamos');
+    for (const empty of [' \n ', '', 42, null, undefined]) expect(cleanPreview(empty)).toBeNull();
+  });
+  it('handlePush entrega un mensaje de chat y la carga solo lleva título, texto, ruta y etiqueta', async () => {
+    const deps = mock();
+    const response = await handlePush(chatWebhook(), deps);
+    expect(await response.json()).toEqual({ sent: 1, removed: 0, failed: 0 });
+    expect(deps.listSubscriptions).toHaveBeenCalledWith(USER);
+    expect(sentPayload(deps)).toEqual({ title: 'Ana Ruta', body: '¿Salimos mañana?', url: `#/chat/${CONVERSATION}`, tag: 'chat' });
+  });
+  it('limpia lo que llega del trigger: nombre con pinta de enlace, texto con controles y texto largo', async () => {
+    const deps = mock();
+    await handlePush(chatWebhook({ actor_name: 'gana en evil.com', preview: `premio\u202e\n${'x'.repeat(500)}` }), deps);
+    const payload = sentPayload(deps);
+    expect(payload.title).toBe('Mensaje nuevo');
+    expect(payload.body).toHaveLength(120);
+    expect(payload.body.startsWith('premio x')).toBe(true);
+  });
+  it('en un grupo el título es el del grupo y el nombre va delante del texto', async () => {
+    const deps = mock();
+    await handlePush(chatWebhook({ title: 'Grupeta del sábado', preview: 'vale' }), deps);
+    expect(sentPayload(deps)).toMatchObject({ title: 'Grupeta del sábado', body: 'Ana Ruta: vale' });
+  });
+  it('rechaza un mensaje de chat sin conversación válida, sin cuenta válida o sin tipo', async () => {
+    const deps = mock();
+    for (const record of [{ conversation_id: 'no-uuid' }, { conversation_id: undefined }, { user_id: 'no-uuid' }, { kind: 7 }]) {
+      expect((await handlePush(chatWebhook(record), deps)).status).toBe(400);
+    }
+    expect(deps.send).not.toHaveBeenCalled();
+  });
+  it('un mensaje de sistema se ignora sin tocar suscripciones', async () => {
+    const deps = mock();
+    const response = await handlePush(chatWebhook({ kind: 'system' }), deps);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ignored: true });
+    expect(deps.listSubscriptions).not.toHaveBeenCalled();
   });
 });
 
