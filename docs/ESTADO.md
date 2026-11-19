@@ -1,8 +1,17 @@
 # Estado del proyecto FBikeTrain
 
-## Retomar aquí (2026-11-19): rediseño «Libro de ruta», sin commit
+## Retomar aquí (2026-11-19): transiciones y cargas
 
-- **Sin commit.** Todo lo de este apartado está en el árbol de trabajo; `main` sigue en `6fd69ad`. Falta el sí del usuario.
+- **Petición:** extender la fluidez de la bienvenida a las cargas, pestañas y vistas interiores, conservando Libro de ruta. Plan: `docs/superpowers/plans/2026-11-19-transiciones.md`.
+- **Aplicado:** fundidos de 320 ms cuando llega el contenido en `Page`, Inicio, Salida y Cuaderno; cabeceras con desplazamiento corto según el orden de las pestañas; indicadores de segmentados sin lectura síncrona de layout; entrada de las vistas de Retos y Cuaderno. Retos se precarga también en segundo plano, como las otras pestañas.
+- **Ciclista:** entrada suave, trazado que se dibuja y estado textual legible desde el principio. Sin esperas añadidas ni porcentajes ficticios. Se conservan la pausa con pestaña oculta y el movimiento reducido. Las animaciones de contenido se cancelan al navegar, desmontar o activar movimiento reducido; no transforman `main` ni `.page`.
+- **Verificado:** 130 pruebas unitarias focalizadas en 10 archivos (varias pasadas), tipos y build; pasada final de Playwright **18/18** (carga lenta simulada, pestañas, segmentados, cuaderno, teclado y movimiento reducido) y regresión de Inicio con datos sintéticos y vuelta a la altura anterior **1/1**. Capturas en 360/390/412/430 px, apaisado 844×390 y escritorio 1440×900, ambos temas. Detalles en `docs/verificaciones.md`.
+- **Publicación autorizada:** el usuario revisa la versión local y pide subir este lote el 2026-11-19. El push a `main` ejecuta la suite completa y despliega mediante `.github/workflows/deploy.yml`; se comprueba su resultado tras subirlo.
+- **Límites de la validación local:** no se ha ejecutado la suite completa ni probado Safari, Firefox o un móvil físico. Sin cambios en los servicios remotos.
+
+## Retomar aquí (2026-11-19): rediseño «Libro de ruta»
+
+- **Publicado.** `8311c97` (icono y barra de estado en iPhone) y `6e8f46d` (rediseño), desplegados en Pages el 2026-11-19.
 - **Dirección.** `docs/design/2026-11-18-libro-de-ruta/README.md` recoge la investigación con sus fuentes, la auditoría, las tres direcciones comparadas y la especificación. Evoluciona «Relieve grabado»: la marca, los tonos y el logo no cambian.
 - **Qué cambia.** Tipografía de rótulo Big Shoulders Display (`@fontsource/big-shoulders-display`, OFL-1.1) en títulos y cifras. Cajas solo para objetos (una salida, una ruta, un entreno, un formulario); las secciones se separan con aire y la regla fina `--rule`. Crema para la acción principal (`--primary`); azul solo para «tu trazado, ahora y enlaces». Muelle inferior flotante con una raya azul que se desliza a la pestaña activa. Vacíos y errores sin caja, a la izquierda. Escritorio compuesto en `src/ui/styles/escritorio.css`: desde 1024 px, carril de 96 px y dos columnas; desde 1280 px, carril de 184 px con rótulos y lista más detalle en Historial; desde 1440 px, página de hasta 1520 px.
 - **Código tocado fuera del CSS.** `Inicio.tsx` (orden de las secciones, sin lógica), `ListRow.tsx` (usa `NavLink`: la fila de la pantalla abierta lleva `aria-current="page"`), `DuelComparison.tsx` («vs») y los antetítulos de `CommunityReto`, `Perfil`, `Persona` y `ProfileHero`, que pasan a mayúscula inicial.

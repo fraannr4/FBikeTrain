@@ -33,7 +33,7 @@ const NoEncontrada = lazyPage(() => import('./ui/pages/NoEncontrada').then((m) =
 const CommunityReto = lazyPage(() => import('./ui/pages/CommunityReto').then((m) => ({ default: m.CommunityReto })));
 
 // Destinos de la barra de pestañas: se descargan en un rato libre, después de pintar la primera pantalla.
-const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, Mas];
+const TAB_PAGES = [HistoryWorkspace, Rutas, Calendario, CommunityRetos, Mas];
 
 /**
  * Las pantallas anteriores al kit (Inicio, Importar, Ajustes) llevan su propio margen: la `main`

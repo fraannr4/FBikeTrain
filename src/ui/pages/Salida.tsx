@@ -53,6 +53,7 @@ import {
 } from '../icons';
 import { compareRide, shortDate, similarRides, swarm, whenLabel, type CompareRow, type MetricKey } from '../salida/model';
 import { useAnalysis } from '../useAnalysis';
+import { useContentReveal } from '../hooks/useContentReveal';
 
 const UNTITLED = 'Salida sin nombre';
 /** Espacio fino entre cifra y unidad. */
@@ -83,6 +84,7 @@ export function Salida() {
   const [analysed, setAnalysed] = useState<{ id: string; data: Analysed } | null>(null);
   const [cursor, setCursor] = useState<LatLng | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
+  const contentRef = useContentReveal<HTMLDivElement>(base === null, id);
 
   useEffect(() => {
     let alive = true;
@@ -175,7 +177,7 @@ export function Salida() {
   const hasProfile = withMap && gps.some((p) => p.ele !== undefined);
 
   return (
-    <div className={withMap ? 'ride-screen ride-screen--map' : 'ride-screen'}>
+    <div ref={contentRef} className={withMap ? 'ride-screen ride-screen--map' : 'ride-screen'}>
       <AppBar title={name} back="/historial" />
       <div className={withMap ? 'page ride' : 'page ride ride--plain'}>
         <div className="ride-fold">

@@ -1,9 +1,11 @@
 import { GarminHistoryAttribution } from './ActivitySource';
 import type { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AppBar } from './AppBar';
 import { PageHead } from './PageHead';
 import { useDesktopLayout } from '../hooks/useDesktopLayout';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useContentReveal } from '../hooks/useContentReveal';
 
 type Props = {
   /** `h1` de la pantalla (en Subidas, «Historial»: la pestaña). */
@@ -37,12 +39,14 @@ export function Page(props: Props) {
   // Con la prop presente (aunque aún sin mapa) el envoltorio no cambia: los hijos no se remontan al llegar el mapa.
   const withMap = 'desktopMap' in props;
   const desktop = useDesktopLayout();
+  const { pathname } = useLocation();
+  const contentRef = useContentReveal<HTMLDivElement>(!!busy, pathname);
   usePageTitle(barTitle ?? title);
   const cls = ['page', variant ? `page--${variant}` : '', className ?? ''].filter(Boolean).join(' ');
   return (
     <>
       <AppBar title={barTitle ?? title} back={back} actions={actions} />
-      <div className={cls} aria-busy={busy || undefined}>
+      <div ref={contentRef} className={cls} aria-busy={busy || undefined}>
         <PageHead title={title} kicker={kicker} lead={nav ? undefined : lead} />
         <GarminHistoryAttribution />
         {nav}

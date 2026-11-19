@@ -1,5 +1,16 @@
 # Verificaciones (tarea 1, F0)
 
+## Transiciones y cargas, 2026-11-19
+
+- Plan: `docs/superpowers/plans/2026-11-19-transiciones.md`. Entrada de datos y navegación de 320 ms, segmentados sin reflow forzado, vistas de retos/cuaderno y dibujo inicial del trazado del ciclista. Sin esperas mínimas, dependencias nuevas ni cambios en los servicios.
+- Unitarias focalizadas: **130/130** en 10 archivos, ejecutados en grupos. Comandos: `npx vitest run tests/shell.test.tsx tests/kit.test.tsx tests/inicio.test.tsx tests/perfil.test.tsx tests/communityRetos.test.tsx tests/lazyPage.test.tsx` (103); `npx vitest run tests/contentReveal.test.tsx tests/journalFeed.test.tsx tests/salida.test.tsx` (24); `npx vitest run tests/CyclingLoader.test.tsx` (3). El nuevo test verifica borrador/foco conservados, cancelación al cambiar de vista o desmontar, activación de movimiento reducido y funcionamiento sin Web Animations. Avisos de act/flags del router en pruebas existentes; sin fallos.
+- `npx tsc --noEmit` y `npm run build`: correctos. Build final tras el ajuste de Salida y de la cabecera; avisos conocidos de comentarios de zod y chunk principal de más de 500 kB.
+- Pasada final: `npx playwright test e2e/transiciones.spec.ts e2e/navegacion-teclado.spec.ts --workers=2 --output=test-results/motion-final`: **18/18**. Simulación del chunk de Inicio pendiente para ver el ciclista real; al liberarlo aparece el contenido. Se verifica movimiento reducido, navegación Historial/Rutas/Plan, Subidas/Repetidas, vistas de Retos, Cuaderno/Grupeta y foco. Servicios externos interceptados y service worker bloqueado en los escenarios nuevos.
+- Regresión adicional de `e2e/inicio.spec.ts`, «datos de ejemplo con el teclado»: **1/1**, conserva el foco y el scroll al volver de una salida. Esta prueba pasó en una ejecución separada.
+- Capturas inspeccionadas en `test-results/transiciones/`: 360×780, 390×844, 412×915, 430×932, 844×390 y 1440×900, claro/oscuro; ciclista a 360/430 px. Sin desbordamiento horizontal. No se versionan las capturas.
+- Incidencias de la verificación inicial, corregidas antes de la pasada final: las aserciones nuevas suponían «Plan» como título del documento (es «Calendario») y un heading en el vacío de Inicio (es texto del resumen); dos ejecuciones simultáneas de Playwright compartieron la salida de trazas y causaron ENOENT. La pasada final se ejecutó sola y con salida propia. No se cambió el comportamiento de la app para satisfacer esas aserciones.
+- No se ha ejecutado la suite completa localmente. Sin prueba en dispositivo físico ni Safari/Firefox. El usuario ha revisado el resultado y autorizado commit, push y publicación; el workflow de `main` ejecuta la suite completa, SQL, build y escáner de secretos antes de desplegar.
+
 
 ## Publicación y comprobaciones con cuenta real, 2026-11-11 (tarde)
 

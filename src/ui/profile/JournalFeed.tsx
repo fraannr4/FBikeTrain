@@ -11,6 +11,7 @@ import { LikeFor } from '../likes/LikeButton';
 import { useLikes } from '../likes/useLikes';
 import { formatDuration, formatKm, formatMeters } from '../format';
 import { ProfileAvatar } from './ProfileAvatar';
+import { useContentReveal } from '../hooks/useContentReveal';
 
 type Props = {
   client: SupabaseClient;
@@ -32,6 +33,7 @@ export function JournalFeed(props: Props) {
 
 function FeedView({ client, userId, targetId, statsVisibility = 'everyone', showComposer = false, refreshKey }: Props) {
   const [posts, setPosts] = useState<JournalPost[] | null>(null);
+  const contentRef = useContentReveal<HTMLElement>(posts === null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
@@ -92,7 +94,7 @@ function FeedView({ client, userId, targetId, statsVisibility = 'everyone', show
 
   const likes = useLikes(client, userId, 'post', posts?.map(post => post.id) ?? []);
   const mine = targetId === userId;
-  return <section className="journal" aria-label={targetId === null ? 'Feed de amigos' : 'Cuaderno de ruta'}>
+  return <section ref={contentRef} className="journal motion-panel" aria-label={targetId === null ? 'Feed de amigos' : 'Cuaderno de ruta'}>
     {showComposer && <div className="journal-composer">
       {!composer ? <button type="button" className="btn btn--primary journal-write" onClick={() => { setComposer(true); setNotice(''); }}><Pencil className="ic" aria-hidden="true" />Escribir en mi cuaderno</button> :
         <Composer client={client} statsVisibility={statsVisibility} onCancel={() => setComposer(false)} onPublished={() => {

@@ -31,6 +31,7 @@ import { TrendCard } from '../inicio/TrendCard';
 import { weeklyTrend } from '../inicio/trend';
 import { useConnectionRevision } from '../../connections/ConnectionsProvider';
 import { YourData } from '../inicio/YourData';
+import { useContentReveal } from '../hooks/useContentReveal';
 
 const NO_POINTS: TrackPoint[] = [];
 const DAY_MS = 86_400_000;
@@ -74,6 +75,7 @@ export function Inicio() {
   const [restore] = useState(() => (navType === 'POP' ? savedScroll(entry) : undefined));
   const [data, setData] = useState<Data | null>(() => (restore !== undefined ? lastData<Data>() : null));
   const [loadFailed, setLoadFailed] = useState(false);
+  const contentRef = useContentReveal<HTMLDivElement>(!data && !loadFailed);
   /** Sube para volver a leer la base: «Reintentar» o los datos de ejemplo recién guardados. */
   const [version, setVersion] = useState(0);
   const reload = useCallback(() => {
@@ -184,7 +186,7 @@ export function Inicio() {
     );
 
   return (
-    <div className="home">
+    <div className="home" ref={contentRef} aria-busy={!data && !loadFailed || undefined}>
       <h1 className="sr-only" ref={titleRef} tabIndex={-1}>
         Inicio
       </h1>

@@ -9,9 +9,17 @@
 .kpi[aria-pressed]:active, .choice:active, .round:active { transform: scale(0.97); }
 .choice:active { transform: scale(0.985); }  /* ancha, como las filas */
 
-/* ---------- Entrada de pantalla: fundido corto, solo opacidad (la FAB y la barra son fixed) ---------- */
-@keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
-.main[data-screen-enter] { animation: screen-in 140ms var(--ease-out); }
+/* La entrada de pantalla y de datos la controla useContentReveal: se cancela al navegar.
+   Nunca transformar main o page: contienen mapas y controles fijos. */
+.seg-ind--nav { transition: none; } /* SegmentedNav anima entre montajes sin forzar layout. */
+.seg-ind:not(.seg-ind--nav), .tabbar::after { transition-duration: 320ms; }
+.seg button, .seg a { transition: color var(--dur-fast) ease, transform var(--dur-press) var(--ease-out); }
+
+/* Vistas locales: movimiento corto, sin desmontar formularios ni perder el foco. */
+@keyframes panel-in { from { opacity: .5; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  .motion-panel { animation: panel-in 320ms var(--ease-out); }
+}
 
 /* ---------- Entrada de tarjetas: la primera aparición, con escalón corto ----------
    Una animación CSS corre al montar, no al refrescar datos: re-renderizar no la repite. */

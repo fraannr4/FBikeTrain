@@ -115,7 +115,7 @@ function CommunityRetosList({ account }: { account: Account }) {
     {error && <Banner tone="error" action={<button className="btn btn--ghost" onClick={() => void load(true)} disabled={busy}>Reintentar</button>}>{error}</Banner>}
     {notice && <p className="community-notice-line" role="status">{notice}</p>}
     {!rows && !error && <ChallengesSkeleton />}
-    {view === 'notifications' ? <section aria-label="Notificaciones de retos" className="community-stack">
+    {view === 'notifications' ? <section key={view} aria-label="Notificaciones de retos" className="community-stack motion-panel">
       {!notifications.length && <div className="card community-empty"><h2>Al día con la grupeta</h2><p>Aquí aparecerán las invitaciones, respuestas y retos terminados.</p></div>}
       {notifications.map(n => <article key={n.id} className="card community-notice" data-unread={!n.read_at}>
         <div><strong>{n.kind === 'invitation' ? 'Te han invitado a un reto' : n.kind === 'finished' ? 'Reto terminado' : n.kind === 'accepted' ? 'Han aceptado tu reto' : n.kind === 'declined' ? 'Han rechazado una invitación' : n.kind === 'friendship' ? 'Nueva solicitud de amistad' : n.kind === 'friendship_accepted' ? 'Solicitud de amistad aceptada' : 'Novedades en tu reto'}</strong><p>{communityDate(n.created_at)}</p></div>
@@ -123,11 +123,11 @@ function CommunityRetosList({ account }: { account: Account }) {
         {!n.challenge_id && n.actor_id && <Link className="btn btn--secondary" to={`/personas/${n.actor_id}`} onClick={() => void read(n)}>Ver ciclista</Link>}
         {!n.read_at && <button className="btn btn--ghost" onClick={() => void read(n)}>Marcar leído</button>}
       </article>)}
-    </section> : view === 'active' ? <section className="community-stack" aria-label="Retos en juego">
+    </section> : view === 'active' ? <section key={view} className="community-stack motion-panel" aria-label="Retos en juego">
       {invitations.map(c => <InvitationCard key={c.id} challenge={c} userId={userId} busy={busy} likes={likes} onRespond={accept => void respond(c, accept)} />)}
       {active.map(row => <ChallengeCard key={row.id} challenge={row} account={account} likes={likes} />)}
       {rows && !invitations.length && !active.length && <RetosEmpty account={account} />}
-    </section> : <section className="community-stack" aria-label="Historial de retos">
+    </section> : <section key={view} className="community-stack motion-panel" aria-label="Historial de retos">
       {rows && !finished.length && <div className="card community-empty"><h2>Cada reto deja huella</h2><p>Los retos terminados y sus ganadores aparecerán aquí.</p></div>}
       {finished.map(row => <ChallengeCard key={row.id} challenge={row} account={account} likes={likes} />)}
     </section>}

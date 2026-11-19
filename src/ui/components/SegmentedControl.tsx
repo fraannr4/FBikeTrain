@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from '../icons';
+import { useReducedMotion } from '../theme/motion';
+import { REVEAL_TIMING } from '../hooks/useContentReveal';
 
 /** `lead`: marca propia antes del texto (las barras de dificultad), en lugar de `icon`. Va con aria-hidden. */
 type Option<T extends string> = { value: T; label: string; icon?: LucideIcon; lead?: ReactNode };
@@ -84,22 +86,23 @@ export function SegmentedNav({ label, items, current }: { label: string; items: 
     items.findIndex((it) => it.to === current),
   );
   const ind = useRef<HTMLSpanElement>(null);
+  const reduced = useReducedMotion();
 
   useLayoutEffect(() => {
     const el = ind.current;
     const from = lastIndex.get(label);
     lastIndex.set(label, index);
-    if (!el || from === undefined || from === index) return;
-    el.style.transition = 'none';
-    el.style.transform = `translateX(${from * 100}%)`;
-    void el.offsetWidth; // fija la posición de partida antes de la transición
-    el.style.transition = '';
-    el.style.transform = `translateX(${index * 100}%)`;
-  }, [label, index]);
+    if (!el?.animate || reduced || from === undefined || from === index) return;
+    const animation = el.animate([
+      { transform: `translateX(${from * 100}%)` },
+      { transform: `translateX(${index * 100}%)` },
+    ], REVEAL_TIMING);
+    return () => animation.cancel();
+  }, [label, index, reduced]);
 
   return (
     <nav aria-label={label} className="seg seg--quiet" style={{ '--n': items.length } as CSSProperties}>
-      <span ref={ind} className="seg-ind" aria-hidden="true" style={indStyle(index)} />
+      <span ref={ind} className="seg-ind seg-ind--nav" aria-hidden="true" style={indStyle(index)} />
       {items.map((it, i) => (
         <Link key={it.to} to={it.to} replace aria-current={i === index ? 'page' : undefined}>
           {it.icon ? <it.icon className="ic" aria-hidden="true" /> : null}

@@ -16,7 +16,7 @@ export function CyclingLoader({ label, compact = false }: { label?: string; comp
         <path d="M-20 140C45 120 71 150 145 120S270 78 390 82M-20 150C45 130 71 160 145 130S270 88 390 92M-20 160C45 140 71 170 145 140S270 98 390 102" />
       </g>
       <path className="cycling-road-shadow" d="M-5 174L365 113" />
-      <path className="cycling-road" d="M-5 172L365 111" />
+      <path className="cycling-road" pathLength="1" d="M-5 172L365 111" />
       <g className="cycling-road-marks"><path d="M0 179L12 177M48 171L60 169M96 163L108 161M144 155L156 153M192 147L204 145M240 139L252 137M288 131L300 129M336 123L348 121M384 115L396 113" /></g>
       <g transform="translate(88 24) rotate(-9 90 100)">
         <g className="cycling-bike">

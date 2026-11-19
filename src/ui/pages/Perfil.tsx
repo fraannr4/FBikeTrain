@@ -115,7 +115,7 @@ export function Perfil() {
     { value: wins, label: 'Retos ganados', to: '/retos?vista=historial', name: wins === null ? 'Retos ganados, cargando' : `${formatCount(wins)} ${wins === 1 ? 'reto ganado' : 'retos ganados'}` },
     { value: year?.rides ?? null, label: `Salidas ${year?.year ?? new TZDate(Date.now(), TZ).getFullYear()}`, to: '/historial', name: year ? `${formatCount(year.rides)} ${year.rides === 1 ? 'salida' : 'salidas'} en ${year.year}` : 'Salidas del año, cargando' },
   ];
-  return <Page title="Tu perfil" back="/" className="page--profile">
+  return <Page title="Tu perfil" back="/" className="page--profile" busy={!!account && !profile && !error}>
     {!account ? <p>Inicia sesión para ver tu perfil.</p> : <>
       {error && <Banner tone="error" action={!profile ? <button className="btn btn--ghost" onClick={() => setAttempt(n => n + 1)}>Reintentar</button> : undefined}>{error}</Banner>}
       {!profile ? !error && <ProfileSkeleton label="Cargando tu perfil…" /> : <>
